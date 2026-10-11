@@ -153,39 +153,58 @@ export const SCHEMA = {
   },
 };
 
+// カットイン（通常・画像付き）で共通の項目: 段階のしきい値・文字・動き
+const cutinFields = () => ({
+  minCoins: num(100, 'この合計コイン以上のギフトで出す（ここからが青）', { min: 1 }),
+  greenCoins: num(300, 'ここから緑', { min: 1 }),
+  redCoins: num(1000, 'ここから赤（激アツ）', { min: 1 }),
+  goldCoins: num(5000, 'ここから金', { min: 1 }),
+  rainbowCoins: num(20000, 'ここから虹（フリーズ演出つき）', { min: 1 }),
+  gifts: list([], 'このギフト名なら金額に関係なく出す（赤から）'),
+  events: list([], 'フォロー・シェアでも出す（青）', ['follow', 'share']),
+  word: bool(true, '「激アツ」などの文字を出す'),
+  blueText: str('チャンス', '青の文字'),
+  greenText: str('チャンス!!', '緑の文字'),
+  redText: str('激アツ', '赤の文字'),
+  goldText: str('超激アツ', '金の文字'),
+  rainbowText: str('確定', '虹の文字'),
+  angle: num(-8, '帯の傾き（度）', { min: -30, max: 30 }),
+  hold: num(1.1, 'ガガガと揺れている秒数', { min: 0.3, max: 5 }),
+  shake: num(1, '揺れの強さの倍率（0 で揺らさない）', { min: 0, max: 3 }),
+  freeze: bool(true, '虹のときフリーズ演出を入れる'),
+  lines: bool(true, '集中線を出す'),
+  sound: bool(true, '効果音'),
+  volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+});
+
 SCHEMA.cutins = {
   kind: 'map',
   page: 'cutin',
   title: 'カットイン',
   desc:
-    'パチンコのカットイン演出。筆でかすれた帯に画像がフィーンと入り、ガガガと揺れてスッと抜ける。' +
+    '通常カットイン。筆でかすれた帯がフィーンと入り、「激アツ」の文字が叩きつけられ、ガガガと揺れてスッと抜ける。' +
     'ギフトのコインで 青→緑→赤→金→虹 と格上げし、虹は画面が止まってから入る（フリーズ）。' +
     '配信画面いっぱいに重ねる。URL は /widgets/cutin.html?id=<名前>',
   size: () => [1080, 1920],
   fields: {
-    style: oneOf(['band', 'photo'], 'band', 'band 色の帯に画像と文字が乗る / photo 帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる'),
-    photo: str('', '写真（media/ のファイルか URL）。band では帯の左に大きく乗り、photo では帯の中いっぱいに入る。空なら写真なし'),
-    word: bool(true, '「激アツ」などの文字を出す'),
-    minCoins: num(100, 'この合計コイン以上のギフトで出す（ここからが青）', { min: 1 }),
-    greenCoins: num(300, 'ここから緑', { min: 1 }),
-    redCoins: num(1000, 'ここから赤（激アツ）', { min: 1 }),
-    goldCoins: num(5000, 'ここから金', { min: 1 }),
-    rainbowCoins: num(20000, 'ここから虹（フリーズ演出つき）', { min: 1 }),
-    gifts: list([], 'このギフト名なら金額に関係なく出す（赤から）'),
-    events: list([], 'フォロー・シェアでも出す（青）', ['follow', 'share']),
-    blueText: str('チャンス', '青の文字'),
-    greenText: str('チャンス!!', '緑の文字'),
-    redText: str('激アツ', '赤の文字'),
-    goldText: str('超激アツ', '金の文字'),
-    rainbowText: str('確定', '虹の文字'),
-    image: oneOf(['photo', 'avatar', 'gift'], 'photo', 'band のとき帯に乗せるもの。photo 上の写真（なければ何も乗せない）/ avatar 送った人のアイコン / gift ギフトの画像'),
-    angle: num(-8, '帯の傾き（度）', { min: -30, max: 30 }),
-    hold: num(1.1, 'ガガガと揺れている秒数', { min: 0.3, max: 5 }),
-    shake: num(1, '揺れの強さの倍率（0 で揺らさない）', { min: 0, max: 3 }),
-    freeze: bool(true, '虹のときフリーズ演出を入れる'),
-    lines: bool(true, '集中線を出す'),
-    sound: bool(true, '効果音'),
-    volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    ...cutinFields(),
+    yieldToImage: bool(false, '画像付きカットインが出るギフトのときは、こちらを出さない（両方を OBS に入れて重ならないように）'),
+  },
+};
+
+SCHEMA.imageCutins = {
+  kind: 'map',
+  page: 'image-cutin',
+  title: '画像付きカットイン',
+  desc:
+    '写真を使うカットイン。inside は斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる。' +
+    'side は色の帯の横に写真が大きく乗る（背景を切り抜いた PNG がおすすめ）。段階・文字・動きは通常カットインと同じ。' +
+    'URL は /widgets/image-cutin.html?id=<名前>',
+  size: () => [1080, 1920],
+  fields: {
+    photo: str('', '写真（media/ のファイルか URL）。inside で空のときは段階の色で埋める'),
+    layout: oneOf(['inside', 'side'], 'inside', 'inside 帯の中いっぱい（縁が木炭のかすれ線）/ side 色の帯の横に大きく乗る'),
+    ...cutinFields(),
   },
 };
 

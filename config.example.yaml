@@ -51,8 +51,8 @@ counters:
   default:
     show: [likes, viewers]
 
-# カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）
-# ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
+# 通常カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）
+# 筆の帯と文字だけ。ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
 cutins:
   default:
     minCoins: 100
@@ -60,11 +60,14 @@ cutins:
     redCoins: 1000
     goldCoins: 5000
     rainbowCoins: 20000
-    photo: "" # 写真（例: media/my-photo.png）。帯の左に大きく乗る。空なら帯と文字だけ
-  # 写真の帯: 斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる（/widgets/cutin.html?id=photo）
-  photo:
-    style: photo
-    photo: "" # 帯に入れる写真（例: media/my-photo.jpg）。空なら段階の色で埋める
+
+# 画像付きカットイン … /widgets/image-cutin.html（default 以外は ?id=名前）
+# layout: inside 帯の中いっぱいに写真（縁が木炭のかすれ線）/ side 色の帯の横に写真が大きく乗る
+imageCutins:
+  default:
+    photo: "" # 例: media/my-photo.jpg（inside で空なら段階の色で埋める）
+    layout: inside
+    minCoins: 1000 # 画像付きは高額ギフトだけにする例
 
 # ルーレット … /widgets/roulette.html（全部）または ?ids=名前,名前
 # 届いたギフトに合うルーレットに切り替わって回ります。

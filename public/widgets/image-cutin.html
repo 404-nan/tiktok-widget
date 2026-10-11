@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>画像付きカットイン</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<link rel="stylesheet" href="lib/cutin.css">
+</head>
+<body>
+<script type="module">
+  // 画像付きカットイン: 写真を帯の中（縁が木炭）か帯の横に出す。設定は config.yaml の imageCutins
+  import { startCutin } from './lib/cutin.js';
+  startCutin('imageCutins');
+</script>
+</body>
+</html>

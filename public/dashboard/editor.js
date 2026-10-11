@@ -4,7 +4,7 @@
 import { icon } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'cutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'minecraft', 'theme'];
+const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -14,6 +14,7 @@ const ENUM_LABELS = {
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
+  inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -30,7 +31,7 @@ const LABELS = {
   forwardGifts: 'ギフトを SuperStream に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
-  image: '帯に乗せる画像', character: 'キャラ画像', photo: '帯に入れる写真', word: '文字を出す', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
 };
@@ -42,7 +43,8 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['style', 'photo', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
+  imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
@@ -264,7 +266,7 @@ export function createEditor({ api, setMessage }) {
     wrap.className = 'field';
     const label = document.createElement('span');
     label.className = 'field-label';
-    label.textContent = LABELS[key] ?? key;
+    label.textContent = LABELS[`${tab}.${key}`] ?? LABELS[key] ?? key;
     wrap.append(label);
     if (field.desc && field.desc !== LABELS[key]) {
       const hint = document.createElement('span');
@@ -326,6 +328,18 @@ export function createEditor({ api, setMessage }) {
         wrap.append(control, giftChips(control, key));
         control = null;
       }
+    } else if (key === 'photo') {
+      // media/ の画像を候補に出す（URL も書ける）
+      control = document.createElement('input');
+      control.value = value ?? '';
+      control.placeholder = 'media/my-photo.png または https://…';
+      const listId = `media-${Math.random().toString(36).slice(2)}`;
+      control.setAttribute('list', listId);
+      const dl = document.createElement('datalist');
+      dl.id = listId;
+      for (const m of media) dl.append(new Option(m, m));
+      wrap.append(dl);
+      control.addEventListener('input', () => save(key, control.value.trim(), 500));
     } else if (field.type === 'rules' || field.type === 'mcRules') {
       control = document.createElement('textarea');
       control.rows = 6;
@@ -654,9 +668,9 @@ export function createEditor({ api, setMessage }) {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));
     } else if (tab === 'jars') {
       box.append(chip('ゆらす', null, control('gift-jar', 'shake', { id })), chip('中身を空にする', null, control('gift-jar', 'reset', { id })));
-    } else if (tab === 'cutins') {
+    } else if (tab === 'cutins' || tab === 'imageCutins') {
       // 段階ごとに試す（そのコイン数のテストギフトを送る）
-      const e = payload.config.cutins?.[id] ?? {};
+      const e = payload.config[tab]?.[id] ?? {};
       const tiers = [['青', e.minCoins], ['緑', e.greenCoins], ['赤', e.redCoins], ['金', e.goldCoins], ['虹', e.rainbowCoins]];
       box.replaceChildren(
         ...tiers.map(([label, coins]) =>
