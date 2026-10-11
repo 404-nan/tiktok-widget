@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rouletteFor } from '../public/widgets/lib/roulette.js';
+import { rouletteFor, pickWeighted } from '../src/roulette.js';
 
 const gift = (name, totalDiamonds) => ({ kind: 'gift', gift: { name, id: '1' }, totalDiamonds });
 const roulettes = [
@@ -22,4 +22,10 @@ test('コイン数の範囲で選ぶ', () => {
 test('フォローで回るルーレット', () => {
   assert.equal(rouletteFor(roulettes, { kind: 'follow', user: {} }).id, 'mid');
   assert.equal(rouletteFor(roulettes, { kind: 'share', user: {} }), undefined);
+});
+
+test('重みに比例して当たる', () => {
+  const items = [{ label: 'a', weight: 1 }, { label: 'b', weight: 3 }];
+  assert.equal(pickWeighted(items, () => 0.2).label, 'a');
+  assert.equal(pickWeighted(items, () => 0.3).label, 'b');
 });

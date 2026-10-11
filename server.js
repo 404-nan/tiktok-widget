@@ -10,6 +10,10 @@ import { DemoSource, DEMO_GIFTS, makeEvent } from './src/demo.js';
 import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './src/schema.js';
 import YAML from 'yaml';
+import { RouletteEngine } from './src/roulette.js';
+import { Minecraft } from './src/minecraft.js';
+import { History } from './src/history.js';
+import { readProfile, SUPERSTREAM_ACTIONS } from './src/superstream.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3939;
@@ -18,6 +22,16 @@ const HOST = process.env.HOST || '127.0.0.1';
 const hub = new Hub();
 const tiktok = new TikTokSource(hub);
 const demo = new DemoSource(hub);
+const roulette = new RouletteEngine(hub);
+const minecraft = new Minecraft(hub);
+const history = new History(hub);
+
+hub.on('config', (config) => {
+  roulette.setConfig(config);
+  minecraft.setConfig(config.minecraft);
+});
+// ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
+hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
 
 const app = express();
 app.use(express.json());
@@ -37,7 +51,36 @@ app.get('/', (_req, res) => res.redirect('/dashboard/'));
 // --- ダッシュボード用 API ---
 
 app.get('/api/status', (_req, res) => {
-  res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running });
+  res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
+});
+
+// --- 配信の履歴 ---
+
+app.get('/api/history', (_req, res) => res.json(history.list()));
+app.get('/api/history/:id', (req, res) => {
+  const s = history.get(req.params.id);
+  if (!s) return res.status(404).json({ error: '見つかりません' });
+  res.json(s);
+});
+app.delete('/api/history/:id', (req, res) => res.json({ ok: history.remove(req.params.id) }));
+
+// --- Minecraft 連携 ---
+
+app.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
+// SuperStream のプロフィールに設定済みの演出（読むだけ）
+app.get('/api/superstream', (_req, res) => {
+  const mc = hub.config?.minecraft ?? {};
+  res.json({ ...readProfile(mc.superstreamFile, [...hub.seenGifts.values()]), configuredProfile: mc.superstreamProfile, actions: SUPERSTREAM_ACTIONS });
+});
+app.post('/api/minecraft/check', async (_req, res) => res.json(await minecraft.check()));
+app.post('/api/minecraft/command', async (req, res) => {
+  const command = String(req.body?.command ?? '').trim();
+  if (!command) return res.status(400).json({ error: 'コマンドを入力してください' });
+  try {
+    res.json({ ok: true, response: await minecraft.test(command) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
 // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
@@ -158,6 +201,12 @@ app.post('/api/simulate', (req, res) => {
 app.post('/api/control', (req, res) => {
   const { target, action, data } = req.body ?? {};
   if (!target || !action) return res.status(400).json({ error: 'target と action が必要です' });
+  // ルーレットは何が当たるかをサーバーで決める
+  if (target === 'roulette' && action === 'spin') {
+    const spin = roulette.spin(data?.id ?? null);
+    return spin ? res.json({ ok: true, spin }) : res.status(404).json({ error: 'ルーレットの設定がありません' });
+  }
+  if (target === 'roulette' && action === 'reset') roulette.clear();
   hub.control(String(target), String(action), data ?? {});
   res.json({ ok: true });
 });

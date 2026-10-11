@@ -9,6 +9,15 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ルーレット `roulette` | ギフトごとに別のルーレットを回せる。丸型と横スライド型、項目ごとの色と画像 | 丸 600 × 680 / 横 820 × 330 |
 | いいね・視聴者数 `counter` | いいね・視聴者・フォロー・コインなどのスコアボード | 560 × 220 |
 | 目標バー `goal` | フォロー数などの目標までの進み具合。達成後に目標を自動で上げられる | 640 × 180 |
+| ランキング `ranking` | この配信のトップギフター・いいねランキング。順位が入れ替わるとなめらかに動く | 420 × 416（5人） |
+
+管理用の画面は3つです。
+
+| 画面 | URL | 内容 |
+| --- | --- | --- |
+| モニター | `/monitor/` | 配信中に手元（別画面・スマホ）で見る。コイン・視聴者などの数字、ライブのコメントとギフト、ルーレットの待ちと結果、目標、トップギフター、Minecraft に送ったコマンド |
+| 統計 | `/history/` | 配信ごとの記録。1分ごとのコイン・視聴者・いいねのグラフ、前回との比較、トップギフター、ギフトの内訳、ルーレットの結果 |
+| 設定 | `/dashboard/` | 接続、テスト送信、各ウィジェットと Minecraft 連携の設定、YAML の編集 |
 
 ## 使い方
 
@@ -34,6 +43,7 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 | `TIKTOK_SIGN_API_KEY` | 署名サーバー（Euler Stream）の API キー。つながりにくいときに設定 |
 | `TW_CONFIG` | 設定ファイルの場所（既定はこのフォルダの config.yaml） |
 | `TW_SERVER` | MCP / CLI から見たサーバーの URL（既定 http://127.0.0.1:3939） |
+| `TW_DATA` | 配信の記録を置く場所（既定はこのフォルダの data/） |
 
 ## 設定ファイル（config.yaml）
 
@@ -67,6 +77,38 @@ roulettes:
 
 書ける項目の一覧は `npm run tw -- reference`（ダッシュボードのフォームにも説明が出ます）。
 
+## Minecraft / SuperStream 連携
+
+Minecraft サーバーの RCON にコマンドを送れます（`config.yaml` の `minecraft`）。
+SuperStream（TikTok のギフトで Minecraft に演出を起こすプラグイン）の演出も、このツールから起こせます。
+
+```yaml
+minecraft:
+  enabled: true
+  host: 127.0.0.1
+  port: 25575                 # server.properties の rcon.port
+  password: "..."             # server.properties の rcon.password
+  superstreamProfile: default_profile
+  superstreamFile: ~/server/plugins/SuperStream/profiles/default_profile.yml   # 設定済みの演出を一覧するため（任意）
+  rules:
+    - events: [follow]
+      superstreamAction: lightning            # SuperStream の演出を1つ（ss test action）
+      commands: ["say {user} さん、フォローありがとう！"]
+    - minCoins: 1000
+      superstreamGift: 6001                   # プロフィールのギフト 6001 の演出（ss test profile）
+roulettes:
+  punishment:
+    items:
+      - {label: 隕石が降る, superstreamGift: 6001}   # 当たったら起こす（結果が画面に出たタイミング）
+      - {label: ダイヤ, commands: ["give @a diamond 1"]}
+```
+
+- **ルールごと**: ギフト名・コイン数・フォロー/シェア/いいね・ユーザーを条件に、コマンドや SuperStream の演出を送ります
+- **ルーレットの結果**: 当たりの項目の `commands` / `superstreamGift` / `superstreamAction` を、結果が画面に出たタイミングで送ります（ルーレットの抽選はサーバーで行うので、OBS とプレビューなど複数の画面でも結果はそろいます）
+- **ギフトをそのまま渡す** (`forwardGifts: true`): 届いたギフトごとに `ss test profile <プロフィール> <ギフトID>` を送ります。SuperStream 側で `/ss profile start` していないとき用です（両方動かすと演出が二重になります）
+- `{user}` などの視聴者由来の文字は、コマンドに入る前に記号を取り除きます
+- 設定画面の「Minecraft 連携」タブで、接続の確認、コマンドの試し打ち、SuperStream のプロフィールの演出の試し打ち、送ったコマンドの記録を見られます
+
 ## AI から設定する
 
 ### MCP サーバー
@@ -85,6 +127,8 @@ Claude Desktop などは設定ファイルの `mcpServers` に追加します（
 | `set_config` / `merge_config` / `delete_config` / `replace_config` | 設定を変える（コメントは残る。エラーなら保存しない） |
 | `list_widget_urls` / `list_gifts` / `list_media` / `add_media_from_url` | URL・ギフト名・画像を調べる、画像を取り込む |
 | `test_event` / `spin_roulette` / `get_status` | 動きを確かめる（サーバー起動中） |
+| `list_superstream_actions` / `minecraft_command` | SuperStream の設定済みの演出を見る、Minecraft にコマンドを送る |
+| `get_history` | 過去の配信の記録（「前回の配信を分析して」など） |
 
 ### CLI
 
@@ -98,6 +142,9 @@ npm run tw -- merge roulettes.reward "{style: strip, duration: 8}"
 npm run tw -- test gift Rose 3
 npm run tw -- spin punishment
 npm run tw -- urls
+npm run tw -- superstream
+npm run tw -- mc "ss status"
+npm run tw -- history
 ```
 
 ## URL パラメータ
@@ -130,13 +177,20 @@ server.js              Express + WebSocket（/ws でウィジェットにイベ�
 src/schema.js          設定の項目・初期値・説明（検証・フォーム・AI 向けの説明の元）
 src/config.js          設定ファイルの検証・読み書き（コメントを残す）・監視
 src/admin.js           MCP と CLI が共通で使う操作
+src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
+src/minecraft.js       Minecraft 連携（ルール・ルーレットの結果 → RCON）
+src/rcon.js            RCON クライアント
+src/superstream.js     SuperStream のプロフィールを読む（演出の一覧）
+src/history.js         配信ごとの記録（data/sessions/）
 mcp/server.js          MCP サーバー
 bin/tw.js              CLI
 src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は自動で再接続）
 src/normalize.js       生データをウィジェット用の形にそろえる（連打ギフトは確定時に1件）
 src/hub.js             集計（いいね・視聴者・コイン・トップギフター）と配信
 src/demo.js            デモ・テスト用のイベント
-public/dashboard/      管理画面
+public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
+public/monitor/        配信中モニター
+public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト
 ```

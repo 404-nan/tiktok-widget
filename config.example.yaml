@@ -62,6 +62,7 @@ roulettes:
       - ハズレ
       - {label: 歌う, weight: 2, image: media/samples/mic.svg}
       - {label: 激辛チャレンジ, image: media/samples/chili.svg}
+      - {label: 隕石が降る, color: ink-2, superstreamGift: 6001}
       - 一発ギャグ
       - {label: 変顔, weight: 2}
   reward:
@@ -74,3 +75,38 @@ roulettes:
       - {label: リクエスト曲, image: media/samples/note.svg}
       - {label: プレゼント, image: media/samples/gift.svg, color: gold}
       - {label: もう一回, color: ink-2}
+
+# ランキング … /widgets/ranking.html（default 以外は ?id=名前）
+rankings:
+  default:
+    title: トップギフター
+    metric: coins # coins / gifts / likes
+    limit: 5
+  likes:
+    title: いいねランキング
+    metric: likes
+    limit: 3
+
+# Minecraft 連携（RCON）… SuperStream と組み合わせて使えます
+# server.properties で enable-rcon=true / rcon.port / rcon.password を設定してください。
+# commands の {user} {gift} {count} {coins} {item} {roulette} は置き換わります。
+# superstreamGift: そのギフト ID に SuperStream で設定した演出を起こす（ss test profile）
+# superstreamAction: SuperStream の演出を1つ起こす（ss test action。例 lightning / meteorite）
+minecraft:
+  enabled: false
+  host: 127.0.0.1
+  port: 25575
+  password: ""
+  superstreamProfile: default_profile
+  # SuperStream のプロフィールの場所（書くと、設定済みの演出をダッシュボードや AI で一覧できる）
+  superstreamFile: ""
+  # true: 届いたギフトをそのまま SuperStream に渡す（SuperStream 側で /ss profile start していないとき用）
+  forwardGifts: false
+  rules:
+    - name: フォローで雷
+      events: [follow]
+      superstreamAction: lightning
+      commands: ["say {user} さん、フォローありがとう！"]
+    - name: 1000 コイン以上で隕石
+      minCoins: 1000
+      superstreamGift: 6001

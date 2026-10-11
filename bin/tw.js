@@ -25,6 +25,13 @@ const HELP = `使い方: tw <コマンド>
   media                     media/ の画像一覧
   media add <url> [name]    画像を media/ に取り込む
 
+Minecraft / SuperStream
+  superstream               SuperStream のプロフィールに設定済みの演出
+  mc <command>              Minecraft にコマンドを送る（例: tw mc "ss status"）
+
+履歴（サーバー起動中のみ）
+  history [id]              配信の一覧、または1回分の詳細
+
 テスト（サーバー起動中のみ）
   test gift <名前> [個数] [1個のコイン]
   test like [数] | test follow | test share | test chat
@@ -99,6 +106,23 @@ try {
               ? { viewers: Number(a) || undefined }
               : {};
       print(await admin.testEvent(kind, opts));
+      break;
+    }
+    case 'superstream': {
+      const r = await admin.superstream();
+      if (r.error) print(`注意: ${r.error}`);
+      else print(`プロフィール: ${r.profile}（${r.file}）`);
+      for (const g of r.gifts) print(`  ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join(', ')}`);
+      print(`組み込みの演出: ${r.actions.join(', ')}`);
+      break;
+    }
+    case 'mc':
+      print((await admin.minecraftCommand(args.join(' '))) || '（返事なし）');
+      break;
+    case 'history': {
+      const r = await admin.history(args[0]);
+      if (args[0]) print(r);
+      else for (const s of r) print(`${s.id}${s.live ? '（配信中）' : ''}\t${Math.round(s.durationMs / 60000)}分\tコイン ${s.totals.coins}\tフォロー ${s.totals.follows}\t最大視聴者 ${s.totals.peakViewers}`);
       break;
     }
     case 'spin':

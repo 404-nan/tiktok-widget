@@ -191,6 +191,51 @@ server.registerTool(
 );
 
 server.registerTool(
+  'list_superstream_actions',
+  {
+    title: 'SuperStream の演出一覧',
+    description:
+      'SuperStream（Minecraft のプラグイン）のプロフィールに設定済みの「ギフト ID → 演出」と、組み込みの演出の種類。' +
+      'minecraft.rules やルーレットの項目の superstreamGift / superstreamAction を決めるのに使う。' +
+      'minecraft.superstreamFile にプロフィールのファイルの場所が必要。',
+    annotations: readOnly,
+  },
+  wrap(async () => {
+    const r = await admin.superstream();
+    const lines = [
+      r.error ? `注意: ${r.error}` : `プロフィール: ${r.profile}（${r.file}）${r.tiktokUsername ? ` TikTok: @${r.tiktokUsername}` : ''}`,
+      `config の superstreamProfile: ${r.configuredProfile}`,
+      ...r.gifts.map((g) => `- ギフト ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join(', ') || '演出なし'}`),
+      '',
+      `組み込みの演出（superstreamAction に書ける種類）: ${r.actions.join(', ')}`,
+    ];
+    return text(lines.join('\n'));
+  }),
+);
+
+server.registerTool(
+  'minecraft_command',
+  {
+    title: 'Minecraft にコマンドを送る',
+    description: 'RCON で Minecraft サーバーにコマンドを1つ送り、返事を返す（サーバー起動中・minecraft.enabled が必要）。接続の確認や SuperStream の演出の試し打ちに。',
+    inputSchema: { command: z.string().describe('例: "list" / "ss status" / "ss test action default_profile lightning"') },
+    annotations: { openWorldHint: true },
+  },
+  wrap(async ({ command }) => text((await admin.minecraftCommand(command)) || '（返事なし）')),
+);
+
+server.registerTool(
+  'get_history',
+  {
+    title: '配信の履歴',
+    description: 'id を省くと過去の配信の一覧（日時・長さ・コイン・フォロー・最大視聴者）。id を指定すると1回分の詳細（1分ごとの推移・ギフトを送った人・ギフトの種類・ルーレットの結果）。',
+    inputSchema: { id: z.string().optional() },
+    annotations: { readOnlyHint: true },
+  },
+  wrap(async ({ id }) => text(await admin.history(id))),
+);
+
+server.registerTool(
   'get_status',
   { title: '接続状態と集計', description: 'TikTok との接続状態と、いいね・視聴者・コインなどの集計（サーバー起動中のみ）。', annotations: { readOnlyHint: true } },
   wrap(async () => {

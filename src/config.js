@@ -59,6 +59,8 @@ function checkValue(field, value, where, issues) {
       return checkItems(value, where, issues);
     case 'rules':
       return checkRules(value, where, issues);
+    case 'mcRules':
+      return checkMcRules(value, where, issues);
     default:
       return value;
   }
@@ -92,7 +94,9 @@ function checkItems(value, where, issues) {
       else issues.errors.push(`${at}.${key}: 色は #RRGGBB か ${COLOR_TOKENS.join(' / ')} で書いてください`);
     }
     if (raw.image != null) item.image = String(raw.image);
-    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image'];
+    if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
+    checkSuperStream(raw, item, at, issues);
+    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });
@@ -125,6 +129,73 @@ function checkRules(value, where, issues) {
     if (!RULE_MATCH.some((k) => k in rule)) issues.warnings.push(`${at}: 条件（gifts / users / minCoins）がないので全部に当てはまります`);
     for (const key of Object.keys(raw)) {
       if (![...RULE_MATCH, ...RULE_SET].includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    }
+    return rule;
+  });
+}
+
+function checkCommands(value, where, issues) {
+  const arr = Array.isArray(value) ? value : [value];
+  const out = [];
+  for (const c of arr) {
+    if (typeof c !== 'string' || !c.trim()) {
+      issues.errors.push(`${where}: コマンドは文字で書いてください`);
+      continue;
+    }
+    if (/[\r\n]/.test(c)) {
+      issues.errors.push(`${where}: コマンドは1行ずつ書いてください`);
+      continue;
+    }
+    out.push(c.trim().replace(/^\//, ''));
+  }
+  return out;
+}
+
+// SuperStream の演出の指定（ギフト ID か、演出の種類）
+function checkSuperStream(raw, out, at, issues) {
+  if (raw.superstreamGift != null) {
+    const id = String(raw.superstreamGift).trim();
+    if (/^\d+$/.test(id)) out.superstreamGift = id;
+    else issues.errors.push(`${at}.superstreamGift: SuperStream のギフト ID（数字）で書いてください`);
+  }
+  if (raw.superstreamAction != null) {
+    const a = String(raw.superstreamAction).trim();
+    if (a && !/[\r\n]/.test(a)) out.superstreamAction = a;
+    else issues.errors.push(`${at}.superstreamAction: 演出の種類を1行で書いてください（例: lightning）`);
+  }
+}
+
+const MC_EVENTS = ['gift', 'follow', 'share', 'like'];
+function checkMcRules(value, where, issues) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    issues.errors.push(`${where}: 一覧で書いてください`);
+    return [];
+  }
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    if (!raw || typeof raw !== 'object') {
+      issues.errors.push(`${at}: { gifts: [...], commands: [...] } のように書いてください`);
+      return { commands: [] };
+    }
+    const rule = { commands: checkCommands(raw.commands ?? [], `${at}.commands`, issues) };
+    checkSuperStream(raw, rule, at, issues);
+    if (!rule.commands.length && !rule.superstreamGift && !rule.superstreamAction) {
+      issues.errors.push(`${at}: commands / superstreamGift / superstreamAction のどれかを書いてください`);
+    }
+    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
+    if (raw.users != null) rule.users = checkValue({ type: 'list', default: [] }, raw.users, `${at}.users`, issues);
+    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: MC_EVENTS }, raw.events, `${at}.events`, issues);
+    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    if (raw.perCount != null) rule.perCount = checkValue({ type: 'boolean', default: false }, raw.perCount, `${at}.perCount`, issues);
+    if (raw.name != null) rule.name = String(raw.name);
+    if (!rule.gifts && !rule.events && rule.minCoins == null && !rule.users) {
+      issues.warnings.push(`${at}: 条件（gifts / events / minCoins / users）がないので、ギフトのたびに実行されます`);
+    }
+    for (const key of Object.keys(raw)) {
+      if (!['commands', 'gifts', 'users', 'events', 'minCoins', 'perCount', 'name', 'superstreamGift', 'superstreamAction'].includes(key)) {
+        issues.warnings.push(`${at}.${key}: 使われない項目です`);
+      }
     }
     return rule;
   });

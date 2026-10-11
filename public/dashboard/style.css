@@ -389,3 +389,82 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 
 /* 項目の色見本（テーマの色の名前を CSS の色にする） */
 :root { --tok-accent: #FF4F1F; --tok-gold: #FFC53D; --tok-ink: #111113; --tok-ink-2: #1D1D21; --tok-paper: #F6F5F1; }
+
+/* --- 画面の切り替え --- */
+.nav { display: flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-decoration: none;
+}
+.nav a .icon { --size: 15px; }
+.nav a[aria-current=page] { background: var(--accent-fill); color: var(--text-primary); box-shadow: var(--bevel); }
+@media (max-width: 600px) {
+  .topbar { flex-wrap: wrap; }
+  .nav { order: 3; width: 100%; justify-content: space-between; }
+  .nav a { flex: 1; justify-content: center; padding: 0 8px; }
+}
+
+/* --- Minecraft のタブ --- */
+.preview-col.mc-mode > :not(#mcPanel):not(.form-message) { display: none; }
+.mc-panel { gap: 16px; }
+.mc-status { font-size: 14px; }
+.ss-list { display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.ss-item {
+  display: grid;
+  grid-template-columns: 52px minmax(0, auto) 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--fill-tertiary);
+  box-shadow: inset 0 0 0 1px var(--stroke-secondary);
+  text-align: left;
+  font-size: 14px;
+}
+.ss-item .num { font-family: "Barlow Condensed", sans-serif; font-size: 18px; font-weight: 600; }
+.ss-item .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-log { margin: 0; max-height: 280px; }
+.mc-log li { grid-template-columns: 64px 18px 1fr; padding: 4px 0; min-height: 34px; }
+.mc-log .fail { color: var(--error); }
+.item-mc select { flex: 1 1 100%; }
+
+/* --- グラフ --- */
+.chart { position: relative; }
+.chart svg { display: block; overflow: visible; }
+.chart .grid { stroke: var(--stroke-secondary); stroke-width: 1; }
+.chart .axis { fill: var(--text-tertiary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chart .value { fill: var(--text-secondary); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.chart .bar { fill: var(--text-primary); opacity: .5; transition: opacity var(--press); }
+.chart .bar.hover { opacity: .85; }
+.chart .bar.hi { fill: var(--attention); opacity: 1; }
+.chart .line { fill: none; stroke: var(--text-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .area { fill: var(--text-primary); opacity: .08; }
+.chart .dot { fill: var(--text-primary); stroke: var(--page); stroke-width: 2; }
+.chart .cross { stroke: var(--stroke-primary); stroke-width: 1; }
+.chart .hit { fill: transparent; outline: none; }
+.chart-tip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--glass-solid);
+  box-shadow: var(--shadow), inset 0 0 0 1px var(--stroke-secondary);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.chart-tip strong { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-tip span { font-size: 12px; color: var(--text-secondary); }
+.panel { min-width: 0; }
+.chart { min-width: 0; }
+.chart svg { width: 100%; height: auto; }

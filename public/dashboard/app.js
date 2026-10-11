@@ -1,93 +1,6 @@
 import { connect, fmt, icon } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
-
-
-const $ = (id) => document.getElementById(id);
-const store = {
-  get(key, fallback) {
-    try {
-      const v = localStorage.getItem(`tw:${key}`);
-      return v == null ? fallback : JSON.parse(v);
-    } catch {
-      return fallback;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(`tw:${key}`, JSON.stringify(value));
-    } catch {}
-  },
-};
-
-async function api(path, body) {
-  const res = await fetch(path, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
-// --- パネルの塗り（なめらかな角） ---
-
-function continuousCornerPath(w, h, r) {
-  r = Math.min(r, Math.min(w, h) / (2 * 1.528665));
-  const f = (n) => +n.toFixed(3);
-  const a = 1.528665 * r, b = 1.088493 * r, c = 0.868407 * r, d = 0.631494 * r,
-    e = 0.074911 * r, g = 0.372824 * r, k = 0.16906 * r;
-  return [
-    `M ${f(a)} 0`, `L ${f(w - a)} 0`,
-    `C ${f(w - b)} 0 ${f(w - c)} 0 ${f(w - d)} ${f(e)}`,
-    `C ${f(w - g)} ${f(k)} ${f(w - k)} ${f(g)} ${f(w - e)} ${f(d)}`,
-    `C ${f(w)} ${f(c)} ${f(w)} ${f(b)} ${f(w)} ${f(a)}`,
-    `L ${f(w)} ${f(h - a)}`,
-    `C ${f(w)} ${f(h - b)} ${f(w)} ${f(h - c)} ${f(w - e)} ${f(h - d)}`,
-    `C ${f(w - k)} ${f(h - g)} ${f(w - g)} ${f(h - k)} ${f(w - d)} ${f(h - e)}`,
-    `C ${f(w - c)} ${f(h)} ${f(w - b)} ${f(h)} ${f(w - a)} ${f(h)}`,
-    `L ${f(a)} ${f(h)}`,
-    `C ${f(b)} ${f(h)} ${f(c)} ${f(h)} ${f(d)} ${f(h - e)}`,
-    `C ${f(g)} ${f(h - k)} ${f(k)} ${f(h - g)} ${f(e)} ${f(h - d)}`,
-    `C 0 ${f(h - c)} 0 ${f(h - b)} 0 ${f(h - a)}`,
-    `L 0 ${f(a)}`,
-    `C 0 ${f(b)} 0 ${f(c)} ${f(e)} ${f(d)}`,
-    `C ${f(k)} ${f(g)} ${f(g)} ${f(k)} ${f(d)} ${f(e)}`,
-    `C ${f(c)} 0 ${f(b)} 0 ${f(a)} 0`, 'Z',
-  ].join(' ');
-}
-
-function setupPanels() {
-  const native = CSS.supports('corner-shape', 'squircle');
-  const ro = native
-    ? null
-    : new ResizeObserver((entries) => {
-        for (const { target, contentRect } of entries) {
-          target.style.clipPath = `path("${continuousCornerPath(contentRect.width, contentRect.height, 24)}")`;
-        }
-      });
-  for (const panel of document.querySelectorAll('.panel')) {
-    const bg = document.createElement('div');
-    bg.className = 'panel-bg';
-    panel.prepend(bg);
-    if (ro) {
-      bg.style.borderRadius = '0';
-      ro.observe(bg);
-    }
-  }
-}
-
-// --- テーマ ---
-
-function setupTheme() {
-  const apply = (t) => (document.documentElement.dataset.theme = t);
-  apply(store.get('theme', 'dark'));
-  $('themeBtn').addEventListener('click', () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    apply(next);
-    store.set('theme', next);
-  });
-}
+import { $, store, api, setupChrome, statusText } from './common.js';
 
 // --- 接続状態 ---
 
@@ -96,8 +9,7 @@ let mode = 'idle';
 function renderStatus(status) {
   mode = status.mode;
   $('status').dataset.mode = status.mode;
-  const labels = { idle: '未接続', connecting: '接続中', live: 'LIVE', demo: 'デモ', error: 'エラー', ended: '配信終了' };
-  $('statusText').textContent = status.username && status.mode === 'live' ? `LIVE · @${status.username}` : labels[status.mode] ?? status.mode;
+  $('statusText').textContent = statusText(status);
   const active = ['live', 'connecting', 'demo'].includes(status.mode);
   $('disconnectBtn').hidden = !active;
   $('connectBtn').hidden = active;
@@ -237,9 +149,7 @@ function clearLog() {
 
 // --- 起動 ---
 
-for (const el of document.querySelectorAll('[data-icon]')) el.prepend(icon(el.dataset.icon));
-setupPanels();
-setupTheme();
+setupChrome('settings');
 setupKpis();
 setupConnect();
 setupSimulate();
@@ -271,4 +181,5 @@ connect({
   // AI やエディタで config.yaml が書き換えられたとき
   config: () => editor.onConfigChanged(),
   configError: (errors) => editor.onConfigError(errors),
+  minecraft: (msg) => editor.onMinecraft(msg),
 });

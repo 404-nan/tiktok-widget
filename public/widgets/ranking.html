@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ランキング</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  body { padding: 24px; }
+
+  .board {
+    background: var(--surface);
+    border-left: 6px solid var(--signal);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+    overflow: hidden;
+    transition: opacity .3s linear;
+  }
+  .board.empty.hide-empty { opacity: 0; }
+
+  .head { display: flex; align-items: center; gap: 8px; padding: 14px 20px 12px 16px; box-shadow: inset 0 -1px 0 var(--rule); }
+  .head .icon { --size: 18px; color: var(--signal); }
+  .head .title { font-size: 17px; font-weight: 900; letter-spacing: .02em; flex: 1; }
+  .head .unit { font-size: 12px; font-weight: 700; color: var(--on-surface-dim); letter-spacing: .08em; }
+
+  .rows { position: relative; }
+  .row {
+    display: grid;
+    grid-template-columns: 40px auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    height: 64px;
+    padding: 0 20px 0 14px;
+    box-shadow: inset 0 -1px 0 var(--rule);
+    transition: transform .6s var(--ease-out);
+  }
+  .row:last-child { box-shadow: none; }
+  .no-avatars .row { grid-template-columns: 40px 1fr auto; }
+  .no-avatars .avatar { display: none; }
+  .row.enter { animation: enter .5s var(--ease-wipe); }
+  @keyframes enter { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+  .rank { font-family: var(--font-num); font-weight: 700; font-size: 30px; line-height: 1; text-align: center; color: var(--on-surface-dim); }
+  .row:nth-child(1) .rank { color: var(--gold); }
+  .row:nth-child(2) .rank, .row:nth-child(3) .rank { color: var(--on-surface); }
+  .name { font-size: 18px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .value { display: flex; align-items: center; gap: 6px; font-size: 28px; line-height: 1; }
+  .value .icon { --size: 18px; color: var(--gold); }
+  .metric-likes .value .icon { color: var(--signal); }
+  .row.bump .value { animation: bump .6s var(--ease-out); }
+  @keyframes bump { 30% { color: var(--gold); } }
+
+  .placeholder { padding: 18px 20px; font-size: 14px; font-weight: 700; color: var(--on-surface-dim); }
+</style>
+</head>
+<body>
+<div class="board" id="board">
+  <div class="head"><span id="headIcon"></span><span class="title" id="title"></span><span class="unit" id="unit"></span></div>
+  <div class="rows" id="rows"></div>
+</div>
+<script type="module">
+  import { setupWidget, connect, odometer, icon, avatarNode, resolveColor } from './lib/overlay.js';
+
+  // 設定は config.yaml の rankings.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('rankings', { title: 'トップギフター', metric: 'coins', limit: 5, avatars: true, color: 'accent', hideEmpty: false });
+  document.body.style.setProperty('--signal', resolveColor(p.color));
+  document.body.classList.add(`metric-${p.metric}`);
+  if (!p.avatars) document.body.classList.add('no-avatars');
+
+  const METRIC = {
+    coins: { list: 'topGifters', field: 'diamonds', icon: 'coins', unit: 'COINS', head: 'trophy' },
+    gifts: { list: 'topGifters', field: 'gifts', icon: 'gift', unit: 'GIFTS', head: 'trophy' },
+    likes: { list: 'topLikers', field: 'likes', icon: 'heart', unit: 'LIKES', head: 'heart' },
+  }[p.metric] ?? { list: 'topGifters', field: 'diamonds', icon: 'coins', unit: 'COINS', head: 'trophy' };
+
+  document.getElementById('title').textContent = p.title;
+  document.getElementById('unit').textContent = METRIC.unit;
+  document.getElementById('headIcon').replaceWith(icon(METRIC.head));
+  const board = document.getElementById('board');
+  board.classList.toggle('hide-empty', p.hideEmpty);
+  const rowsEl = document.getElementById('rows');
+  const rows = new Map(); // key → { el, value }
+
+  function render(state) {
+    const list = [...(state?.[METRIC.list] ?? [])]
+      .sort((a, b) => b[METRIC.field] - a[METRIC.field])
+      .filter((r) => r[METRIC.field] > 0)
+      .slice(0, p.limit);
+    board.classList.toggle('empty', list.length === 0);
+
+    // 動かす前の位置を覚えておく（順位が入れ替わったらなめらかに移動させる）
+    const before = new Map([...rows].map(([k, r]) => [k, r.el.getBoundingClientRect().top]));
+    const keep = new Set(list.map((r) => r.key));
+    for (const [k, r] of rows) if (!keep.has(k)) (r.el.remove(), rows.delete(k));
+
+    list.forEach((r, i) => {
+      let row = rows.get(r.key);
+      if (!row) {
+        const el = document.createElement('div');
+        el.className = 'row enter';
+        const value = document.createElement('span');
+        value.className = 'value num';
+        const v = document.createElement('span');
+        value.append(icon(METRIC.icon), v);
+        const name = document.createElement('span');
+        name.className = 'name';
+        el.append(Object.assign(document.createElement('span'), { className: 'rank' }), avatarNode(r.user, 36), name, value);
+        row = { el, v, name, last: null };
+        rows.set(r.key, row);
+      }
+      row.name.textContent = r.user?.name ?? '';
+      row.el.querySelector('.rank').textContent = String(i + 1);
+      const value = r[METRIC.field];
+      if (row.last != null && value > row.last) {
+        row.el.classList.remove('bump');
+        void row.el.offsetWidth;
+        row.el.classList.add('bump');
+      }
+      row.last = value;
+      odometer(row.v, value);
+      if (rowsEl.children[i] !== row.el) rowsEl.insertBefore(row.el, rowsEl.children[i] ?? null);
+    });
+
+    if (!list.length && !rowsEl.querySelector('.placeholder')) {
+      rowsEl.replaceChildren(Object.assign(document.createElement('div'), { className: 'placeholder', textContent: 'まだいません' }));
+    } else if (list.length) {
+      rowsEl.querySelector('.placeholder')?.remove();
+    }
+
+    // FLIP: 前の位置から今の位置へ
+    for (const [k, top] of before) {
+      const row = rows.get(k);
+      if (!row) continue;
+      const dy = top - row.el.getBoundingClientRect().top;
+      if (!dy) continue;
+      row.el.style.transition = 'none';
+      row.el.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(() => {
+        row.el.style.transition = '';
+        row.el.style.transform = '';
+      });
+    }
+  }
+
+  connect({
+    hello: (_status, state) => render(state),
+    state: render,
+    event: (_e, state) => render(state),
+  });
+</script>
+</body>
+</html>

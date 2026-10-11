@@ -1,7 +1,10 @@
 // イベントの集約と配信。集計値（いいね・視聴者・フォローなど）を持ち、
 // 接続中のウィジェット全員に WebSocket で流す。
+// サーバー内のほかの仕組み（履歴・ルーレット・Minecraft）は 'event' / 'status' / 'reset' を購読する。
 
-const TOP_GIFTERS = 5;
+import { EventEmitter } from 'node:events';
+
+const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 
 export function emptyState() {
   return {
@@ -12,12 +15,16 @@ export function emptyState() {
     diamonds: 0,
     gifts: 0,
     comments: 0,
-    topGifters: [],
+    topGifters: [], // [{ key, user, diamonds, gifts }]
+    topLikers: [], // [{ key, user, likes }]
   };
 }
 
-export class Hub {
+export class Hub extends EventEmitter {
   constructor() {
+    super();
+    this.gifters = new Map();
+    this.likers = new Map();
     this.clients = new Set();
     this.state = emptyState();
     this.status = { mode: 'idle', username: null, message: '' };
@@ -37,6 +44,7 @@ export class Hub {
   setConfig(config) {
     this.config = config;
     this.broadcast({ type: 'config', config });
+    this.emit('config', config);
   }
 
   /** 正規化済みイベントを集計に反映して配信する */
@@ -47,6 +55,7 @@ export class Hub {
     this.recent.unshift(e);
     this.recent.length = Math.min(this.recent.length, 50);
     this.broadcast({ type: 'event', event: e, state: this.state });
+    this.emit('event', e);
   }
 
   control(target, action, data = {}) {
@@ -54,20 +63,34 @@ export class Hub {
   }
 
   setStatus(patch) {
+    const prev = this.status;
     this.status = { ...this.status, ...patch };
     this.broadcast({ type: 'status', status: this.status });
+    this.emit('status', this.status, prev);
   }
 
   reset() {
     this.state = emptyState();
+    this.gifters.clear();
+    this.likers.clear();
     this.recent = [];
     this.broadcast({ type: 'state', state: this.state });
     this.control('all', 'reset');
+    this.emit('reset');
   }
 
   broadcast(msg) {
     const text = JSON.stringify(msg);
     for (const ws of this.clients) if (ws.readyState === 1) ws.send(text);
+  }
+
+  // ユーザーごとの集計の行（なければ作る）
+  #row(map, user, init) {
+    const key = user?.id || user?.name || '?';
+    let row = map.get(key);
+    if (!row) map.set(key, (row = { key, user, ...init }));
+    row.user = user;
+    return row;
   }
 
   #send(ws, msg) {
@@ -84,24 +107,21 @@ export class Hub {
         }
         s.gifts += e.gift.count;
         s.diamonds += e.totalDiamonds;
-        const key = e.user.id || e.user.name;
-        const row = s.topGifters.find((r) => r.key === key);
-        if (row) {
-          row.diamonds += e.totalDiamonds;
-          row.user = e.user;
-        } else {
-          s.topGifters.push({ key, user: e.user, diamonds: e.totalDiamonds });
-        }
-        s.topGifters.sort((a, b) => b.diamonds - a.diamonds);
-        // 上位だけ表示するが、順位入れ替わりのために少し多めに持っておく
-        s.topGifters.length = Math.min(s.topGifters.length, TOP_GIFTERS * 4);
+        const row = this.#row(this.gifters, e.user, { diamonds: 0, gifts: 0 });
+        row.diamonds += e.totalDiamonds;
+        row.gifts += e.gift.count;
+        s.topGifters = top(this.gifters, 'diamonds');
         break;
       }
-      case 'like':
+      case 'like': {
         // TikTok からは配信全体の累計が届く。届かないとき（デモなど）は足し上げる。
         s.likes = e.total > 0 ? Math.max(s.likes, e.total) : s.likes + e.count;
         e.total = s.likes;
+        const row = this.#row(this.likers, e.user, { likes: 0 });
+        row.likes += e.count;
+        s.topLikers = top(this.likers, 'likes');
         break;
+      }
       case 'viewers':
         s.viewers = e.viewers;
         break;
@@ -117,3 +137,9 @@ export class Hub {
     }
   }
 }
+
+const top = (map, field) =>
+  [...map.values()]
+    .sort((a, b) => b[field] - a[field])
+    .slice(0, RANKING_SIZE)
+    .map((r) => ({ ...r }));

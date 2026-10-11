@@ -2,7 +2,7 @@
 // 見た目（丸型・横スライド）は roulette-wheel.js / roulette-strip.js が受け持つ。
 
 import {
-  loadConfig, applyTheme, setupPage, params, list, connect, isFor, giftNamed, createQueue, chime, sleep, fmt, icon,
+  loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon,
   reloadOnConfigChange, resolveColor, readableOn,
 } from './overlay.js';
 
@@ -81,16 +81,6 @@ export function pickWeighted(items) {
   return items[items.length - 1];
 }
 
-/** イベントで回すルーレット。ギフト名の指定が合うものを優先し、なければコイン数・フォローなどで探す */
-export function rouletteFor(roulettes, e) {
-  if (e.kind === 'gift') {
-    const byName = roulettes.find((r) => giftNamed(e.gift, r.gifts));
-    if (byName) return byName;
-    return roulettes.find((r) => r.minCoins > 0 && e.totalDiamonds >= r.minCoins && (!r.maxCoins || e.totalDiamonds <= r.maxCoins));
-  }
-  return roulettes.find((r) => r.events.includes(e.kind));
-}
-
 export function hintFor(r) {
   if (r.hint) return r.hint;
   const parts = [];
@@ -103,6 +93,7 @@ export function hintFor(r) {
 
 /**
  * 回す順番の管理と結果の表示。
+ * どのルーレットで何が当たるかはサーバーが決めて 'roulette' で知らせてくる（全部の画面で結果がそろう）。
  * views: { wheel, strip }。それぞれ show(r) / spin(r, winner) / hide() を持つ。
  * ページには #hint #queue #queueNum #result #kicker #resultName #resultBy が必要。
  */
@@ -122,13 +113,13 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     onSwitch?.(r, styleOverride || r.style);
   }
 
-  async function run({ r, trigger }) {
+  async function run({ r, index, trigger }) {
     renderQueue();
     if (active !== r) {
       activate(r);
-      await sleep(450); // 切り替わったことが見えるよう少し待つ
+      await sleep(450); // 切り替わったことが見えるよう少し待つ（サーバーの SWITCH_MS と同じ）
     }
-    const winner = pickWeighted(r.items);
+    const winner = r.items[index] ?? pickWeighted(r.items);
     await viewOf(r).spin(r, winner);
 
     $('resultName').textContent = winner.label;
@@ -161,25 +152,18 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     $('queueNum').textContent = String(waiting);
     $('queue').classList.toggle('show', waiting > 0);
   }
-  const enqueue = (r, trigger, times = 1) => {
-    for (let i = 0; i < times; i++) queue.push({ r, trigger });
-    renderQueue();
-  };
-
   activate(roulettes[0]);
 
   connect({
-    event(e) {
-      const r = rouletteFor(roulettes, e);
-      if (!r) return;
-      enqueue(r, e, r.perCount && e.kind === 'gift' ? Math.min(20, e.gift.count) : 1);
+    roulette({ spin }) {
+      const r = roulettes.find((x) => x.id === spin.id);
+      if (!r) return; // ?ids= でこの画面に出さないルーレット
+      queue.push({ r, index: spin.index, trigger: spin.trigger });
+      renderQueue();
     },
     control(msg) {
       if (!isFor(msg, 'roulette')) return;
-      if (msg.action === 'spin') {
-        const r = roulettes.find((x) => x.id === msg.data?.id) ?? active;
-        enqueue(r, null);
-      } else if (msg.action === 'show') {
+      if (msg.action === 'show') {
         const r = roulettes.find((x) => x.id === msg.data?.id);
         if (r) activate(r);
       } else if (msg.action === 'reset') {

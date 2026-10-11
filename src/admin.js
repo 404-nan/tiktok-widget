@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as cfg from './config.js';
 import { DEMO_GIFTS } from './demo.js';
+import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 
 export const SERVER = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
 
@@ -119,4 +120,27 @@ export async function control(target, action, data) {
 
 export async function status() {
   return callServer('/api/status');
+}
+
+/** SuperStream のプロフィールに設定済みのギフトの演出 */
+export async function superstream() {
+  const { config } = cfg.load();
+  const mc = config?.minecraft ?? {};
+  const { gifts: known } = await gifts();
+  return { ...readProfile(mc.superstreamFile, known), configuredProfile: mc.superstreamProfile, actions: SUPERSTREAM_ACTIONS };
+}
+
+/** Minecraft にコマンドを送って返事を見る（サーバーが必要） */
+export async function minecraftCommand(command) {
+  const { response } = await callServer('/api/minecraft/command', { method: 'POST', body: { command } });
+  return response;
+}
+
+export async function minecraftStatus() {
+  return callServer('/api/minecraft');
+}
+
+/** 配信の履歴（一覧、または id を指定して1回分） */
+export async function history(id) {
+  return callServer(id ? `/api/history/${encodeURIComponent(id)}` : '/api/history');
 }

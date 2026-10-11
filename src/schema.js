@@ -144,10 +144,58 @@ export const SCHEMA = {
         type: 'items',
         default: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],
         desc:
-          '項目の一覧。「歌う*2」のような文字か、{ label, weight, color, textColor, image } で書く。' +
+          '項目の一覧。「歌う*2」のような文字か、{ label, weight, color, textColor, image, commands } で書く。' +
           'weight は当たりやすさ（丸型では扇の大きさも比例）。image は画像の URL か media/ フォルダのファイル名。' +
-          'image がなければ文字だけを中央に出す',
+          'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
+          'superstreamGift / superstreamAction は当たったときに起こす SuperStream の演出（minecraft の設定が必要）',
       },
+    },
+  },
+};
+
+SCHEMA.rankings = {
+  kind: 'map',
+  page: 'ranking',
+  title: 'ランキング',
+  desc: 'この配信のトップギフター・いいねランキング。URL は /widgets/ranking.html?id=<名前>',
+  size: (e) => [420, 96 + e.limit * 64],
+  fields: {
+    title: str('トップギフター', 'タイトル'),
+    metric: oneOf(['coins', 'gifts', 'likes'], 'coins', 'coins コイン / gifts ギフトの個数 / likes いいね'),
+    limit: num(5, '表示する人数', { min: 1, max: 10 }),
+    avatars: bool(true, 'アイコンを出す'),
+    color: color('accent', '帯と1位の色'),
+    hideEmpty: bool(false, 'まだ誰もいないときは隠す'),
+  },
+};
+
+SCHEMA.minecraft = {
+  kind: 'object',
+  title: 'Minecraft 連携',
+  desc:
+    'Minecraft サーバーの RCON にコマンドを送る。SuperStream などのプラグインのコマンドもそのまま書ける。' +
+    'server.properties で enable-rcon=true / rcon.port / rcon.password を設定しておく。' +
+    'コマンドの中の {user} {userId} {gift} {giftId} {count} {coins} {item} {roulette} は置き換わる（{user} などは記号を取り除いた安全な文字になる）',
+  fields: {
+    enabled: bool(false, 'コマンドを送る'),
+    host: str('127.0.0.1', 'Minecraft サーバーのアドレス'),
+    port: num(25575, 'RCON のポート', { min: 1, max: 65535 }),
+    password: str('', 'RCON のパスワード（rcon.password）', { secret: true }),
+    superstreamProfile: str('default_profile', 'SuperStream のプロフィール名（plugins/SuperStream/profiles の .yml を除いた名前）'),
+    forwardGifts: bool(
+      false,
+      '届いたギフトを SuperStream に渡して、そのギフトの演出を実行する（ss test profile）。' +
+        'SuperStream 側でプロフィールを start していないとき用（両方動かすと演出が二重になる）',
+    ),
+    superstreamFile: str('', 'SuperStream のプロフィールのファイルの場所。書くと、設定済みのギフト ID と演出をダッシュボードや AI で確認できる'),
+    rules: {
+      type: 'mcRules',
+      default: [],
+      desc:
+        'イベントごとに送るコマンド。条件: gifts（ギフト名）/ minCoins / events（gift, follow, share, like）/ users。' +
+        '送るもの: commands（コマンドの一覧。先頭の / は不要）/ superstreamGift（SuperStream のそのギフト ID の演出）/ ' +
+        'superstreamAction（SuperStream の演出1つ。例 "lightning" や "spawn type=ZOMBIE amount=3"）。' +
+        'perCount: true で ×5 なら5回（最大50回）。合ったルールは全部実行される',
     },
   },
 };

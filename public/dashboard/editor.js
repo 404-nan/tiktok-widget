@@ -4,7 +4,7 @@
 import { icon } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'roulettes', 'jars', 'counters', 'goals', 'theme'];
+const TABS = ['alerts', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -12,7 +12,7 @@ const ENUM_LABELS = {
   jar: '保存瓶', heart: 'ハート', potion: 'エリクサーのフラスコ', auto: '自動', on: '表示', off: '表示しない',
   wheel: '丸（ホイール）', strip: '横スライド', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
-  gift: 'ギフト', follow: 'フォロー', share: 'シェア',
+  gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -23,7 +23,10 @@ const LABELS = {
   shape: '入れ物の形', title: 'タイトル', label: '合計コインのラベル', maxItems: '最大個数', perGift: '連打1回の最大数',
   keep: '中身を残す', sizeMin: '小さい玉の倍率', sizeMax: '大きい玉の倍率', liquid: '中の液体', liquidColor: '液体の色',
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
-  color: '色', doneColor: '達成後の色', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
+  enabled: '連携する', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
+  superstreamProfile: 'SuperStream のプロフィール名', superstreamFile: 'SuperStream のプロフィールのファイル',
+  forwardGifts: 'ギフトを SuperStream に渡す', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
 };
@@ -34,6 +37,8 @@ const BASIC = {
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
+  rankings: ['title', 'metric', 'limit', 'avatars'],
+  minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
 
@@ -45,6 +50,8 @@ export function createEditor({ api, setMessage }) {
   let tab = TABS[0];
   let id = null;
   let yamlDirty = false;
+  let superstream = { gifts: [] };
+  const isObj = (t) => schema.sections[t]?.kind === 'object';
 
   const store = {
     get: (k, d) => {
@@ -84,7 +91,7 @@ export function createEditor({ api, setMessage }) {
     );
   }
   const save = (key, value, delay = 0) => patch(pathOf(key), { value }, delay);
-  const pathOf = (key) => (tab === 'theme' ? ['theme', key] : [tab, id, key]);
+  const pathOf = (key) => (isObj(tab) ? [tab, key] : [tab, id, key]);
 
   function showIssues(errors = [], warnings = [], ok) {
     const el = $('formMessage');
@@ -123,7 +130,7 @@ export function createEditor({ api, setMessage }) {
       b.type = 'button';
       b.className = 'pressable';
       b.role = 'tab';
-      b.textContent = section === 'theme' ? 'テーマ' : schema.sections[section].title;
+      b.textContent = schema.sections[section].title;
       b.setAttribute('aria-selected', String(section === tab));
       b.addEventListener('click', () => select(section));
       tabs.append(b);
@@ -143,7 +150,7 @@ export function createEditor({ api, setMessage }) {
   function renderEntries() {
     const box = $('entries');
     box.replaceChildren();
-    if (tab === 'theme') {
+    if (isObj(tab)) {
       box.hidden = true;
       return;
     }
@@ -201,14 +208,14 @@ export function createEditor({ api, setMessage }) {
       if (/^#/.test(theme[t] ?? '')) document.documentElement.style.setProperty(`--tok-${t}`, theme[t]);
     }
     renderEntries();
-    const def = tab === 'theme' ? schema.sections.theme : schema.sections[tab];
+    const def = schema.sections[tab];
     $('widgetDesc').textContent = def.desc;
     const form = $('settings');
     form.replaceChildren();
     showIssues();
 
-    const values = tab === 'theme' ? payload.config.theme : payload.config[tab]?.[id];
-    if (tab !== 'theme' && !values) {
+    const values = isObj(tab) ? payload.config[tab] : payload.config[tab]?.[id];
+    if (!isObj(tab) && !values) {
       const empty = document.createElement('p');
       empty.className = 'hint';
       empty.textContent = 'まだ設定がありません。「追加」で作ってください。';
@@ -217,6 +224,7 @@ export function createEditor({ api, setMessage }) {
       return;
     }
     $('previewCol').hidden = false;
+    renderSide();
     // よく使う設定を上に、それ以外は「詳しい設定」に畳む
     const basic = BASIC[tab] ?? Object.keys(def.fields);
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
@@ -234,7 +242,7 @@ export function createEditor({ api, setMessage }) {
       more.append(summary, inner);
       form.append(more);
     }
-    if (tab !== 'theme') {
+    if (!isObj(tab)) {
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'text-btn danger pressable';
@@ -313,17 +321,21 @@ export function createEditor({ api, setMessage }) {
         wrap.append(control, giftChips(control, key));
         control = null;
       }
-    } else if (field.type === 'rules') {
+    } else if (field.type === 'rules' || field.type === 'mcRules') {
       control = document.createElement('textarea');
       control.rows = 6;
       control.className = 'mono';
       control.spellcheck = false;
       control.value = rulesToYaml(value);
-      control.placeholder = '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
+      control.placeholder =
+        field.type === 'mcRules'
+          ? '- gifts: [Rose]\n  superstreamGift: 6001\n- events: [follow]\n  commands: ["say {user} ありがとう"]'
+          : '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
+      control.rows = field.type === 'mcRules' ? 10 : 6;
       control.addEventListener('input', () => patch(pathOf(key), { yaml: control.value.trim() || '[]' }, 700));
     } else {
       control = document.createElement('input');
-      control.type = field.type === 'number' ? 'number' : 'text';
+      control.type = field.secret ? 'password' : field.type === 'number' ? 'number' : 'text';
       if (field.type === 'number') {
         if (field.min != null) control.min = String(field.min);
         if (field.max != null) control.max = String(field.max);
@@ -414,6 +426,9 @@ export function createEditor({ api, setMessage }) {
         if (r.color) out.color = r.color;
         if (r.textColor) out.textColor = r.textColor;
         if (r.image) out.image = r.image;
+        if (r.commands?.length) out.commands = r.commands;
+        if (r.superstreamGift) out.superstreamGift = r.superstreamGift;
+        if (r.superstreamAction) out.superstreamAction = r.superstreamAction;
         const keys = Object.keys(out);
         if (keys.length === 1) return r.label;
         if (keys.length === 2 && out.weight) return `${r.label}*${r.weight}`;
@@ -514,7 +529,28 @@ export function createEditor({ api, setMessage }) {
       const bottom = document.createElement('div');
       bottom.className = 'item-bottom';
       bottom.append(color, picker, image, url);
-      row.append(top, bottom);
+
+      // 当たったら Minecraft で起こすこと（SuperStream の演出かコマンド）
+      const ss = document.createElement('select');
+      ss.title = '当たったら SuperStream の演出を起こす';
+      ss.append(new Option('Minecraft: なし', ''));
+      for (const g of superstream.gifts) {
+        ss.append(new Option(`SuperStream ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join('・')}`, g.id));
+      }
+      if (r.superstreamGift && !superstream.gifts.some((g) => g.id === r.superstreamGift)) ss.append(new Option(`SuperStream ${r.superstreamGift}`, r.superstreamGift));
+      ss.value = r.superstreamGift ?? '';
+      ss.addEventListener('change', () => ((r.superstreamGift = ss.value || undefined), commit(0)));
+      const cmd = document.createElement('input');
+      cmd.placeholder = '当たったら送るコマンド（; 区切り。例: give {user} diamond）';
+      cmd.value = (r.commands ?? []).join('; ');
+      cmd.addEventListener('input', () => {
+        r.commands = cmd.value.split(';').map((c) => c.trim()).filter(Boolean);
+        commit(600);
+      });
+      const mc = document.createElement('div');
+      mc.className = 'item-bottom item-mc';
+      mc.append(ss, cmd);
+      row.append(top, bottom, mc);
       return row;
     };
 
@@ -537,6 +573,7 @@ export function createEditor({ api, setMessage }) {
   // --- URL・プレビュー・操作 ---
 
   function currentWidget() {
+    if (tab === 'minecraft') return null;
     const section = tab === 'theme' ? 'alerts' : tab;
     const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : id;
     return payload.widgets.find((w) => w.section === section && w.id === wid);
@@ -597,7 +634,7 @@ export function createEditor({ api, setMessage }) {
 
   // そのウィジェットの条件に合うテストのギフトを送る
   function testGift() {
-    const e = tab === 'theme' ? {} : payload.config[tab]?.[id] ?? {};
+    const e = isObj(tab) ? {} : payload.config[tab]?.[id] ?? {};
     if (e.gifts?.length) return api('/api/simulate', { kind: 'gift', giftName: e.gifts[0], diamonds: 10 });
     if (e.minCoins > 1) return api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: e.minCoins });
     if (e.events?.length && !e.events.includes('gift')) return api('/api/simulate', { kind: e.events[0] });
@@ -612,12 +649,154 @@ export function createEditor({ api, setMessage }) {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));
     } else if (tab === 'jars') {
       box.append(chip('ゆらす', null, control('gift-jar', 'shake', { id })), chip('中身を空にする', null, control('gift-jar', 'reset', { id })));
-    } else if (tab === 'counters' || tab === 'goals') {
+    } else if (tab === 'counters' || tab === 'goals' || tab === 'rankings') {
       box.append(
         chip('いいね ×20', 'heart', () => api('/api/simulate', { kind: 'like', count: 20 })),
         chip('フォロー', 'user-plus', () => api('/api/simulate', { kind: 'follow' })),
       );
     }
+  }
+
+  // --- Minecraft / SuperStream ---
+
+  const mcLog = [];
+  let mcStatus = null;
+
+  function renderSide() {
+    const col = $('previewCol');
+    let panel = $('mcPanel');
+    if (tab !== 'minecraft') {
+      col.classList.remove('mc-mode');
+      if (panel) panel.hidden = true;
+      return;
+    }
+    col.classList.add('mc-mode');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'mcPanel';
+      panel.className = 'stack mc-panel';
+      col.prepend(panel);
+    }
+    panel.hidden = false;
+    panel.replaceChildren();
+
+    const status = document.createElement('div');
+    status.className = 'status mc-status';
+    status.id = 'mcStatus';
+    const head = document.createElement('div');
+    head.className = 'row wrap';
+    head.append(status, chip('接続を確認', 'plug', async () => renderMcStatus(await api('/api/minecraft/check', {}))));
+    panel.append(head);
+
+    const form = document.createElement('form');
+    form.className = 'url-row';
+    const input = document.createElement('input');
+    input.placeholder = 'コマンドを試す（例: list / ss status）';
+    input.className = 'mono';
+    const send = document.createElement('button');
+    send.className = 'btn primary pressable';
+    send.type = 'submit';
+    send.append(icon('send'), '送る');
+    form.append(input, send);
+    const out = document.createElement('pre');
+    out.className = 'code';
+    out.hidden = true;
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!input.value.trim()) return;
+      out.hidden = false;
+      try {
+        const r = await api('/api/minecraft/command', { command: input.value.trim() });
+        out.textContent = r.response || '（返事なし）';
+      } catch (err) {
+        out.textContent = err.message;
+      }
+    });
+    panel.append(form, out);
+
+    // SuperStream のプロフィールに設定済みの演出
+    const ssBox = document.createElement('div');
+    ssBox.className = 'field';
+    const ssLabel = document.createElement('span');
+    ssLabel.className = 'field-label';
+    ssLabel.textContent = 'SuperStream のプロフィールの演出（押すと試せます）';
+    ssBox.append(ssLabel);
+    if (superstream.error) {
+      const p = document.createElement('span');
+      p.className = 'hint';
+      p.textContent = superstream.error;
+      ssBox.append(p);
+    }
+    const ssList = document.createElement('div');
+    ssList.className = 'ss-list';
+    for (const g of superstream.gifts) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ss-item pressable';
+      const idEl = document.createElement('span');
+      idEl.className = 'num';
+      idEl.textContent = g.id;
+      const name = document.createElement('span');
+      name.textContent = g.name ?? '';
+      const acts = document.createElement('span');
+      acts.className = 'hint';
+      acts.textContent = g.actions.join('・');
+      b.append(idEl, name, acts);
+      b.addEventListener('click', async () => {
+        out.hidden = false;
+        const profile = payload.config.minecraft.superstreamProfile;
+        try {
+          const r = await api('/api/minecraft/command', { command: `ss test profile ${profile} ${g.id}` });
+          out.textContent = r.response || `ss test profile ${profile} ${g.id} を送りました`;
+        } catch (err) {
+          out.textContent = err.message;
+        }
+      });
+      ssList.append(b);
+    }
+    ssBox.append(ssList);
+    panel.append(ssBox);
+
+    const logBox = document.createElement('div');
+    logBox.className = 'field';
+    const logLabel = document.createElement('span');
+    logLabel.className = 'field-label';
+    logLabel.textContent = '送ったコマンド';
+    const log = document.createElement('ol');
+    log.className = 'log mc-log';
+    log.id = 'mcLog';
+    logBox.append(logLabel, log);
+    panel.append(logBox);
+    renderMcStatus(mcStatus);
+    renderMcLog();
+  }
+
+  function renderMcStatus(st) {
+    if (st) mcStatus = st;
+    const el = $('mcStatus');
+    if (!el || !mcStatus) return;
+    el.dataset.mode = { ok: 'live', error: 'error', off: 'idle' }[mcStatus.state] ?? 'idle';
+    el.replaceChildren(Object.assign(document.createElement('span'), { className: 'dot' }), mcStatus.message ?? '');
+  }
+
+  function renderMcLog() {
+    const el = $('mcLog');
+    if (!el) return;
+    el.replaceChildren(
+      ...mcLog.slice(0, 30).map((l) => {
+        const li = document.createElement('li');
+        const t = document.createElement('span');
+        t.className = 'time';
+        t.textContent = new Date(l.ts).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const c = document.createElement('span');
+        c.className = `text mono ${l.ok ? '' : 'fail'}`;
+        c.textContent = l.command;
+        c.title = l.response ?? '';
+        li.append(t, icon(l.ok ? 'check' : 'x'), c);
+        return li;
+      }),
+    );
+    if (!mcLog.length) el.append(Object.assign(document.createElement('li'), { className: 'empty', textContent: 'まだ送っていません' }));
   }
 
   // --- YAML と AI ---
@@ -686,11 +865,13 @@ export function createEditor({ api, setMessage }) {
 
   return {
     async start() {
-      [schema, payload, media, gifts] = await Promise.all([
+      [schema, payload, media, gifts, superstream, mcStatus] = await Promise.all([
         api('/api/config/schema'),
         api('/api/config'),
         api('/api/media').catch(() => []),
         api('/api/gifts').catch(() => []),
+        api('/api/superstream').catch(() => ({ gifts: [] })),
+        api('/api/minecraft').catch(() => null),
       ]);
       $('yamlText').value = payload.yaml;
       renderYamlIssues(payload.errors, payload.warnings);
@@ -713,12 +894,22 @@ export function createEditor({ api, setMessage }) {
     async onConfigChanged() {
       const prev = JSON.stringify(payload?.config);
       await reload();
+      superstream = await api('/api/superstream').catch(() => superstream);
       // フォームを触っている最中に作り直すと入力が消えるので、フォーカスがないときだけ
       if (JSON.stringify(payload.config) !== prev && !$('settings').contains(document.activeElement)) render();
       else updateUrl();
     },
     onConfigError(errors) {
       renderYamlIssues(errors, []);
+    },
+    /** Minecraft にコマンドを送った・接続状態が変わった */
+    onMinecraft(msg) {
+      renderMcStatus(msg.status);
+      if (msg.log) {
+        mcLog.unshift(msg.log);
+        mcLog.length = Math.min(mcLog.length, 100);
+        renderMcLog();
+      }
     },
   };
 }

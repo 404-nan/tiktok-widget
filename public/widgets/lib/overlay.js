@@ -181,6 +181,7 @@ export function connect(handlers) {
       else if (msg.type === 'control') handlers.control?.(msg);
       else if (msg.type === 'config') handlers.config?.(msg.config);
       else if (msg.type === 'configError') handlers.configError?.(msg.errors);
+      else handlers[msg.type]?.(msg); // roulette / rouletteResult / minecraft など
     };
     ws.onclose = () => setTimeout(open, 2000);
   };
