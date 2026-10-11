@@ -155,7 +155,7 @@
     minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
     blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
     style: 'band', photo: '', word: true,
-    image: 'gift', character: '', angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
+    image: 'photo', angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
   });
 
   const $ = (id) => document.getElementById(id);
@@ -260,7 +260,7 @@
     photo.className = 'strip-photo';
     const mask = bandImage(bw, sh, ['#fff', '#fff'], seed);
     photo.style.webkitMaskImage = photo.style.maskImage = `url("${mask.src}")`;
-    const src = p.photo || (p.image === 'character' && p.character) || '';
+    const src = p.photo || '';
     if (src) {
       const img = new Image();
       img.className = 'photo-img';
@@ -268,13 +268,10 @@
       photo.append(img);
       parts.push(img);
     } else {
-      // 写真がないときは、段階の色とギフトの画像で埋める
+      // 写真がないときは段階の色で埋める
       const fill = document.createElement('div');
       fill.className = 'photo-img photo-fallback';
       fill.style.background = `linear-gradient(100deg, ${t.band.join(', ')})`;
-      const g = e.kind === 'gift' ? giftNode(e.gift, sh * 0.82) : avatarNode(e.user, sh * 0.7);
-      g.style.marginLeft = `${bw / 2 - innerWidth * 0.28}px`;
-      fill.append(g);
       photo.append(fill);
     }
 
@@ -484,7 +481,8 @@
     stage.style.setProperty('--bw', `${bw}px`);
     stage.style.setProperty('--bh', `${bh}px`);
     stage.style.setProperty('--vw', `${W}px`);
-    stage.style.setProperty('--vs', `${Math.round(Math.min(bh * 1.1, W * 0.42))}px`);
+    // 写真は帯からはみ出すくらい大きく
+    stage.style.setProperty('--vs', `${Math.round(p.image === 'photo' ? Math.min(bh * 1.6, W * 0.55) : Math.min(bh * 1.1, W * 0.42))}px`);
     stage.style.setProperty('--fs', `${Math.round(Math.min(bh * 0.5, (W * 0.5) / Math.max(2, TEXT[tier].length)))}px`);
     stage.style.setProperty('--angle', `${p.angle}deg`);
     stage.style.setProperty('--word-fill', t.word);
@@ -524,16 +522,19 @@
       wait = [ink, paint, glint];
     }
 
-    // 画像（色の帯のときだけ。写真の帯は写真が主役）
-    if (p.style === 'photo') {
-      // 何もしない
-    } else if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));
-    else if (p.image === 'character' && p.character) {
-      const img = new Image();
-      img.src = /^(https?:|data:|\/)/.test(p.character) ? p.character : `/${p.character}`;
-      visual.replaceChildren(img);
-    } else if (e.kind === 'gift') visual.replaceChildren(giftNode(e.gift, bh));
-    else visual.replaceChildren(avatarNode(e.user, bh));
+    // 色の帯に乗せるもの。写真を指定したときだけ写真を乗せ、なければ帯と文字だけ
+    visual.replaceChildren();
+    if (p.style !== 'photo') {
+      if (p.image === 'photo' && p.photo) {
+        const img = new Image();
+        img.src = /^(https?:|data:|\/)/.test(p.photo) ? p.photo : `/${p.photo}`;
+        visual.replaceChildren(img);
+        wait.push(img);
+      } else if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));
+      else if (p.image === 'gift' && e.kind === 'gift') visual.replaceChildren(giftNode(e.gift, bh));
+    }
+    // 何も乗せないときは文字を真ん中に
+    if (p.style !== 'photo' && !visual.childElementCount) word.style.left = '0px';
 
     // 文字とテロップ
     for (const s of $('word').children) s.textContent = TEXT[tier];

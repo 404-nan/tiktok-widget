@@ -13,7 +13,7 @@ const ENUM_LABELS = {
   wheel: '丸（ホイール）', strip: '横スライド', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
-  avatar: '送った人のアイコン', character: 'キャラ画像（下で指定）', band: '色の帯', photo: '写真の帯（縁が木炭）',
+  avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -42,7 +42,7 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['style', 'photo', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'image', 'character'],
+  cutins: ['style', 'photo', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
@@ -294,7 +294,7 @@ export function createEditor({ api, setMessage }) {
     let control;
     if (field.type === 'enum') {
       control = document.createElement('select');
-      for (const v of field.values) control.append(new Option(ENUM_LABELS[v] ?? v, v, false, v === value));
+      for (const v of field.values) control.append(new Option(ENUM_LABELS[`${key}.${v}`] ?? ENUM_LABELS[v] ?? v, v, false, v === value));
       control.addEventListener('change', () => save(key, control.value));
     } else if (field.type === 'color') {
       control = colorControl(value, (v) => save(key, v, 250));

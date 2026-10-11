@@ -164,7 +164,7 @@ SCHEMA.cutins = {
   size: () => [1080, 1920],
   fields: {
     style: oneOf(['band', 'photo'], 'band', 'band 色の帯に画像と文字が乗る / photo 帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる'),
-    photo: str('', 'style が photo のときに帯に入れる写真（media/ のファイルか URL）。空ならギフトの画像で埋める'),
+    photo: str('', '写真（media/ のファイルか URL）。band では帯の左に大きく乗り、photo では帯の中いっぱいに入る。空なら写真なし'),
     word: bool(true, '「激アツ」などの文字を出す'),
     minCoins: num(100, 'この合計コイン以上のギフトで出す（ここからが青）', { min: 1 }),
     greenCoins: num(300, 'ここから緑', { min: 1 }),
@@ -178,8 +178,7 @@ SCHEMA.cutins = {
     redText: str('激アツ', '赤の文字'),
     goldText: str('超激アツ', '金の文字'),
     rainbowText: str('確定', '虹の文字'),
-    image: oneOf(['gift', 'avatar', 'character'], 'gift', '帯に乗せる画像。gift ギフト / avatar 送った人のアイコン / character 下の画像'),
-    character: str('', 'image を character にしたときの画像（media/ のファイルか URL）。配信者のキャラ絵など'),
+    image: oneOf(['photo', 'avatar', 'gift'], 'photo', 'band のとき帯に乗せるもの。photo 上の写真（なければ何も乗せない）/ avatar 送った人のアイコン / gift ギフトの画像'),
     angle: num(-8, '帯の傾き（度）', { min: -30, max: 30 }),
     hold: num(1.1, 'ガガガと揺れている秒数', { min: 0.3, max: 5 }),
     shake: num(1, '揺れの強さの倍率（0 で揺らさない）', { min: 0, max: 3 }),
