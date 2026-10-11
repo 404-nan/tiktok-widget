@@ -19,7 +19,7 @@ export class WinsEngine {
     this.hub = hub;
     this.file = file;
     this.config = {};
-    this.counts = {}; // id → { wins, updatedAt }
+    this.counts = {}; // id → { wins, low（いちばん下まで行った数）, updatedAt }
     this.undo = {}; // id → 前の数の一覧
     this.#load();
     hub.on('event', (e) => this.onGift(e));
@@ -36,7 +36,7 @@ export class WinsEngine {
   }
 
   get(id) {
-    return { wins: 0, updatedAt: 0, ...this.counts[id] };
+    return { wins: 0, low: 0, updatedAt: 0, ...this.counts[id] };
   }
 
   snapshot() {
@@ -77,20 +77,22 @@ export class WinsEngine {
   #change(id, action, value, by = null) {
     const prev = this.get(id);
     let wins = prev.wins;
+    let low = prev.low;
     if (action === 'undo') {
       const stack = this.undo[id] ?? [];
       if (!stack.length) return prev;
-      wins = stack.pop();
+      ({ wins, low } = stack.pop());
     } else {
       if (action === 'win') wins += 1;
       else if (action === 'add') wins += value;
       else if (action === 'set') wins = value;
       else if (action === 'reset') wins = 0;
       if (this.config[id]?.negative === false) wins = Math.max(0, wins); // 0 で止める設定のとき
-      (this.undo[id] ??= []).push(prev.wins);
+      low = action === 'reset' ? 0 : Math.min(low, wins);
+      (this.undo[id] ??= []).push({ wins: prev.wins, low: prev.low });
       if (this.undo[id].length > UNDO) this.undo[id].shift();
     }
-    const c = { wins, updatedAt: Date.now() };
+    const c = { wins, low, updatedAt: Date.now() };
     this.counts[id] = c;
     // 「クリアで +1」なのか「ギフトで -1」なのか「戻した」なのかをウィジェットに伝える
     const event = { kind: action, delta: wins - prev.wins, by };
@@ -103,7 +105,10 @@ export class WinsEngine {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       if (data && typeof data === 'object') {
-        for (const [id, c] of Object.entries(data)) this.counts[id] = { wins: Number(c?.wins) || 0, updatedAt: Number(c?.updatedAt) || 0 };
+        for (const [id, c] of Object.entries(data)) {
+          const wins = Number(c?.wins) || 0;
+          this.counts[id] = { wins, low: Math.min(wins, Number(c?.low) || 0), updatedAt: Number(c?.updatedAt) || 0 };
+        }
       }
     } catch {}
   }

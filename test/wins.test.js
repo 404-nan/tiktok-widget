@@ -111,3 +111,16 @@ test('reset: true は 0 に戻すルール、ボタンのリセットも 1つ戻
   wins.apply('default', 'undo');
   assert.equal(wins.get('default').wins, 6);
 });
+
+test('いちばん下まで行った数（最低記録）を覚える。リセットで 0、1つ戻すで戻る', () => {
+  const { wins } = setup();
+  wins.apply('default', 'add', -3);
+  wins.apply('default', 'add', 5);
+  assert.deepEqual([wins.get('default').wins, wins.get('default').low], [2, -3]);
+  wins.apply('default', 'add', -6);
+  assert.equal(wins.get('default').low, -4);
+  wins.apply('default', 'undo');
+  assert.equal(wins.get('default').low, -3);
+  wins.apply('default', 'reset');
+  assert.equal(wins.get('default').low, 0);
+});
