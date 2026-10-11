@@ -93,3 +93,18 @@ test('rules の書き方を確かめる', () => {
   assert.equal(errors.length, 4); // add/set がない・両方ある・整数でない（その結果 add/set もない）
   assert.ok(warnings.some((w) => w.includes('条件')));
 });
+
+test('reset: true は 0 に戻すルール、ボタンのリセットも 1つ戻すで戻せる', () => {
+  const { config, errors } = normalize({ wins: { default: { rules: [{ gifts: ['Universe'], reset: true }] } } });
+  assert.deepEqual(errors, []);
+  assert.deepEqual(config.wins.default.rules[0], { gifts: ['Universe'], set: 0 });
+  const { wins, hub } = setup({ default: counter({ rules: config.wins.default.rules }) });
+  wins.apply('default', 'set', 6);
+  hub.emit('event', gift('Universe'));
+  assert.equal(wins.get('default').wins, 0);
+  wins.apply('default', 'undo');
+  wins.apply('default', 'reset');
+  assert.equal(wins.get('default').wins, 0);
+  wins.apply('default', 'undo');
+  assert.equal(wins.get('default').wins, 6);
+});

@@ -211,7 +211,7 @@ function checkWinRules(value, where, issues) {
     issues.errors.push(`${where}: 一覧で書いてください`);
     return [];
   }
-  const known = ['gifts', 'users', 'minCoins', 'add', 'set', 'perCount', 'text'];
+  const known = ['gifts', 'users', 'minCoins', 'add', 'set', 'reset', 'perCount', 'text'];
   return value.map((raw, i) => {
     const at = `${where}[${i}]`;
     const rule = {};
@@ -229,8 +229,13 @@ function checkWinRules(value, where, issues) {
       if (Number.isInteger(n)) rule[key] = n;
       else issues.errors.push(`${at}.${key}: 整数で書いてください（今: ${JSON.stringify(raw[key])}）`);
     }
-    if ('add' in rule && 'set' in rule) issues.errors.push(`${at}: add と set はどちらか1つにしてください`);
-    if (!('add' in rule) && !('set' in rule)) issues.errors.push(`${at}: add（足す数。-1 で減らす）か set（その数にする）を書いてください`);
+    // reset: true は set: 0 と同じ（0 にリセット）
+    if (raw.reset === true || raw.reset === 'true') {
+      if ('set' in rule && rule.set !== 0) issues.errors.push(`${at}: reset と set はどちらか1つにしてください`);
+      rule.set = 0;
+    }
+    if ('add' in rule && 'set' in rule) issues.errors.push(`${at}: add と set（reset）はどちらか1つにしてください`);
+    if (!('add' in rule) && !('set' in rule)) issues.errors.push(`${at}: add（足す数。-1 で減らす）か set（その数にする）か reset: true（0 に戻す）を書いてください`);
     if (rule.add === 0) issues.warnings.push(`${at}.add: 0 なので何も変わりません`);
     if (raw.perCount != null) rule.perCount = checkValue({ type: 'boolean', default: true }, raw.perCount, `${at}.perCount`, issues);
     if (raw.text != null) rule.text = String(raw.text);

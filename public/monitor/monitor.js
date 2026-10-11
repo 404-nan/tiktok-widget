@@ -160,17 +160,25 @@ function renderWins() {
       text.className = 'hint';
       text.textContent = `${w.title || id}${w.goal > 0 ? ` / ${w.goal}` : ''}${entries.length > 1 ? `（${id}）` : ''}`;
       label.append(big, text);
-      const btn = (name, iconName, action, value, cls = '') => {
+      const btn = (name, iconName, action, value, cls = '', ask = null) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = `chip pressable ${cls}`;
         b.append(icon(iconName), name);
-        b.addEventListener('click', () => api('/api/control', { target: 'wins', action, data: { id, value } }));
+        b.addEventListener('click', () => {
+          if (ask && !confirm(ask)) return;
+          api('/api/control', { target: 'wins', action, data: { id, value } });
+        });
         return b;
       };
       const buttons = document.createElement('div');
       buttons.className = 'roulette-buttons';
-      buttons.append(btn('クリア +1', 'trophy', 'win', undefined, 'win-btn'), btn('-1', 'minus', 'add', -1), btn('戻す', 'undo-2', 'undo'));
+      buttons.append(
+        btn('クリア +1', 'trophy', 'win', undefined, 'win-btn'),
+        btn('-1', 'minus', 'add', -1),
+        btn('戻す', 'undo-2', 'undo'),
+        btn('リセット', 'rotate-ccw', 'reset', undefined, '', `${w.title || id} を 0 にリセットしますか？（「戻す」で元に戻せます）`),
+      );
       row.append(label, buttons);
       return row;
     }),

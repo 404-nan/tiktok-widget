@@ -54,15 +54,16 @@ counters:
 # WIN数 … /widgets/wins.html（default 以外は ?id=名前）
 # 妨害マイクラなどのクリア回数。クリアしたらダッシュボード・モニターのボタンか
 # URL（Stream Deck など）で +1: http://127.0.0.1:3939/api/wins/default/win
+# リセットはボタンか http://127.0.0.1:3939/api/wins/default/reset
 # 数は data/wins.json に残るので、配信をまたいで続けられる。
 wins:
   default:
     title: WIN
     goal: 10 # 「/ 10」と出す（0 で出さない）
-    # ギフトで増減（上から順に最初に合ったもの。add は個数分、set はその数にする）
+    # ギフトで増減（上から順に最初に合ったもの。add は個数分、set はその数にする、reset: true で 0 に）
     rules:
       - {gifts: [Lion], add: -1, text: 妨害成功} # ライオンで WIN -1
-      - {gifts: [Universe], set: 0} # ユニバースで 0 に戻す
+      - {gifts: [Universe], reset: true} # ユニバースで 0 にリセット
       - {gifts: [GG], add: 1, text: 応援} # GG で WIN +1
 
 # 通常カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）

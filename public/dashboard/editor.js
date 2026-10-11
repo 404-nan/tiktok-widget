@@ -624,7 +624,7 @@ export function createEditor({ api, setMessage }) {
     if (tab === 'wins') {
       const base = new URL(w.url).origin;
       $('sizeHint').textContent +=
-        ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo`;
+        ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
     }
     const url = new URL(w.url, location.origin);
     url.searchParams.set('preview', '1');
@@ -699,6 +699,7 @@ export function createEditor({ api, setMessage }) {
         chip('クリア（WIN +1）', 'trophy', w('win')),
         chip('WIN -1', 'minus', w('add', -1)),
         chip('1つ戻す', 'undo-2', w('undo')),
+        chip('リセット（0 に戻す）', 'rotate-ccw', () => confirm('WIN 数を 0 にリセットしますか？（「1つ戻す」で元に戻せます）') && w('reset')()),
         // ルールに書いたギフトを1つずつ試せる
         ...(e.rules ?? [])
           .filter((r) => r.gifts?.length || r.minCoins != null)
@@ -708,7 +709,6 @@ export function createEditor({ api, setMessage }) {
               api('/api/simulate', r.gifts?.length ? { kind: 'gift', giftName: r.gifts[0], count: 1, diamonds: 1 } : { kind: 'gift', giftName: 'テストギフト', diamonds: r.minCoins }),
             ),
           ),
-        chip('0 に戻す', 'rotate-ccw', () => confirm('WIN 数を 0 に戻しますか？') && w('reset')()),
       );
     } else if (tab === 'rush') {
       const r = payload.config.rush ?? {};

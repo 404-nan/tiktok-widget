@@ -117,7 +117,7 @@ export const SCHEMA = {
         desc:
           'ギフトで WIN 数を変える。上から順に最初に合ったものを使う。' +
           '条件: gifts（ギフト名の一覧）/ minCoins（この合計コイン以上）/ users。' +
-          '変え方: add（足す数。-1 で減らす）か set（その数にする。0 でリセット）。' +
+          '変え方: add（足す数。-1 で減らす）/ set（その数にする）/ reset: true（0 にリセット）。' +
           'add は連打の個数分かかる（perCount: false で1回だけ）。text は演出に出す文（例 "妨害成功"）',
       },
       negative: bool(false, 'マイナスまで減らせる（false なら 0 で止まる）'),
