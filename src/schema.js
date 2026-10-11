@@ -104,17 +104,26 @@ export const SCHEMA = {
     page: 'wins',
     title: 'WIN数',
     desc:
-      'WIN 数（連勝数・勝ち数・戦績）。TikTok の PK バトルの勝ち負けで自動で数え、ダッシュボード・モニター・AI のボタンでも +1 / 負け / 1つ戻す ができる。' +
+      'WIN 数（妨害マイクラなどのゲームクリア回数）。クリアしたらダッシュボード・モニター・URL（Stream Deck など）で +1。' +
+      'rules で「このギフトで WIN -1」「このギフトで 0 に戻す」のようにギフトで増減できる。' +
       '数はサーバーの data/wins.json に残るので、配信をまたいで続けられる。URL は /widgets/wins.html?id=<名前>',
     size: (e) => (e.style === 'big' ? [380, 400] : [600, 200]),
     fields: {
       title: str('WIN', '大きく出す見出し'),
-      mode: oneOf(['streak', 'total', 'record'], 'streak', 'streak 連勝数（負けると 0 に戻る）/ total 勝ち数 / record 勝ち数と「○勝○敗○分」'),
-      goal: num(0, '目標（例 10 で「/ 10」と出す。0 で出さない）', { min: 0 }),
-      pk: bool(true, 'TikTok の PK バトルの勝ち負けで自動で数える'),
-      style: oneOf(['plate', 'big'], 'plate', 'plate 横長の板 / big 大きい数字（画面の端に置く用）'),
-      best: bool(true, '最高連勝を出す'),
+      goal: num(0, '目標（例 10 で「/ 10」と出し、達成で祝う。0 で出さない）', { min: 0 }),
+      rules: {
+        type: 'winRules',
+        default: [],
+        desc:
+          'ギフトで WIN 数を変える。上から順に最初に合ったものを使う。' +
+          '条件: gifts（ギフト名の一覧）/ minCoins（この合計コイン以上）/ users。' +
+          '変え方: add（足す数。-1 で減らす）か set（その数にする。0 でリセット）。' +
+          'add は連打の個数分かかる（perCount: false で1回だけ）。text は演出に出す文（例 "妨害成功"）',
+      },
+      negative: bool(false, 'マイナスまで減らせる（false なら 0 で止まる）'),
+      winText: str('WIN!', 'クリアで +1 したときに出す文字'),
       milestone: num(5, 'この数ごとに大きく祝う（5 なら 5・10・15…。0 で祝わない）', { min: 0 }),
+      style: oneOf(['plate', 'big'], 'plate', 'plate 横長の板 / big 大きい数字（画面の端に置く用）'),
       color: color('accent', '見出しの色'),
       sound: bool(true, '効果音'),
       volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),

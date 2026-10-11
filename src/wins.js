@@ -1,30 +1,28 @@
-// WIN 数（連勝数・勝ち数・戦績）。数はサーバーで持ち、data/wins.json に残す（配信をまたいで続けられる）。
-// PK バトルの結果（'battle' イベント）と、ボタン（/api/control の target: 'wins'）で増減する。
+// WIN 数（妨害マイクラなどのゲームクリア回数）。数はサーバーで持ち、data/wins.json に残す（配信をまたいで続けられる）。
+// クリアしたらボタン・URL で +1、ギフトのルール（rules）で増やしたり減らしたり 0 に戻したりする。
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ruleMatches } from './minecraft.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const WINS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'wins.json');
 
-const UNDO = 30; // 1つ戻すために覚えておく数
-const ACTIONS = ['win', 'lose', 'draw', 'undo', 'set', 'reset'];
+const UNDO = 50; // 1つ戻すために覚えておく数
+export const WIN_ACTIONS = ['win', 'add', 'set', 'undo', 'reset'];
 
-export const emptyCounter = () => ({ wins: 0, losses: 0, draws: 0, streak: 0, best: 0, updatedAt: 0 });
+const slimUser = (u) => (u ? { id: u.id, name: u.name, avatar: u.avatar } : null);
 
 export class WinsEngine {
   constructor(hub, file = WINS_FILE) {
     this.hub = hub;
     this.file = file;
     this.config = {};
-    this.counters = {};
-    this.undo = {}; // id → 前の状態の一覧
+    this.counts = {}; // id → { wins, updatedAt }
+    this.undo = {}; // id → 前の数の一覧
     this.#load();
-    hub.on('event', (e) => {
-      if (e.kind !== 'battle') return;
-      for (const [id, c] of Object.entries(this.config)) if (c.pk) this.apply(id, e.result, { battle: e });
-    });
+    hub.on('event', (e) => this.onGift(e));
   }
 
   setConfig(wins) {
@@ -38,61 +36,64 @@ export class WinsEngine {
   }
 
   get(id) {
-    return { ...emptyCounter(), ...this.counters[id] };
+    return { wins: 0, updatedAt: 0, ...this.counts[id] };
   }
 
   snapshot() {
     const out = {};
-    for (const id of new Set([...this.ids(), ...Object.keys(this.counters)])) out[id] = this.get(id);
+    for (const id of new Set([...this.ids(), ...Object.keys(this.counts)])) out[id] = this.get(id);
     return out;
+  }
+
+  /** ギフトのルール: 上から順に最初に合ったもので増減する */
+  onGift(e) {
+    if (e.kind !== 'gift') return;
+    let changed = false;
+    for (const [id, c] of Object.entries(this.config)) {
+      const rule = (c.rules ?? []).find((r) => ruleMatches(r, e));
+      if (!rule) continue;
+      const by = { user: slimUser(e.user), gift: e.gift.name, count: e.gift.count, text: rule.text ?? '' };
+      if (rule.set != null) this.#change(id, 'set', rule.set, by);
+      else this.#change(id, 'add', rule.add * (rule.perCount === false ? 1 : e.gift.count), by);
+      changed = true;
+    }
+    if (changed) this.#save();
   }
 
   /**
    * 数を変える。id を省くと設定にある全部。
-   * action: win / lose / draw / undo（1つ戻す）/ set（value に数を入れる）/ reset
+   * action: win（+1）/ add（value を足す。-1 で減らす）/ set（value にする）/ undo（1つ戻す）/ reset（0 に戻す）
    */
-  apply(id, action, { value, battle } = {}) {
-    if (!ACTIONS.includes(action)) throw new Error(`action は ${ACTIONS.join(' / ')} のどれかです`);
-    const ids = id ? [id] : this.ids();
+  apply(id, action, value) {
+    if (!WIN_ACTIONS.includes(action)) throw new Error(`action は ${WIN_ACTIONS.join(' / ')} のどれかです`);
+    if (id && Object.keys(this.config).length && !this.config[id]) throw new Error(`wins に「${id}」がありません（${this.ids().join(' / ')}）`);
+    if ((action === 'add' || action === 'set') && !Number.isInteger(Number(value))) throw new Error('value に整数を入れてください');
     const out = {};
-    for (const k of ids) out[k] = this.#applyOne(k, action, value, battle);
+    for (const k of id ? [id] : this.ids()) out[k] = this.#change(k, action, Number(value));
     this.#save();
     return out;
   }
 
-  #applyOne(id, action, value, battle) {
+  #change(id, action, value, by = null) {
     const prev = this.get(id);
-    const c = { ...prev };
-    const mode = this.config[id]?.mode ?? 'streak';
+    let wins = prev.wins;
     if (action === 'undo') {
       const stack = this.undo[id] ?? [];
-      if (!stack.length) return c;
-      Object.assign(c, stack.pop());
+      if (!stack.length) return prev;
+      wins = stack.pop();
     } else {
-      (this.undo[id] ??= []).push(prev);
+      if (action === 'win') wins += 1;
+      else if (action === 'add') wins += value;
+      else if (action === 'set') wins = value;
+      else if (action === 'reset') wins = 0;
+      if (!this.config[id]?.negative) wins = Math.max(0, wins);
+      (this.undo[id] ??= []).push(prev.wins);
       if (this.undo[id].length > UNDO) this.undo[id].shift();
-      if (action === 'win') {
-        c.wins++;
-        c.streak++;
-      } else if (action === 'lose') {
-        c.losses++;
-        c.streak = 0;
-      } else if (action === 'draw') {
-        c.draws++;
-      } else if (action === 'set') {
-        const n = Math.max(0, Math.floor(Number(value)));
-        if (!Number.isFinite(n)) throw new Error('value に数を入れてください');
-        if (mode === 'streak') c.streak = n;
-        else c.wins = n;
-      } else if (action === 'reset') {
-        Object.assign(c, emptyCounter());
-      }
-      c.best = action === 'reset' ? 0 : Math.max(c.best, c.streak);
     }
-    c.updatedAt = Date.now();
-    this.counters[id] = c;
-    const event = { kind: action, battle: battle ?? null };
-    // 画面の数が変わったのが「勝ち」なのか「戻した」なのかをウィジェットに伝える
+    const c = { wins, updatedAt: Date.now() };
+    this.counts[id] = c;
+    // 「クリアで +1」なのか「ギフトで -1」なのか「戻した」なのかをウィジェットに伝える
+    const event = { kind: action, delta: wins - prev.wins, by };
     this.hub.broadcast({ type: 'wins', id, counter: c, prev, event });
     this.hub.emit('wins', id, c, event);
     return c;
@@ -101,14 +102,16 @@ export class WinsEngine {
   #load() {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      if (data && typeof data === 'object') this.counters = data;
+      if (data && typeof data === 'object') {
+        for (const [id, c] of Object.entries(data)) this.counts[id] = { wins: Number(c?.wins) || 0, updatedAt: Number(c?.updatedAt) || 0 };
+      }
     } catch {}
   }
 
   #save() {
     try {
       fs.mkdirSync(path.dirname(this.file), { recursive: true });
-      fs.writeFileSync(this.file, JSON.stringify(this.counters, null, 2));
+      fs.writeFileSync(this.file, JSON.stringify(this.counts, null, 2));
     } catch (err) {
       console.warn('[wins] 保存できませんでした:', err.message);
     }

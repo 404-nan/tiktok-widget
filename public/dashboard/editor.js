@@ -14,7 +14,7 @@ const ENUM_LABELS = {
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
-  streak: '連勝数（負けると 0）', total: '勝ち数', record: '戦績（○勝○敗○分）', plate: '横長の板', big: '大きい数字',
+  plate: '横長の板', big: '大きい数字',
   inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
 };
 // 項目の短い名前（説明は下に小さく出す）
@@ -27,8 +27,8 @@ const LABELS = {
   keep: '中身を残す', sizeMin: '小さい玉の倍率', sizeMax: '大きい玉の倍率', liquid: '中の液体', liquidColor: '液体の色',
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
-  'wins.title': '見出し', 'wins.mode': '数え方', 'wins.goal': '目標（0 で出さない）', pk: 'PK バトルで自動で数える', 'wins.style': '形',
-  best: '最高連勝を出す', milestone: '大きく祝う間隔',
+  'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減するルール（YAML）', 'wins.style': '形',
+  negative: 'マイナスまで減らせる', winText: 'クリアの文字', milestone: '大きく祝う間隔',
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
   'rush.text': '帯に流れる文字', enterText: '突入の文字', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
@@ -50,7 +50,7 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
-  wins: ['title', 'mode', 'goal', 'pk', 'style', 'best', 'milestone', 'color'],
+  wins: ['title', 'goal', 'rules', 'negative', 'winText', 'milestone', 'style', 'color'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -347,7 +347,7 @@ export function createEditor({ api, setMessage }) {
       for (const m of media) dl.append(new Option(m, m));
       wrap.append(dl);
       control.addEventListener('input', () => save(key, control.value.trim(), 500));
-    } else if (field.type === 'rules' || field.type === 'mcRules') {
+    } else if (field.type === 'rules' || field.type === 'mcRules' || field.type === 'winRules') {
       control = document.createElement('textarea');
       control.rows = 6;
       control.className = 'mono';
@@ -356,7 +356,9 @@ export function createEditor({ api, setMessage }) {
       control.placeholder =
         field.type === 'mcRules'
           ? '- gifts: [Rose]\n  superstreamGift: 6001\n- events: [follow]\n  commands: ["say {user} ありがとう"]'
-          : '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
+          : field.type === 'winRules'
+            ? '- {gifts: [Lion], add: -1}\n- {gifts: [Universe], set: 0}\n- {gifts: [GG], add: 1}'
+            : '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
       control.rows = field.type === 'mcRules' ? 10 : 6;
       control.addEventListener('input', () => patch(pathOf(key), { yaml: control.value.trim() || '[]' }, 700));
     } else {
@@ -618,6 +620,12 @@ export function createEditor({ api, setMessage }) {
       tab === 'roulettes'
         ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
+    // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
+    if (tab === 'wins') {
+      const base = new URL(w.url).origin;
+      $('sizeHint').textContent +=
+        ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo`;
+    }
     const url = new URL(w.url, location.origin);
     url.searchParams.set('preview', '1');
     url.searchParams.set('sound', '0');
@@ -685,13 +693,21 @@ export function createEditor({ api, setMessage }) {
         ),
       );
     } else if (tab === 'wins') {
-      const w = (action, data) => control('wins', action, { id, ...data });
+      const w = (action, value) => control('wins', action, { id, value });
+      const e = payload.config.wins?.[id] ?? {};
       box.replaceChildren(
-        chip('WIN +1', 'trophy', w('win')),
-        chip('負け', 'x', w('lose')),
-        chip('引き分け', 'minus', w('draw')),
+        chip('クリア（WIN +1）', 'trophy', w('win')),
+        chip('WIN -1', 'minus', w('add', -1)),
         chip('1つ戻す', 'undo-2', w('undo')),
-        chip('PK の勝ちを試す', 'swords', () => api('/api/simulate', { kind: 'battle', result: 'win' })),
+        // ルールに書いたギフトを1つずつ試せる
+        ...(e.rules ?? [])
+          .filter((r) => r.gifts?.length || r.minCoins != null)
+          .slice(0, 4)
+          .map((r) =>
+            chip(`${r.gifts?.[0] ?? `${r.minCoins} コイン`}（${r.set != null ? `WIN ${r.set} に` : `WIN ${r.add > 0 ? '+' : ''}${r.add}`}）`, 'gift', () =>
+              api('/api/simulate', r.gifts?.length ? { kind: 'gift', giftName: r.gifts[0], count: 1, diamonds: 1 } : { kind: 'gift', giftName: 'テストギフト', diamonds: r.minCoins }),
+            ),
+          ),
         chip('0 に戻す', 'rotate-ccw', () => confirm('WIN 数を 0 に戻しますか？') && w('reset')()),
       );
     } else if (tab === 'rush') {

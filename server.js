@@ -76,6 +76,16 @@ app.delete('/api/history/:id', (req, res) => res.json({ ok: history.remove(req.p
 app.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
 app.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
 app.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
+// Stream Deck やブラウザのブックマークから押せるように GET でも受ける
+// 例: /api/wins/default/win（+1）・/api/wins/default/add?value=-1・/api/wins/default/undo・/api/wins/all/reset
+app.all('/api/wins/:id/:action', (req, res) => {
+  try {
+    const id = req.params.id === 'all' ? null : req.params.id;
+    res.json({ ok: true, wins: wins.apply(id, req.params.action, req.query.value ?? req.body?.value) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 // SuperStream のプロフィールに設定済みの演出（読むだけ）
 app.get('/api/superstream', (_req, res) => {
   const mc = hub.config?.minecraft ?? {};
@@ -224,7 +234,7 @@ app.post('/api/control', (req, res) => {
   // WIN 数もサーバーで持つ（data/wins.json に残す）
   if (target === 'wins') {
     try {
-      return res.json({ ok: true, wins: wins.apply(data?.id || null, String(action), { value: data?.value }) });
+      return res.json({ ok: true, wins: wins.apply(data?.id || null, String(action), data?.value) });
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }

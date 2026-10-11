@@ -12,7 +12,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ルーレット `roulette` | ギフトごとに別のルーレットを回せる。丸型と横スライド型、項目ごとの色と画像 | 丸 600 × 680 / 横 820 × 330 |
 | いいね・視聴者数 `counter` | いいね・視聴者・フォロー・コインなどのスコアボード | 560 × 220 |
 | 目標バー `goal` | フォロー数などの目標までの進み具合。達成後に目標を自動で上げられる | 640 × 180 |
-| WIN数 `wins` | 連勝数・勝ち数・戦績（○勝○敗○分）。TikTok の PK バトルの勝ち負けで自動で数え、ボタンでも +1 / 負け / 1つ戻す。勝つと数字が跳ね、PK の結果はハンコ（WIN / LOSE）、5連勝ごとに金で祝う。数は配信をまたいで残る | 横長 600 × 200 / 大きい数字 380 × 400 |
+| WIN数 `wins` | 妨害マイクラなどのゲームクリア回数。クリアしたらボタンや Stream Deck で +1、「このギフトで WIN -1」「このギフトで 0 に戻す」のようにギフトで増減。増えると数字が跳ねて「WIN!」、ギフトで減ると赤いハンコ（WIN -1 妨害成功 Lion by ○○）と揺れ、5 WIN ごとと目標達成は金で祝う。数は配信をまたいで残る | 横長 600 × 200 / 大きい数字 380 × 400 |
 | ランキング `ranking` | この配信のトップギフター・いいねランキング。順位が入れ替わるとなめらかに動く | 420 × 416（5人） |
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
@@ -21,7 +21,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 | 画面 | URL | 内容 |
 | --- | --- | --- |
-| モニター | `/monitor/` | 配信中に手元（別画面・スマホ）で見る。コイン・視聴者などの数字、ライブのコメントとギフト、WIN 数のボタン（WIN / 負け / 分け / 戻す）、RUSH の残り時間と突入・終了のボタン、ルーレットの待ちと結果、目標、トップギフター、Minecraft に送ったコマンド |
+| モニター | `/monitor/` | 配信中に手元（別画面・スマホ）で見る。コイン・視聴者などの数字、ライブのコメントとギフト、WIN 数のボタン（クリア +1 / -1 / 戻す）、RUSH の残り時間と突入・終了のボタン、ルーレットの待ちと結果、目標、トップギフター、Minecraft に送ったコマンド |
 | 統計 | `/history/` | 配信ごとの記録。1分ごとのコイン・視聴者・いいねのグラフ、前回との比較、トップギフター、ギフトの内訳、ルーレットの結果 |
 | 設定 | `/dashboard/` | 接続、テスト送信、各ウィジェットと Minecraft 連携の設定、YAML の編集 |
 
@@ -79,7 +79,10 @@ roulettes:
 - **色**: 項目ごとに `color` と `textColor`。`#RRGGBB` か、テーマの色の名前（`accent` 朱 / `gold` 金 / `ink` 墨 / `ink-2` / `paper` 白）
 - **画像**: 項目の `image` に画像の URL か `media/` フォルダのファイル名。画像がなければ今までどおり文字だけを中央に出します
 - **条件ごとの通知**: `alerts.<名前>.rules` で、ギフト名・ユーザー・コイン数ごとに色・金色の演出・秒数・文を変えられます
-- **WIN数**: `wins.<名前>.mode` で数え方（`streak` 連勝数・負けると 0 / `total` 勝ち数 / `record` 戦績）。`pk: true` なら PK バトルの結果で自動で数えます（自分の配信の結果を、つないでいる LIVE の room ID とユーザー名で見分けます）。数は `data/wins.json` に残り、ダッシュボード・モニター・`npm run tw -- win` / `lose` / `wins undo` で変えられます
+- **WIN数**: クリアしたらダッシュボード・モニターのボタンか、URL を開いて +1（Stream Deck の「Webサイト」などに登録すればゲーム中でも押せます）
+  - `http://127.0.0.1:3939/api/wins/default/win` … +1 ／ `…/add?value=-1` … -1 ／ `…/undo` … 1つ戻す ／ `…/set?value=5` … 5 にする（`default` の所を `all` にすると全部）
+  - ギフトで増減: `wins.default.rules` に `{gifts: [Lion], add: -1, text: 妨害成功}`（個数分減る）や `{gifts: [Universe], set: 0}`（0 に戻す）。上から順に最初に合ったものを使います
+  - 数は `data/wins.json` に残ります。AI からは `npm run tw -- win` / `wins add -1` / `wins undo`、MCP の `wins` ツール
 - **RUSH**: `rush.gifts` のギフト、`rush.enterCoins` 以上のギフト、ルーレットの `rush: true` の項目、ダッシュボード・モニターのボタンで突入。RUSH 中は `extendMinCoins` 以上のギフトで `extendSeconds` 秒ずつ延び、最長 `maxSeconds` 秒。状態はサーバーが持つので、OBS を読み込み直しても続きから出ます
 - **同じウィジェットを複数**: `jars.elixir` のように名前を付けて作り、URL に `?id=elixir`
 
@@ -186,7 +189,7 @@ src/schema.js          設定の項目・初期値・説明（検証・フォー
 src/config.js          設定ファイルの検証・読み書き（コメントを残す）・監視
 src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
-src/wins.js            WIN 数（PK バトルの結果とボタンで増減し、data/wins.json に残す）
+src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
 src/rush.js            RUSH（確変）モードの状態と時間（突入・延長・終了を全画面に配る）
 src/minecraft.js       Minecraft 連携（ルール・ルーレットの結果 → RCON）
 src/rcon.js            RCON クライアント

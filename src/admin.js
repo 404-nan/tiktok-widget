@@ -113,9 +113,9 @@ export async function spinRoulette(id) {
   return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
 }
 
-/** WIN 数を変える・見る（サーバーが必要）。action: win / lose / draw / undo / set / reset / status。id を省くと全部 */
+/** WIN 数を変える・見る（サーバーが必要）。action: win / add / set / undo / reset / status。id を省くと全部 */
 export async function wins(action = 'status', id = null, value) {
-  const line = (k, c) => `${k}: 連勝 ${c.streak}（最高 ${c.best}）、${c.wins}勝 ${c.losses}敗 ${c.draws}分`;
+  const line = (k, c) => `${k}: WIN ${c.wins}`;
   if (action === 'status') {
     const all = await callServer('/api/wins');
     const rows = Object.entries(all).filter(([k]) => !id || k === id);

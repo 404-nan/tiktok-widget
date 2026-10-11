@@ -61,6 +61,8 @@ function checkValue(field, value, where, issues) {
       return checkRules(value, where, issues);
     case 'mcRules':
       return checkMcRules(value, where, issues);
+    case 'winRules':
+      return checkWinRules(value, where, issues);
     default:
       return value;
   }
@@ -198,6 +200,44 @@ function checkMcRules(value, where, issues) {
         issues.warnings.push(`${at}.${key}: 使われない項目です`);
       }
     }
+    return rule;
+  });
+}
+
+// WIN 数のギフトのルール（{ gifts: [Lion], add: -1 } / { gifts: [Universe], set: 0 }）
+function checkWinRules(value, where, issues) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    issues.errors.push(`${where}: 一覧で書いてください`);
+    return [];
+  }
+  const known = ['gifts', 'users', 'minCoins', 'add', 'set', 'perCount', 'text'];
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    const rule = {};
+    if (!raw || typeof raw !== 'object') {
+      issues.errors.push(`${at}: { gifts: [Lion], add: -1 } のように書いてください`);
+      return rule;
+    }
+    for (const key of ['gifts', 'users']) {
+      if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${at}.${key}`, issues);
+    }
+    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    for (const key of ['add', 'set']) {
+      if (raw[key] == null) continue;
+      const n = Number(raw[key]);
+      if (Number.isInteger(n)) rule[key] = n;
+      else issues.errors.push(`${at}.${key}: 整数で書いてください（今: ${JSON.stringify(raw[key])}）`);
+    }
+    if ('add' in rule && 'set' in rule) issues.errors.push(`${at}: add と set はどちらか1つにしてください`);
+    if (!('add' in rule) && !('set' in rule)) issues.errors.push(`${at}: add（足す数。-1 で減らす）か set（その数にする）を書いてください`);
+    if (rule.add === 0) issues.warnings.push(`${at}.add: 0 なので何も変わりません`);
+    if (raw.perCount != null) rule.perCount = checkValue({ type: 'boolean', default: true }, raw.perCount, `${at}.perCount`, issues);
+    if (raw.text != null) rule.text = String(raw.text);
+    if (!rule.gifts && !rule.users && rule.minCoins == null) {
+      issues.warnings.push(`${at}: 条件（gifts / minCoins / users）がないので、ギフトのたびに変わります`);
+    }
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return rule;
   });
 }

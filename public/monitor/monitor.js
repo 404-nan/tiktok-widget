@@ -92,8 +92,7 @@ async function syncTimeline() {
 
 // --- ライブフィード ---
 
-const ICONS = { gift: 'gift', follow: 'user-plus', share: 'repeat-2', chat: 'message-circle', like: 'heart', battle: 'swords' };
-const BATTLE = { win: 'PK 勝ち', lose: 'PK 負け', draw: 'PK 引き分け' };
+const ICONS = { gift: 'gift', follow: 'user-plus', share: 'repeat-2', chat: 'message-circle', like: 'heart' };
 
 function addFeed(e) {
   if (!ICONS[e.kind] || (e.kind === 'like' && e.count < 10)) return;
@@ -108,7 +107,7 @@ function addFeed(e) {
   const body = document.createElement('span');
   const who = document.createElement('span');
   who.className = 'who';
-  who.textContent = e.user?.name ?? (e.kind === 'battle' ? `vs ${e.opponent?.name ?? '相手'}` : '');
+  who.textContent = e.user?.name ?? '';
   const what = document.createElement('span');
   what.className = 'what';
   what.textContent = {
@@ -117,7 +116,6 @@ function addFeed(e) {
     share: () => 'シェアしました',
     chat: () => e.text,
     like: () => `いいね ×${e.count}`,
-    battle: () => `${BATTLE[e.result]}（${fmtNum(e.score?.me ?? 0)} - ${fmtNum(e.score?.them ?? 0)}）`,
   }[e.kind]();
   body.append(who, what);
   const right = document.createElement('span');
@@ -150,8 +148,7 @@ function renderWins() {
   $('winsSection').hidden = !entries.length;
   box.replaceChildren(
     ...entries.map(([id, w]) => {
-      const c = winCounts[id] ?? { wins: 0, losses: 0, draws: 0, streak: 0, best: 0 };
-      const n = w.mode === 'streak' ? c.streak : c.wins;
+      const n = winCounts[id]?.wins ?? 0;
       const row = document.createElement('div');
       row.className = 'win-row';
       const label = document.createElement('div');
@@ -161,20 +158,19 @@ function renderWins() {
       big.textContent = fmtNum(n);
       const text = document.createElement('span');
       text.className = 'hint';
-      const unit = w.mode === 'streak' ? '連勝中' : '勝';
-      text.textContent = `${w.title || id} ${unit}${w.goal > 0 ? ` / ${w.goal}` : ''}　${c.wins}勝 ${c.losses}敗 ${c.draws}分`;
+      text.textContent = `${w.title || id}${w.goal > 0 ? ` / ${w.goal}` : ''}${entries.length > 1 ? `（${id}）` : ''}`;
       label.append(big, text);
-      const btn = (name, iconName, action, cls = '') => {
+      const btn = (name, iconName, action, value, cls = '') => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = `chip pressable ${cls}`;
         b.append(icon(iconName), name);
-        b.addEventListener('click', () => api('/api/control', { target: 'wins', action, data: { id } }));
+        b.addEventListener('click', () => api('/api/control', { target: 'wins', action, data: { id, value } }));
         return b;
       };
       const buttons = document.createElement('div');
       buttons.className = 'roulette-buttons';
-      buttons.append(btn('WIN', 'trophy', 'win', 'win-btn'), btn('負け', 'x', 'lose'), btn('分け', 'minus', 'draw'), btn('戻す', 'undo-2', 'undo'));
+      buttons.append(btn('クリア +1', 'trophy', 'win', undefined, 'win-btn'), btn('-1', 'minus', 'add', -1), btn('戻す', 'undo-2', 'undo'));
       row.append(label, buttons);
       return row;
     }),

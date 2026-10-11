@@ -5,10 +5,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WinsEngine } from '../src/wins.js';
-import { normalizeBattle } from '../src/normalize.js';
 import { defaultsFor } from '../src/schema.js';
+import { normalize } from '../src/config.js';
 
-function setup(config = { default: { ...defaultsFor('wins') } }) {
+const counter = (over = {}) => ({ ...defaultsFor('wins'), ...over });
+
+function setup(config = { default: counter() }) {
   const hub = new EventEmitter();
   const sent = [];
   hub.broadcast = (msg) => sent.push(msg);
@@ -17,79 +19,77 @@ function setup(config = { default: { ...defaultsFor('wins') } }) {
   wins.setConfig(config);
   return { hub, wins, sent, file };
 }
+const gift = (name, count = 1, coins = 1) => ({ kind: 'gift', user: { id: 'u1', name: 'たろう' }, gift: { name, id: '1', count }, totalDiamonds: coins * count });
 
-test('勝ちで連勝と勝ち数が増え、負けで連勝だけ 0 に戻る', () => {
+test('クリアで +1、add で増減、0 より下には行かない', () => {
   const { wins } = setup();
   wins.apply('default', 'win');
   wins.apply('default', 'win');
-  wins.apply('default', 'draw');
-  wins.apply('default', 'win');
-  assert.deepEqual(pick(wins.get('default')), { wins: 3, losses: 0, draws: 1, streak: 3, best: 3 });
-  wins.apply('default', 'lose');
-  wins.apply('default', 'win');
-  assert.deepEqual(pick(wins.get('default')), { wins: 4, losses: 1, draws: 1, streak: 1, best: 3 });
+  wins.apply('default', 'add', -1);
+  assert.equal(wins.get('default').wins, 1);
+  wins.apply('default', 'add', -5);
+  assert.equal(wins.get('default').wins, 0);
 });
 
-test('1つ戻すと前の状態に戻る（連勝が途切れたのも戻せる）', () => {
-  const { wins } = setup();
-  for (let i = 0; i < 4; i++) wins.apply('default', 'win');
-  wins.apply('default', 'lose');
-  assert.equal(wins.get('default').streak, 0);
+test('negative: true ならマイナスまで減る', () => {
+  const { wins } = setup({ default: counter({ negative: true }) });
+  wins.apply('default', 'add', -2);
+  assert.equal(wins.get('default').wins, -2);
+});
+
+test('1つ戻すと前の数に戻る（ギフトで減ったのも戻せる）', () => {
+  const { wins, hub } = setup({ default: counter({ rules: [{ gifts: ['Lion'], add: -1 }] }) });
+  wins.apply('default', 'set', 4);
+  hub.emit('event', gift('lion'));
+  assert.equal(wins.get('default').wins, 3);
   wins.apply('default', 'undo');
-  assert.equal(wins.get('default').streak, 4);
-  assert.equal(wins.get('default').losses, 0);
+  assert.equal(wins.get('default').wins, 4);
 });
 
-test('set は連勝モードなら連勝数、それ以外は勝ち数に入る', () => {
-  const { wins } = setup({ a: { ...defaultsFor('wins') }, b: { ...defaultsFor('wins'), mode: 'total' } });
-  wins.apply('a', 'set', { value: 7 });
-  wins.apply('b', 'set', { value: 12 });
-  assert.equal(wins.get('a').streak, 7);
-  assert.equal(wins.get('a').best, 7);
-  assert.equal(wins.get('b').wins, 12);
-  assert.throws(() => wins.apply('a', 'jump'));
+test('ギフトのルール: 上から最初に合ったもの、add は個数分', () => {
+  const rules = [
+    { gifts: ['Universe'], set: 0 },
+    { gifts: ['Lion'], add: -1, text: '妨害成功' },
+    { gifts: ['GG'], add: 1, perCount: false },
+    { minCoins: 1000, add: -1 },
+  ];
+  const { wins, hub, sent } = setup({ default: counter({ rules }) });
+  wins.apply('default', 'set', 10);
+  hub.emit('event', gift('Lion', 3, 29999));
+  assert.equal(wins.get('default').wins, 7); // Lion ×3 で -3（minCoins のルールは使わない）
+  assert.equal(sent.at(-1).event.by.text, '妨害成功');
+  assert.equal(sent.at(-1).event.delta, -3);
+  hub.emit('event', gift('GG', 5));
+  assert.equal(wins.get('default').wins, 8); // perCount: false で1回だけ
+  hub.emit('event', gift('Galaxy', 1, 1000));
+  assert.equal(wins.get('default').wins, 7);
+  hub.emit('event', gift('Universe'));
+  assert.equal(wins.get('default').wins, 0);
+  hub.emit('event', gift('Rose'));
+  assert.equal(wins.get('default').wins, 0);
 });
 
-test('名前を省くと設定にある全部が変わり、ファイルに残る', () => {
-  const { wins, file, hub } = setup({ a: { ...defaultsFor('wins') }, b: { ...defaultsFor('wins') } });
+test('名前を省くと全部、知らない名前はエラー、数はファイルに残る', () => {
+  const { wins, file, hub } = setup({ a: counter(), b: counter() });
   wins.apply(null, 'win');
   assert.equal(wins.get('a').wins, 1);
   assert.equal(wins.get('b').wins, 1);
-  const again = new WinsEngine(hub, file);
-  assert.equal(again.get('a').wins, 1);
+  assert.throws(() => wins.apply('c', 'win'), /c/);
+  assert.throws(() => wins.apply('a', 'add', 'x'));
+  assert.throws(() => wins.apply('a', 'jump'));
+  assert.equal(new WinsEngine(hub, file).get('a').wins, 1);
 });
 
-test('PK バトルの結果で、pk: true のものだけ数える', () => {
-  const { hub, wins, sent } = setup({ a: { ...defaultsFor('wins') }, b: { ...defaultsFor('wins'), pk: false } });
-  hub.emit('event', { kind: 'battle', result: 'win', opponent: { name: 'ライバル' } });
-  assert.equal(wins.get('a').wins, 1);
-  assert.equal(wins.get('b').wins, 0);
-  assert.equal(sent.at(-1).event.battle.opponent.name, 'ライバル');
+test('rules の書き方を確かめる', () => {
+  const { config, errors, warnings } = normalize({
+    wins: {
+      default: {
+        rules: [{ gifts: ['Lion'], add: -1 }, { gifts: ['Universe'], set: 0 }, { gifts: ['GG'] }, { gifts: ['Rose'], add: 1, set: 2 }, { add: 1.5 }],
+      },
+    },
+  });
+  assert.deepEqual(config.wins.default.rules[0], { gifts: ['Lion'], add: -1 });
+  assert.deepEqual(config.wins.default.rules[1], { gifts: ['Universe'], set: 0 });
+  assert.equal(errors.length, 4); // add/set がない・両方ある・整数でない（その結果 add/set もない）
+  assert.ok(warnings.some((w) => w.includes('条件')));
 });
-
-// --- TikTok の生データ ---
-const anchors = [
-  { key: '111', value: { user: { userId: '111', nickName: 'わたし', displayId: 'me', roomId: '900' } } },
-  { key: '222', value: { user: { userId: '222', nickName: 'あいて', displayId: 'rival', roomId: '901' } } },
-];
-
-test('PK の終わりに、自分（roomId かユーザー名）の結果を取り出す', () => {
-  const data = { action: 5, battleId: 'b1', anchorsInfo: anchors, battleResult: { 111: { userId: '111', result: 1, score: '300' }, 222: { userId: '222', result: 0, score: '900' } } };
-  const e = normalizeBattle(data, { roomId: '900' });
-  assert.equal(e.result, 'lose');
-  assert.equal(e.opponent.name, 'あいて');
-  assert.deepEqual(e.score, { me: 300, them: 900 });
-  assert.equal(normalizeBattle(data, { username: 'RIVAL' }).result, 'win');
-  assert.equal(normalizeBattle({ ...data, action: 4 }, { roomId: '900' }), null); // 始まりは数えない
-});
-
-test('結果が空なら、最後に届いた点数で比べる', () => {
-  const data = { action: 5, battleId: 'b2', anchorsInfo: anchors, battleResult: {} };
-  const last = { battleId: 'b2', scores: { 111: 1200, 222: 800 } };
-  assert.equal(normalizeBattle(data, { roomId: '900' }, last).result, 'win');
-  assert.equal(normalizeBattle(data, { roomId: '900' }, null), null);
-});
-
-function pick(c) {
-  return { wins: c.wins, losses: c.losses, draws: c.draws, streak: c.streak, best: c.best };
-}
