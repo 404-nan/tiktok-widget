@@ -105,9 +105,12 @@ export const SCHEMA = {
     title: 'WIN数',
     desc:
       'WIN 数（妨害マイクラなどのゲームクリア回数）。クリアしたらダッシュボード・モニター・URL（Stream Deck など）で +1。' +
+      '一度に大きく減ったときは 大妨害・超妨害・壊滅 の段階で演出が派手になり、全画面の演出は /widgets/wins-fx.html?id=<名前> を配信画面いっぱいに重ねる。' +
       'rules で「このギフトで WIN -1」「このギフトで 0 に戻す」のようにギフトで増減できる。' +
       '数はサーバーの data/wins.json に残るので、配信をまたいで続けられる。URL は /widgets/wins.html?id=<名前>',
     size: (e) => (e.style === 'big' ? [380, 400] : [600, 200]),
+    // 大妨害・超妨害・壊滅を配信画面いっぱいに出すページ（板とは別に OBS に入れる）
+    extraPages: [{ page: 'wins-fx', title: 'WIN数の全画面演出', size: () => [1080, 1920] }],
     fields: {
       title: str('WIN', '大きく出す見出し'),
       goal: num(0, '目標（例 10 で「/ 10」と出し、達成で祝う。0 で出さない）', { min: 0 }),
@@ -122,6 +125,12 @@ export const SCHEMA = {
       },
       negative: bool(true, 'マイナス（-1 WIN など）まで減らせる（false なら 0 で止まる）'),
       winText: str('WIN!', 'クリアで +1 したときに出す文字'),
+      bigLoss: num(10, '「大妨害」になる減り方（一度にこの数以上減ったら）', { min: 1 }),
+      hugeLoss: num(100, '「超妨害」になる減り方', { min: 1 }),
+      ruinLoss: num(1000, '「壊滅」になる減り方', { min: 1 }),
+      bigLossText: str('大妨害', '大妨害のときの文字'),
+      hugeLossText: str('超妨害', '超妨害のときの文字'),
+      ruinLossText: str('壊滅', '壊滅のときの文字'),
       milestone: num(5, 'この数ごとに大きく祝う（5 なら 5・10・15…。0 で祝わない）', { min: 0 }),
       style: oneOf(['plate', 'big'], 'plate', 'plate 横長の板 / big 大きい数字（画面の端に置く用）'),
       color: color('accent', '見出しの色'),

@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WIN数の全画面演出</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  /* WIN数の全画面演出。配信画面いっぱいに重ねる。
+     一度に大きく減ったとき: 大妨害（ひび）→ 超妨害（全面のひび・サイレン・赤い警報）→ 壊滅（暗転して止まり、ガラスが割れて落ちる）。
+     0 を割ったときは、画面の上下に「マイナス突入」の危険の帯が流れる */
+  html, body { width: 100%; height: 100%; }
+  .stage { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+  canvas.glass { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* 赤い警報: 画面の縁が赤く脈打つ */
+  .alarm { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 20, 20, .55) 100%); }
+  .alarm.on { animation: alarm .7s ease-in-out infinite; }
+  @keyframes alarm { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
+
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+  .flash.go { animation: flash .35s ease-out; }
+  @keyframes flash { 0% { opacity: .9; } 40% { opacity: .4; background: #FF2A2A; } 100% { opacity: 0; } }
+
+  /* 壊滅の前の暗転（フリーズ） */
+  .freeze { position: absolute; inset: 0; background: #000; opacity: 0; display: grid; place-items: center; transition: opacity .2s linear; }
+  .freeze.on { opacity: .94; }
+  .freeze span { font-family: var(--font-num); color: rgba(255, 255, 255, .45); font-size: 28px; letter-spacing: .4em; }
+
+  /* 真ん中の文字: 段階の札 → WIN -100 → 送った人 */
+  .center { position: absolute; left: 50%; top: 46%; width: 0; height: 0; }
+  .label {
+    position: absolute;
+    left: 0;
+    bottom: calc(var(--fs, 160px) * .62);
+    transform: translateX(-50%) rotate(-6deg) scale(2.4);
+    padding: 10px 34px 12px;
+    background: #111113;
+    color: #FFC53D;
+    border: 8px solid transparent;
+    border-image: repeating-linear-gradient(-45deg, #FFC53D 0 14px, #111113 14px 28px) 8;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: calc(var(--fs, 160px) * .42);
+    line-height: 1;
+    white-space: nowrap;
+    opacity: 0;
+  }
+  .word {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: var(--fs, 160px);
+    line-height: 1;
+    white-space: nowrap;
+    transform: translate(-50%, -50%) rotate(-6deg) skewX(-8deg) scale(3);
+    opacity: 0;
+  }
+  .word span { display: block; }
+  .word .back { color: #111; -webkit-text-stroke: calc(var(--fs) * .16) #111; text-shadow: calc(var(--fs) * .04) calc(var(--fs) * .07) 0 #111, calc(var(--fs) * .08) calc(var(--fs) * .14) 0 rgba(0, 0, 0, .6); }
+  .word .mid { position: absolute; inset: 0; color: #fff; -webkit-text-stroke: calc(var(--fs) * .07) #fff; }
+  .word .front { position: absolute; inset: 0; background: linear-gradient(180deg, #FF6A4A, #FF1A1A 55%, #A80000); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .who {
+    position: absolute;
+    left: 0;
+    top: calc(var(--fs, 160px) * .7);
+    transform: translateX(-50%) rotate(-6deg);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 26px 10px 12px;
+    background: #111113;
+    border-left: 10px solid #FF2A2A;
+    color: #F6F5F1;
+    font-weight: 900;
+    font-size: calc(var(--fs, 160px) * .2);
+    white-space: nowrap;
+    clip-path: inset(0 100% 0 0);
+  }
+  .who:empty { display: none; }
+  .who .av { width: 1.6em; height: 1.6em; border-radius: 50%; object-fit: cover; background: #333; display: grid; place-items: center; font-style: normal; flex: none; }
+  .who b { color: #FF4F1F; }
+
+  .go .label { opacity: 1; transform: translateX(-50%) rotate(-6deg); transition: transform .14s cubic-bezier(.5, 0, .9, .6), opacity .05s linear; }
+  .go .word { opacity: 1; transform: translate(-50%, -50%) rotate(-6deg) skewX(-8deg); transition: transform .14s cubic-bezier(.5, 0, .9, .6) .12s, opacity .05s linear .12s; }
+  .go .who { clip-path: inset(0 0 0 0); transition: clip-path .3s var(--ease-wipe) .4s; }
+  .out .label, .out .word, .out .who { opacity: 0; transition: opacity .35s linear; }
+
+  /* マイナス突入: 画面の上下に危険の帯が流れる */
+  .band {
+    position: absolute;
+    left: -10%;
+    right: -10%;
+    height: 9vh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    background: #111113;
+    border-top: 1.2vh solid transparent;
+    border-bottom: 1.2vh solid transparent;
+    border-image: repeating-linear-gradient(-45deg, #FFC53D 0 18px, #111113 18px 36px) 12;
+    transform: scaleY(0);
+    transition: transform .25s var(--ease-wipe);
+  }
+  .band.top { top: 6vh; transform-origin: top; rotate: -3deg; }
+  .band.bottom { bottom: 8vh; transform-origin: bottom; rotate: -3deg; }
+  .bands.on .band { transform: none; }
+  .band .run { display: flex; white-space: nowrap; animation: run 3s linear infinite; }
+  .band.bottom .run { animation-direction: reverse; }
+  .band .run span { font-family: "Dela Gothic One", var(--font); font-size: 5vh; line-height: 1; color: #FF2A2A; padding: 0 3vh; }
+  @keyframes run { to { transform: translateX(-50%); } }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas class="glass" id="glass"></canvas>
+  <div class="alarm" id="alarm"></div>
+  <div class="bands" id="bands">
+    <div class="band top"><div class="run"></div></div>
+    <div class="band bottom"><div class="run"></div></div>
+  </div>
+  <div class="center" id="center">
+    <div class="label" id="label"></div>
+    <div class="word" id="word"><span class="back"></span><span class="mid"></span><span class="front"></span></div>
+    <div class="who" id="who"></div>
+  </div>
+  <div class="flash" id="flash"></div>
+  <div class="freeze" id="freeze"><span>・・・</span></div>
+</div>
+<script type="module">
+  import { setupWidget, connect, fmt, sleep } from './lib/overlay.js';
+
+  // 設定は config.yaml の wins.<id>（?id= がなければ default）。WIN数の板（wins.html）と同じ設定で動く
+  const p = await setupWidget('wins', {
+    sound: true, volume: 0.4, bigLoss: 10, hugeLoss: 100, ruinLoss: 1000, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅',
+  });
+  const id = new URLSearchParams(location.search).get('id') || 'default';
+  const $ = (x) => document.getElementById(x);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const tierOf = (delta) => {
+    const a = Math.abs(delta);
+    return a >= p.ruinLoss ? 3 : a >= p.hugeLoss ? 2 : a >= p.bigLoss ? 1 : 0;
+  };
+  const TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
+
+  // --- 効果音（音源なしで合成） ---
+  let ac;
+  const audio = () => (ac ??= new AudioContext());
+  const ok = (fn) => {
+    if (!p.sound) return;
+    try {
+      fn(audio());
+    } catch {}
+  };
+  const tone = (type, f0, f1, at, len, peak) =>
+    ok((a) => {
+      const t = a.currentTime + at, o = a.createOscillator(), g = a.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(f0, t);
+      if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + len * 0.8);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak * p.volume, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + len + 0.05);
+    });
+  const noise = (seconds, type, freq, vol, at = 0) =>
+    ok((a) => {
+      const t = a.currentTime + at;
+      const buf = a.createBuffer(1, a.sampleRate * seconds, a.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+      const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+      src.buffer = buf;
+      f.type = type;
+      f.frequency.value = freq;
+      g.gain.value = vol * p.volume;
+      src.connect(f).connect(g).connect(a.destination);
+      src.start(t);
+    });
+  const SOUND = {
+    // ガラスが割れる: 高いノイズと、ちりちりした破片の音
+    glass(len = 0.6) {
+      noise(len, 'highpass', 4200, 0.7);
+      for (let i = 0; i < 10; i++) tone('triangle', rnd(2500, 6000), rnd(2500, 6000), rnd(0.05, len), 0.08, 0.12);
+    },
+    boom(size = 1) {
+      tone('sine', 140, 28, 0, 0.6 + size * 0.4, 1.2);
+      noise(0.5 + size * 0.3, 'lowpass', 900, 0.9);
+    },
+    siren(times = 4) {
+      for (let i = 0; i < times; i++) {
+        tone('square', 880, 880, i * 0.36, 0.17, 0.22);
+        tone('square', 660, 660, i * 0.36 + 0.18, 0.17, 0.22);
+      }
+    },
+    // 壊滅: 落ちていく低いうなり
+    drone() {
+      tone('sawtooth', 220, 40, 0.1, 2.6, 0.35);
+      tone('sawtooth', 225, 42, 0.1, 2.6, 0.25);
+    },
+  };
+
+  // --- ガラスのひびと破片（canvas） ---
+  const cv = $('glass');
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = Math.min(devicePixelRatio || 1, 1.5);
+    W = innerWidth;
+    H = innerHeight;
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  let webs = []; // { cx, cy, rays: [[{x,y}...]], rings, born, life, grow }
+  let shards = []; // { pts, x, y, vx, vy, rot, vr, born }
+
+  // 蜘蛛の巣のようなひび: 中心から放射状の線と、それをつなぐ輪
+  function makeWeb(cx, cy, radius, rayCount, ringCount, life) {
+    const rays = [];
+    for (let i = 0; i < rayCount; i++) {
+      const base = (i / rayCount) * Math.PI * 2 + rnd(-0.12, 0.12);
+      const pts = [];
+      const steps = 10;
+      let a = base;
+      for (let k = 0; k <= steps; k++) {
+        a += rnd(-0.05, 0.05);
+        const r = (k / steps) * radius * rnd(0.85, 1.1);
+        pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, r });
+      }
+      rays.push(pts);
+    }
+    const rings = [];
+    for (let k = 1; k <= ringCount; k++) rings.push(Math.round((10 * (k / (ringCount + 1)) ** 1.25)));
+    const web = { cx, cy, radius, rays, rings, born: performance.now(), life, grow: 160 };
+    webs.push(web);
+    return web;
+  }
+
+  // 輪と放射線で区切られた破片を、いくつか落とす
+  function dropShards(web, ratio) {
+    const { rays, rings } = web;
+    const cuts = [0, ...rings, 10];
+    for (let i = 0; i < rays.length; i++) {
+      const a = rays[i], b = rays[(i + 1) % rays.length];
+      for (let k = 0; k < cuts.length - 1; k++) {
+        if (Math.random() > ratio) continue;
+        const k0 = cuts[k], k1 = cuts[k + 1];
+        const pts = [a[k0], a[k1], b[k1], b[k0]];
+        const cx = pts.reduce((s, q) => s + q.x, 0) / 4, cy = pts.reduce((s, q) => s + q.y, 0) / 4;
+        shards.push({
+          pts: pts.map((q) => ({ x: q.x - cx, y: q.y - cy })),
+          x: cx,
+          y: cy,
+          vx: (cx - web.cx) * rnd(0.4, 1.2) + rnd(-60, 60),
+          vy: rnd(-200, 40),
+          rot: 0,
+          vr: rnd(-3, 3),
+          born: performance.now() + rnd(0, 200),
+        });
+      }
+    }
+  }
+
+  function strokePath(pts, upto) {
+    ctx.beginPath();
+    pts.forEach((q, i) => {
+      if (q.r > upto) return;
+      i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+    });
+    ctx.stroke();
+  }
+
+  let raf = null;
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    webs = webs.filter((w) => now - w.born < w.life);
+    for (const w of webs) {
+      const age = now - w.born;
+      const upto = w.radius * Math.min(1, age / w.grow);
+      const fade = Math.min(1, (w.life - age) / 900);
+      ctx.lineJoin = 'round';
+      for (const [style, width, alpha] of [['rgba(0,0,0,1)', 4.5, 0.45], ['rgba(255,255,255,1)', 1.6, 0.95]]) {
+        ctx.strokeStyle = style;
+        ctx.lineWidth = width;
+        ctx.globalAlpha = alpha * fade;
+        for (const ray of w.rays) strokePath(ray, upto);
+        for (const k of w.rings) {
+          ctx.beginPath();
+          w.rays.forEach((ray, i) => {
+            const q = ray[k];
+            if (q.r > upto) return;
+            i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+          });
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      // 当たった所の白いくぼみ
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(w.cx, w.cy, 10 + w.radius * 0.02, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    shards = shards.filter((s) => s.y < H + 200 && now - s.born < 4000);
+    for (const s of shards) {
+      if (now < s.born) continue;
+      s.vy += 1400 * dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.rot += s.vr * dt;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.beginPath();
+      s.pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+      ctx.closePath();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(200, 220, 235, .16)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, .85)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    if (webs.length || shards.length) raf = requestAnimationFrame(frame);
+    else raf = null;
+  }
+  const animate = () => {
+    if (!raf) {
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    }
+  };
+
+  // --- 文字 ---
+  function fitWord(text) {
+    const word = $('word');
+    for (const s of word.children) s.textContent = text;
+    let fs = Math.min(innerWidth * 0.2, innerHeight * 0.15);
+    $('center').style.setProperty('--fs', `${fs}px`);
+    const w = word.offsetWidth;
+    const max = innerWidth * 0.86;
+    if (w > max) {
+      fs *= max / w;
+      $('center').style.setProperty('--fs', `${fs}px`);
+    }
+  }
+
+  function whoLine(by) {
+    const el = $('who');
+    el.replaceChildren();
+    if (!by?.user) return;
+    const av = by.user.avatar
+      ? Object.assign(new Image(), { src: by.user.avatar, referrerPolicy: 'no-referrer', className: 'av', alt: '' })
+      : Object.assign(document.createElement('i'), { className: 'av', textContent: (by.user.name ?? '?').slice(0, 1) });
+    const name = document.createElement('span');
+    name.textContent = by.user.name ?? '';
+    const what = document.createElement('b');
+    what.textContent = `${by.gift}${by.count > 1 ? ` ×${by.count}` : ''}`;
+    el.append(av, name, ' の ', what);
+  }
+
+  async function shake(amp, seconds) {
+    const el = $('stage');
+    const end = performance.now() + seconds * 1000;
+    while (performance.now() < end) {
+      const k = (end - performance.now()) / (seconds * 1000);
+      el.style.transform = `translate(${rnd(-amp, amp) * k}px, ${rnd(-amp, amp) * k}px)`;
+      await sleep(30);
+    }
+    el.style.transform = '';
+  }
+
+  const restart = (el, cls) => {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  };
+
+  function bands(on) {
+    if (on) {
+      for (const run of document.querySelectorAll('.band .run')) {
+        run.replaceChildren(...Array.from({ length: 16 }, () => Object.assign(document.createElement('span'), { textContent: 'マイナス突入 ▼' })));
+      }
+    }
+    $('bands').classList.toggle('on', on);
+  }
+
+  // --- 本体 ---
+  async function play({ counter: c, prev, event }) {
+    const delta = event?.delta ?? 0;
+    if (delta >= 0 || event.kind === 'undo') return;
+    if (!event.by && (event.kind === 'set' || event.kind === 'reset')) return;
+    const tier = tierOf(delta);
+    const entered = prev.wins >= 0 && c.wins < 0;
+    if (!tier && !entered) return;
+
+    // マイナス突入だけのとき: 上下の危険の帯とサイレン
+    if (!tier) {
+      bands(true);
+      SOUND.siren(3);
+      shake(10, 0.5);
+      await sleep(2600);
+      bands(false);
+      return;
+    }
+
+    const center = $('center');
+    center.classList.remove('go', 'out');
+    $('label').textContent = TIER_TEXT[tier];
+    fitWord(`WIN ${delta}`);
+    whoLine(event.by);
+
+    if (tier >= 3) {
+      // 壊滅: 一瞬止まって、静かになってから
+      $('freeze').classList.add('on');
+      await sleep(1100);
+      $('freeze').classList.remove('on');
+    }
+    restart($('flash'), 'go');
+    void center.offsetWidth;
+    center.classList.add('go');
+    if (entered) bands(true);
+
+    if (tier === 1) {
+      makeWeb(rnd(W * 0.2, W * 0.8), rnd(H * 0.25, H * 0.7), Math.min(W, H) * 0.32, 14, 3, 2600);
+      SOUND.boom(0.6);
+      SOUND.glass(0.4);
+      shake(14, 0.5);
+    } else if (tier === 2) {
+      const web = makeWeb(W / 2, H * 0.46, Math.hypot(W, H) * 0.6, 22, 5, 4200);
+      dropShards(web, 0.12);
+      $('alarm').classList.add('on');
+      SOUND.siren(5);
+      SOUND.boom(1);
+      SOUND.glass(0.8);
+      shake(24, 0.9);
+    } else {
+      const web = makeWeb(W / 2, H * 0.46, Math.hypot(W, H) * 0.7, 30, 6, 5200);
+      makeWeb(rnd(W * 0.1, W * 0.3), rnd(H * 0.15, H * 0.35), Math.min(W, H) * 0.4, 16, 3, 5200);
+      makeWeb(rnd(W * 0.7, W * 0.9), rnd(H * 0.6, H * 0.85), Math.min(W, H) * 0.4, 16, 3, 5200);
+      setTimeout(() => dropShards(web, 0.55), 700);
+      $('alarm').classList.add('on');
+      SOUND.boom(2);
+      SOUND.glass(1.2);
+      SOUND.drone();
+      SOUND.siren(7);
+      shake(36, 1.6);
+    }
+    animate();
+    await sleep(1400 + tier * 900);
+    center.classList.add('out');
+    await sleep(400);
+    center.classList.remove('go', 'out');
+    $('alarm').classList.remove('on');
+    bands(false);
+  }
+
+  // 演出は順番に（続けて来ても重ならないように）
+  let chain = Promise.resolve();
+  connect({
+    wins(msg) {
+      if (msg.id !== id) return;
+      chain = chain.then(() => play(msg)).catch(() => {});
+    },
+  });
+</script>
+</body>
+</html>

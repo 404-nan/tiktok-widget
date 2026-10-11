@@ -117,6 +117,12 @@
   @keyframes alarm { 0%, 100% { box-shadow: var(--lift), inset 0 0 0 2px rgba(255, 42, 42, .25); } 50% { box-shadow: var(--lift), inset 0 0 0 3px rgba(255, 42, 42, .9); } }
   .neg .bar i { background: #FF2A2A; }
 
+  /* 超妨害以上: 板が沈み込む / 壊滅: 一瞬暗転して止まる */
+  .slam { animation: slam .5s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes slam { 0% { transform: translateY(14px) rotate(-1.5deg) scale(.97); } 100% { transform: none; } }
+  .plate::after { content: ""; position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .25s linear; }
+  .plate.blackout::after { opacity: .9; }
+
   /* 当たった瞬間の赤い閃光 */
   .redflash { position: absolute; inset: 0; background: #FF2A2A; mix-blend-mode: screen; opacity: 0; pointer-events: none; }
   .redflash.go { animation: redflash .45s ease-out; }
@@ -168,7 +174,7 @@
     border: 6px solid transparent;
     border-image: repeating-linear-gradient(-45deg, #FFC53D 0 10px, #111113 10px 20px) 6;
   }
-  .stamp.danger b { font-family: "Zen Kaku Gothic New", var(--font); font-weight: 900; font-style: normal; font-size: 54px; letter-spacing: .02em; }
+  .stamp.jp b { font-family: "Zen Kaku Gothic New", var(--font); font-weight: 900; font-style: normal; font-size: 54px; letter-spacing: .02em; }
 
   /* big: 画面の端に置く、大きな数字の形 */
   .style-big .plate { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 320px; }
@@ -202,7 +208,14 @@
   // 設定は config.yaml の wins.<id>（?id= がなければ default）。数はサーバー（/api/wins）が持つ
   const p = await setupWidget('wins', {
     title: 'WIN', goal: 0, winText: 'WIN!', milestone: 5, style: 'plate', color: 'accent', sound: true, volume: 0.4,
+    bigLoss: 10, hugeLoss: 100, ruinLoss: 1000, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅',
   });
+  // 一度に減った数で演出の段階を決める（0 通常 / 1 大妨害 / 2 超妨害 / 3 壊滅）
+  const tierOf = (delta) => {
+    const a = Math.abs(delta);
+    return a >= p.ruinLoss ? 3 : a >= p.hugeLoss ? 2 : a >= p.bigLoss ? 1 : 0;
+  };
+  const TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
   const id = new URLSearchParams(location.search).get('id') || 'default';
   const $ = (x) => document.getElementById(x);
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -311,7 +324,7 @@
   let stampTimer = null;
   function stamp(text, cls, { who = null, line = '', combo = '', boost = 1, hold = 1600 } = {}) {
     const el = $('stamp');
-    el.className = `stamp ${cls}`;
+    el.className = `stamp ${cls}${/[^\x00-\x7F]/.test(text) ? ' jp' : ''}`;
     el.style.setProperty('--boost', String(boost));
     el.querySelector('b').textContent = text;
     el.querySelector('.combo').textContent = combo;
@@ -372,7 +385,7 @@
     const ns = 'http://www.w3.org/2000/svg';
     svg.replaceChildren();
     svg.classList.remove('go', 'fade');
-    const branches = Math.min(14, 5 + level * 2);
+    const branches = Math.min(26, 5 + level * 2);
     for (let i = 0; i < branches; i++) {
       let a = (i / branches) * Math.PI * 2 + rnd(-0.3, 0.3);
       let x = ox, y = oy;
@@ -408,6 +421,37 @@
       await sleep(28);
     }
     el.style.transform = '';
+  }
+
+  // 大きく減ったとき: 数字がドゥルルルと一気に減っていく（はじめゆっくり、だんだん速く）
+  async function drain(from, to, seconds) {
+    const el = $('value');
+    delete el.dataset.text;
+    el.replaceChildren();
+    el.classList.toggle('minus', from < 0);
+    const start = performance.now();
+    let shown = from;
+    let lastTick = 0;
+    await new Promise((done) => {
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / (seconds * 1000));
+        const v = Math.round(from + (to - from) * t * t);
+        if (v !== shown) {
+          shown = v;
+          el.textContent = fmt(v);
+          el.classList.toggle('minus', v < 0);
+          if (now - lastTick > 38) {
+            lastTick = now;
+            tones([1400 - 1000 * t], { type: 'square', len: 0.03, vol: 0.18 });
+          }
+        }
+        if (t < 1) requestAnimationFrame(step);
+        else done();
+      };
+      requestAnimationFrame(step);
+    });
+    delete el.dataset.text;
+    odometer(el, to);
   }
 
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
@@ -450,29 +494,42 @@
     // --- 減った: ここがいちばん気持ちよく ---
     const now = Date.now();
     combo = now - combo.t < 15000 ? { n: combo.n + 1, t: now } : { n: 1, t: now };
+    const tier = tierOf(delta);
     const entered = prev.wins >= 0 && n < 0; // マイナス突入
     const record = n < 0 && c.low < prev.low && !entered; // 最低記録更新
-    const level = Math.min(8, Math.abs(delta) + combo.n - 1);
+    const level = Math.min(16, Math.min(8, Math.abs(delta)) + combo.n - 1 + tier * 3);
     const line = [by?.text, giftLine, record ? '最低記録更新' : ''].filter(Boolean).join('　');
-    const comboText = combo.n >= 2 ? `連続妨害 ×${combo.n}` : '';
-    const boost = Math.min(1.45, 1 + (combo.n - 1) * 0.08 + Math.min(10, Math.abs(delta)) * 0.02);
+    const label = [TIER_TEXT[tier], combo.n >= 2 ? `連続妨害 ×${combo.n}` : ''].filter(Boolean).join('　');
+    const boost = Math.min(1.6, 1 + (combo.n - 1) * 0.08 + Math.min(10, Math.abs(delta)) * 0.02 + tier * 0.1);
 
+    // 壊滅: 一瞬止まって暗くなってから叩きつける
+    if (tier >= 3) {
+      render(c, { roll: false });
+      $('plate').classList.add('blackout');
+      await sleep(900);
+      $('plate').classList.remove('blackout');
+    }
     restart($('redflash'), 'go');
     cracks(level);
     damage(delta);
-    if (entered) {
-      stamp('マイナス突入', 'danger', { who: by, line, combo: comboText, boost: Math.max(boost, 1.1), hold: 2200 });
+    if (tier >= 2) restart($('plate'), 'slam');
+    const text = kind === 'set' || kind === 'reset' ? `WIN ${fmt(n)}` : `WIN ${signed(delta)}`;
+    // 大きく減ったときは、ハンコを早めにどかして数字が減っていくところを見せる
+    const hold = tier >= 1 ? 1100 : 1600;
+    if (entered && tier === 0) {
+      stamp('マイナス突入', 'danger', { who: by, line, combo: label, boost: Math.max(boost, 1.1), hold: 2200 });
       SOUND.siren();
       shake(16 + level * 2, 0.9);
     } else {
-      const text = kind === 'set' || kind === 'reset' ? `WIN ${fmt(n)}` : `WIN ${signed(delta)}`;
-      stamp(text, 'lose', { who: by, line, combo: comboText, boost });
-      SOUND.hit(level);
-      shake(8 + level * 3, 0.45 + level * 0.06);
+      stamp(entered ? 'マイナス突入' : text, tier >= 2 || entered ? 'danger' : 'lose', { who: by, line: entered ? [text, line].filter(Boolean).join('　') : line, combo: label, boost, hold });
+      if (entered || tier >= 2) SOUND.siren();
+      SOUND.hit(Math.min(8, level));
+      shake(8 + level * 2, 0.45 + tier * 0.35 + level * 0.03);
     }
-    // ハンコとひびを見せてから数字を落とす
+    // ハンコとひびを見せてから数字を落とす。大きく減ったときはドゥルルルと減っていく
     render(c, { roll: false });
-    await sleep(entered ? 800 : 550);
+    await sleep(tier >= 1 ? 1300 : entered ? 700 : 450);
+    if (tier >= 1) await drain(prev.wins, n, [0, 1, 1.8, 2.6][tier]);
     render(c);
   }
 

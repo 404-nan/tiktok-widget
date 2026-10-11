@@ -453,6 +453,10 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
     for (const [id, e] of entries) {
       const q = id === 'default' ? '' : `?id=${id}`;
       out.push({ section, id, title: `${def.title}: ${id}`, url: `${base}/widgets/${def.page}.html${q}`, size: def.size(e) });
+      // 同じ設定で動く別のページ（WIN数の全画面演出など）
+      for (const x of def.extraPages ?? []) {
+        out.push({ section, id, extra: true, title: `${x.title}: ${id}`, url: `${base}/widgets/${x.page}.html${q}`, size: x.size(e) });
+      }
     }
   }
   return out;

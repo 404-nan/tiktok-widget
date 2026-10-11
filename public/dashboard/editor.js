@@ -28,7 +28,8 @@ const LABELS = {
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
   'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減するルール（YAML）', 'wins.style': '形',
-  negative: 'マイナス WIN まで減らせる', winText: 'クリアの文字', milestone: '大きく祝う間隔',
+  negative: 'マイナス WIN まで減らせる', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
+  bigLossText: '大妨害の文字', hugeLossText: '超妨害の文字', ruinLossText: '壊滅の文字', winText: 'クリアの文字', milestone: '大きく祝う間隔',
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
   'rush.text': '帯に流れる文字', enterText: '突入の文字', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
@@ -50,7 +51,7 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
-  wins: ['title', 'goal', 'rules', 'negative', 'winText', 'milestone', 'style', 'color'],
+  wins: ['title', 'goal', 'rules', 'negative', 'bigLoss', 'hugeLoss', 'ruinLoss', 'winText', 'milestone', 'style', 'color'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -604,7 +605,7 @@ export function createEditor({ api, setMessage }) {
     if (tab === 'minecraft') return null;
     const section = tab === 'theme' ? 'alerts' : tab;
     const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : isObj(tab) ? null : id;
-    return payload.widgets.find((w) => w.section === section && w.id === wid);
+    return payload.widgets.find((w) => w.section === section && w.id === wid && !w.extra);
   }
 
   let previewTimer = null;
@@ -623,6 +624,8 @@ export function createEditor({ api, setMessage }) {
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
     if (tab === 'wins') {
       const base = new URL(w.url).origin;
+      const fx = payload.widgets.find((x) => x.section === 'wins' && x.id === id && x.extra);
+      if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
       $('sizeHint').textContent +=
         ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
     }
@@ -699,6 +702,10 @@ export function createEditor({ api, setMessage }) {
         chip('クリア（WIN +1）', 'trophy', w('win')),
         chip('WIN -1', 'minus', w('add', -1)),
         chip('1つ戻す', 'undo-2', w('undo')),
+        // 段階ごとの演出を試す
+        ...[['bigLoss', 'bigLossText'], ['hugeLoss', 'hugeLossText'], ['ruinLoss', 'ruinLossText']].map(([k, t]) =>
+          chip(`${e[t] ?? ''}（-${e[k]}）を試す`, 'zap', w('add', -(e[k] ?? 10))),
+        ),
         chip('リセット（0 に戻す）', 'rotate-ccw', () => confirm('WIN 数を 0 にリセットしますか？（「1つ戻す」で元に戻せます）') && w('reset')()),
         // ルールに書いたギフトを1つずつ試せる
         ...(e.rules ?? [])
