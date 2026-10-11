@@ -120,7 +120,7 @@ export const SCHEMA = {
           '変え方: add（足す数。-1 で減らす）/ set（その数にする）/ reset: true（0 にリセット）。' +
           'add は連打の個数分かかる（perCount: false で1回だけ）。text は演出に出す文（例 "妨害成功"）',
       },
-      negative: bool(false, 'マイナスまで減らせる（false なら 0 で止まる）'),
+      negative: bool(true, 'マイナス（-1 WIN など）まで減らせる（false なら 0 で止まる）'),
       winText: str('WIN!', 'クリアで +1 したときに出す文字'),
       milestone: num(5, 'この数ごとに大きく祝う（5 なら 5・10・15…。0 で祝わない）', { min: 0 }),
       style: oneOf(['plate', 'big'], 'plate', 'plate 横長の板 / big 大きい数字（画面の端に置く用）'),

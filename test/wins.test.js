@@ -21,8 +21,8 @@ function setup(config = { default: counter() }) {
 }
 const gift = (name, count = 1, coins = 1) => ({ kind: 'gift', user: { id: 'u1', name: 'たろう' }, gift: { name, id: '1', count }, totalDiamonds: coins * count });
 
-test('クリアで +1、add で増減、0 より下には行かない', () => {
-  const { wins } = setup();
+test('クリアで +1、add で増減、negative: false なら 0 より下には行かない', () => {
+  const { wins } = setup({ default: counter({ negative: false }) });
   wins.apply('default', 'win');
   wins.apply('default', 'win');
   wins.apply('default', 'add', -1);
@@ -31,10 +31,13 @@ test('クリアで +1、add で増減、0 より下には行かない', () => {
   assert.equal(wins.get('default').wins, 0);
 });
 
-test('negative: true ならマイナスまで減る', () => {
-  const { wins } = setup({ default: counter({ negative: true }) });
+test('初期設定ではマイナス WIN まで減る', () => {
+  const { wins, hub } = setup({ default: counter({ rules: [{ gifts: ['Lion'], add: -1 }] }) });
   wins.apply('default', 'add', -2);
-  assert.equal(wins.get('default').wins, -2);
+  hub.emit('event', gift('Lion', 2));
+  assert.equal(wins.get('default').wins, -4);
+  wins.apply('default', 'set', -7);
+  assert.equal(wins.get('default').wins, -7);
 });
 
 test('1つ戻すと前の数に戻る（ギフトで減ったのも戻せる）', () => {

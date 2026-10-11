@@ -36,6 +36,7 @@
 
   .main { display: flex; align-items: center; gap: 24px; padding: 0 28px 0 12px; min-width: 0; }
   .count { display: flex; align-items: baseline; gap: 10px; line-height: 1; flex: none; }
+  .value.minus { color: #FF4F1F; }
   .value { font-size: 96px; font-weight: 700; transform-origin: 50% 70%; }
   .goal { font-family: var(--font-num); font-weight: 600; font-size: 34px; color: var(--on-surface-dim); white-space: nowrap; }
   .meta { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 0; }
@@ -151,6 +152,7 @@
 
   function render(n, { roll = true } = {}) {
     if (roll) odometer($('value'), n);
+    $('value').classList.toggle('minus', n < 0);
     $('goal').textContent = p.goal > 0 ? `/ ${fmt(p.goal)}` : '';
     $('barWrap').hidden = !(p.goal > 0);
     $('bar').style.transform = `scaleX(${p.goal > 0 ? Math.max(0, Math.min(1, n / p.goal)) : 0})`;
@@ -236,7 +238,8 @@
       restart($('plate'), 'hit');
       pop(signed(delta));
       const reached = p.goal > 0 && n >= p.goal && prev.wins < p.goal;
-      const mile = p.milestone > 0 && Math.floor(n / p.milestone) > Math.floor(prev.wins / p.milestone);
+      // マイナスから 0 に戻ったときは祝わない
+      const mile = p.milestone > 0 && n > 0 && Math.floor(n / p.milestone) > Math.floor(Math.max(0, prev.wins) / p.milestone);
       if (reached) {
         stamp('CLEAR', 'gold', `目標 ${fmt(p.goal)} WIN 達成`);
         SOUND.big();

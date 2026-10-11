@@ -81,7 +81,7 @@ roulettes:
 - **条件ごとの通知**: `alerts.<名前>.rules` で、ギフト名・ユーザー・コイン数ごとに色・金色の演出・秒数・文を変えられます
 - **WIN数**: クリアしたらダッシュボード・モニターのボタンか、URL を開いて +1（Stream Deck の「Webサイト」などに登録すればゲーム中でも押せます）
   - `http://127.0.0.1:3939/api/wins/default/win` … +1 ／ `…/add?value=-1` … -1 ／ `…/undo` … 1つ戻す ／ `…/set?value=5` … 5 にする ／ `…/reset` … 0 にリセット（`default` の所を `all` にすると全部）
-  - ギフトで増減: `wins.default.rules` に `{gifts: [Lion], add: -1, text: 妨害成功}`（個数分減る）や `{gifts: [Universe], reset: true}`（0 にリセット）。上から順に最初に合ったものを使います
+  - ギフトで増減: `wins.default.rules` に `{gifts: [Lion], add: -1, text: 妨害成功}`（個数分減る）や `{gifts: [Universe], reset: true}`（0 にリセット）。上から順に最初に合ったものを使います。0 より下（-1 WIN など）まで減り、マイナスの数は赤で出ます（0 で止めたいときは `negative: false`）
   - リセットはダッシュボード・モニターの「リセット」ボタン（確認が出ます。間違えても「戻す」で元に戻せます）
   - 数は `data/wins.json` に残ります。AI からは `npm run tw -- win` / `wins add -1` / `wins undo` / `wins reset`、MCP の `wins` ツール
 - **RUSH**: `rush.gifts` のギフト、`rush.enterCoins` 以上のギフト、ルーレットの `rush: true` の項目、ダッシュボード・モニターのボタンで突入。RUSH 中は `extendMinCoins` 以上のギフトで `extendSeconds` 秒ずつ延び、最長 `maxSeconds` 秒。状態はサーバーが持つので、OBS を読み込み直しても続きから出ます

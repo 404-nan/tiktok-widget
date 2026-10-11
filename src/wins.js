@@ -86,7 +86,7 @@ export class WinsEngine {
       else if (action === 'add') wins += value;
       else if (action === 'set') wins = value;
       else if (action === 'reset') wins = 0;
-      if (!this.config[id]?.negative) wins = Math.max(0, wins);
+      if (this.config[id]?.negative === false) wins = Math.max(0, wins); // 0 で止める設定のとき
       (this.undo[id] ??= []).push(prev.wins);
       if (this.undo[id].length > UNDO) this.undo[id].shift();
     }
