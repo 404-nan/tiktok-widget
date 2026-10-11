@@ -85,6 +85,14 @@
   .tier-rainbow .word .front { background-size: 300% 100%; animation: slide 1s linear infinite; }
   @keyframes slide { to { background-position: 300% 0; } }
 
+  /* 写真の帯 */
+  .strip-photo { position: absolute; inset: 0; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  .photo-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: translateX(5%) scale(1.12); }
+  .photo-fallback { display: flex; align-items: center; }
+  .play .photo-img { transform: translateX(-3%) scale(1.06); transition: transform 3s linear; }
+  .tier-rainbow.style-photo .band .accent { animation: hue 1.2s linear infinite; }
+  .band img.edge { inset: auto; }
+
   /* 誰の何かを出すテロップ */
   .tag {
     position: absolute;
@@ -146,6 +154,7 @@
   const p = await setupWidget('cutins', {
     minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
     blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
+    style: 'band', photo: '', word: true,
     image: 'gift', character: '', angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
   });
 
@@ -193,7 +202,7 @@
   }
 
   // --- 筆でかすれた帯（SVG を毎回ちがう筆跡で作る） ---
-  function bandImage(w, h, colors, seed, { ink = false, glint = false } = {}) {
+  function bandImage(w, h, colors, seed, { ink = false, glint = false, core = true, streak = null } = {}) {
     const pad = Math.round(h * 0.3);
     const H = h + pad * 2;
     const y0 = pad, y1 = pad + h;
@@ -218,17 +227,83 @@
           <feDisplacementMap in="SourceGraphic" in2="wave" scale="${h * 0.32}" xChannelSelector="R" yChannelSelector="G" result="a"/>
           <feDisplacementMap in="a" in2="jag" scale="${h * 0.1}" xChannelSelector="R" yChannelSelector="G" result="b"/>
           <feTurbulence type="fractalNoise" baseFrequency="0.0018 ${glint ? 0.5 : 0.24}" numOctaves="3" seed="${seed + 7}" result="streak"/>
-          <feColorMatrix in="streak" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  ${glint ? '9 0 0 0 -5.6' : '7 0 0 0 -2.9'}" result="mask"/>
+          <feColorMatrix in="streak" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  ${streak ?? (glint ? '9 0 0 0 -5.6' : '7 0 0 0 -2.9')}" result="mask"/>
           <feComposite in="b" in2="mask" operator="in"/>
         </filter>
       </defs>
       <path d="${shape}" fill="${fill}" filter="url(#dry)"/>
-      ${glint ? '' : `<path d="${shape}" fill="${fill}" filter="url(#rough)" transform="translate(${w * 0.06} ${H / 2}) scale(0.86 0.62) translate(0 ${-H / 2})"/>`}
+      ${glint || !core ? '' : `<path d="${shape}" fill="${fill}" filter="url(#rough)" transform="translate(${w * 0.06} ${H / 2}) scale(0.86 0.62) translate(0 ${-H / 2})"/>`}
     </svg>`;
     const img = new Image();
     img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     img.alt = '';
     return img;
+  }
+
+  // 帯の画像を、帯の中の好きな位置に置く（写真の帯の縁の線用）
+  function placed(img, { left = 0, top, width, height }) {
+    Object.assign(img.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`, right: 'auto', bottom: 'auto' });
+    return img;
+  }
+
+  /**
+   * 写真の帯: 斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる。
+   * 帯の画像は上下に 0.3 倍ずつ余白を持つので、要素の高さは見える帯の 1.6 倍。
+   */
+  function buildPhotoStrip(e, t, bw, sh, seed) {
+    const pad = sh * 0.3;
+    const full = sh * 1.6;
+    const parts = [];
+
+    // 帯の形で切り抜いた写真
+    const photo = document.createElement('div');
+    photo.className = 'strip-photo';
+    const mask = bandImage(bw, sh, ['#fff', '#fff'], seed);
+    photo.style.webkitMaskImage = photo.style.maskImage = `url("${mask.src}")`;
+    const src = p.photo || (p.image === 'character' && p.character) || '';
+    if (src) {
+      const img = new Image();
+      img.className = 'photo-img';
+      img.src = /^(https?:|data:|\/)/.test(src) ? src : `/${src}`;
+      photo.append(img);
+      parts.push(img);
+    } else {
+      // 写真がないときは、段階の色とギフトの画像で埋める
+      const fill = document.createElement('div');
+      fill.className = 'photo-img photo-fallback';
+      fill.style.background = `linear-gradient(100deg, ${t.band.join(', ')})`;
+      const g = e.kind === 'gift' ? giftNode(e.gift, sh * 0.82) : avatarNode(e.user, sh * 0.7);
+      g.style.marginLeft = `${bw / 2 - innerWidth * 0.28}px`;
+      fill.append(g);
+      photo.append(fill);
+    }
+
+    // 縁: 段階の色の細い線を少し外側に、その上に木炭のかすれ線（太い線＋はみ出す短い線）
+    // 鉛筆・木炭のかすれ。濃いところと薄いところのムラを強めに
+    const CHARCOAL = ['#0b0b0c', '#4a4a4f', '#18181a', '#7a7a80', '#0b0b0c', '#2c2c30'];
+    const line = (y, h, colors, s, opts, left = 0, width = bw) => {
+      const img = bandImage(width, h, colors, s, opts);
+      parts.push(img);
+      return placed(img, { left, top: y - (h * 1.6) / 2, width, height: h * 1.6 });
+    };
+    const top = pad, bottom = pad + sh;
+    const stray = () => bw * (0.32 + Math.random() * 0.14);
+    const edges = [
+      line(top - sh * 0.07, sh * 0.06, t.band, seed + 5, { core: false, streak: '7 0 0 0 -2.6' }),
+      line(bottom + sh * 0.07, sh * 0.06, t.band, seed + 6, { core: false, streak: '7 0 0 0 -2.6' }),
+      // 太いかすれ線を2回重ねて、塗りムラを出す
+      line(top, sh * 0.16, CHARCOAL, seed + 31, { core: false, streak: '5 0 0 0 -1.9' }),
+      line(top + sh * 0.015, sh * 0.11, CHARCOAL, seed + 41, { core: false, streak: '6 0 0 0 -2.3' }),
+      // 縁からはみ出す短い線（スケッチの重ね描き）
+      line(top - sh * 0.11, sh * 0.05, CHARCOAL, seed + 51, { core: false, streak: '5 0 0 0 -2.1' }, stray(), bw * 0.4),
+      line(bottom, sh * 0.16, CHARCOAL, seed + 61, { core: false, streak: '5 0 0 0 -1.9' }),
+      line(bottom - sh * 0.015, sh * 0.11, CHARCOAL, seed + 71, { core: false, streak: '6 0 0 0 -2.3' }),
+      line(bottom + sh * 0.12, sh * 0.05, CHARCOAL, seed + 81, { core: false, streak: '5 0 0 0 -2.1' }, bw * 0.18 + Math.random() * bw * 0.1, bw * 0.36),
+    ];
+    for (const img of edges) img.classList.add('edge');
+    edges[0].classList.add('accent');
+    edges[1].classList.add('accent');
+    return { nodes: [photo, ...edges], wait: [mask, ...parts], full };
   }
 
   // --- 集中線 ---
@@ -415,19 +490,44 @@
     stage.style.setProperty('--word-fill', t.word);
     stage.style.setProperty('--tag-accent', t.accent);
 
-    // 帯（影・本体・毛先の光）
     const seed = Math.floor(Math.random() * 900) + 1;
-    const ink = bandImage(bw, bh, ['#000', '#000'], seed + 11, { ink: true });
-    ink.className = 'ink';
-    const paint = bandImage(bw, bh, t.band, seed);
-    paint.className = 'paint';
-    const glint = bandImage(bw, bh, ['#fff', '#fff'], seed + 23, { glint: true });
-    glint.style.opacity = '.35';
-    $('band').replaceChildren(ink, paint, glint);
-
-    // 画像
     const visual = $('visual');
-    if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));
+    const word = $('word');
+    const tagEl = $('tag');
+    let wait = [];
+    word.style.cssText = '';
+    tagEl.style.cssText = '';
+    word.hidden = !p.word;
+
+    if (p.style === 'photo') {
+      // 写真の帯（縁が木炭のかすれ線）
+      const sh = Math.round(H > W ? Math.min(H * 0.3, W * 0.62) : H * 0.42);
+      const strip = buildPhotoStrip(e, t, bw, sh, seed);
+      stage.classList.add('style-photo');
+      stage.style.setProperty('--bh', `${strip.full}px`);
+      $('band').replaceChildren(...strip.nodes);
+      wait = strip.wait;
+      visual.replaceChildren();
+      const fs = Math.round(Math.min(sh * 0.36, (W * 0.46) / Math.max(2, TEXT[tier].length)));
+      stage.style.setProperty('--fs', `${fs}px`);
+      Object.assign(word.style, { left: `${W * 0.16}px`, top: `${sh * 0.46}px` });
+      Object.assign(tagEl.style, { top: `${sh * 0.5 + fs * 0.5}px` });
+    } else {
+      // 色の帯（影・本体・毛先の光）
+      const ink = bandImage(bw, bh, ['#000', '#000'], seed + 11, { ink: true });
+      ink.className = 'ink';
+      const paint = bandImage(bw, bh, t.band, seed);
+      paint.className = 'paint';
+      const glint = bandImage(bw, bh, ['#fff', '#fff'], seed + 23, { glint: true });
+      glint.style.opacity = '.35';
+      $('band').replaceChildren(ink, paint, glint);
+      wait = [ink, paint, glint];
+    }
+
+    // 画像（色の帯のときだけ。写真の帯は写真が主役）
+    if (p.style === 'photo') {
+      // 何もしない
+    } else if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));
     else if (p.image === 'character' && p.character) {
       const img = new Image();
       img.src = /^(https?:|data:|\/)/.test(p.character) ? p.character : `/${p.character}`;
@@ -454,7 +554,7 @@
     }
 
     // 画像の読み込みを待つ（帯の SVG はここで描かれる）
-    await Promise.all([ink, paint, glint].map((img) => img.decode().catch(() => {})));
+    await Promise.all(wait.map((img) => img.decode().catch(() => {})));
 
     // 虹: フリーズ（暗転して無音）→ キュイン
     if (tier === 'rainbow' && p.freeze) {

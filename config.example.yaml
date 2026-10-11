@@ -61,6 +61,10 @@ cutins:
     goldCoins: 5000
     rainbowCoins: 20000
     image: gift # gift ギフト / avatar 送った人 / character キャラ画像
+  # 写真の帯: 斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる（/widgets/cutin.html?id=photo）
+  photo:
+    style: photo
+    photo: "" # 例: media/my-photo.jpg（空ならギフトの画像で埋める）
 
 # ルーレット … /widgets/roulette.html（全部）または ?ids=名前,名前
 # 届いたギフトに合うルーレットに切り替わって回ります。

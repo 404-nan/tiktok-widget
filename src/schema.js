@@ -163,6 +163,9 @@ SCHEMA.cutins = {
     '配信画面いっぱいに重ねる。URL は /widgets/cutin.html?id=<名前>',
   size: () => [1080, 1920],
   fields: {
+    style: oneOf(['band', 'photo'], 'band', 'band 色の帯に画像と文字が乗る / photo 帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる'),
+    photo: str('', 'style が photo のときに帯に入れる写真（media/ のファイルか URL）。空ならギフトの画像で埋める'),
+    word: bool(true, '「激アツ」などの文字を出す'),
     minCoins: num(100, 'この合計コイン以上のギフトで出す（ここからが青）', { min: 1 }),
     greenCoins: num(300, 'ここから緑', { min: 1 }),
     redCoins: num(1000, 'ここから赤（激アツ）', { min: 1 }),

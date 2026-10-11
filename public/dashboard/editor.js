@@ -13,7 +13,7 @@ const ENUM_LABELS = {
   wheel: '丸（ホイール）', strip: '横スライド', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
-  avatar: '送った人のアイコン', character: 'キャラ画像（下で指定）',
+  avatar: '送った人のアイコン', character: 'キャラ画像（下で指定）', band: '色の帯', photo: '写真の帯（縁が木炭）',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -30,7 +30,7 @@ const LABELS = {
   forwardGifts: 'ギフトを SuperStream に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
-  image: '帯に乗せる画像', character: 'キャラ画像', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  image: '帯に乗せる画像', character: 'キャラ画像', photo: '帯に入れる写真', word: '文字を出す', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
 };
@@ -42,7 +42,7 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'image', 'character'],
+  cutins: ['style', 'photo', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'image', 'character'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
