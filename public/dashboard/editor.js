@@ -4,7 +4,7 @@
 import { icon } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'rush', 'minecraft', 'theme'];
+const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'rush', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -14,6 +14,7 @@ const ENUM_LABELS = {
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
+  streak: '連勝数（負けると 0）', total: '勝ち数', record: '戦績（○勝○敗○分）', plate: '横長の板', big: '大きい数字',
   inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
 };
 // 項目の短い名前（説明は下に小さく出す）
@@ -26,6 +27,8 @@ const LABELS = {
   keep: '中身を残す', sizeMin: '小さい玉の倍率', sizeMax: '大きい玉の倍率', liquid: '中の液体', liquidColor: '液体の色',
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
+  'wins.title': '見出し', 'wins.mode': '数え方', 'wins.goal': '目標（0 で出さない）', pk: 'PK バトルで自動で数える', 'wins.style': '形',
+  best: '最高連勝を出す', milestone: '大きく祝う間隔',
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
   'rush.text': '帯に流れる文字', enterText: '突入の文字', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
@@ -47,6 +50,7 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
+  wins: ['title', 'mode', 'goal', 'pk', 'style', 'best', 'milestone', 'color'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -679,6 +683,16 @@ export function createEditor({ api, setMessage }) {
         ...tiers.map(([label, coins]) =>
           chip(`${label}（${coins} コイン）`, null, () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: coins })),
         ),
+      );
+    } else if (tab === 'wins') {
+      const w = (action, data) => control('wins', action, { id, ...data });
+      box.replaceChildren(
+        chip('WIN +1', 'trophy', w('win')),
+        chip('負け', 'x', w('lose')),
+        chip('引き分け', 'minus', w('draw')),
+        chip('1つ戻す', 'undo-2', w('undo')),
+        chip('PK の勝ちを試す', 'swords', () => api('/api/simulate', { kind: 'battle', result: 'win' })),
+        chip('0 に戻す', 'rotate-ccw', () => confirm('WIN 数を 0 に戻しますか？') && w('reset')()),
       );
     } else if (tab === 'rush') {
       const r = payload.config.rush ?? {};

@@ -2,6 +2,8 @@
 
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 import {
+  battleScores,
+  normalizeBattle,
   normalizeChat,
   normalizeFollow,
   normalizeGift,
@@ -58,6 +60,7 @@ export class TikTokSource {
       const state = await conn.connect();
       if (this.connection !== conn) return; // 接続中に切断・再接続された
       this.retry = 0;
+      this.roomId = state.roomId;
       this.hub.setStatus({ mode: 'live', username, message: `@${username} の LIVE に接続しました`, roomId: state.roomId });
     } catch (err) {
       if (this.connection !== conn) return;
@@ -84,6 +87,24 @@ export class TikTokSource {
     conn.on(WebcastEvent.FOLLOW, pub(normalizeFollow));
     conn.on(WebcastEvent.SHARE, pub(normalizeShare));
     conn.on(WebcastEvent.MEMBER, pub(normalizeMember));
+
+    // PK バトル: 対戦中の点数を覚えておき、終わったら勝ち負けを 1 回だけ流す
+    let lastScores = null;
+    const finished = new Set();
+    conn.on(WebcastEvent.LINK_MIC_ARMIES, (data) => {
+      try {
+        lastScores = battleScores(data);
+      } catch {}
+    });
+    conn.on(
+      WebcastEvent.LINK_MIC_BATTLE,
+      pub((data) => {
+        const e = normalizeBattle(data, { roomId: this.roomId, username: this.username }, lastScores);
+        if (!e || finished.has(e.battleId)) return null;
+        if (e.battleId) finished.add(e.battleId);
+        return e;
+      }),
+    );
 
     conn.on(WebcastEvent.STREAM_END, () => {
       if (this.connection !== conn) return;

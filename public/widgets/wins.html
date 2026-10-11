@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WIN数</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  /* WIN 数。スコアボードの板に、見出し（WIN）と大きな数字。
+     勝つと数字が跳ねて「+1」、PK の結果はハンコ（WIN / LOSE / DRAW）、節目の連勝は金で祝う */
+  body { display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .wrap { position: relative; width: 100%; }
+
+  .plate {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    height: 132px;
+    background: var(--surface);
+    color: var(--on-surface);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+    overflow: hidden;
+  }
+  .head {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 40px 0 24px;
+    background: var(--signal);
+    color: var(--on-signal, #fff);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 100%, 0 100%);
+    transition: background-color .3s linear;
+  }
+  .title { font-family: var(--font-num); font-weight: 800; font-style: italic; font-size: 48px; line-height: .9; letter-spacing: .01em; white-space: nowrap; }
+  .sub { margin-top: 4px; font-size: 14px; font-weight: 900; letter-spacing: .12em; opacity: .85; white-space: nowrap; }
+
+  .main { display: flex; align-items: center; gap: 24px; padding: 0 28px 0 12px; min-width: 0; }
+  .count { display: flex; align-items: baseline; gap: 10px; line-height: 1; flex: none; }
+  .value { font-size: 96px; font-weight: 700; transform-origin: 50% 70%; }
+  .goal { font-family: var(--font-num); font-weight: 600; font-size: 34px; color: var(--on-surface-dim); white-space: nowrap; }
+  .meta { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 0; }
+  .meta span { font-size: 14px; font-weight: 700; color: var(--on-surface-dim); white-space: nowrap; }
+  .meta b { font-family: var(--font-num); font-weight: 700; font-size: 22px; color: var(--on-surface); margin: 0 .12em; }
+
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--rule); }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--signal); transform-origin: left; transform: scaleX(0); transition: transform .8s var(--ease-out), background-color .3s linear; }
+
+  /* 目標を達成したら金 */
+  .done .head, .done .bar i { background: var(--gold); color: var(--ink); }
+  .done .goal { color: var(--gold); }
+
+  /* 光がさっと走る */
+  .glint { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .5) 50%, transparent 65%); transform: translateX(-100%); }
+  .hit .glint { animation: glint .6s var(--ease-out); }
+  @keyframes glint { to { transform: translateX(100%); } }
+  .hit .value { animation: pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+  @keyframes pop { 0% { transform: scale(1.45); } 100% { transform: none; } }
+  .hit .head { animation: flashHead .5s ease-out; }
+  @keyframes flashHead { 0% { filter: brightness(1.8); } 100% { filter: none; } }
+
+  .plus {
+    position: absolute;
+    left: var(--plus-x, 50%);
+    top: 0;
+    font-family: var(--font-num);
+    font-weight: 800;
+    font-style: italic;
+    font-size: 40px;
+    color: var(--gold);
+    text-shadow: 0 2px 0 rgba(0, 0, 0, .5);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .plus.go { animation: plus 1.1s var(--ease-out); }
+  @keyframes plus { 0% { opacity: 0; transform: translateY(20px) scale(.6); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-36px); } }
+
+  /* ハンコ: WIN / LOSE / DRAW / 5連勝! */
+  .stamp {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 22px 8px;
+    background: var(--signal);
+    color: #fff;
+    border: 3px solid currentColor;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .4);
+    transform: translate(-50%, -50%) rotate(-6deg) scale(1.6);
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .stamp b { font-family: var(--font-num); font-weight: 800; font-style: italic; font-size: 64px; line-height: .95; letter-spacing: .02em; }
+  .stamp small { font-size: 15px; font-weight: 900; }
+  .stamp small:empty { display: none; }
+  .stamp.lose { background: var(--ink); color: #FF4F1F; }
+  .stamp.draw { background: var(--ink-3); color: var(--paper); }
+  .stamp.gold { background: var(--gold); color: var(--ink); }
+  .stamp.go { opacity: 1; transform: translate(-50%, -50%) rotate(-6deg); transition: transform .16s cubic-bezier(.5, 0, .9, .6), opacity .05s linear; }
+  .stamp.out { opacity: 0; transform: translate(-50%, -50%) rotate(-6deg) scale(1.08); transition: opacity .3s linear, transform .3s ease-out; }
+
+  .shake { animation: shake .45s linear; }
+  @keyframes shake {
+    0%, 100% { transform: none; }
+    15% { transform: translate(-8px, 2px); }
+    30% { transform: translate(7px, -2px); }
+    45% { transform: translate(-6px, 1px); }
+    60% { transform: translate(5px, -1px); }
+    75% { transform: translate(-3px, 0); }
+  }
+
+  /* big: 画面の端に置く、大きな数字の形 */
+  .style-big .plate { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 320px; }
+  .style-big .head { flex-direction: row; align-items: baseline; justify-content: center; gap: 12px; padding: 14px 20px 18px; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), 0 100%); }
+  .style-big .title { font-size: 52px; }
+  .style-big .main { flex-direction: column; justify-content: center; gap: 8px; padding: 0 20px 18px; }
+  .style-big .value { font-size: 168px; }
+  .style-big .goal { font-size: 44px; }
+  .style-big .meta { margin: 0; flex-direction: row; align-items: baseline; gap: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="plate" id="plate">
+    <div class="head"><span class="title" id="title"></span><span class="sub" id="sub"></span></div>
+    <div class="main">
+      <div class="count"><span class="value num" id="value"></span><span class="goal" id="goal"></span></div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="bar" id="barWrap"><i id="bar"></i></div>
+    <div class="glint"></div>
+  </div>
+  <div class="plus" id="plus">+1</div>
+  <div class="stamp" id="stamp"><b></b><small></small></div>
+</div>
+<script type="module">
+  import { setupWidget, connect, odometer, fmt, resolveColor, readableOn, sleep } from './lib/overlay.js';
+
+  // 設定は config.yaml の wins.<id>（?id= がなければ default）。数はサーバー（/api/wins）が持つ
+  const p = await setupWidget('wins', {
+    title: 'WIN', mode: 'streak', goal: 0, pk: true, style: 'plate', best: true, milestone: 5, color: 'accent', sound: true, volume: 0.4,
+  });
+  const id = new URLSearchParams(location.search).get('id') || 'default';
+  const $ = (x) => document.getElementById(x);
+  document.body.classList.add(`style-${p.style}`);
+  document.body.style.setProperty('--signal', resolveColor(p.color));
+  document.body.style.setProperty('--on-signal', readableOn(p.color));
+  $('title').textContent = p.title;
+  $('sub').textContent = { streak: '連勝中', total: '勝ち', record: '戦績' }[p.mode] ?? '';
+
+  let counter = null;
+  const shown = (c) => (p.mode === 'streak' ? c.streak : c.wins);
+
+  function render(c, { roll = true } = {}) {
+    counter = c;
+    const n = shown(c);
+    if (roll) odometer($('value'), n);
+    $('goal').textContent = p.goal > 0 ? `/ ${fmt(p.goal)}` : '';
+    $('barWrap').hidden = !(p.goal > 0);
+    $('bar').style.transform = `scaleX(${p.goal > 0 ? Math.min(1, n / p.goal) : 0})`;
+    document.body.classList.toggle('done', p.goal > 0 && n >= p.goal);
+    const meta = [];
+    if (p.mode === 'record') meta.push(`<span><b>${fmt(c.wins)}</b>勝<b>${fmt(c.losses)}</b>敗<b>${fmt(c.draws)}</b>分</span>`);
+    if (p.best && c.best > 0) meta.push(`<span>BEST<b>${fmt(c.best)}</b>${p.mode === 'streak' ? '' : '連勝'}</span>`);
+    if (p.mode === 'total' && c.streak > 1) meta.push(`<span><b>${fmt(c.streak)}</b>連勝中</span>`);
+    $('meta').innerHTML = meta.join('');
+  }
+
+  // --- 効果音 ---
+  let ac;
+  function tones(notes, { type = 'sine', gap = 0.08, len = 0.32, vol = 1 } = {}) {
+    if (!p.sound) return;
+    try {
+      ac ??= new AudioContext();
+      const t0 = ac.currentTime;
+      notes.forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain(), t = t0 + i * gap;
+        o.type = type;
+        o.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(p.volume * 0.5 * vol, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(g).connect(ac.destination);
+        o.start(t);
+        o.stop(t + len + 0.05);
+      });
+    } catch {}
+  }
+  const SOUND = {
+    win: () => tones([784, 1047, 1568], { type: 'triangle' }),
+    milestone: () => {
+      tones([523, 659, 784, 1047, 1319, 1568, 2093], { type: 'triangle', gap: 0.06, len: 0.4 });
+      setTimeout(() => tones([1047, 1319, 1568, 2093], { gap: 0, len: 1.2, vol: 0.5 }), 420);
+    },
+    lose: () => tones([330, 247, 165], { type: 'sawtooth', gap: 0.14, len: 0.3, vol: 0.5 }),
+    draw: () => tones([523, 523], { type: 'square', gap: 0.16, len: 0.12, vol: 0.4 }),
+  };
+
+  // --- 演出 ---
+  const restart = (el, cls) => {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  };
+
+  let stampTimer = null;
+  function stamp(text, cls, sub = '') {
+    const el = $('stamp');
+    el.className = `stamp ${cls}`;
+    el.querySelector('b').textContent = text;
+    el.querySelector('small').textContent = sub;
+    void el.offsetWidth;
+    el.classList.add('go');
+    clearTimeout(stampTimer);
+    stampTimer = setTimeout(() => {
+      el.classList.add('out');
+      el.classList.remove('go');
+    }, 1500);
+  }
+
+  function plusOne() {
+    const v = $('value').getBoundingClientRect();
+    const w = $('wrap').getBoundingClientRect();
+    $('plus').style.setProperty('--plus-x', `${v.right - w.left + 4}px`);
+    $('plus').style.top = `${v.top - w.top - 10}px`;
+    restart($('plus'), 'go');
+  }
+
+  async function onChange(msg) {
+    const { counter: c, prev, event } = msg;
+    const kind = event?.kind;
+    const vs = event?.battle?.opponent?.name ? `vs ${event.battle.opponent.name}` : '';
+    if (kind === 'win') {
+      render(c);
+      restart($('plate'), 'hit');
+      plusOne();
+      const n = shown(c);
+      const reached = p.goal > 0 && n >= p.goal && shown(prev) < p.goal;
+      const mile = p.milestone > 0 && n > 0 && n % p.milestone === 0;
+      if (reached) {
+        stamp('CLEAR', 'gold', `目標 ${fmt(p.goal)} 達成`);
+        SOUND.milestone();
+      } else if (mile) {
+        stamp(p.mode === 'streak' ? `${n}連勝!` : `${n} WIN!`, 'gold', vs);
+        SOUND.milestone();
+      } else {
+        if (event?.battle) stamp('WIN', '', vs);
+        SOUND.win();
+      }
+    } else if (kind === 'lose') {
+      stamp('LOSE', 'lose', vs);
+      restart($('wrap'), 'shake');
+      SOUND.lose();
+      // 連勝が途切れるときは、ハンコを見せてから 0 に落とす
+      if (p.mode === 'streak' && shown(prev) > 0) {
+        render(c, { roll: false });
+        await sleep(700);
+      }
+      render(c);
+    } else if (kind === 'draw') {
+      stamp('DRAW', 'draw', vs);
+      SOUND.draw();
+      render(c);
+    } else {
+      render(c);
+    }
+  }
+
+  async function sync() {
+    try {
+      const all = await (await fetch('/api/wins')).json();
+      render(all[id] ?? { wins: 0, losses: 0, draws: 0, streak: 0, best: 0 });
+    } catch {}
+  }
+
+  await sync();
+  connect({
+    hello: sync,
+    wins(msg) {
+      if (msg.id === id) onChange(msg);
+    },
+  });
+</script>
+</body>
+</html>

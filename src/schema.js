@@ -99,6 +99,28 @@ export const SCHEMA = {
     },
   },
 
+  wins: {
+    kind: 'map',
+    page: 'wins',
+    title: 'WIN数',
+    desc:
+      'WIN 数（連勝数・勝ち数・戦績）。TikTok の PK バトルの勝ち負けで自動で数え、ダッシュボード・モニター・AI のボタンでも +1 / 負け / 1つ戻す ができる。' +
+      '数はサーバーの data/wins.json に残るので、配信をまたいで続けられる。URL は /widgets/wins.html?id=<名前>',
+    size: (e) => (e.style === 'big' ? [380, 400] : [600, 200]),
+    fields: {
+      title: str('WIN', '大きく出す見出し'),
+      mode: oneOf(['streak', 'total', 'record'], 'streak', 'streak 連勝数（負けると 0 に戻る）/ total 勝ち数 / record 勝ち数と「○勝○敗○分」'),
+      goal: num(0, '目標（例 10 で「/ 10」と出す。0 で出さない）', { min: 0 }),
+      pk: bool(true, 'TikTok の PK バトルの勝ち負けで自動で数える'),
+      style: oneOf(['plate', 'big'], 'plate', 'plate 横長の板 / big 大きい数字（画面の端に置く用）'),
+      best: bool(true, '最高連勝を出す'),
+      milestone: num(5, 'この数ごとに大きく祝う（5 なら 5・10・15…。0 で祝わない）', { min: 0 }),
+      color: color('accent', '見出しの色'),
+      sound: bool(true, '効果音'),
+      volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    },
+  },
+
   counters: {
     kind: 'map',
     page: 'counter',

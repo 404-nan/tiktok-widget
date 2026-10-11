@@ -57,6 +57,13 @@ export function makeEvent(kind, opts = {}) {
       return { kind: 'share', user };
     case 'chat':
       return { kind: 'chat', user, text: opts.text || pick(COMMENTS) };
+    case 'battle': {
+      // PK バトルの結果（result: win / lose / draw。省くとランダム）
+      const result = ['win', 'lose', 'draw'].includes(opts.result) ? opts.result : pick(['win', 'win', 'lose', 'draw']);
+      const me = randInt(500, 30000);
+      const them = result === 'draw' ? me : result === 'win' ? randInt(0, me - 1) : me + randInt(1, 20000);
+      return { kind: 'battle', result, battleId: `demo_${Date.now()}`, opponent: { id: 'demo_rival', name: user.name, avatar: null }, score: { me, them } };
+    }
     default:
       return null;
   }

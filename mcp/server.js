@@ -191,6 +191,21 @@ server.registerTool(
 );
 
 server.registerTool(
+  'wins',
+  {
+    title: 'WIN数',
+    description:
+      'WIN 数を変える・見る（サーバー起動中のみ）。win で +1、lose で負け（連勝は 0 に戻る）、draw で引き分け、undo で1つ戻す、set で数を入れる（value）、reset で 0 に戻す、status で今の数。id は wins の名前（省くと全部）。',
+    inputSchema: {
+      action: z.enum(['status', 'win', 'lose', 'draw', 'undo', 'set', 'reset']).default('status'),
+      id: z.string().optional().describe('wins の名前'),
+      value: z.number().int().min(0).optional().describe('set のときの数'),
+    },
+  },
+  wrap(async ({ action, id, value }) => text(await admin.wins(action, id ?? null, value))),
+);
+
+server.registerTool(
   'rush',
   {
     title: 'RUSH',

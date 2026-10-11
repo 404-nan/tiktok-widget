@@ -113,6 +113,18 @@ export async function spinRoulette(id) {
   return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
 }
 
+/** WIN 数を変える・見る（サーバーが必要）。action: win / lose / draw / undo / set / reset / status。id を省くと全部 */
+export async function wins(action = 'status', id = null, value) {
+  const line = (k, c) => `${k}: 連勝 ${c.streak}（最高 ${c.best}）、${c.wins}勝 ${c.losses}敗 ${c.draws}分`;
+  if (action === 'status') {
+    const all = await callServer('/api/wins');
+    const rows = Object.entries(all).filter(([k]) => !id || k === id);
+    return rows.length ? rows.map(([k, c]) => line(k, c)).join('\n') : 'WIN 数の設定がありません';
+  }
+  const { wins: out } = await callServer('/api/control', { method: 'POST', body: { target: 'wins', action, data: { id, value } } });
+  return Object.entries(out).map(([k, c]) => line(k, c)).join('\n');
+}
+
 /** RUSH に入る・終わらせる・今の状態（サーバーが必要） */
 export async function rush(action = 'status') {
   if (action === 'start' || action === 'stop') {

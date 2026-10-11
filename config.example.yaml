@@ -51,6 +51,15 @@ counters:
   default:
     show: [likes, viewers]
 
+# WIN数 … /widgets/wins.html（default 以外は ?id=名前）
+# PK バトルの勝ち負けで自動で数え、ダッシュボード・モニターのボタンでも +1 / 負け / 1つ戻す ができる。
+# 数は data/wins.json に残るので、配信をまたいで続けられる。
+wins:
+  default:
+    title: WIN
+    mode: streak # streak 連勝数（負けると 0 に戻る）/ total 勝ち数 / record 戦績（○勝○敗○分）
+    goal: 10 # 「/ 10」と出す（0 で出さない）
+
 # 通常カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）
 # 筆の帯と文字だけ。ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
 cutins:

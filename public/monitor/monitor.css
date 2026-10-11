@@ -97,3 +97,12 @@
   .feed li { grid-template-columns: 22px minmax(0, 1fr) auto; padding: 8px 16px; font-size: 15px; }
   .feed .time { display: none; }
 }
+
+/* WIN 数: 配信中に指1本で押せるよう大きめに */
+.win-list { display: grid; gap: 14px; }
+.win-row { display: grid; gap: 10px; }
+.win-label { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.win-num { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 40px; font-variant-numeric: tabular-nums; line-height: 1; }
+.win-label .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-row .chip { min-height: 40px; }
+.win-row .win-btn { background: var(--attention); color: #fff; }

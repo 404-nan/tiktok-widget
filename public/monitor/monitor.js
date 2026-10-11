@@ -92,7 +92,8 @@ async function syncTimeline() {
 
 // --- ライブフィード ---
 
-const ICONS = { gift: 'gift', follow: 'user-plus', share: 'repeat-2', chat: 'message-circle', like: 'heart' };
+const ICONS = { gift: 'gift', follow: 'user-plus', share: 'repeat-2', chat: 'message-circle', like: 'heart', battle: 'swords' };
+const BATTLE = { win: 'PK 勝ち', lose: 'PK 負け', draw: 'PK 引き分け' };
 
 function addFeed(e) {
   if (!ICONS[e.kind] || (e.kind === 'like' && e.count < 10)) return;
@@ -107,7 +108,7 @@ function addFeed(e) {
   const body = document.createElement('span');
   const who = document.createElement('span');
   who.className = 'who';
-  who.textContent = e.user?.name ?? '';
+  who.textContent = e.user?.name ?? (e.kind === 'battle' ? `vs ${e.opponent?.name ?? '相手'}` : '');
   const what = document.createElement('span');
   what.className = 'what';
   what.textContent = {
@@ -116,6 +117,7 @@ function addFeed(e) {
     share: () => 'シェアしました',
     chat: () => e.text,
     like: () => `いいね ×${e.count}`,
+    battle: () => `${BATTLE[e.result]}（${fmtNum(e.score?.me ?? 0)} - ${fmtNum(e.score?.them ?? 0)}）`,
   }[e.kind]();
   body.append(who, what);
   const right = document.createElement('span');
@@ -136,6 +138,47 @@ function setupFeedFilter() {
     });
   }
   $('feed').innerHTML = '<li class="empty">まだイベントはありません</li>';
+}
+
+// --- WIN 数 ---
+
+let winCounts = {};
+
+function renderWins() {
+  const box = $('winsList');
+  const entries = Object.entries(config?.wins ?? {});
+  $('winsSection').hidden = !entries.length;
+  box.replaceChildren(
+    ...entries.map(([id, w]) => {
+      const c = winCounts[id] ?? { wins: 0, losses: 0, draws: 0, streak: 0, best: 0 };
+      const n = w.mode === 'streak' ? c.streak : c.wins;
+      const row = document.createElement('div');
+      row.className = 'win-row';
+      const label = document.createElement('div');
+      label.className = 'win-label';
+      const big = document.createElement('span');
+      big.className = 'win-num';
+      big.textContent = fmtNum(n);
+      const text = document.createElement('span');
+      text.className = 'hint';
+      const unit = w.mode === 'streak' ? '連勝中' : '勝';
+      text.textContent = `${w.title || id} ${unit}${w.goal > 0 ? ` / ${w.goal}` : ''}　${c.wins}勝 ${c.losses}敗 ${c.draws}分`;
+      label.append(big, text);
+      const btn = (name, iconName, action, cls = '') => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `chip pressable ${cls}`;
+        b.append(icon(iconName), name);
+        b.addEventListener('click', () => api('/api/control', { target: 'wins', action, data: { id } }));
+        return b;
+      };
+      const buttons = document.createElement('div');
+      buttons.className = 'roulette-buttons';
+      buttons.append(btn('WIN', 'trophy', 'win', 'win-btn'), btn('負け', 'x', 'lose'), btn('分け', 'minus', 'draw'), btn('戻す', 'undo-2', 'undo'));
+      row.append(label, buttons);
+      return row;
+    }),
+  );
 }
 
 // --- RUSH ---
@@ -311,6 +354,10 @@ for (const e of [...recent].reverse()) addFeed(e);
 
 setInterval(renderElapsed, 1000);
 setInterval(renderRush, 1000);
+api('/api/wins').then((w) => {
+  winCounts = w;
+  renderWins();
+}).catch(() => {});
 api('/api/rush').then((r) => {
   setRush(r);
   renderRushButtons();
@@ -350,9 +397,14 @@ connect({
     renderRoulettes();
     renderGoals();
     renderRushButtons();
+    renderWins();
   },
   rush(msg) {
     setRush(msg.rush);
+  },
+  wins(msg) {
+    winCounts[msg.id] = msg.counter;
+    renderWins();
   },
   roulette({ spin }) {
     spins.unshift({ spin, revealed: false });

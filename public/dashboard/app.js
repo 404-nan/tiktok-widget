@@ -102,7 +102,7 @@ async function setupSimulate() {
 
 // --- イベントログ ---
 
-const ICONS = { gift: 'gift', like: 'heart', follow: 'user-plus', share: 'repeat-2', chat: 'message-circle', viewers: 'eye' };
+const ICONS = { gift: 'gift', like: 'heart', follow: 'user-plus', share: 'repeat-2', chat: 'message-circle', viewers: 'eye', battle: 'swords' };
 const timeFmt = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
 function describe(e) {
@@ -119,6 +119,8 @@ function describe(e) {
       return [e.user.name, ` ${e.text}`];
     case 'viewers':
       return ['', `視聴者 ${fmt(e.viewers)} 人`];
+    case 'battle':
+      return [`vs ${e.opponent?.name ?? '相手'}`, ` PK ${{ win: '勝ち', lose: '負け', draw: '引き分け' }[e.result]}（${fmt(e.score?.me ?? 0)} - ${fmt(e.score?.them ?? 0)}）`];
     default:
       return null;
   }

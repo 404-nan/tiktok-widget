@@ -37,6 +37,8 @@ Minecraft / SuperStream
   test like [数] | test follow | test share | test chat
   spin [ルーレットの名前]
   rush [start|stop]         RUSH に入る・終わらせる（省くと今の状態）
+  win | lose | draw [名前]  WIN 数を +1 / 負け / 引き分け（名前を省くと全部）
+  wins [undo|reset|set <数>] [名前]  WIN 数を見る・1つ戻す・0 に戻す・数を入れる
   status
 
 AI と使う
@@ -124,6 +126,17 @@ try {
       const r = await admin.history(args[0]);
       if (args[0]) print(r);
       else for (const s of r) print(`${s.id}${s.live ? '（配信中）' : ''}\t${Math.round(s.durationMs / 60000)}分\tコイン ${s.totals.coins}\tフォロー ${s.totals.follows}\t最大視聴者 ${s.totals.peakViewers}`);
+      break;
+    }
+    case 'win':
+    case 'lose':
+    case 'draw':
+      print(await admin.wins(cmd, args[0]));
+      break;
+    case 'wins': {
+      const [action = 'status', ...rest] = args;
+      if (action === 'set') print(await admin.wins('set', rest[1], rest[0]));
+      else print(await admin.wins(action, rest[0]));
       break;
     }
     case 'rush':

@@ -138,7 +138,7 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(320px, 400px) 1fr;
+  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
   gap: 16px;
   max-width: 1280px;
   margin: 16px auto 48px;
@@ -262,7 +262,7 @@ select option { background: var(--page); }
 .widgets-head h2 { flex: 1; }
 .desc { margin: 0; font-size: 14px; color: var(--text-secondary); }
 
-.widget-body { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 20px; align-items: start; margin-top: 8px; }
+.widget-body { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; }
 @media (max-width: 760px) { .widget-body { grid-template-columns: 1fr; } }
 
 .settings { display: grid; gap: 14px; }
@@ -468,3 +468,7 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 .panel { min-width: 0; }
 .chart { min-width: 0; }
 .chart svg { width: 100%; height: auto; }
+
+/* ウィジェットのタブは数が多いので、折り返して全部見せる */
+#tabs { flex-wrap: wrap; border-radius: 18px; }
+.widgets { min-width: 0; }
