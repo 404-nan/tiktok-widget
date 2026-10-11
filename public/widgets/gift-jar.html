@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ギフト瓶</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* 瓶に貼ったラベルシール */
+  .label {
+    position: absolute;
+    left: 50%;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 14px 18px 12px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 3px;
+    box-shadow: 0 2px 0 rgba(17, 17, 19, .25);
+    border-top: 6px solid var(--signal);
+    transform: translate(-50%, -50%) rotate(-1.5deg);
+    white-space: nowrap;
+  }
+  .label .title { font-size: 17px; font-weight: 900; letter-spacing: .04em; }
+  .label .value { display: flex; align-items: center; gap: 6px; font-size: 40px; line-height: 1; }
+  .label .value .icon { --size: 24px; color: var(--signal); }
+  .label .unit { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: rgba(17, 17, 19, .55); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="label" id="label">
+  <div class="title" id="title"></div>
+  <div class="value num" id="valueRow"><span id="total"></span></div>
+  <div class="unit">COINS</div>
+</div>
+<script src="/vendor/matter.min.js"></script>
+<script type="module">
+  import { setupPage, params, connect, isFor, loadImage, iconImage, odometer, icon, tier } from './lib/overlay.js';
+
+  setupPage();
+  const p = params({
+    minCoins: 1,        // この合計コイン未満のギフトは入れない
+    maxItems: 300,      // 瓶に入れておく最大数（超えたら古いものから消える）
+    perGift: 30,        // ×100 などの連打でも一度に落とすのはこの数まで
+    keep: true,         // 読み込み直しても中身を残す
+    label: true,
+    title: 'ギフト瓶',
+    sizeMin: 1,         // 玉の大きさの倍率（小さいギフト）
+    sizeMax: 1,         // 玉の大きさの倍率（大きいギフト）
+  });
+
+  const { Engine, Bodies, Body, Composite, Sleeping } = Matter;
+  const STORAGE_KEY = 'tiktok-widget:gift-jar:v1';
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const engine = Engine.create({ enableSleeping: true });
+  engine.gravity.y = 1.1;
+
+  document.getElementById('title').textContent = p.title;
+  const labelEl = document.getElementById('label');
+  labelEl.classList.toggle('hidden', !p.label);
+  document.getElementById('valueRow').prepend(icon('coins'));
+  const totalEl = document.getElementById('total');
+  odometer(totalEl, 0);
+
+  const css = getComputedStyle(document.documentElement);
+  const C = (name) => css.getPropertyValue(name).trim();
+  const INK = C('--ink'), PAPER = C('--paper'), SIGNAL = C('--signal'), GOLD = C('--gold');
+  // 画像のないギフト（デモ）は価格帯ごとの色のトークンで描く。[塗り, 線・アイコン]
+  const TOKEN = { low: [PAPER, INK], mid: [GOLD, INK], high: [SIGNAL, PAPER], top: [INK, GOLD] };
+
+  let W = 0, H = 0;
+  let jar = null;          // 瓶の形（描画用の点列など）
+  let walls = [];
+  const items = [];        // { body, gift, img, r }
+  let total = 0;
+
+  // --- 瓶の形 ---
+  function buildJar() {
+    const dpr = devicePixelRatio || 1;
+    W = innerWidth;
+    H = innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const bottom = H - 12;
+    const height = Math.min(H * 0.82, bottom - 16);
+    const width = Math.min(W * 0.86, height * 0.85);
+    const top = bottom - height;
+    const neck = width * 0.72;
+    const neckH = height * 0.06;
+    const shoulder = height * 0.1;
+    const rr = width * 0.16;
+    const cx = W / 2;
+    const L = cx - width / 2, R = cx + width / 2;
+
+    // 左上から反時計回りに右上まで（口は開いている）
+    const pts = [
+      [cx - neck / 2, top],
+      [cx - neck / 2, top + neckH],
+      [L, top + neckH + shoulder],
+    ];
+    for (let i = 0; i <= 6; i++) {
+      const a = Math.PI - (Math.PI / 2) * (i / 6); // 180° → 90°（左下の角）
+      pts.push([L + rr + Math.cos(a) * rr, bottom - rr + Math.sin(a) * rr]);
+    }
+    for (let i = 0; i <= 6; i++) {
+      const a = Math.PI / 2 - (Math.PI / 2) * (i / 6); // 90° → 0°（右下の角）
+      pts.push([R - rr + Math.cos(a) * rr, bottom - rr + Math.sin(a) * rr]);
+    }
+    pts.push([R, top + neckH + shoulder], [cx + neck / 2, top + neckH], [cx + neck / 2, top]);
+
+    jar = { pts, top, bottom, width, neck, cx };
+    labelEl.style.top = `${bottom - height * 0.3}px`;
+
+    Composite.remove(engine.world, walls);
+    const thick = 24;
+    walls = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[i + 1];
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      // 壁の内側の面が線の位置に来るよう、外向きの法線 (-sin, cos) の方へずらす
+      const ox = -Math.sin(angle) * (thick / 2);
+      const oy = Math.cos(angle) * (thick / 2);
+      walls.push(
+        Bodies.rectangle((x1 + x2) / 2 + ox, (y1 + y2) / 2 + oy, len + thick * 0.6, thick, {
+          isStatic: true,
+          angle,
+          friction: 0.4,
+        }),
+      );
+    }
+    Composite.add(engine.world, walls);
+  }
+
+  // --- 玉 ---
+  function radiusFor(diamonds) {
+    const base = jar.width;
+    const t = Math.min(1, Math.log10(Math.max(1, diamonds)) / Math.log10(30000));
+    return base * (0.042 * p.sizeMin + (0.12 * p.sizeMax - 0.042 * p.sizeMin) * t);
+  }
+
+  async function drop(gift, { fast = false } = {}) {
+    const r = radiusFor(gift.diamonds);
+    const x = jar.cx + (Math.random() - 0.5) * (jar.neck - r * 2) * 0.8;
+    const y = fast ? jar.top + r + Math.random() * (jar.bottom - jar.top) * 0.4 : Math.max(r, jar.top - r * 2);
+    const body = Bodies.circle(x, y, r, {
+      restitution: 0.35,
+      friction: 0.2,
+      frictionAir: 0.01,
+      density: 0.001 * (1 + Math.log10(Math.max(1, gift.diamonds))),
+    });
+    Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.3);
+    Composite.add(engine.world, body);
+    const item = { body, gift, r, img: null };
+    items.push(item);
+    total += gift.diamonds;
+    odometer(totalEl, total);
+    if (gift.image) {
+      loadImage(gift.image).then((img) => (item.img = img));
+    } else {
+      const [, fg] = TOKEN[tier(gift.diamonds)];
+      iconImage(gift.icon || 'gift', fg, 2.5).then((img) => (item.icon = img));
+    }
+
+    while (items.length > p.maxItems) removeItem(items[0]);
+    save();
+  }
+
+  function removeItem(item) {
+    Composite.remove(engine.world, item.body);
+    items.splice(items.indexOf(item), 1);
+    total -= item.gift.diamonds;
+    odometer(totalEl, Math.max(0, total));
+  }
+
+  function reset() {
+    for (const it of [...items]) removeItem(it);
+    total = 0;
+    odometer(totalEl, 0);
+    save();
+  }
+
+  function shake() {
+    for (const it of items) {
+      Sleeping.set(it.body, false);
+      Body.setVelocity(it.body, { x: (Math.random() - 0.5) * 8, y: -6 - Math.random() * 8 });
+    }
+  }
+
+  // --- 保存（OBS を読み込み直しても中身が残るように） ---
+  let saveTimer = null;
+  function save() {
+    if (!p.keep) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        const data = items.map(({ gift }) => ({ n: gift.name, i: gift.image, c: gift.icon, d: gift.diamonds }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch {}
+    }, 500);
+  }
+
+  function restore() {
+    if (!p.keep) return;
+    let data = [];
+    try {
+      data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {}
+    data.slice(-p.maxItems).forEach((g, i) => {
+      setTimeout(() => drop({ name: g.n, image: g.i, icon: g.c, diamonds: g.d }, { fast: true }), i * 12);
+    });
+  }
+
+  // --- 描画ループ ---
+  function jarPath() {
+    ctx.beginPath();
+    jar.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  }
+
+  function drawJarBack() {
+    jarPath();
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(246, 245, 241, .08)';
+    ctx.fill();
+  }
+
+  function drawJarFront() {
+    // ガラスの縁
+    jarPath();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(246, 245, 241, .85)';
+    ctx.stroke();
+
+    // 映り込み（左側に2本の線）
+    const L = jar.cx - jar.width / 2;
+    const top = jar.pts[2][1] + jar.width * 0.08;
+    const len = (jar.bottom - top) * 0.62;
+    ctx.strokeStyle = 'rgba(246, 245, 241, .4)';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(L + jar.width * 0.09, top);
+    ctx.lineTo(L + jar.width * 0.09, top + len);
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(L + jar.width * 0.15, top);
+    ctx.lineTo(L + jar.width * 0.15, top + len * 0.35);
+    ctx.stroke();
+
+    // 口のふち（墨の帯）
+    const [x1, y1] = jar.pts[0];
+    const [x2] = jar.pts[jar.pts.length - 1];
+    ctx.beginPath();
+    ctx.roundRect(x1 - 12, y1 - 10, x2 - x1 + 24, 18, 4);
+    ctx.fillStyle = INK;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(246, 245, 241, .85)';
+    ctx.stroke();
+  }
+
+  function drawItem({ body, gift, img, icon: iconImg, r }) {
+    ctx.save();
+    ctx.translate(body.position.x, body.position.y);
+    ctx.rotate(body.angle);
+    if (img) {
+      const s = r * 2.3;
+      ctx.drawImage(img, -s / 2, -s / 2, s, s);
+    } else {
+      const t = tier(gift.diamonds);
+      const [bg, fg] = TOKEN[t];
+      ctx.beginPath();
+      ctx.arc(0, 0, r - 1, 0, Math.PI * 2);
+      ctx.fillStyle = bg;
+      ctx.fill();
+      ctx.lineWidth = t === 'top' ? 3 : 2;
+      ctx.strokeStyle = t === 'top' ? GOLD : INK;
+      ctx.stroke();
+      if (iconImg) {
+        const s = r * 1.1;
+        ctx.drawImage(iconImg, -s / 2, -s / 2, s, s);
+      }
+    }
+    ctx.restore();
+  }
+
+  let last = performance.now();
+  let acc = 0;
+  const STEP = 1000 / 60;
+  function loop(now) {
+    acc += Math.min(100, now - last);
+    last = now;
+    while (acc >= STEP) {
+      Engine.update(engine, STEP);
+      acc -= STEP;
+    }
+    ctx.clearRect(0, 0, W, H);
+    drawJarBack();
+    for (const it of items) drawItem(it);
+    drawJarFront();
+
+    // 瓶の外に飛び出して画面外へ落ちたものは片付ける
+    for (const it of [...items]) if (it.body.position.y > H + 200) removeItem(it);
+    requestAnimationFrame(loop);
+  }
+
+  // --- 受信 ---
+  connect({
+    event(e) {
+      if (e.kind !== 'gift' || e.totalDiamonds < p.minCoins) return;
+      const n = Math.min(p.perGift, e.gift.count);
+      for (let i = 0; i < n; i++) setTimeout(() => drop(e.gift), i * 90);
+    },
+    control(msg) {
+      if (!isFor(msg, 'gift-jar')) return;
+      if (msg.action === 'reset') reset();
+      else if (msg.action === 'shake') shake();
+    },
+  });
+
+  addEventListener('resize', () => buildJar());
+  buildJar();
+  restore();
+  requestAnimationFrame(loop);
+</script>
+</body>
+</html>

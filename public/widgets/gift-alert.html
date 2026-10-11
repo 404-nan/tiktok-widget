@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ギフト通知</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  body { display: flex; padding: 32px; }
+  body.pos-top { align-items: flex-start; }
+  body.pos-center { align-items: center; }
+  body.pos-bottom { align-items: flex-end; }
+  body.align-left { justify-content: flex-start; }
+  body.align-center { justify-content: center; }
+  body.align-right { justify-content: flex-end; }
+
+  /* テロップ本体: [朱の帯][ギフト][名前と内容][コイン] */
+  .lt {
+    display: flex;
+    align-items: stretch;
+    height: 96px;
+    max-width: 100%;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .3));
+  }
+  .lt-bar { width: 6px; background: var(--signal); transform-origin: top; transform: scaleY(0); }
+  .lt-badge {
+    display: grid;
+    place-items: center;
+    width: 96px;
+    flex: none;
+    background: var(--surface-2);
+    clip-path: inset(0 100% 0 0);
+  }
+  .lt-main {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    background: var(--surface);
+    clip-path: inset(0 100% 0 0);
+    position: relative;
+    overflow: hidden;
+  }
+  .lt-text { display: grid; gap: 4px; padding: 0 28px 0 22px; min-width: 0; }
+  .line { overflow: hidden; }
+  .line > * { display: flex; align-items: center; gap: 10px; transform: translateY(110%); }
+
+  .name { font-size: 26px; font-weight: 900; line-height: 1.2; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+  .desc { font-size: 16px; font-weight: 700; color: var(--on-surface-dim); line-height: 1.2; white-space: nowrap; }
+  .desc .count { font-size: 26px; color: var(--signal); line-height: 1; }
+
+  .lt-coins {
+    display: grid;
+    align-content: center;
+    justify-items: end;
+    gap: 2px;
+    align-self: stretch;
+    padding: 0 26px;
+    box-shadow: inset 1px 0 0 var(--rule);
+  }
+  .lt-coins .value { display: flex; align-items: center; gap: 6px; font-size: 34px; line-height: 1; color: var(--gold); }
+  .lt-coins .value .icon { --size: 22px; }
+  .lt-coins .unit { font-size: 12px; font-weight: 700; color: var(--on-surface-dim); letter-spacing: .08em; }
+
+  .lt .gift-visual { transform: scale(.6); opacity: 0; }
+
+  /* 出る */
+  .lt.in .lt-bar { transform: scaleY(1); transition: transform .22s var(--ease-wipe); }
+  .lt.in .lt-badge { clip-path: inset(0 0 0 0); transition: clip-path .42s var(--ease-wipe) .1s; }
+  .lt.in .lt-main { clip-path: inset(0 0 0 0); transition: clip-path .52s var(--ease-wipe) .2s; }
+  .lt.in .gift-visual { transform: none; opacity: 1; transition: transform .6s var(--ease-out) .32s, opacity .2s linear .32s; }
+  .lt.in .line > * { transform: none; transition: transform .56s var(--ease-out); }
+  .lt.in .line:nth-child(1) > * { transition-delay: .38s; }
+  .lt.in .line:nth-child(2) > * { transition-delay: .46s; }
+
+  /* 消える: 右へ拭き取る */
+  .lt.out { clip-path: inset(0 0 0 100%); transition: clip-path .4s var(--ease-wipe); }
+  .lt { clip-path: inset(0 0 0 0); }
+
+  /* 高額ギフト: ギフトの面を金にして、一度だけ光を走らせる */
+  .lt.big .lt-badge { background: var(--gold); }
+  .lt.big .lt-main::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .16) 50%, transparent 65%);
+    transform: translateX(-100%);
+  }
+  .lt.big.in .lt-main::after { transform: translateX(100%); transition: transform 1.1s var(--ease-out) .7s; }
+
+  /* フォロー・シェア */
+  .lt[data-kind=follow] .lt-badge, .lt[data-kind=share] .lt-badge { background: var(--signal); color: var(--paper); }
+  .lt[data-kind=follow] .gift-visual .icon, .lt[data-kind=share] .gift-visual .icon { --size: 40px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script type="module">
+  import { setupPage, params, list, connect, isFor, giftNode, avatarNode, icon, fmt, chime, createQueue, sleep } from './lib/overlay.js';
+
+  setupPage();
+  const p = params({
+    events: 'gift,follow',  // 通知するイベント: gift, follow, share
+    minCoins: 1,            // この合計コイン未満のギフトは通知しない
+    bigCoins: 100,          // この合計コイン以上は金色にする
+    duration: 4.5,          // 1件あたりの表示秒数
+    position: 'top',        // top / center / bottom
+    align: 'left',          // left / center / right
+    sound: true,
+    volume: 0.3,
+  });
+  const kinds = new Set(list(p.events));
+  document.body.classList.add(`pos-${p.position}`, `align-${p.align}`);
+  const stage = document.getElementById('stage');
+
+  const queue = createQueue(show, { max: 30 });
+
+  connect({
+    event(e) {
+      if (!kinds.has(e.kind)) return;
+      if (e.kind === 'gift' && e.totalDiamonds < p.minCoins) return;
+      queue.push(e);
+    },
+    control(msg) {
+      if (isFor(msg, 'gift-alert') && msg.action === 'reset') queue.clear();
+    },
+  });
+
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  function build(e) {
+    const lt = el('div', 'lt');
+    lt.dataset.kind = e.kind;
+
+    const badge = el('div', 'lt-badge');
+    const main = el('div', 'lt-main');
+    const text = el('div', 'lt-text');
+
+    const nameRow = el('div', 'name');
+    nameRow.append(avatarNode(e.user, 30), el('span', null, e.user.name));
+    const descRow = el('div', 'desc');
+
+    if (e.kind === 'gift') {
+      badge.append(giftNode(e.gift, 68));
+      descRow.append(el('span', null, e.gift.name));
+      const count = el('span', 'count num', `×${e.gift.count}`);
+      descRow.append(count);
+      if (e.totalDiamonds >= p.bigCoins) lt.classList.add('big');
+    } else {
+      const visual = el('span', 'gift-visual');
+      visual.style.setProperty('--size', '68px');
+      visual.append(icon(e.kind === 'follow' ? 'user-plus' : 'repeat-2'));
+      badge.append(visual);
+      descRow.textContent = e.kind === 'follow' ? 'フォローしてくれました' : '配信をシェアしてくれました';
+    }
+
+    const l1 = el('div', 'line');
+    l1.append(nameRow);
+    const l2 = el('div', 'line');
+    l2.append(descRow);
+    text.append(l1, l2);
+    main.append(text);
+
+    if (e.kind === 'gift') {
+      const coins = el('div', 'lt-coins');
+      const value = el('div', 'value num');
+      value.append(icon('coins'), el('span', null, fmt(e.totalDiamonds)));
+      coins.append(value, el('div', 'unit', 'コイン'));
+      main.append(coins);
+    }
+
+    lt.append(el('div', 'lt-bar'), badge, main);
+    return lt;
+  }
+
+  async function show(e) {
+    const lt = build(e);
+    stage.replaceChildren(lt);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    lt.classList.add('in');
+    if (p.sound) chime(e.kind === 'gift' ? 'gift' : 'follow', p.volume);
+
+    // 列が詰まっているときは表示時間を短くする
+    await sleep(p.duration * 1000 * (queue.size > 5 ? 0.5 : 1));
+    lt.classList.add('out');
+    await sleep(420);
+    lt.remove();
+  }
+</script>
+</body>
+</html>

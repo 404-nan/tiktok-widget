@@ -1,0 +1,123 @@
+/* ウィジェット共通のデザイン
+   方針: 中継テロップ／スコアボードの文法で作る。
+   - 面は不透明（配信映像のどんな絵の上でも読める）。ぼかしや発光で飾らない
+   - 色は 墨・白・朱・金 の4色だけ。朱は「今起きたこと」、金は「コイン」にだけ使う
+   - 数字は Barlow Condensed、和文は Zen Kaku Gothic New
+   - 動きはワイプ（clip-path）と、文字のせり上がり。弾ませない */
+@import url("fonts.css");
+
+:root {
+  --ink: #111113;
+  --ink-2: #1D1D21;
+  --ink-3: #2A2A2F;
+  --paper: #F6F5F1;
+  --paper-dim: rgba(246, 245, 241, .64);
+  --paper-faint: rgba(246, 245, 241, .14);
+  --signal: #FF4F1F;
+  --gold: #FFC53D;
+
+  /* 面ごとの文字色。ライトテーマで入れ替える */
+  --surface: var(--ink);
+  --surface-2: var(--ink-2);
+  --on-surface: var(--paper);
+  --on-surface-dim: var(--paper-dim);
+  --rule: var(--paper-faint);
+
+  --font: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-num: "Barlow Condensed", "Zen Kaku Gothic New", sans-serif;
+
+  --r: 4px;
+  --lift: 0 12px 32px rgba(0, 0, 0, .32);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-wipe: cubic-bezier(.7, 0, .2, 1);
+
+  font-family: var(--font);
+  color: var(--on-surface);
+  font-feature-settings: "palt";
+}
+
+:root[data-theme=light] {
+  --surface: var(--paper);
+  --surface-2: #E9E7E1;
+  --on-surface: var(--ink);
+  --on-surface-dim: rgba(17, 17, 19, .6);
+  --rule: rgba(17, 17, 19, .12);
+  --lift: 0 12px 32px rgba(0, 0, 0, .18);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+body { font-size: 16px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+
+/* ダッシュボードのプレビュー用: 透明部分が分かるよう市松模様を敷く */
+body.preview {
+  background-color: #3A3A3F;
+  background-image:
+    linear-gradient(45deg, #333338 25%, transparent 25%, transparent 75%, #333338 75%),
+    linear-gradient(45deg, #333338 25%, transparent 25%, transparent 75%, #333338 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+}
+
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* アイコン（lucide の SVG をマスクにして文字色で塗る） */
+.icon {
+  display: inline-block;
+  width: var(--size, 20px);
+  height: var(--size, 20px);
+  flex: none;
+  background-color: currentColor;
+  -webkit-mask: var(--src) center / contain no-repeat;
+  mask: var(--src) center / contain no-repeat;
+}
+
+/* ギフト。本物の画像があれば画像、なければ価格帯ごとの色のトークン */
+.gift-visual {
+  display: inline-grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  flex: none;
+}
+.gift-visual img { width: 100%; height: 100%; object-fit: contain; }
+.token {
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px rgba(17, 17, 19, .9);
+}
+.token .icon { --size: 52%; }
+.token.tier-mid { background: var(--gold); }
+.token.tier-high { background: var(--signal); color: var(--paper); }
+.token.tier-top { background: var(--ink); color: var(--gold); box-shadow: inset 0 0 0 3px var(--gold); }
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ink-3);
+  color: var(--paper);
+  font-size: calc(var(--size) * .44);
+  font-weight: 700;
+  flex: none;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* 桁ごとに回るカウンター */
+.odo { display: inline-flex; overflow: hidden; height: 1em; line-height: 1; }
+.odo-digit { display: inline-block; height: 1em; overflow: hidden; }
+.odo-strip { display: flex; flex-direction: column; transition: transform .7s var(--ease-out); }
+.odo-strip span, .odo-char { height: 1em; line-height: 1; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .15s !important; }
+}

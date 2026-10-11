@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ギフトルーレット</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  body { display: grid; place-items: center; }
+  .wrap { position: relative; display: grid; justify-items: center; gap: 14px; }
+  canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); }
+
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 9px 12px;
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .chip .icon { --size: 18px; color: var(--signal); }
+  .queue { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity .2s linear; }
+  .queue.show { opacity: 1; }
+  .queue .num { font-size: 20px; line-height: 1; }
+
+  /* 結果: テロップと同じ作り（朱の面 + 墨の面）をワイプで出す */
+  .result {
+    position: absolute;
+    left: 50%;
+    top: 58%;
+    display: flex;
+    align-items: stretch;
+    width: max-content;
+    max-width: 92%;
+    transform: translateX(-50%);
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .4));
+    pointer-events: none;
+  }
+  .result .kicker {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    flex: none;
+    background: var(--signal);
+    color: var(--paper);
+    clip-path: inset(0 100% 0 0);
+  }
+  .result .kicker .icon { --size: 34px; }
+  .result .body {
+    display: grid;
+    gap: 2px;
+    padding: 14px 28px 16px 22px;
+    background: var(--surface);
+    min-width: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  .result .label { font-size: 13px; font-weight: 700; color: var(--on-surface-dim); letter-spacing: .08em; }
+  .result .name { font-size: 40px; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+  .result .body { min-width: 220px; }
+  .result .by { font-size: 13px; font-weight: 700; color: var(--on-surface-dim); }
+  .result.show .kicker { clip-path: inset(0 0 0 0); transition: clip-path .36s var(--ease-wipe); }
+  .result.show .body { clip-path: inset(0 0 0 0); transition: clip-path .5s var(--ease-wipe) .1s; }
+  .result.hide { clip-path: inset(0 0 0 100%); transition: clip-path .36s var(--ease-wipe); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <canvas id="wheel"></canvas>
+  <div class="queue chip" id="queue"><span>あと</span><span class="num" id="queueNum"></span><span>回</span></div>
+  <div class="hint chip" id="hint"></div>
+  <div class="result" id="result">
+    <div class="kicker" id="kicker"></div>
+    <div class="body">
+      <div class="label">結果</div>
+      <div class="name" id="resultName"></div>
+      <div class="by" id="resultBy"></div>
+    </div>
+  </div>
+</div>
+<script type="module">
+  import { setupPage, params, list, connect, isFor, giftMatches, createQueue, chime, sleep, fmt, icon } from './lib/overlay.js';
+
+  setupPage();
+  const p = params({
+    items: 'ハズレ,歌う*2,一発ギャグ,ハズレ,変顔*2,質問に答える*2',  // 「名前*重み」で出やすさを変えられる
+    gifts: '',            // このギフト名（または ID）でまわす。カンマ区切り
+    minCoins: 30,         // 合計コインがこれ以上のギフトでまわす（0 で無効）
+    perCount: false,      // ×5 なら 5 回まわす
+    duration: 6,          // 回転の秒数
+    hold: 4,              // 結果の表示秒数
+    hint: '',             // 下に出す案内文（空なら自動）
+    sound: true,
+    volume: 0.3,
+  });
+
+  const css = getComputedStyle(document.documentElement);
+  const C = (name) => css.getPropertyValue(name).trim();
+  const INK = C('--ink'), INK2 = C('--ink-2'), PAPER = C('--paper'), SIGNAL = C('--signal'), GOLD = C('--gold');
+  // 色は4色だけを順に使う。[塗り, 文字]
+  const SWATCHES = [[SIGNAL, PAPER], [PAPER, INK], [GOLD, INK], [INK2, PAPER]];
+
+  // 「名前*重み」を読む。重みに比例して扇の大きさも変える（見た目と確率を一致させる）
+  const items = list(p.items).map((raw) => {
+    const m = raw.match(/^(.*?)\*(\d+(?:\.\d+)?)$/);
+    return { name: (m ? m[1] : raw).trim(), weight: m ? Math.max(0.01, Number(m[2])) : 1 };
+  });
+  if (items.length === 0) items.push({ name: '？', weight: 1 });
+  const totalWeight = items.reduce((a, b) => a + b.weight, 0);
+  let acc = 0;
+  for (const [i, it] of items.entries()) {
+    it.start = (acc / totalWeight) * Math.PI * 2;
+    acc += it.weight;
+    it.end = (acc / totalWeight) * Math.PI * 2;
+    let si = i % SWATCHES.length;
+    // 最後と最初が同じ色で隣り合わないようにする
+    if (i === items.length - 1 && i > 0 && si === 0) si = 2;
+    [it.fill, it.ink] = SWATCHES[si];
+  }
+
+  const gifts = list(p.gifts);
+  const hint = document.getElementById('hint');
+  hint.append(
+    icon('gift'),
+    p.hint ||
+      (gifts.length
+        ? `${gifts.join('・')} でルーレット`
+        : p.minCoins > 0
+          ? `${fmt(p.minCoins)}コイン以上のギフトでルーレット`
+          : 'ルーレット'),
+  );
+  document.getElementById('kicker').append(icon('trophy'));
+
+  // --- 描画 ---
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const FONT = '"Zen Kaku Gothic New", "Hiragino Sans", sans-serif';
+  let size = 0;
+  let rotation = 0;
+  let pointerKick = 0; // 針がペグにはじかれた角度（ラジアン）
+
+  function resize() {
+    size = Math.floor(Math.max(160, Math.min(innerWidth, innerHeight - 70) - 12));
+    const dpr = devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = canvas.style.height = `${size}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function draw() {
+    const c = size / 2;
+    const rim = 14;
+    const r = c - rim - 2;
+    ctx.clearRect(0, 0, size, size);
+
+    // 縁
+    ctx.beginPath();
+    ctx.arc(c, c, r + rim, 0, Math.PI * 2);
+    ctx.fillStyle = INK;
+    ctx.fill();
+
+    for (const it of items) {
+      const a0 = it.start + rotation;
+      const a1 = it.end + rotation;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.arc(c, c, r, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = it.fill;
+      ctx.fill();
+
+      // 文字は扇の中心線に沿って、外周側に右寄せ
+      const mid = (a0 + a1) / 2;
+      const arc = (it.end - it.start) * r * 0.6;
+      const fontSize = Math.max(12, Math.min(r * 0.12, arc * 0.5));
+      ctx.save();
+      ctx.translate(c, c);
+      ctx.rotate(mid);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.font = `900 ${fontSize}px ${FONT}`;
+      ctx.fillStyle = it.ink;
+      ctx.fillText(fitText(it.name, r * 0.62), r - 18, 1);
+      ctx.restore();
+    }
+
+    // 扇の境目の線とペグ
+    for (const it of items) {
+      const a = it.start + rotation;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(c + Math.cos(a) * (r + rim / 2), c + Math.sin(a) * (r + rim / 2), 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = PAPER;
+      ctx.fill();
+    }
+
+    // 中心
+    ctx.beginPath();
+    ctx.arc(c, c, r * 0.13, 0, Math.PI * 2);
+    ctx.fillStyle = INK;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(c, c, r * 0.13 - 5, 0, Math.PI * 2);
+    ctx.strokeStyle = SIGNAL;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c, c, 4, 0, Math.PI * 2);
+    ctx.fillStyle = PAPER;
+    ctx.fill();
+
+    // 針（上）。ペグに当たると少しはじかれる
+    ctx.save();
+    ctx.translate(c, 6);
+    ctx.rotate(pointerKick);
+    ctx.beginPath();
+    ctx.moveTo(-15, 0);
+    ctx.lineTo(15, 0);
+    ctx.lineTo(0, 38);
+    ctx.closePath();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    ctx.fillStyle = SIGNAL;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function fitText(text, maxWidth) {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let t = text;
+    while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
+    return `${t}…`;
+  }
+
+  const POINTER = -Math.PI / 2;
+  const TAU = Math.PI * 2;
+  const norm = (a) => ((a % TAU) + TAU) % TAU;
+  const indexAtPointer = () => {
+    const a = norm(POINTER - rotation);
+    return items.findIndex((it) => a >= it.start && a < it.end);
+  };
+
+  function pickWeighted() {
+    let x = Math.random() * totalWeight;
+    for (const it of items) {
+      x -= it.weight;
+      if (x <= 0) return it;
+    }
+    return items[items.length - 1];
+  }
+
+  // --- 回転 ---
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  async function spin(trigger) {
+    renderQueue();
+    const winner = pickWeighted();
+    const land = winner.start + (0.15 + Math.random() * 0.7) * (winner.end - winner.start);
+    const turns = reduced ? 0 : 5 + Math.floor(Math.random() * 3);
+    const from = rotation;
+    const to = from + norm(POINTER - land - from) + turns * TAU;
+    const duration = reduced ? 300 : p.duration * 1000;
+
+    let lastIndex = indexAtPointer();
+    await new Promise((resolve) => {
+      const t0 = performance.now();
+      let prev = t0;
+      const frame = (now) => {
+        const t = Math.min(1, (now - t0) / duration);
+        const eased = 1 - Math.pow(1 - t, 4);
+        rotation = from + (to - from) * eased;
+        const idx = indexAtPointer();
+        if (idx !== lastIndex) {
+          pointerKick = -0.32;
+          if (p.sound) chime('tick', p.volume);
+        }
+        lastIndex = idx;
+        // はじかれた針はすぐ戻る
+        pointerKick *= Math.pow(0.0005, (now - prev) / 1000);
+        prev = now;
+        draw();
+        if (t < 1) requestAnimationFrame(frame);
+        else resolve();
+      };
+      requestAnimationFrame(frame);
+    });
+    rotation = norm(rotation);
+    pointerKick = 0;
+    draw();
+
+    document.getElementById('resultName').textContent = winner.name;
+    document.getElementById('resultBy').textContent = trigger?.user ? `${trigger.user.name} の ${trigger.gift.name}` : '';
+    const result = document.getElementById('result');
+    result.classList.remove('hide');
+    result.classList.add('show');
+    if (p.sound) chime('win', p.volume);
+    await sleep(p.hold * 1000);
+    result.classList.add('hide');
+    await sleep(400);
+    result.classList.remove('show', 'hide');
+  }
+
+  const queue = createQueue(spin, { max: 100 });
+  function renderQueue() {
+    const waiting = queue.size - 1;
+    document.getElementById('queueNum').textContent = String(waiting);
+    document.getElementById('queue').classList.toggle('show', waiting > 0);
+  }
+
+  connect({
+    event(e) {
+      if (!giftMatches(e, { gifts, minCoins: p.minCoins })) return;
+      const times = p.perCount ? Math.min(20, e.gift.count) : 1;
+      for (let i = 0; i < times; i++) queue.push(e);
+      renderQueue();
+    },
+    control(msg) {
+      if (!isFor(msg, 'roulette')) return;
+      if (msg.action === 'spin') {
+        queue.push(null);
+        renderQueue();
+      } else if (msg.action === 'reset') {
+        queue.clear();
+        renderQueue();
+      }
+    },
+  });
+
+  addEventListener('resize', resize);
+  resize();
+  // 和文フォントは使う文字の分だけ読み込まれるので、項目の文字を指定して待ってから描き直す
+  document.fonts.load(`900 24px ${FONT}`, items.map((it) => it.name).join('')).then(draw, draw);
+</script>
+</body>
+</html>

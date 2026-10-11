@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>いいね・視聴者数</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  /* 下寄せにして、上の空きをハートが浮かぶ場所にする */
+  body { display: flex; align-items: flex-end; justify-content: flex-start; padding: 32px; }
+  body.align-center { justify-content: center; }
+  body.align-right { justify-content: flex-end; }
+
+  .board {
+    position: relative;
+    display: flex;
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+    border-left: 6px solid var(--signal);
+  }
+  .layout-column .board { flex-direction: column; }
+
+  .cell { position: relative; display: grid; gap: 6px; padding: 14px 26px 16px 20px; min-width: 132px; }
+  .cell + .cell { box-shadow: inset 1px 0 0 var(--rule); }
+  .layout-column .cell + .cell { box-shadow: inset 0 1px 0 var(--rule); }
+
+  .label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--on-surface-dim); letter-spacing: .04em; }
+  .label .icon { --size: 15px; color: var(--signal); }
+  .no-labels .label span:last-child { display: none; }
+
+  .value { font-size: 48px; line-height: 1; font-weight: 600; }
+
+  /* 数が増えた瞬間、ラベルのアイコンを一度だけ点す */
+  .cell.hit .label .icon { animation: hit .6s var(--ease-out); }
+  @keyframes hit { 0% { color: var(--gold); transform: scale(1.35); } 100% { color: var(--signal); transform: none; } }
+
+  .heart {
+    position: absolute;
+    left: 24px;
+    bottom: 100%;
+    color: var(--signal);
+    pointer-events: none;
+    animation: float 2s var(--ease-out) forwards;
+  }
+  .heart svg { display: block; }
+  @keyframes float {
+    0% { transform: translate(0, 12px) scale(.5); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: translate(var(--dx), -110px) scale(1); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="board" id="board"></div>
+<script type="module">
+  import { setupPage, params, list, connect, odometer, icon } from './lib/overlay.js';
+
+  setupPage();
+  const p = params({
+    show: 'likes,viewers',  // likes, viewers, follows, diamonds, gifts, shares, comments
+    layout: 'row',          // row / column
+    align: 'left',          // left / center / right
+    labels: true,
+    hearts: true,           // いいねが来たらハートを浮かべる
+  });
+  document.body.classList.add(`layout-${p.layout}`, `align-${p.align}`);
+  if (!p.labels) document.body.classList.add('no-labels');
+
+  const META = {
+    likes: { icon: 'heart', label: 'いいね' },
+    viewers: { icon: 'eye', label: '視聴者' },
+    follows: { icon: 'user-plus', label: 'フォロー' },
+    diamonds: { icon: 'coins', label: 'コイン' },
+    gifts: { icon: 'gift', label: 'ギフト' },
+    shares: { icon: 'repeat-2', label: 'シェア' },
+    comments: { icon: 'message-circle', label: 'コメント' },
+  };
+  const board = document.getElementById('board');
+  const cells = {};
+  for (const key of list(p.show).filter((k) => META[k])) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const label = document.createElement('div');
+    label.className = 'label';
+    const text = document.createElement('span');
+    text.textContent = META[key].label;
+    label.append(icon(META[key].icon), text);
+    const value = document.createElement('div');
+    value.className = 'value num';
+    cell.append(label, value);
+    board.append(cell);
+    cells[key] = { cell, value, last: null };
+  }
+
+  function render(state) {
+    for (const [key, c] of Object.entries(cells)) {
+      const v = state[key] ?? 0;
+      if (v === c.last) continue;
+      if (c.last != null && v > c.last) {
+        c.cell.classList.remove('hit');
+        void c.cell.offsetWidth;
+        c.cell.classList.add('hit');
+      }
+      c.last = v;
+      odometer(c.value, v);
+    }
+  }
+
+  // 塗りつぶしのハート（lucide の heart と同じ形）
+  const HEART = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></svg>';
+  let floating = 0;
+  function heart() {
+    if (!cells.likes || floating > 16) return;
+    floating++;
+    const h = document.createElement('span');
+    h.className = 'heart';
+    h.innerHTML = HEART;
+    h.style.setProperty('--dx', `${(Math.random() - 0.5) * 48}px`);
+    cells.likes.cell.append(h);
+    setTimeout(() => {
+      h.remove();
+      floating--;
+    }, 2000);
+  }
+
+  connect({
+    hello: (_status, state) => render(state),
+    state: render,
+    event(e, state) {
+      render(state);
+      if (p.hearts && e.kind === 'like') {
+        const n = Math.min(3, Math.ceil(e.count / 8));
+        for (let i = 0; i < n; i++) setTimeout(heart, i * 140);
+      }
+    },
+  });
+</script>
+</body>
+</html>
