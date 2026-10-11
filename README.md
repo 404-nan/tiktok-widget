@@ -83,7 +83,7 @@ roulettes:
 - **WIN数**: クリアしたらダッシュボード・モニターのボタンか、URL を開いて +1（Stream Deck の「Webサイト」などに登録すればゲーム中でも押せます）
   - `http://127.0.0.1:3939/api/wins/default/win` … +1 ／ `…/add?value=-1` … -1 ／ `…/undo` … 1つ戻す ／ `…/set?value=5` … 5 にする ／ `…/reset` … 0 にリセット（`default` の所を `all` にすると全部）
   - ギフトで増減: `wins.default.rules` に `{gifts: [Lion], add: -1, text: 妨害成功}`（個数分減る）や `{gifts: [Universe], reset: true}`（0 にリセット）。上から順に最初に合ったものを使います。0 より下（-1 WIN など）まで減り、マイナスの数は赤で出ます（0 で止めたいときは `negative: false`）
-  - 演出の段階: 一度に `bigLoss`（10）以上減ると大妨害、`hugeLoss`（100）以上で超妨害、`ruinLoss`（1000）以上で壊滅。呼び名は `bigLossText` などで変えられます。全画面の演出は `/widgets/wins-fx.html` を配信画面いっぱいに重ねます（ダッシュボードの「大妨害（-10）を試す」などで確かめられます）
+  - 演出の段階: 一度に減った数で 大妨害 → 超妨害 → 壊滅 と派手になります。境目は `lossPreset` で配信に合わせて選びます（`large` -10 / -100 / -1000、`medium` -3 / -10 / -30、`small` -1 / -3 / -5、`custom` は `bigLoss` / `hugeLoss` / `ruinLoss` で自分で決める）。-1 しか来ない配信でも、連続妨害（15 秒以内に続けて減る）×3 で大妨害、×5 で超妨害、×8 で壊滅まで上がります（`comboUp: false` で止める）。揺れ・ひび・ダメージの数字の大きさは `power`（0.3〜3 倍）で変えられます。全画面の演出は `/widgets/wins-fx.html` を配信画面いっぱいに重ねます
   - リセットはダッシュボード・モニターの「リセット」ボタン（確認が出ます。間違えても「戻す」で元に戻せます）
   - 数は `data/wins.json` に残ります。AI からは `npm run tw -- win` / `wins add -1` / `wins undo` / `wins reset`、MCP の `wins` ツール
 - **RUSH**: `rush.gifts` のギフト、`rush.enterCoins` 以上のギフト、ルーレットの `rush: true` の項目、ダッシュボード・モニターのボタンで突入。RUSH 中は `extendMinCoins` 以上のギフトで `extendSeconds` 秒ずつ延び、最長 `maxSeconds` 秒。状態はサーバーが持つので、OBS を読み込み直しても続きから出ます

@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { WinsEngine } from '../src/wins.js';
+import { WinsEngine, lossTier } from '../src/wins.js';
 import { defaultsFor } from '../src/schema.js';
 import { normalize } from '../src/config.js';
 
@@ -124,3 +124,34 @@ test('いちばん下まで行った数（最低記録）を覚える。リセ�
   wins.apply('default', 'reset');
   assert.equal(wins.get('default').low, 0);
 });
+
+test('演出の段階: プリセットで境目が変わり、連続妨害でも上がる', () => {
+  assert.equal(lossTier({}, -9), 0);
+  assert.equal(lossTier({}, -10), 1);
+  assert.equal(lossTier({ lossPreset: 'large' }, -1000), 3);
+  assert.equal(lossTier({ lossPreset: 'small' }, -1), 1);
+  assert.equal(lossTier({ lossPreset: 'small' }, -5), 3);
+  assert.equal(lossTier({ lossPreset: 'medium' }, -10), 2);
+  assert.equal(lossTier({ lossPreset: 'custom', bigLoss: 2, hugeLoss: 4, ruinLoss: 6 }, -4), 2);
+  // 連続妨害 ×3 で1段、×5 で2段、×8 で3段
+  assert.equal(lossTier({}, -1, 3), 1);
+  assert.equal(lossTier({}, -1, 5), 2);
+  assert.equal(lossTier({}, -1, 8), 3);
+  assert.equal(lossTier({ comboUp: false }, -1, 8), 0);
+});
+
+test('減るたびに連続妨害の数と段階をウィジェットに送る（戻す・手で入れ直すは数えない）', () => {
+  const { wins, sent } = setup({ default: counter({ lossPreset: 'small' }) });
+  wins.apply('default', 'add', -1);
+  wins.apply('default', 'add', -1);
+  wins.apply('default', 'add', -3);
+  assert.deepEqual(pickEvent(sent.at(-1)), { combo: 3, tier: 2 });
+  wins.apply('default', 'undo');
+  assert.equal(sent.at(-1).event.combo, undefined);
+  wins.apply('default', 'set', -10);
+  assert.equal(sent.at(-1).event.tier, undefined);
+});
+
+function pickEvent(msg) {
+  return { combo: msg.event.combo, tier: msg.event.tier };
+}

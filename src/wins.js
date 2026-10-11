@@ -14,6 +14,21 @@ export const WIN_ACTIONS = ['win', 'add', 'set', 'undo', 'reset'];
 
 const slimUser = (u) => (u ? { id: u.id, name: u.name, avatar: u.avatar } : null);
 
+// 演出の段階の境目（大妨害 / 超妨害 / 壊滅）。配信の規模に合わせて選ぶ
+export const LOSS_PRESETS = { large: [10, 100, 1000], medium: [3, 10, 30], small: [1, 3, 5] };
+const COMBO_WINDOW = 15000; // 前の妨害からこの時間内なら「連続妨害」
+const COMBO_TIERS = [3, 5, 8]; // 連続妨害 ×3 で1段、×5 で2段、×8 で3段上がる
+
+/** 減ったときの演出の段階（0 通常 / 1 大妨害 / 2 超妨害 / 3 壊滅） */
+export function lossTier(cfg = {}, delta, combo = 1) {
+  const [big, huge, ruin] =
+    cfg.lossPreset === 'custom' ? [cfg.bigLoss ?? 10, cfg.hugeLoss ?? 100, cfg.ruinLoss ?? 1000] : LOSS_PRESETS[cfg.lossPreset] ?? LOSS_PRESETS.large;
+  const a = Math.abs(delta);
+  const byAmount = a >= ruin ? 3 : a >= huge ? 2 : a >= big ? 1 : 0;
+  const byCombo = cfg.comboUp === false ? 0 : COMBO_TIERS.filter((n) => combo >= n).length;
+  return Math.max(byAmount, byCombo);
+}
+
 export class WinsEngine {
   constructor(hub, file = WINS_FILE) {
     this.hub = hub;
@@ -21,6 +36,7 @@ export class WinsEngine {
     this.config = {};
     this.counts = {}; // id → { wins, low（いちばん下まで行った数）, updatedAt }
     this.undo = {}; // id → 前の数の一覧
+    this.combos = {}; // id → { n, t }（連続妨害）
     this.#load();
     hub.on('event', (e) => this.onGift(e));
   }
@@ -96,6 +112,16 @@ export class WinsEngine {
     this.counts[id] = c;
     // 「クリアで +1」なのか「ギフトで -1」なのか「戻した」なのかをウィジェットに伝える
     const event = { kind: action, delta: wins - prev.wins, by };
+    // 減ったとき（戻す・手で入れ直す・リセットは除く）は、連続妨害の数と演出の段階を決める
+    const quiet = action === 'undo' || (!by && (action === 'set' || action === 'reset'));
+    if (event.delta < 0 && !quiet) {
+      const now = Date.now();
+      const last = this.combos[id];
+      const combo = last && now - last.t < COMBO_WINDOW ? last.n + 1 : 1;
+      this.combos[id] = { n: combo, t: now };
+      event.combo = combo;
+      event.tier = lossTier(this.config[id], event.delta, combo);
+    }
     this.hub.broadcast({ type: 'wins', id, counter: c, prev, event });
     this.hub.emit('wins', id, c, event);
     return c;

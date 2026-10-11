@@ -15,6 +15,8 @@ const ENUM_LABELS = {
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
   plate: '横長の板', big: '大きい数字',
+  'lossPreset.large': '大きく減る配信（-10 大妨害 / -100 超妨害 / -1000 壊滅）', 'lossPreset.medium': '中くらい（-3 / -10 / -30）',
+  'lossPreset.small': '-1 から派手に（-1 / -3 / -5）', 'lossPreset.custom': '自分で決める（下の詳しい設定）',
   inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
 };
 // 項目の短い名前（説明は下に小さく出す）
@@ -28,7 +30,7 @@ const LABELS = {
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
   'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減するルール（YAML）', 'wins.style': '形',
-  negative: 'マイナス WIN まで減らせる', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
+  negative: 'マイナス WIN まで減らせる', lossPreset: '演出の段階の境目', comboUp: '連続妨害で段階を上げる', power: '演出の強さ（倍率）', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
   bigLossText: '大妨害の文字', hugeLossText: '超妨害の文字', ruinLossText: '壊滅の文字', winText: 'クリアの文字', milestone: '大きく祝う間隔',
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
@@ -51,9 +53,15 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
-  wins: ['title', 'goal', 'rules', 'negative', 'bigLoss', 'hugeLoss', 'ruinLoss', 'winText', 'milestone', 'style', 'color'],
+  wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'comboUp', 'power', 'winText', 'milestone', 'style', 'color'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
+};
+// WIN数の演出の段階の境目（src/wins.js の LOSS_PRESETS と同じ）
+const LOSS_PRESETS = { large: [10, 100, 1000], medium: [3, 10, 30], small: [1, 3, 5] };
+const lossSteps = (e) => {
+  const nums = e.lossPreset === 'custom' ? [e.bigLoss, e.hugeLoss, e.ruinLoss] : LOSS_PRESETS[e.lossPreset] ?? LOSS_PRESETS.large;
+  return [e.bigLossText, e.hugeLossText, e.ruinLossText].map((t, i) => [t ?? '', nums[i] ?? 10]);
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
 
@@ -99,6 +107,8 @@ export function createEditor({ api, setMessage }) {
         });
         const data = await res.json().catch(() => ({}));
         if (data.config) payload = data;
+        // WIN数の「試す」ボタンは境目の設定で変わる
+        if (data.config && tab === 'wins') renderActions();
         showIssues(data.errors, data.warnings, data.ok ? '保存しました' : null);
         updateUrl();
         if (!yamlDirty && data.yaml) $('yamlText').value = data.yaml;
@@ -702,10 +712,8 @@ export function createEditor({ api, setMessage }) {
         chip('クリア（WIN +1）', 'trophy', w('win')),
         chip('WIN -1', 'minus', w('add', -1)),
         chip('1つ戻す', 'undo-2', w('undo')),
-        // 段階ごとの演出を試す
-        ...[['bigLoss', 'bigLossText'], ['hugeLoss', 'hugeLossText'], ['ruinLoss', 'ruinLossText']].map(([k, t]) =>
-          chip(`${e[t] ?? ''}（-${e[k]}）を試す`, 'zap', w('add', -(e[k] ?? 10))),
-        ),
+        // 段階ごとの演出を試す（境目は選んだプリセットのもの）
+        ...lossSteps(e).map(([text, n]) => chip(`${text}（-${n}）を試す`, 'zap', w('add', -n))),
         chip('リセット（0 に戻す）', 'rotate-ccw', () => confirm('WIN 数を 0 にリセットしますか？（「1つ戻す」で元に戻せます）') && w('reset')()),
         // ルールに書いたギフトを1つずつ試せる
         ...(e.rules ?? [])

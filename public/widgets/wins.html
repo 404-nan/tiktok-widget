@@ -208,13 +208,9 @@
   // 設定は config.yaml の wins.<id>（?id= がなければ default）。数はサーバー（/api/wins）が持つ
   const p = await setupWidget('wins', {
     title: 'WIN', goal: 0, winText: 'WIN!', milestone: 5, style: 'plate', color: 'accent', sound: true, volume: 0.4,
-    bigLoss: 10, hugeLoss: 100, ruinLoss: 1000, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅',
+    bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅', power: 1,
   });
-  // 一度に減った数で演出の段階を決める（0 通常 / 1 大妨害 / 2 超妨害 / 3 壊滅）
-  const tierOf = (delta) => {
-    const a = Math.abs(delta);
-    return a >= p.ruinLoss ? 3 : a >= p.hugeLoss ? 2 : a >= p.bigLoss ? 1 : 0;
-  };
+  // 演出の段階（0 通常 / 1 大妨害 / 2 超妨害 / 3 壊滅）はサーバーが決めて送ってくる（event.tier）
   const TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
   const id = new URLSearchParams(location.search).get('id') || 'default';
   const $ = (x) => document.getElementById(x);
@@ -361,7 +357,7 @@
   }
 
   // ダメージの数字（減った分）。大きく減るほど大きい。ハンコと重ならないよう板の右端から飛ぶ
-  function damage(delta) {
+  function damage(delta, tier = 0) {
     const plate = $('plate').getBoundingClientRect();
     const w = $('wrap').getBoundingClientRect();
     const el = document.createElement('div');
@@ -369,7 +365,7 @@
     el.textContent = `${delta}`;
     el.style.left = `${plate.right - w.left - rnd(40, 70)}px`;
     el.style.top = `${plate.top - w.top + plate.height * 0.42}px`;
-    el.style.setProperty('--dmg-size', `${Math.min(120, 64 + Math.abs(delta) * 8)}px`);
+    el.style.setProperty('--dmg-size', `${Math.min(150, (60 + tier * 16 + Math.min(8, Math.abs(delta)) * 4) * p.power)}px`);
     el.style.setProperty('--dx', `${rnd(-30, 20)}px`);
     el.style.setProperty('--rot', `${rnd(-8, 12)}deg`);
     $('wrap').append(el);
@@ -456,8 +452,6 @@
 
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
-  // 連続妨害: 前の妨害から 15 秒以内なら続きとして数える
-  let combo = { n: 0, t: 0 };
 
   async function onChange({ counter: c, prev, event }) {
     const { kind, delta, by } = event ?? {};
@@ -492,15 +486,15 @@
     }
 
     // --- 減った: ここがいちばん気持ちよく ---
-    const now = Date.now();
-    combo = now - combo.t < 15000 ? { n: combo.n + 1, t: now } : { n: 1, t: now };
-    const tier = tierOf(delta);
+    // 連続妨害の数と段階はサーバーが決める（減り方と連続妨害の多いほう。境目は設定の lossPreset）
+    const combo = event.combo ?? 1;
+    const tier = event.tier ?? 0;
     const entered = prev.wins >= 0 && n < 0; // マイナス突入
     const record = n < 0 && c.low < prev.low && !entered; // 最低記録更新
-    const level = Math.min(16, Math.min(8, Math.abs(delta)) + combo.n - 1 + tier * 3);
+    const level = Math.round(Math.min(16, Math.min(8, Math.abs(delta)) + combo - 1 + tier * 3) * Math.min(1.6, p.power));
     const line = [by?.text, giftLine, record ? '最低記録更新' : ''].filter(Boolean).join('　');
-    const label = [TIER_TEXT[tier], combo.n >= 2 ? `連続妨害 ×${combo.n}` : ''].filter(Boolean).join('　');
-    const boost = Math.min(1.6, 1 + (combo.n - 1) * 0.08 + Math.min(10, Math.abs(delta)) * 0.02 + tier * 0.1);
+    const label = [TIER_TEXT[tier], combo >= 2 ? `連続妨害 ×${combo}` : ''].filter(Boolean).join('　');
+    const boost = Math.min(1.6, 1 + (combo - 1) * 0.08 + Math.min(10, Math.abs(delta)) * 0.02 + tier * 0.1);
 
     // 壊滅: 一瞬止まって暗くなってから叩きつける
     if (tier >= 3) {
@@ -511,25 +505,26 @@
     }
     restart($('redflash'), 'go');
     cracks(level);
-    damage(delta);
+    damage(delta, tier);
     if (tier >= 2) restart($('plate'), 'slam');
     const text = kind === 'set' || kind === 'reset' ? `WIN ${fmt(n)}` : `WIN ${signed(delta)}`;
     // 大きく減ったときは、ハンコを早めにどかして数字が減っていくところを見せる
-    const hold = tier >= 1 ? 1100 : 1600;
+    const hold = tier >= 1 && Math.abs(delta) >= 5 ? 1100 : 1600;
     if (entered && tier === 0) {
       stamp('マイナス突入', 'danger', { who: by, line, combo: label, boost: Math.max(boost, 1.1), hold: 2200 });
       SOUND.siren();
-      shake(16 + level * 2, 0.9);
+      shake((16 + level * 2) * p.power, 0.9);
     } else {
       stamp(entered ? 'マイナス突入' : text, tier >= 2 || entered ? 'danger' : 'lose', { who: by, line: entered ? [text, line].filter(Boolean).join('　') : line, combo: label, boost, hold });
       if (entered || tier >= 2) SOUND.siren();
       SOUND.hit(Math.min(8, level));
-      shake(8 + level * 2, 0.45 + tier * 0.35 + level * 0.03);
+      shake((8 + level * 2) * p.power, 0.45 + tier * 0.35 + level * 0.03);
     }
     // ハンコとひびを見せてから数字を落とす。大きく減ったときはドゥルルルと減っていく
     render(c, { roll: false });
-    await sleep(tier >= 1 ? 1300 : entered ? 700 : 450);
-    if (tier >= 1) await drain(prev.wins, n, [0, 1, 1.8, 2.6][tier]);
+    await sleep(tier >= 1 && Math.abs(delta) >= 5 ? 1300 : entered ? 700 : 450);
+    // ドゥルルルと減っていくのは、ある程度まとめて減ったときだけ
+    if (tier >= 1 && Math.abs(delta) >= 5) await drain(prev.wins, n, [0, 1, 1.8, 2.6][tier]);
     render(c);
   }
 

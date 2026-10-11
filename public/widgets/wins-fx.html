@@ -133,15 +133,11 @@
 
   // 設定は config.yaml の wins.<id>（?id= がなければ default）。WIN数の板（wins.html）と同じ設定で動く
   const p = await setupWidget('wins', {
-    sound: true, volume: 0.4, bigLoss: 10, hugeLoss: 100, ruinLoss: 1000, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅',
+    sound: true, volume: 0.4, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅', power: 1,
   });
   const id = new URLSearchParams(location.search).get('id') || 'default';
   const $ = (x) => document.getElementById(x);
   const rnd = (a, b) => a + Math.random() * (b - a);
-  const tierOf = (delta) => {
-    const a = Math.abs(delta);
-    return a >= p.ruinLoss ? 3 : a >= p.hugeLoss ? 2 : a >= p.bigLoss ? 1 : 0;
-  };
   const TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
 
   // --- 効果音（音源なしで合成） ---
@@ -403,7 +399,9 @@
     const delta = event?.delta ?? 0;
     if (delta >= 0 || event.kind === 'undo') return;
     if (!event.by && (event.kind === 'set' || event.kind === 'reset')) return;
-    const tier = tierOf(delta);
+    // 段階はサーバーが決める（減り方と連続妨害の多いほう。境目は設定の lossPreset）
+    const tier = event.tier ?? 0;
+    const k = p.power; // 演出の強さの倍率
     const entered = prev.wins >= 0 && c.wins < 0;
     if (!tier && !entered) return;
 
@@ -411,7 +409,7 @@
     if (!tier) {
       bands(true);
       SOUND.siren(3);
-      shake(10, 0.5);
+      shake(10 * k, 0.5);
       await sleep(2600);
       bands(false);
       return;
@@ -419,7 +417,7 @@
 
     const center = $('center');
     center.classList.remove('go', 'out');
-    $('label').textContent = TIER_TEXT[tier];
+    $('label').textContent = [TIER_TEXT[tier], event.combo >= 2 ? `連続妨害 ×${event.combo}` : ''].filter(Boolean).join('　');
     fitWord(`WIN ${delta}`);
     whoLine(event.by);
 
@@ -435,29 +433,29 @@
     if (entered) bands(true);
 
     if (tier === 1) {
-      makeWeb(rnd(W * 0.2, W * 0.8), rnd(H * 0.25, H * 0.7), Math.min(W, H) * 0.32, 14, 3, 2600);
+      makeWeb(rnd(W * 0.2, W * 0.8), rnd(H * 0.25, H * 0.7), Math.min(W, H) * 0.32 * Math.min(2, k), 14, 3, 2600);
       SOUND.boom(0.6);
       SOUND.glass(0.4);
-      shake(14, 0.5);
+      shake(14 * k, 0.5);
     } else if (tier === 2) {
       const web = makeWeb(W / 2, H * 0.46, Math.hypot(W, H) * 0.6, 22, 5, 4200);
-      dropShards(web, 0.12);
+      dropShards(web, Math.min(0.5, 0.12 * k));
       $('alarm').classList.add('on');
       SOUND.siren(5);
       SOUND.boom(1);
       SOUND.glass(0.8);
-      shake(24, 0.9);
+      shake(24 * k, 0.9);
     } else {
       const web = makeWeb(W / 2, H * 0.46, Math.hypot(W, H) * 0.7, 30, 6, 5200);
       makeWeb(rnd(W * 0.1, W * 0.3), rnd(H * 0.15, H * 0.35), Math.min(W, H) * 0.4, 16, 3, 5200);
       makeWeb(rnd(W * 0.7, W * 0.9), rnd(H * 0.6, H * 0.85), Math.min(W, H) * 0.4, 16, 3, 5200);
-      setTimeout(() => dropShards(web, 0.55), 700);
+      setTimeout(() => dropShards(web, Math.min(0.9, 0.55 * k)), 700);
       $('alarm').classList.add('on');
       SOUND.boom(2);
       SOUND.glass(1.2);
       SOUND.drone();
       SOUND.siren(7);
-      shake(36, 1.6);
+      shake(36 * k, 1.6);
     }
     animate();
     await sleep(1400 + tier * 900);

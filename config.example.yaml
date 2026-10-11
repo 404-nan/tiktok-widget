@@ -55,13 +55,15 @@ counters:
 # 妨害マイクラなどのクリア回数。クリアしたらダッシュボード・モニターのボタンか
 # URL（Stream Deck など）で +1: http://127.0.0.1:3939/api/wins/default/win
 # リセットはボタンか http://127.0.0.1:3939/api/wins/default/reset
-# 一度に大きく減ると 大妨害（-10〜）→ 超妨害（-100〜）→ 壊滅（-1000〜）と派手になる（bigLoss / hugeLoss / ruinLoss で変えられる）。
+# 一度に大きく減ると 大妨害（-10〜）→ 超妨害（-100〜）→ 壊滅（-1000〜）と派手になる（境目は lossPreset で選ぶ）。
+# 連続妨害（15 秒以内に続けて減る）でも段階が上がる（×3 で大妨害、×5 で超妨害、×8 で壊滅）。強さの倍率は power。
 # 全画面の演出は /widgets/wins-fx.html を配信画面いっぱいに重ねる。
 # 数は data/wins.json に残るので、配信をまたいで続けられる。
 wins:
   default:
     title: WIN
     goal: 10 # 「/ 10」と出す（0 で出さない）
+    lossPreset: large # 演出の段階の境目 large -10/-100/-1000・medium -3/-10/-30・small -1/-3/-5（-1 から派手に）
     # ギフトで増減（上から順に最初に合ったもの。add は個数分、set はその数にする、reset: true で 0 に）
     rules:
       - {gifts: [Lion], add: -1, text: 妨害成功} # ライオンで WIN -1
