@@ -153,6 +153,40 @@ export const SCHEMA = {
   },
 };
 
+SCHEMA.cutins = {
+  kind: 'map',
+  page: 'cutin',
+  title: 'カットイン',
+  desc:
+    'パチンコのカットイン演出。筆でかすれた帯に画像がフィーンと入り、ガガガと揺れてスッと抜ける。' +
+    'ギフトのコインで 青→緑→赤→金→虹 と格上げし、虹は画面が止まってから入る（フリーズ）。' +
+    '配信画面いっぱいに重ねる。URL は /widgets/cutin.html?id=<名前>',
+  size: () => [1080, 1920],
+  fields: {
+    minCoins: num(100, 'この合計コイン以上のギフトで出す（ここからが青）', { min: 1 }),
+    greenCoins: num(300, 'ここから緑', { min: 1 }),
+    redCoins: num(1000, 'ここから赤（激アツ）', { min: 1 }),
+    goldCoins: num(5000, 'ここから金', { min: 1 }),
+    rainbowCoins: num(20000, 'ここから虹（フリーズ演出つき）', { min: 1 }),
+    gifts: list([], 'このギフト名なら金額に関係なく出す（赤から）'),
+    events: list([], 'フォロー・シェアでも出す（青）', ['follow', 'share']),
+    blueText: str('チャンス', '青の文字'),
+    greenText: str('チャンス!!', '緑の文字'),
+    redText: str('激アツ', '赤の文字'),
+    goldText: str('超激アツ', '金の文字'),
+    rainbowText: str('確定', '虹の文字'),
+    image: oneOf(['gift', 'avatar', 'character'], 'gift', '帯に乗せる画像。gift ギフト / avatar 送った人のアイコン / character 下の画像'),
+    character: str('', 'image を character にしたときの画像（media/ のファイルか URL）。配信者のキャラ絵など'),
+    angle: num(-8, '帯の傾き（度）', { min: -30, max: 30 }),
+    hold: num(1.1, 'ガガガと揺れている秒数', { min: 0.3, max: 5 }),
+    shake: num(1, '揺れの強さの倍率（0 で揺らさない）', { min: 0, max: 3 }),
+    freeze: bool(true, '虹のときフリーズ演出を入れる'),
+    lines: bool(true, '集中線を出す'),
+    sound: bool(true, '効果音'),
+    volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
 SCHEMA.rankings = {
   kind: 'map',
   page: 'ranking',

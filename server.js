@@ -43,6 +43,7 @@ app.get('/vendor/matter.min.js', (_req, res) => {
 const vendor = (dir) => express.static(path.join(root, 'node_modules', dir), { maxAge: '7d' });
 app.use('/vendor/fonts/zen-kaku-gothic-new', vendor('@fontsource/zen-kaku-gothic-new'));
 app.use('/vendor/fonts/barlow-condensed', vendor('@fontsource/barlow-condensed'));
+app.use('/vendor/fonts/dela-gothic-one', vendor('@fontsource/dela-gothic-one'));
 app.use('/vendor/icons', vendor('lucide-static/icons'));
 // ルーレットの画像などは media/ に置く
 app.use('/media', express.static(cfg.MEDIA_DIR));

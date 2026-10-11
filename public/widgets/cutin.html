@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>カットイン</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  /* パチンコのカットイン。配信画面いっぱいに重ねる。
+     入り「フィーン」→ 揺れ「ガガガガ」→ 抜け「スッ」 */
+  html, body { width: 100%; height: 100%; }
+  .stage { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+
+  .dim { position: absolute; inset: 0; background: #000; opacity: 0; }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: screen; }
+  canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+
+  /* 帯・画像・文字をまとめて傾ける */
+  .rig { position: absolute; left: 50%; top: var(--y, 44%); width: 0; height: 0; transform: rotate(var(--angle, -8deg)); }
+  .shaker { position: absolute; left: 0; top: 0; }
+
+  .band {
+    position: absolute;
+    left: calc(var(--bw) / -2);
+    top: calc(var(--bh) / -2);
+    width: var(--bw);
+    height: var(--bh);
+    transform: translateX(130%) scaleX(1.25);
+    opacity: 0;
+  }
+  .band img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .band .ink { transform: translate(1.6%, 9%); filter: brightness(0); opacity: .85; }
+  .tier-rainbow .band .paint { animation: hue 1.2s linear infinite; }
+  @keyframes hue { to { filter: hue-rotate(360deg); } }
+
+  .visual {
+    position: absolute;
+    left: calc(var(--vw) * -0.25);
+    top: 0;
+    width: var(--vs);
+    height: var(--vs);
+    margin: calc(var(--vs) / -2) 0 0 calc(var(--vs) / -2);
+    display: grid;
+    place-items: center;
+    transform: translateX(-160%) rotate(8deg);
+    opacity: 0;
+    filter: drop-shadow(0 10px 0 rgba(0, 0, 0, .55)) drop-shadow(0 0 24px rgba(0, 0, 0, .35));
+  }
+  .visual img { width: 100%; height: 100%; object-fit: contain; }
+  .visual .avatar { width: 100%; height: 100%; font-size: calc(var(--vs) * .42); box-shadow: 0 0 0 calc(var(--vs) * .04) #fff; }
+  .visual .gift-visual { --size: 100%; }
+
+  /* 見出しの文字: 縁取り・立体の影の層と、塗りの層を重ねる */
+  .word {
+    position: absolute;
+    left: calc(var(--vw) * 0.14);
+    top: 0;
+    transform: translate(-50%, -50%) skewX(-10deg) scale(3);
+    opacity: 0;
+    font-family: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+    font-size: var(--fs);
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+  }
+  .word span { display: block; }
+  .word .back {
+    color: #111;
+    -webkit-text-stroke: calc(var(--fs) * .16) #111;
+    text-shadow:
+      calc(var(--fs) * .03) calc(var(--fs) * .05) 0 #111,
+      calc(var(--fs) * .06) calc(var(--fs) * .1) 0 #111,
+      calc(var(--fs) * .09) calc(var(--fs) * .15) 0 rgba(0, 0, 0, .6);
+  }
+  .word .mid { position: absolute; inset: 0; color: #fff; -webkit-text-stroke: calc(var(--fs) * .07) #fff; }
+  .word .front {
+    position: absolute;
+    inset: 0;
+    background: var(--word-fill);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tier-rainbow .word .front { background-size: 300% 100%; animation: slide 1s linear infinite; }
+  @keyframes slide { to { background-position: 300% 0; } }
+
+  /* 誰の何かを出すテロップ */
+  .tag {
+    position: absolute;
+    left: calc(var(--vw) * -0.44);
+    top: calc(var(--bh) * 0.5);
+    display: flex;
+    align-items: center;
+    gap: calc(var(--fs) * .14);
+    padding: calc(var(--fs) * .08) calc(var(--fs) * .22) calc(var(--fs) * .08) calc(var(--fs) * .1);
+    background: #111113;
+    color: #F6F5F1;
+    border-left: calc(var(--fs) * .06) solid var(--tag-accent);
+    font-size: calc(var(--fs) * .26);
+    font-weight: 900;
+    white-space: nowrap;
+    transform: translateX(-40%);
+    opacity: 0;
+  }
+  .tag .num { font-family: var(--font-num); font-size: 1.25em; color: #FFC53D; }
+
+  /* --- タイムライン --- */
+  .play .dim { opacity: .38; transition: opacity .08s linear; }
+  .play .flash { animation: flash .22s ease-out; }
+  @keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+  .play canvas.lines { opacity: 1; transition: opacity .06s linear; }
+  .play .band { transform: none; opacity: 1; transition: transform .24s cubic-bezier(.05, .9, .1, 1), opacity .05s linear; }
+  .play .visual { transform: none; opacity: 1; transition: transform .3s cubic-bezier(.2, 1.4, .4, 1) .07s, opacity .05s linear .07s; }
+  .play .word { transform: translate(-50%, -50%) skewX(-10deg); opacity: 1; transition: transform .13s cubic-bezier(.5, 0, .9, .6) .2s, opacity .04s linear .2s; }
+  .play .tag { transform: none; opacity: 1; transition: transform .3s cubic-bezier(.16, 1, .3, 1) .34s, opacity .1s linear .34s; }
+
+  .out .rig { transform: rotate(var(--angle)) translateX(-170%); transition: transform .18s cubic-bezier(.6, 0, .9, .4); }
+  .out .dim, .out canvas.lines { opacity: 0; transition: opacity .2s linear; }
+
+  /* フリーズ: 画面が止まって暗転 */
+  .freeze { position: absolute; inset: 0; background: #000; opacity: 0; display: grid; place-items: center; }
+  .freeze.on { opacity: .94; }
+  .freeze span { font-family: var(--font-num); color: rgba(255, 255, 255, .5); font-size: 28px; letter-spacing: .4em; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="dim"></div>
+  <canvas class="lines" id="lines"></canvas>
+  <div class="rig" id="rig">
+    <div class="shaker" id="shaker">
+      <div class="band" id="band"></div>
+      <div class="visual" id="visual"></div>
+      <div class="word" id="word"><span class="back"></span><span class="mid"></span><span class="front"></span></div>
+      <div class="tag" id="tag"></div>
+    </div>
+  </div>
+  <div class="flash"></div>
+  <div class="freeze" id="freeze"><span>・・・</span></div>
+</div>
+<script type="module">
+  import { setupWidget, connect, giftNode, avatarNode, giftNamed, fmt, createQueue, sleep } from './lib/overlay.js';
+
+  // 設定は config.yaml の cutins.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('cutins', {
+    minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
+    blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
+    image: 'gift', character: '', angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
+  });
+
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage');
+
+  // --- 段階（信頼度）ごとの色 ---
+  const TIERS = {
+    blue: {
+      band: ['#0A2E8C', '#1E6BFF', '#6FB2FF', '#1E6BFF'],
+      word: 'linear-gradient(180deg, #FFFFFF 0%, #DCEBFF 48%, #7FB6FF 52%, #FFFFFF 100%)',
+      accent: '#3F8CFF',
+    },
+    green: {
+      band: ['#05502A', '#10B85A', '#8BF0A3', '#10B85A'],
+      word: 'linear-gradient(180deg, #FFFFFF 0%, #E2FFE9 48%, #6EE38E 52%, #FFFFFF 100%)',
+      accent: '#22C76A',
+    },
+    red: {
+      band: ['#5C0008', '#E0001B', '#FF6A3D', '#C80018'],
+      word: 'linear-gradient(180deg, #FFFBE0 0%, #FFE27A 45%, #FFB800 55%, #FFF3B0 100%)',
+      accent: '#FF2D2D',
+    },
+    gold: {
+      band: ['#5A3A00', '#E1A100', '#FFF3B8', '#C98A00', '#FFD86B'],
+      word: 'linear-gradient(180deg, #FFFFFF 0%, #FFD0D0 45%, #FF1E3C 55%, #FF8A8A 100%)',
+      accent: '#FFC53D',
+    },
+    rainbow: {
+      band: ['#FF2D55', '#FF9500', '#FFE600', '#34C759', '#00C7FF', '#5856D6', '#FF2DFF'],
+      word: 'linear-gradient(90deg, #FF2D55, #FF9500, #FFE600, #34C759, #00C7FF, #5856D6, #FF2DFF, #FF2D55)',
+      accent: '#FFFFFF',
+    },
+  };
+  const ORDER = ['blue', 'green', 'red', 'gold', 'rainbow'];
+  const TEXT = { blue: p.blueText, green: p.greenText, red: p.redText, gold: p.goldText, rainbow: p.rainbowText };
+
+  function tierFor(e) {
+    if (e.kind !== 'gift') return p.events.includes(e.kind) ? 'blue' : null;
+    const c = e.totalDiamonds;
+    let tier = c >= p.rainbowCoins ? 'rainbow' : c >= p.goldCoins ? 'gold' : c >= p.redCoins ? 'red' : c >= p.greenCoins ? 'green' : c >= p.minCoins ? 'blue' : null;
+    // 指定したギフトは金額に関係なく赤から
+    if (p.gifts.length && giftNamed(e.gift, p.gifts) && (!tier || ORDER.indexOf(tier) < 2)) tier = 'red';
+    return tier;
+  }
+
+  // --- 筆でかすれた帯（SVG を毎回ちがう筆跡で作る） ---
+  function bandImage(w, h, colors, seed, { ink = false, glint = false } = {}) {
+    const pad = Math.round(h * 0.3);
+    const H = h + pad * 2;
+    const y0 = pad, y1 = pad + h;
+    // 入りは細く、抜けはかすれて伸びる筆の形
+    const shape = `M ${w * 0.05} ${y0 + h * 0.12} C ${w * 0.3} ${y0 - h * 0.04}, ${w * 0.7} ${y0 + h * 0.02}, ${w * 0.985} ${y0 + h * 0.06}
+      L ${w} ${y0 + h * 0.45} L ${w * 0.97} ${y1 - h * 0.02} C ${w * 0.6} ${y1 + h * 0.03}, ${w * 0.3} ${y1}, ${w * 0.03} ${y1 - h * 0.1}
+      L 0 ${y0 + h * 0.5} Z`;
+    const stops = colors.map((c, i) => `<stop offset="${i / (colors.length - 1)}" stop-color="${c}"/>`).join('');
+    const fill = ink ? '#000' : glint ? '#fff' : 'url(#g)';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="${colors.length > 5 ? 1 : 0.35}" y2="1">${stops}</linearGradient>
+        <filter id="rough" x="-2%" y="-30%" width="104%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.0035 0.018" numOctaves="2" seed="${seed}" result="wave"/>
+          <feTurbulence type="fractalNoise" baseFrequency="0.035 0.09" numOctaves="2" seed="${seed + 3}" result="jag"/>
+          <feDisplacementMap in="SourceGraphic" in2="wave" scale="${h * 0.32}" xChannelSelector="R" yChannelSelector="G" result="a"/>
+          <feDisplacementMap in="a" in2="jag" scale="${h * 0.1}" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="dry" x="-2%" y="-30%" width="104%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.0035 0.018" numOctaves="2" seed="${seed}" result="wave"/>
+          <feTurbulence type="fractalNoise" baseFrequency="0.035 0.09" numOctaves="2" seed="${seed + 3}" result="jag"/>
+          <feDisplacementMap in="SourceGraphic" in2="wave" scale="${h * 0.32}" xChannelSelector="R" yChannelSelector="G" result="a"/>
+          <feDisplacementMap in="a" in2="jag" scale="${h * 0.1}" xChannelSelector="R" yChannelSelector="G" result="b"/>
+          <feTurbulence type="fractalNoise" baseFrequency="0.0018 ${glint ? 0.5 : 0.24}" numOctaves="3" seed="${seed + 7}" result="streak"/>
+          <feColorMatrix in="streak" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  ${glint ? '9 0 0 0 -5.6' : '7 0 0 0 -2.9'}" result="mask"/>
+          <feComposite in="b" in2="mask" operator="in"/>
+        </filter>
+      </defs>
+      <path d="${shape}" fill="${fill}" filter="url(#dry)"/>
+      ${glint ? '' : `<path d="${shape}" fill="${fill}" filter="url(#rough)" transform="translate(${w * 0.06} ${H / 2}) scale(0.86 0.62) translate(0 ${-H / 2})"/>`}
+    </svg>`;
+    const img = new Image();
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    img.alt = '';
+    return img;
+  }
+
+  // --- 集中線 ---
+  const canvas = $('lines');
+  const ctx = canvas.getContext('2d');
+  let linesTimer = null;
+  function startLines(cx, cy, color) {
+    if (!p.lines) return;
+    const dpr = devicePixelRatio || 1;
+    canvas.width = innerWidth * dpr;
+    canvas.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const R = Math.hypot(innerWidth, innerHeight);
+    const inner = Math.min(innerWidth, innerHeight) * 0.42;
+    const draw = () => {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for (let i = 0; i < 90; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const spread = 0.004 + Math.random() * 0.012;
+        const r0 = inner * (0.75 + Math.random() * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+        ctx.lineTo(cx + Math.cos(a - spread) * R, cy + Math.sin(a - spread) * R);
+        ctx.lineTo(cx + Math.cos(a + spread) * R, cy + Math.sin(a + spread) * R);
+        ctx.closePath();
+        ctx.fillStyle = i % 9 === 0 ? color : 'rgba(255, 255, 255, .45)';
+        ctx.fill();
+      }
+    };
+    draw();
+    linesTimer = setInterval(draw, 50);
+  }
+  function stopLines() {
+    clearInterval(linesTimer);
+    linesTimer = null;
+  }
+
+  // --- 効果音（音源なしで合成） ---
+  let ac;
+  const audio = () => (ac ??= new AudioContext());
+  function noise(seconds) {
+    const a = audio();
+    const buf = a.createBuffer(1, a.sampleRate * seconds, a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    return src;
+  }
+  function env(gain, t, peak, attack, release) {
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + release);
+  }
+  const SFX = {
+    // フィーン: 上がっていく鋭い音と風切り
+    fween() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      const o = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(380, t);
+      o.frequency.exponentialRampToValueAtTime(3200, t + 0.2);
+      f.type = 'bandpass';
+      f.frequency.setValueAtTime(900, t);
+      f.frequency.exponentialRampToValueAtTime(5000, t + 0.2);
+      env(g, t, 0.35 * v, 0.02, 0.24);
+      o.connect(f).connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + 0.3);
+      const n = noise(0.3), ng = a.createGain(), nf = a.createBiquadFilter();
+      nf.type = 'highpass';
+      nf.frequency.setValueAtTime(800, t);
+      nf.frequency.exponentialRampToValueAtTime(7000, t + 0.22);
+      env(ng, t, 0.3 * v, 0.03, 0.22);
+      n.connect(nf).connect(ng).connect(a.destination);
+      n.start(t);
+    },
+    // ドン: 文字が叩きつけられる
+    slam() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(140, t);
+      o.frequency.exponentialRampToValueAtTime(42, t + 0.3);
+      env(g, t, 0.9 * v, 0.005, 0.35);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + 0.4);
+      const n = noise(0.25), ng = a.createGain(), nf = a.createBiquadFilter();
+      nf.type = 'lowpass';
+      nf.frequency.value = 2400;
+      env(ng, t, 0.5 * v, 0.003, 0.2);
+      n.connect(nf).connect(ng).connect(a.destination);
+      n.start(t);
+    },
+    // ガガガガ: 揺れている間のうなり
+    gagaga(seconds) {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      const o = a.createOscillator(), g = a.createGain(), lfo = a.createOscillator(), lg = a.createGain(), f = a.createBiquadFilter();
+      o.type = 'square';
+      o.frequency.value = 72;
+      lfo.type = 'square';
+      lfo.frequency.value = 26;
+      lg.gain.value = 0.12 * v;
+      g.gain.value = 0.12 * v;
+      f.type = 'lowpass';
+      f.frequency.value = 900;
+      lfo.connect(lg).connect(g.gain);
+      o.connect(f).connect(g).connect(a.destination);
+      g.gain.setValueAtTime(0.12 * v, t);
+      g.gain.linearRampToValueAtTime(0.0001, t + seconds);
+      o.start(t);
+      lfo.start(t);
+      o.stop(t + seconds);
+      lfo.stop(t + seconds);
+    },
+    // スッ: 抜けていく音
+    out() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      const n = noise(0.2), g = a.createGain(), f = a.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.setValueAtTime(5000, t);
+      f.frequency.exponentialRampToValueAtTime(600, t + 0.16);
+      env(g, t, 0.25 * v, 0.01, 0.15);
+      n.connect(f).connect(g).connect(a.destination);
+      n.start(t);
+    },
+    // キュイン: フリーズ明けのプレミア音
+    kyuin() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      for (const [f0, f1, d] of [[1400, 2600, 0], [2100, 3900, 0.02]]) {
+        const o = a.createOscillator(), g = a.createGain(), vib = a.createOscillator(), vg = a.createGain();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(f0, t + d);
+        o.frequency.exponentialRampToValueAtTime(f1, t + d + 0.18);
+        vib.frequency.value = 18;
+        vg.gain.value = 60;
+        vib.connect(vg).connect(o.frequency);
+        env(g, t + d, 0.3 * v, 0.01, 0.9);
+        o.connect(g).connect(a.destination);
+        o.start(t + d);
+        vib.start(t + d);
+        o.stop(t + d + 1);
+        vib.stop(t + d + 1);
+      }
+    },
+  };
+  const sfx = (name, ...args) => {
+    if (!p.sound) return;
+    try {
+      SFX[name](...args);
+    } catch {}
+  };
+
+  // --- ガガガガ（揺れ） ---
+  async function shake(seconds) {
+    const el = $('shaker');
+    const amp = 10 * p.shake;
+    const end = performance.now() + seconds * 1000;
+    while (performance.now() < end) {
+      const left = (end - performance.now()) / (seconds * 1000);
+      const k = amp * (0.35 + 0.65 * left);
+      el.style.transform = `translate(${(Math.random() - 0.5) * 2 * k}px, ${(Math.random() - 0.5) * 2 * k}px)`;
+      await sleep(33);
+    }
+    el.style.transform = '';
+  }
+
+  // --- 1回分 ---
+  async function play(e) {
+    const tier = tierFor(e);
+    const t = TIERS[tier];
+    const W = innerWidth, H = innerHeight;
+    const unit = Math.min(W, H);
+    const bw = Math.round(Math.max(W, H) * 1.5);
+    const bh = Math.round(unit * 0.36);
+    stage.className = `stage tier-${tier}`;
+    stage.style.setProperty('--bw', `${bw}px`);
+    stage.style.setProperty('--bh', `${bh}px`);
+    stage.style.setProperty('--vw', `${W}px`);
+    stage.style.setProperty('--vs', `${Math.round(Math.min(bh * 1.1, W * 0.42))}px`);
+    stage.style.setProperty('--fs', `${Math.round(Math.min(bh * 0.5, (W * 0.5) / Math.max(2, TEXT[tier].length)))}px`);
+    stage.style.setProperty('--angle', `${p.angle}deg`);
+    stage.style.setProperty('--word-fill', t.word);
+    stage.style.setProperty('--tag-accent', t.accent);
+
+    // 帯（影・本体・毛先の光）
+    const seed = Math.floor(Math.random() * 900) + 1;
+    const ink = bandImage(bw, bh, ['#000', '#000'], seed + 11, { ink: true });
+    ink.className = 'ink';
+    const paint = bandImage(bw, bh, t.band, seed);
+    paint.className = 'paint';
+    const glint = bandImage(bw, bh, ['#fff', '#fff'], seed + 23, { glint: true });
+    glint.style.opacity = '.35';
+    $('band').replaceChildren(ink, paint, glint);
+
+    // 画像
+    const visual = $('visual');
+    if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));
+    else if (p.image === 'character' && p.character) {
+      const img = new Image();
+      img.src = /^(https?:|data:|\/)/.test(p.character) ? p.character : `/${p.character}`;
+      visual.replaceChildren(img);
+    } else if (e.kind === 'gift') visual.replaceChildren(giftNode(e.gift, bh));
+    else visual.replaceChildren(avatarNode(e.user, bh));
+
+    // 文字とテロップ
+    for (const s of $('word').children) s.textContent = TEXT[tier];
+    const tag = $('tag');
+    tag.replaceChildren();
+    const name = document.createElement('span');
+    name.textContent = e.user?.name ?? '';
+    tag.append(name);
+    if (e.kind === 'gift') {
+      const what = document.createElement('span');
+      what.textContent = `${e.gift.name} ×${e.gift.count}`;
+      const coins = document.createElement('span');
+      coins.className = 'num';
+      coins.textContent = fmt(e.totalDiamonds);
+      tag.append(what, coins);
+    } else {
+      tag.append(e.kind === 'follow' ? 'フォロー' : 'シェア');
+    }
+
+    // 画像の読み込みを待つ（帯の SVG はここで描かれる）
+    await Promise.all([ink, paint, glint].map((img) => img.decode().catch(() => {})));
+
+    // 虹: フリーズ（暗転して無音）→ キュイン
+    if (tier === 'rainbow' && p.freeze) {
+      $('freeze').classList.add('on');
+      await sleep(1100);
+      $('freeze').classList.remove('on');
+      sfx('kyuin');
+    }
+
+    const rect = $('rig').getBoundingClientRect();
+    startLines(rect.left, rect.top, t.accent);
+    stage.classList.add('play');
+    sfx('fween');
+    await sleep(200);
+    sfx('slam');
+    await sleep(140);
+    sfx('gagaga', p.hold);
+    await shake(p.hold);
+    sfx('out');
+    stage.classList.add('out');
+    await sleep(220);
+    stopLines();
+    stage.className = 'stage';
+    await sleep(120);
+  }
+
+  const queue = createQueue(play, { max: 20 });
+  connect({
+    event(e) {
+      if (tierFor(e)) queue.push(e);
+    },
+  });
+</script>
+</body>
+</html>

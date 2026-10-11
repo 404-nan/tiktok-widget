@@ -51,6 +51,17 @@ counters:
   default:
     show: [likes, viewers]
 
+# カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）
+# ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
+cutins:
+  default:
+    minCoins: 100
+    greenCoins: 300
+    redCoins: 1000
+    goldCoins: 5000
+    rainbowCoins: 20000
+    image: gift # gift ギフト / avatar 送った人 / character キャラ画像
+
 # ルーレット … /widgets/roulette.html（全部）または ?ids=名前,名前
 # 届いたギフトに合うルーレットに切り替わって回ります。
 roulettes:

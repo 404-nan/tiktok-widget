@@ -4,7 +4,7 @@
 import { icon } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'minecraft', 'theme'];
+const TABS = ['alerts', 'cutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -13,6 +13,7 @@ const ENUM_LABELS = {
   wheel: '丸（ホイール）', strip: '横スライド', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
+  avatar: '送った人のアイコン', character: 'キャラ画像（下で指定）',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -26,7 +27,10 @@ const LABELS = {
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
   enabled: '連携する', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
   superstreamProfile: 'SuperStream のプロフィール名', superstreamFile: 'SuperStream のプロフィールのファイル',
-  forwardGifts: 'ギフトを SuperStream に渡す', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  forwardGifts: 'ギフトを SuperStream に渡す',
+  greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
+  blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
+  image: '帯に乗せる画像', character: 'キャラ画像', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
 };
@@ -38,6 +42,7 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'image', 'character'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
@@ -649,6 +654,15 @@ export function createEditor({ api, setMessage }) {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));
     } else if (tab === 'jars') {
       box.append(chip('ゆらす', null, control('gift-jar', 'shake', { id })), chip('中身を空にする', null, control('gift-jar', 'reset', { id })));
+    } else if (tab === 'cutins') {
+      // 段階ごとに試す（そのコイン数のテストギフトを送る）
+      const e = payload.config.cutins?.[id] ?? {};
+      const tiers = [['青', e.minCoins], ['緑', e.greenCoins], ['赤', e.redCoins], ['金', e.goldCoins], ['虹', e.rainbowCoins]];
+      box.replaceChildren(
+        ...tiers.map(([label, coins]) =>
+          chip(`${label}（${coins} コイン）`, null, () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: coins })),
+        ),
+      );
     } else if (tab === 'counters' || tab === 'goals' || tab === 'rankings') {
       box.append(
         chip('いいね ×20', 'heart', () => api('/api/simulate', { kind: 'like', count: 20 })),
