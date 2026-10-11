@@ -19,14 +19,26 @@ export const LOSS_PRESETS = { large: [10, 100, 1000], medium: [3, 10, 30], small
 const COMBO_WINDOW = 15000; // 前の妨害からこの時間内なら「連続妨害」
 const COMBO_TIERS = [3, 5, 8]; // 連続妨害 ×3 で1段、×5 で2段、×8 で3段上がる
 
+// 境目の数と、連続した回数から段階を出す
+function tierOf(steps, delta, combo, comboUp) {
+  const [big, huge, top] = steps;
+  const a = Math.abs(delta);
+  const byAmount = a >= top ? 3 : a >= huge ? 2 : a >= big ? 1 : 0;
+  const byCombo = comboUp === false ? 0 : COMBO_TIERS.filter((n) => combo >= n).length;
+  return Math.max(byAmount, byCombo);
+}
+
 /** 減ったときの演出の段階（0 通常 / 1 大妨害 / 2 超妨害 / 3 壊滅） */
 export function lossTier(cfg = {}, delta, combo = 1) {
-  const [big, huge, ruin] =
-    cfg.lossPreset === 'custom' ? [cfg.bigLoss ?? 10, cfg.hugeLoss ?? 100, cfg.ruinLoss ?? 1000] : LOSS_PRESETS[cfg.lossPreset] ?? LOSS_PRESETS.large;
-  const a = Math.abs(delta);
-  const byAmount = a >= ruin ? 3 : a >= huge ? 2 : a >= big ? 1 : 0;
-  const byCombo = cfg.comboUp === false ? 0 : COMBO_TIERS.filter((n) => combo >= n).length;
-  return Math.max(byAmount, byCombo);
+  const steps = cfg.lossPreset === 'custom' ? [cfg.bigLoss ?? 10, cfg.hugeLoss ?? 100, cfg.ruinLoss ?? 1000] : LOSS_PRESETS[cfg.lossPreset] ?? LOSS_PRESETS.large;
+  return tierOf(steps, delta, combo, cfg.comboUp);
+}
+
+/** 増えたときの演出の段階（0 通常 / 1 大 / 2 超 / 3 最大）。クリア（+1 ボタン）は少なくとも 1 */
+export function gainTier(cfg = {}, delta, combo = 1, action = 'add') {
+  const steps = cfg.gainPreset === 'custom' ? [cfg.bigGain ?? 10, cfg.hugeGain ?? 100, cfg.topGain ?? 1000] : LOSS_PRESETS[cfg.gainPreset] ?? LOSS_PRESETS.large;
+  const tier = tierOf(steps, delta, combo, cfg.comboUp);
+  return action === 'win' && cfg.clearFx !== false ? Math.max(1, tier) : tier;
 }
 
 export class WinsEngine {
@@ -37,6 +49,7 @@ export class WinsEngine {
     this.counts = {}; // id → { wins, low（いちばん下まで行った数）, updatedAt }
     this.undo = {}; // id → 前の数の一覧
     this.combos = {}; // id → { n, total, t, timer }（連続妨害: 何回続いて、合わせていくつ減ったか）
+    this.gains = {}; // id → { n, t }（続けて増えた回数）
     this.#load();
     hub.on('event', (e) => this.onGift(e));
   }
@@ -125,6 +138,16 @@ export class WinsEngine {
       event.combo = k.n;
       event.comboTotal = k.total;
       event.tier = lossTier(this.config[id], event.delta, k.n);
+    } else if (event.delta > 0 && !quiet) {
+      const now = Date.now();
+      const g = this.gains[id];
+      const n = g && now - g.t < COMBO_WINDOW ? g.n + 1 : 1;
+      this.gains[id] = { n, t: now };
+      event.combo = n;
+      event.tier = gainTier(this.config[id], event.delta, n, action);
+      // 目標を越えた瞬間
+      const goal = this.config[id]?.goal ?? 0;
+      if (goal > 0 && prev.wins < goal && wins >= goal) event.goal = true;
     }
     const c = this.get(id);
     this.hub.broadcast({ type: 'wins', id, counter: c, prev, event });

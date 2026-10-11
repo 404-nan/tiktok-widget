@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { WinsEngine, lossTier } from '../src/wins.js';
+import { WinsEngine, lossTier, gainTier } from '../src/wins.js';
 import { defaultsFor } from '../src/schema.js';
 import { normalize } from '../src/config.js';
 
@@ -165,4 +165,19 @@ test('連続妨害の合計を数え、続いている間は get で見える', 
   assert.equal(c.depth, 0); // -7 は large の大妨害（-10）より浅い
   wins.apply('default', 'add', -10);
   assert.equal(wins.get('default').depth, 1);
+});
+
+test('増えたときの段階: 境目と続けて増えた回数で決まり、クリアは少なくとも 1、目標を越えたら知らせる', () => {
+  assert.equal(gainTier({}, 1), 0);
+  assert.equal(gainTier({}, 1, 1, 'win'), 1);
+  assert.equal(gainTier({ clearFx: false }, 1, 1, 'win'), 0);
+  assert.equal(gainTier({}, 100), 2);
+  assert.equal(gainTier({ gainPreset: 'small' }, 5), 3);
+  assert.equal(gainTier({ gainPreset: 'custom', bigGain: 2, hugeGain: 4, topGain: 6 }, 4), 2);
+  const { wins, sent } = setup({ default: counter({ goal: 3 }) });
+  wins.apply('default', 'win');
+  wins.apply('default', 'win');
+  assert.equal(sent.at(-1).event.goal, undefined);
+  wins.apply('default', 'win');
+  assert.deepEqual([sent.at(-1).event.goal, sent.at(-1).event.combo, sent.at(-1).event.tier], [true, 3, 1]);
 });

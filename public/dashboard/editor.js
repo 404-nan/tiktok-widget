@@ -17,6 +17,8 @@ const ENUM_LABELS = {
   plate: '横長の板', big: '大きい数字',
   'lossPreset.large': '大きく減る配信（-10 大妨害 / -100 超妨害 / -1000 壊滅）', 'lossPreset.medium': '中くらい（-3 / -10 / -30）',
   'lossPreset.small': '-1 から派手に（-1 / -3 / -5）', 'lossPreset.custom': '自分で決める（下の詳しい設定）',
+  'gainPreset.large': '大きく増える配信（+10 大 / +100 超 / +1000 最大）', 'gainPreset.medium': '中くらい（+3 / +10 / +30）',
+  'gainPreset.small': '+1 から派手に（+1 / +3 / +5）', 'gainPreset.custom': '自分で決める（下の詳しい設定）',
   inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
 };
 // 項目の短い名前（説明は下に小さく出す）
@@ -30,7 +32,8 @@ const LABELS = {
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
   'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減するルール（YAML）', 'wins.style': '形',
-  negative: 'マイナス WIN まで減らせる', lossPreset: '演出の段階の境目', comboUp: '連続妨害で段階を上げる', power: '演出の強さ（倍率）', minusAmbient: 'マイナスの間、画面の縁を赤く', celebrate: '目標達成などを全画面で祝う', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
+  negative: 'マイナス WIN まで減らせる', lossPreset: '減ったときの段階の境目', gainPreset: '増えたときの段階の境目', clearFx: 'クリア（+1）を大きく祝う',
+  bigGain: '増えたとき「大」になる数', hugeGain: '増えたとき「超」になる数', topGain: '増えたとき「最大」になる数', comboUp: '続けて減る・増えると段階を上げる', power: '演出の強さ（倍率）', minusAmbient: 'マイナスの間、画面の縁を赤く', celebrate: '目標達成などを全画面で祝う', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
   bigLossText: '大妨害の文字', hugeLossText: '超妨害の文字', ruinLossText: '壊滅の文字', winText: 'クリアの文字', milestone: '大きく祝う間隔',
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
@@ -53,7 +56,7 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
-  wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'comboUp', 'power', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
+  wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -62,6 +65,10 @@ const LOSS_PRESETS = { large: [10, 100, 1000], medium: [3, 10, 30], small: [1, 3
 const lossSteps = (e) => {
   const nums = e.lossPreset === 'custom' ? [e.bigLoss, e.hugeLoss, e.ruinLoss] : LOSS_PRESETS[e.lossPreset] ?? LOSS_PRESETS.large;
   return [e.bigLossText, e.hugeLossText, e.ruinLossText].map((t, i) => [t ?? '', nums[i] ?? 10]);
+};
+const gainSteps = (e) => {
+  const nums = e.gainPreset === 'custom' ? [e.bigGain, e.hugeGain, e.topGain] : LOSS_PRESETS[e.gainPreset] ?? LOSS_PRESETS.large;
+  return ['大', '超', '最大'].map((t, i) => [t, nums[i] ?? 10]);
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
 
@@ -714,6 +721,7 @@ export function createEditor({ api, setMessage }) {
         chip('1つ戻す', 'undo-2', w('undo')),
         // 段階ごとの演出を試す（境目は選んだプリセットのもの）
         ...lossSteps(e).map(([text, n]) => chip(`${text}（-${n}）を試す`, 'zap', w('add', -n))),
+        ...gainSteps(e).map(([text, n]) => chip(`${text}（+${n}）を試す`, 'sparkles', w('add', n))),
         chip('リセット（0 に戻す）', 'rotate-ccw', () => confirm('WIN 数を 0 にリセットしますか？（「1つ戻す」で元に戻せます）') && w('reset')()),
         // ルールに書いたギフトを1つずつ試せる
         ...(e.rules ?? [])

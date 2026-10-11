@@ -176,6 +176,30 @@
   }
   .stamp.jp b { font-family: "Zen Kaku Gothic New", var(--font); font-weight: 900; font-style: normal; font-size: 54px; letter-spacing: .02em; }
 
+  /* --- 増えたとき --- */
+  .goldflash { position: absolute; inset: 0; background: #FFD84A; mix-blend-mode: screen; opacity: 0; pointer-events: none; }
+  .goldflash.go { animation: redflash .5s ease-out; }
+  .spark {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    background: #FFE38A;
+    clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+    pointer-events: none;
+    animation: spark 1s cubic-bezier(.2, .8, .3, 1) forwards;
+    transform: scale(var(--s));
+  }
+  @keyframes spark { 0% { transform: translate(0, 0) scale(0); opacity: 1; } 30% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(var(--s)) rotate(180deg); opacity: 0; } }
+  .rainbow .head { background: linear-gradient(90deg, #FF3B5C, #FF9F1A, #FFE14D, #3DFF8A, #2EE6FF, #5B6BFF, #D04DFF, #FF3B5C) !important; background-size: 200% 100% !important; animation: rb .8s linear infinite !important; color: #111113; }
+  .rainbow .value { animation: rbText .5s linear infinite; }
+  .rainbow .plate { box-shadow: var(--lift), 0 0 0 3px #fff, 0 0 26px 4px rgba(255, 220, 120, .8); }
+  @keyframes rb { to { background-position: 200% 0; } }
+  @keyframes rbText { 0% { color: #FF3B5C; } 20% { color: #FFE14D; } 40% { color: #3DFF8A; } 60% { color: #2EE6FF; } 80% { color: #D04DFF; } 100% { color: #FF3B5C; } }
+  .stamp.rainbow { background: linear-gradient(90deg, #FF3B5C, #FF9F1A, #FFE14D, #3DFF8A, #2EE6FF, #5B6BFF, #D04DFF, #FF3B5C); background-size: 200% 100%; animation: rb .8s linear infinite; color: #fff; border-color: #fff; }
+  .stamp.rainbow b { text-shadow: 0 3px 0 rgba(0, 0, 0, .45); }
+  .stamp.blink b { animation: reach .5s steps(2) infinite; }
+
   /* --- 連続妨害メーター: 続いている間、右側に「×5　合計 -23」と途切れるまでの残り時間 --- */
   .combo-meter { display: none; margin-left: auto; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 150px; }
   .combo-on .combo-meter { display: flex; }
@@ -247,6 +271,7 @@
     <div class="bar" id="barWrap"><i id="bar"></i></div>
     <div class="glint"></div>
     <div class="redflash" id="redflash"></div>
+    <div class="goldflash" id="goldflash"></div>
     <svg class="cracks" id="cracks"></svg>
   </div>
   <div class="plus" id="plus">+1</div>
@@ -350,6 +375,23 @@
     big: () => {
       tones([523, 659, 784, 1047, 1319, 1568, 2093], { type: 'triangle', gap: 0.06, len: 0.4 });
       tones([1047, 1319, 1568, 2093], { gap: 0, len: 1.2, vol: 0.5, at: 0.42 });
+    },
+    // キュイン: 超
+    kyuin() {
+      tones([523, 784, 1047, 1568, 2093], { type: 'triangle', gap: 0.05, len: 0.3, vol: 0.8 });
+      tones([1400, 2100], { type: 'triangle', gap: 0.02, len: 0.9, vol: 0.6, at: 0.28 });
+      tones([2800, 4200], { type: 'sine', gap: 0.02, len: 0.7, vol: 0.3, at: 0.3 });
+    },
+    // 最大・目標達成: 駆け上がって、和音を鳴らし続ける
+    peak() {
+      tones([523, 659, 784, 1047, 1319, 1568, 2093, 2637], { type: 'triangle', gap: 0.05, len: 0.35 });
+      tones([1047, 1319, 1568, 2093], { type: 'sawtooth', gap: 0, len: 1.8, vol: 0.18, at: 0.42 });
+      tones([1047, 1319, 1568, 2093], { gap: 0, len: 2, vol: 0.4, at: 0.42 });
+      tones([2800, 4200], { type: 'triangle', gap: 0.02, len: 1.2, vol: 0.4, at: 0.45 });
+    },
+    // リーチ: ドクン、ドクン
+    heart() {
+      for (const at of [0, 0.22, 0.8, 1.02]) tones([70], { gap: 0, len: 0.18, vol: 1.4, at });
     },
     // 妨害が当たった: ドゴン＋ガラスが割れる音。連続するほど低く重く
     hit(level) {
@@ -494,7 +536,7 @@
           el.classList.toggle('minus', v < 0);
           if (now - lastTick > 38) {
             lastTick = now;
-            tones([1400 - 1000 * t], { type: 'square', len: 0.03, vol: 0.18 });
+            tones([to > from ? 400 + 1400 * t : 1400 - 1000 * t], { type: 'square', len: 0.03, vol: 0.18 });
           }
         }
         if (t < 1) requestAnimationFrame(step);
@@ -504,6 +546,33 @@
     });
     delete el.dataset.text;
     odometer(el, to);
+  }
+
+  // 虹: 見出し・数字・板の縁がしばらく虹色に回る
+  let rainbowTimer = null;
+  function rainbowFor(ms) {
+    document.body.classList.add('rainbow');
+    clearTimeout(rainbowTimer);
+    rainbowTimer = setTimeout(() => document.body.classList.remove('rainbow'), ms);
+  }
+
+  // キラキラ: 数字から星が飛び散る
+  function sparkles(count) {
+    const { x, y } = valueCenter();
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('i');
+      el.className = 'spark';
+      const a = rnd(0, Math.PI * 2), d = rnd(60, 220) * Math.min(1.6, p.power);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.setProperty('--dx', `${Math.cos(a) * d}px`);
+      el.style.setProperty('--dy', `${Math.sin(a) * d * 0.6}px`);
+      el.style.setProperty('--s', String(rnd(0.5, 1.3)));
+      el.style.animationDelay = `${rnd(0, 0.15)}s`;
+      if (document.body.classList.contains('rainbow')) el.style.background = `hsl(${rnd(0, 360)}, 100%, 65%)`;
+      $('wrap').append(el);
+      setTimeout(() => el.remove(), 1200);
+    }
   }
 
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
@@ -518,30 +587,54 @@
     if (!delta || quiet) return render(c);
 
     if (delta > 0) {
-      render(c);
+      // 増えたとき: 文字は数字かひと言だけ。段階（サーバーが決める）が上がるほど光・色・音で押す
+      const tier = event.tier ?? 0;
+      const reached = event.goal || (p.goal > 0 && n >= p.goal && prev.wins < p.goal);
+      const escaped = prev.wins < 0 && n >= 0;
+      const reach = !reached && p.goal > 0 && n === p.goal - 1;
+      const mile = p.milestone > 0 && n > 0 && Math.floor(n / p.milestone) > Math.floor(Math.max(0, prev.wins) / p.milestone);
+      const peak = reached || tier >= 3;
+      // 最大と目標達成は、一瞬止めてから
+      if (peak) {
+        render(c, { roll: false });
+        $('plate').classList.add('blackout');
+        await sleep(800);
+        $('plate').classList.remove('blackout');
+      }
+      restart($('goldflash'), 'go');
+      if (tier >= 2 || reached) rainbowFor(peak ? 4500 : 3000);
+      sparkles(8 + tier * 10 + (reached ? 30 : 0));
       restart($('plate'), 'hit');
       pop(signed(delta));
-      const reached = p.goal > 0 && n >= p.goal && prev.wins < p.goal;
-      // マイナスから 0 に戻ったときは祝わない
-      const mile = p.milestone > 0 && n > 0 && Math.floor(n / p.milestone) > Math.floor(Math.max(0, prev.wins) / p.milestone);
-      const escaped = prev.wins < 0 && n >= 0;
+      const big = Math.min(1.7, 1 + tier * 0.15 + (reached ? 0.3 : 0));
       if (reached) {
-        stamp('CLEAR', 'gold', { line: `目標 ${fmt(p.goal)} WIN 達成` });
-        SOUND.big();
+        stamp('CLEAR', 'rainbow', { who: by, boost: big, hold: 3200 });
+        SOUND.peak();
+      } else if (reach) {
+        stamp('リーチ', 'gold blink', { who: by, boost: 1.1, hold: 2200 });
+        SOUND.heart();
       } else if (escaped) {
-        stamp('マイナス脱出!', 'gold', { who: by, line: [by?.text, giftLine].filter(Boolean).join('　') });
+        stamp('脱出', 'gold', { who: by, boost: big });
         SOUND.big();
-      } else if (p.goal > 0 && n === p.goal - 1) {
-        // 目標まであと1つ: リーチ
-        stamp('リーチ!', 'gold', { who: by, line: `あと 1 WIN で目標 ${fmt(p.goal)}` });
-        SOUND.big();
-      } else if (mile) {
-        stamp(`${fmt(Math.floor(n / p.milestone) * p.milestone)} WIN!`, 'gold', { who: by, line: giftLine });
+      } else if (mile && tier < 2) {
+        stamp(`${fmt(Math.floor(n / p.milestone) * p.milestone)} WIN`, 'gold', { who: by, boost: big });
         SOUND.big();
       } else {
-        stamp(by ? `WIN ${signed(delta)}` : p.winText, by ? 'gold' : '', { who: by, line: [by?.text, giftLine].filter(Boolean).join('　') });
-        SOUND.up();
+        const word = kind === 'win' ? p.winText : signed(delta);
+        stamp(word, tier >= 2 ? 'rainbow' : tier >= 1 || by ? 'gold' : '', { who: by, boost: big, hold: 1400 + tier * 500 });
+        if (tier >= 3) SOUND.peak();
+        else if (tier >= 2) SOUND.kyuin();
+        else if (tier >= 1) SOUND.big();
+        else SOUND.up();
       }
+      if (tier >= 2 || reached) shake((5 + tier * 3) * p.power, 0.4);
+      // まとめて増えたときは、数字が駆け上がる
+      if (tier >= 1 && delta >= 5) {
+        render(c, { roll: false });
+        await sleep(500);
+        await drain(prev.wins, n, [0, 0.9, 1.5, 2.2][tier]);
+      }
+      render(c);
       return;
     }
 
