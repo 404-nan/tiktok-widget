@@ -113,6 +113,18 @@ export async function spinRoulette(id) {
   return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
 }
 
+/** RUSH に入る・終わらせる・今の状態（サーバーが必要） */
+export async function rush(action = 'status') {
+  if (action === 'start' || action === 'stop') {
+    const { rush: r } = await callServer('/api/control', { method: 'POST', body: { target: 'rush', action } });
+    if (action === 'stop') return r?.total != null ? `RUSH を終わらせました（合計 ${r.total} コイン / ギフト ${r.gifts} 個）` : 'RUSH 中ではありません';
+    return r?.active ? `RUSH に入りました（残り ${Math.ceil((r.endsAt - r.now) / 1000)} 秒）` : 'RUSH が無効です（rush.enabled）';
+  }
+  const r = await callServer('/api/rush');
+  if (r.active) return `RUSH 中: 残り ${Math.ceil((r.endsAt - r.now) / 1000)} 秒、合計 ${r.total} コイン、ギフト ${r.gifts} 個`;
+  return r.last ? `待機中（前回 合計 ${r.last.total} コイン / ギフト ${r.last.gifts} 個）` : '待機中';
+}
+
 export async function control(target, action, data) {
   await callServer('/api/control', { method: 'POST', body: { target, action, data } });
   return `${target} に ${action} を送りました`;

@@ -96,7 +96,8 @@ function checkItems(value, where, issues) {
     if (raw.image != null) item.image = String(raw.image);
     if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
     checkSuperStream(raw, item, at, issues);
-    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction'];
+    if (raw.rush != null) item.rush = raw.rush === true || raw.rush === 'true';
+    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });
@@ -388,7 +389,10 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
   const out = [];
   for (const section of SECTIONS) {
     const def = SCHEMA[section];
-    if (def.kind !== 'map') continue;
+    if (def.kind !== 'map') {
+      if (def.page && def.size) out.push({ section, id: null, title: def.title, url: `${base}/widgets/${def.page}.html`, size: def.size(config[section] ?? {}) });
+      continue;
+    }
     const entries = Object.entries(config[section] ?? {});
     if (section === 'roulettes') {
       if (entries.length) {

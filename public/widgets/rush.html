@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RUSH</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  /* RUSH（確変）モード。配信画面いっぱいに重ねる。
+     左右の帯に「RUSH中」が縦に流れ、その内側に虹色の筆のかすれ線と、光がシャワーのように降る。
+     上に合計コインと残り時間。突入は全画面で叩きつけ、終わると結果を出す。 */
+  :root {
+    --u: 1vmin;
+    --rail: 86px; /* JS で画面に合わせて上書き */
+    --rainbow: linear-gradient(90deg, #FF3B5C, #FF9F1A, #FFE14D, #3DFF8A, #2EE6FF, #5B6BFF, #D04DFF, #FF3B5C);
+    --rainbow-v: linear-gradient(180deg, #FF3B5C, #FF9F1A, #FFE14D, #3DFF8A, #2EE6FF, #5B6BFF, #D04DFF, #FF3B5C);
+  }
+  html, body { width: 100%; height: 100%; }
+  .stage { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+  canvas.shower { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* --- 左右の帯 --- */
+  .rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: var(--rail);
+    overflow: hidden;
+    background: linear-gradient(90deg, rgba(10, 10, 14, .94), rgba(22, 22, 28, .9));
+    clip-path: inset(50% 0 50% 0);
+    transition: clip-path .5s var(--ease-wipe);
+  }
+  .rail.left { left: 0; }
+  .rail.right { right: 0; background: linear-gradient(270deg, rgba(10, 10, 14, .94), rgba(22, 22, 28, .9)); }
+  .on .rail { clip-path: inset(0 0 0 0); }
+  /* 内側の縁: 流れる虹の線 */
+  .rail::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: calc(var(--rail) * .06);
+    background: var(--rainbow-v);
+    background-size: 100% 200%;
+    animation: flowV 1.6s linear infinite;
+  }
+  .rail.left::after { right: 0; }
+  .rail.right::after { left: 0; }
+  /* 外側の細い線 */
+  .rail::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, .18);
+  }
+  .rail.left::before { left: calc(var(--rail) * .12); }
+  .rail.right::before { right: calc(var(--rail) * .12); }
+  @keyframes flowV { to { background-position: 0 200%; } }
+
+  /* 帯の中を縦に流れる文字。左は下から上、右は上から下に読む */
+  .track {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100vh;
+    height: var(--rail);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .left .track { transform: translate(-50%, -50%) rotate(-90deg); }
+  .right .track { transform: translate(-50%, -50%) rotate(90deg); }
+  .run { display: flex; align-items: center; white-space: nowrap; flex: none; animation: run var(--run-s, 7s) linear infinite; }
+  .run .t {
+    display: flex;
+    align-items: center;
+    font-family: "Dela Gothic One", var(--font);
+    font-weight: 400;
+    font-size: calc(var(--rail) * .56);
+    line-height: 1;
+    letter-spacing: .02em;
+  }
+  /* 1文字ずつ虹で塗る（ずらして流すと続いて見える）。漢字・かなは帯の向きに合わせて立てる */
+  .run .c {
+    display: inline-block;
+    padding-top: .06em;
+    background: var(--rainbow);
+    background-size: 800% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: flowC 2.4s linear infinite;
+  }
+  .left .run .up { transform: rotate(90deg); }
+  .right .run .up { transform: rotate(-90deg); }
+  @keyframes flowC { to { background-position: 800% 0; } }
+  .run .sep {
+    width: calc(var(--rail) * .16);
+    height: calc(var(--rail) * .16);
+    margin: 0 calc(var(--rail) * .32);
+    background: #FFC53D;
+    transform: rotate(45deg);
+    flex: none;
+  }
+  @keyframes run { to { transform: translateX(-50%); } }
+  @keyframes flowH { to { background-position: 200% 0; } }
+  /* 帯を光が走る */
+  .glint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, .22), transparent);
+    animation: glint 2.2s cubic-bezier(.5, 0, .5, 1) infinite;
+  }
+  .right .glint { animation-direction: reverse; }
+  @keyframes glint { from { transform: translateY(-110%); } to { transform: translateY(260%); } }
+  .rail.hit { animation: hit .35s ease-out; }
+  @keyframes hit { 0% { filter: brightness(2.4) saturate(1.4); } 100% { filter: none; } }
+
+  /* --- 帯の内側の、虹色の筆のかすれ線（画像付きカットインの縁と同じ筆） ---
+     縦長の帯を横向きに描いて 90 度回す。3 枚の筆跡を順に切り替えて、手描きのようにガシガシ動かす */
+  .brush {
+    position: absolute;
+    top: 0;
+    height: 100vh;
+    width: var(--bw);
+    clip-path: inset(50% -50% 50% -50%);
+    transition: clip-path .55s var(--ease-wipe) .05s;
+    animation: hueFlow 2.4s linear infinite;
+  }
+  .brush.left { left: var(--rail); }
+  .brush.right { right: var(--rail); }
+  .on .brush { clip-path: inset(0 -50% 0 -50%); }
+  .brush .rot { position: absolute; left: 0; top: 0; width: 100vh; height: var(--bw); transform-origin: 0 0; }
+  .brush.left .rot { transform: rotate(90deg) translateY(-100%); }
+  .brush.right .rot { transform: rotate(-90deg) translateX(-100%); }
+  .brush .frame { position: absolute; inset: 0; visibility: hidden; }
+  .brush .frame.show { visibility: visible; }
+  .brush img { position: absolute; display: block; }
+  .brush.hit { animation: hueFlow 2.4s linear infinite, brushHit .4s ease-out; }
+  @keyframes hueFlow { to { filter: hue-rotate(360deg); } }
+  @keyframes brushHit { 0% { transform: scaleX(1.25); } 100% { transform: none; } }
+
+  /* --- 上の表示: 合計と残り時間 --- */
+  .hud {
+    position: absolute;
+    left: 50%;
+    top: 12vh;
+    display: grid;
+    grid-template-columns: auto auto auto;
+    align-items: stretch;
+    max-width: calc(100vw - var(--rail) * 2 - 32px);
+    transform: translateX(-50%) skewX(-8deg);
+    border: calc(var(--u) * .4) solid transparent;
+    background: linear-gradient(#111113, #111113) padding-box, var(--rainbow) border-box;
+    background-size: 100% 100%, 200% 100%;
+    animation: flowBorder 1.6s linear infinite;
+    box-shadow: 0 calc(var(--u) * 1.2) calc(var(--u) * 3) rgba(0, 0, 0, .45);
+    clip-path: inset(0 50% 0 50%);
+    transition: clip-path .45s var(--ease-wipe) .2s;
+  }
+  .on .hud { clip-path: inset(-20% -20% -60% -20%); }
+  @keyframes flowBorder { to { background-position: 0 0, 200% 0; } }
+  .hud > * { transform: skewX(8deg); }
+  .badge {
+    display: grid;
+    place-items: center;
+    padding: 0 calc(var(--u) * 2);
+    margin: calc(var(--u) * -.4) 0 calc(var(--u) * -.4) calc(var(--u) * -.4);
+    background: var(--rainbow);
+    background-size: 200% 100%;
+    animation: flowH 1.6s linear infinite;
+    transform: none;
+    color: #111113;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: calc(var(--u) * 4.2);
+    line-height: 1;
+  }
+  .badge span { transform: skewX(8deg); }
+  .total {
+    display: flex;
+    align-items: baseline;
+    gap: calc(var(--u) * 1);
+    padding: calc(var(--u) * 1.2) calc(var(--u) * 2.4) calc(var(--u) * 1);
+    color: var(--paper);
+    white-space: nowrap;
+  }
+  .total .lbl, .total .unit { font-size: calc(var(--u) * 2.2); font-weight: 900; color: var(--paper-dim); }
+  .total .num { font-family: var(--font-num); font-weight: 700; font-size: calc(var(--u) * 6.6); line-height: 1; color: #FFC53D; }
+  .time {
+    display: flex;
+    align-items: center;
+    padding: 0 calc(var(--u) * 2.2);
+    border-left: 1px solid rgba(255, 255, 255, .16);
+    font-family: var(--font-num);
+    font-weight: 700;
+    font-size: calc(var(--u) * 5);
+    color: var(--paper);
+    font-variant-numeric: tabular-nums;
+    position: relative;
+  }
+  .time.hurry { color: #FF4F1F; }
+  .time.tick { animation: tick .5s var(--ease-out); }
+  @keyframes tick { 0% { transform: skewX(8deg) scale(1.35); } 100% { transform: skewX(8deg) scale(1); } }
+  .gauge {
+    grid-column: 1 / -1;
+    height: calc(var(--u) * .7);
+    background: rgba(255, 255, 255, .1);
+    margin: 0 calc(var(--u) * -.4) calc(var(--u) * -.4);
+    transform: none;
+    overflow: hidden;
+  }
+  .gauge i { display: block; height: 100%; width: 100%; background: var(--rainbow); background-size: 200% 100%; animation: flowH 1.2s linear infinite; transform-origin: left; }
+
+  /* ギフトの「+コイン」と延長 */
+  .pops { position: absolute; left: 50%; top: calc(12vh + var(--u) * 16); width: 0; }
+  .pop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: baseline;
+    gap: calc(var(--u) * 1);
+    white-space: nowrap;
+    transform: translateX(-50%);
+    font-weight: 900;
+    font-size: calc(var(--u) * 2.4);
+    color: var(--paper);
+    text-shadow: 0 2px 0 #111, 0 0 calc(var(--u) * 1.5) rgba(0, 0, 0, .7);
+    animation: pop 1.8s var(--ease-out) forwards;
+  }
+  .pop b { font-family: var(--font-num); font-size: 1.9em; color: #FFC53D; }
+  .pop.ext b { color: #3DFF8A; }
+  @keyframes pop {
+    0% { opacity: 0; transform: translate(-50%, 40%) scale(.6); }
+    12% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+    24% { transform: translate(-50%, 0) scale(1); }
+    75% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -90%) scale(1); }
+  }
+
+  /* --- 突入 --- */
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+  .flash.go { animation: flash .5s ease-out; }
+  @keyframes flash { 0% { opacity: .95; } 30% { opacity: .5; background: #FFE14D; } 100% { opacity: 0; } }
+  .tint { position: absolute; inset: 0; opacity: 0; background: var(--rainbow); background-size: 200% 100%; mix-blend-mode: screen; }
+  .tint.go { animation: tint .9s ease-out, flowH .9s linear; }
+  @keyframes tint { 0% { opacity: .55; } 100% { opacity: 0; } }
+
+  .enter { position: absolute; left: 50%; top: 46%; width: 0; height: 0; opacity: 0; }
+  .enter.go { opacity: 1; }
+  .rays, .halo {
+    position: absolute;
+    left: calc(var(--ray) / -2);
+    top: calc(var(--ray) / -2);
+    width: var(--ray);
+    height: var(--ray);
+    border-radius: 50%;
+    --ray: 160vmax;
+    -webkit-mask: radial-gradient(closest-side, #000 18%, transparent 100%);
+    mask: radial-gradient(closest-side, #000 18%, transparent 100%);
+    transform: scale(0);
+  }
+  .rays { background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .5) 0deg 5deg, transparent 5deg 15deg); }
+  .halo { background: conic-gradient(#FF3B5C, #FF9F1A, #FFE14D, #3DFF8A, #2EE6FF, #5B6BFF, #D04DFF, #FF3B5C); opacity: .5; mix-blend-mode: screen; }
+  .enter.go .rays { animation: raysIn .4s var(--ease-out) forwards, spin 6s linear infinite; }
+  .enter.go .halo { animation: raysIn .4s var(--ease-out) forwards, spin 3s linear infinite reverse; }
+  @keyframes raysIn { from { transform: scale(0); } to { transform: scale(1); } }
+  @keyframes spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+
+  .word {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: var(--fs, 150px);
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+    transform: translate(-50%, -50%) rotate(-6deg) skewX(-10deg) scale(3);
+    opacity: 0;
+  }
+  .word span { display: block; }
+  .word .back {
+    color: #111;
+    -webkit-text-stroke: calc(var(--fs) * .16) #111;
+    text-shadow:
+      calc(var(--fs) * .03) calc(var(--fs) * .05) 0 #111,
+      calc(var(--fs) * .06) calc(var(--fs) * .1) 0 #111,
+      calc(var(--fs) * .09) calc(var(--fs) * .15) 0 rgba(0, 0, 0, .6);
+  }
+  .word .mid { position: absolute; inset: 0; color: #fff; -webkit-text-stroke: calc(var(--fs) * .07) #fff; }
+  .word .front {
+    position: absolute;
+    inset: 0;
+    background: var(--rainbow);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: slide 1s linear infinite;
+  }
+  @keyframes slide { to { background-position: 300% 0; } }
+  .enter.go .word { transform: translate(-50%, -50%) rotate(-6deg) skewX(-10deg); opacity: 1; transition: transform .14s cubic-bezier(.5, 0, .9, .6), opacity .05s linear; }
+  .sub {
+    position: absolute;
+    left: 0;
+    top: calc(var(--fs, 150px) * .78);
+    transform: translateX(-50%) rotate(-6deg) skewX(-10deg);
+    padding: calc(var(--u) * .8) calc(var(--u) * 2.4);
+    background: #111113;
+    border-left: calc(var(--u) * .8) solid #FFC53D;
+    color: var(--paper);
+    font-weight: 900;
+    font-size: calc(var(--u) * 3);
+    white-space: nowrap;
+    clip-path: inset(0 100% 0 0);
+  }
+  .sub b { font-family: var(--font-num); font-size: 1.3em; color: #FFC53D; margin-right: .1em; }
+  .enter.go .sub { clip-path: inset(0 0 0 0); transition: clip-path .3s var(--ease-wipe) .3s; }
+  .enter.out .word { transform: translate(-50%, -50%) rotate(-6deg) skewX(-10deg) scale(1.25); opacity: 0; filter: blur(6px); transition: all .22s ease-in; }
+  .enter.out .sub, .enter.out .rays, .enter.out .halo { opacity: 0; transition: opacity .2s linear; }
+
+  /* --- 終了の結果 --- */
+  .result {
+    position: absolute;
+    left: 50%;
+    top: 44%;
+    min-width: min(80vw, calc(var(--u) * 70));
+    transform: translate(-50%, -50%) skewX(-8deg);
+    padding: calc(var(--u) * 2.4) calc(var(--u) * 4) calc(var(--u) * 2.6);
+    background: #111113;
+    border-top: calc(var(--u) * .9) solid transparent;
+    border-image: var(--rainbow) 1;
+    box-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 5) rgba(0, 0, 0, .5);
+    text-align: center;
+    color: var(--paper);
+    clip-path: inset(0 50% 0 50%);
+    transition: clip-path .4s var(--ease-wipe);
+  }
+  .result > * { transform: skewX(8deg); }
+  .result.go { clip-path: inset(-10% -10% -10% -10%); }
+  .r-label { font-family: "Dela Gothic One", var(--font); font-size: calc(var(--u) * 4); letter-spacing: .06em; }
+  .r-total { display: flex; justify-content: center; align-items: baseline; gap: calc(var(--u) * 1.2); margin-top: calc(var(--u) * 1); }
+  .r-total .num { font-family: var(--font-num); font-weight: 700; font-size: calc(var(--u) * 13); line-height: 1; color: #FFC53D; }
+  .r-total .unit { font-weight: 900; font-size: calc(var(--u) * 3); color: var(--paper-dim); }
+  .r-meta { margin-top: calc(var(--u) * 1.2); font-size: calc(var(--u) * 2.4); font-weight: 700; color: var(--paper-dim); }
+  .r-meta b { font-family: var(--font-num); font-size: 1.3em; color: var(--paper); margin: 0 .15em; }
+
+  /* ダッシュボードのプレビューで、待機中なのが分かるように */
+  .idle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 12px 20px;
+    background: rgba(17, 17, 19, .8);
+    color: var(--paper-dim);
+    font-size: 28px;
+    font-weight: 700;
+    display: none;
+  }
+  body.preview .stage:not(.on):not(.ending) .idle { display: block; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="brush left" id="brushL"></div>
+  <div class="brush right" id="brushR"></div>
+  <canvas class="shower" id="shower"></canvas>
+  <div class="rail left" id="railL"><div class="glint"></div><div class="track"><div class="run"></div></div></div>
+  <div class="rail right" id="railR"><div class="glint"></div><div class="track"><div class="run"></div></div></div>
+  <div class="hud">
+    <div class="badge"><span>RUSH</span></div>
+    <div class="total"><span class="lbl">合計</span><span class="num" id="total">0</span><span class="unit">コイン</span></div>
+    <div class="time" id="time">0:00</div>
+    <div class="gauge"><i id="gauge"></i></div>
+  </div>
+  <div class="pops" id="pops"></div>
+  <div class="tint" id="tint"></div>
+  <div class="flash" id="flash"></div>
+  <div class="enter" id="enter">
+    <div class="halo"></div>
+    <div class="rays"></div>
+    <div class="word" id="word"><span class="back"></span><span class="mid"></span><span class="front"></span></div>
+    <div class="sub" id="sub"></div>
+  </div>
+  <div class="result" id="result">
+    <div class="r-label">RUSH 終了</div>
+    <div class="r-total"><span class="num" id="rTotal">0</span><span class="unit">コイン</span></div>
+    <div class="r-meta" id="rMeta"></div>
+  </div>
+  <div class="idle">RUSH 待機中（下のボタンで試せます）</div>
+</div>
+<script type="module">
+  // RUSH モード。状態はサーバー（src/rush.js）が持ち、'rush' メッセージで届く。設定は config.yaml の rush
+  import { brushImage } from './lib/brush.js';
+  import { loadConfig, applyTheme, setupPage, reloadOnConfigChange, params, connect, fmt, countTo, sleep } from './lib/overlay.js';
+
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage');
+
+  const { config, defaults } = await loadConfig();
+  applyTheme(config?.theme);
+  setupPage();
+  reloadOnConfigChange((c) => [c?.theme, c?.rush], config);
+  const p = params({
+    enabled: true, duration: 60, text: 'RUSH中', enterText: 'RUSH突入', sound: true, volume: 0.5,
+    ...defaults.rush, ...config?.rush,
+  });
+
+  let rush = { active: false };
+  let offset = 0; // サーバーの時計 - この画面の時計
+  const serverNow = () => Date.now() + offset;
+
+  // --- 大きさ ---
+  function layout() {
+    const vmin = Math.min(innerWidth, innerHeight);
+    const rail = Math.round(Math.max(56, Math.min(140, vmin * 0.08)));
+    document.documentElement.style.setProperty('--rail', `${rail}px`);
+    // 帯の文字: 1周ぶんを2回並べて -50% 流すと継ぎ目なく回る
+    for (const run of document.querySelectorAll('.run')) {
+      const unit = () => {
+        const t = document.createElement('span');
+        t.className = 't';
+        t.append(
+          ...[...p.text].map((ch, i) => {
+            const c = document.createElement('span');
+            c.className = /[\u2E80-\uFFEF]/.test(ch) ? 'c up' : 'c';
+            c.textContent = ch;
+            c.style.animationDelay = `${-i * 0.12}s`;
+            return c;
+          }),
+        );
+        const s = document.createElement('i');
+        s.className = 'sep';
+        return [t, s];
+      };
+      const per = Math.max(2, Math.ceil(innerHeight / (rail * (p.text.length * 0.62 + 0.8))) + 1);
+      run.replaceChildren(...Array.from({ length: per * 2 }, unit).flat());
+      run.style.setProperty('--run-s', `${per * 1.1}s`);
+    }
+    buildBrushes(rail);
+    resizeCanvas();
+  }
+
+  // --- 虹色の筆のかすれ線 ---
+  const RAINBOW = ['#FF3B5C', '#FF9F1A', '#FFE14D', '#3DFF8A', '#2EE6FF', '#5B6BFF', '#D04DFF', '#FF3B5C'];
+  const CHARCOAL = ['#0b0b0c', '#4a4a4f', '#18181a', '#7a7a80', '#0b0b0c', '#2c2c30'];
+  let brushFrames = [];
+  function buildBrushes(rail) {
+    const bw = Math.round(rail * 1.9);
+    document.documentElement.style.setProperty('--bw', `${bw}px`);
+    const len = innerHeight;
+    brushFrames = [];
+    for (const [id, side] of [['brushL', 0], ['brushR', 1]]) {
+      const rot = document.createElement('div');
+      rot.className = 'rot';
+      const frames = [0, 1, 2].map((f) => {
+        const frame = document.createElement('div');
+        frame.className = 'frame';
+        const seed = 7 + side * 50 + f * 13 + Math.floor(Math.random() * 400);
+        // d: 帯からの距離、h: 線の太さ、part: 線の長さの割合（1 で画面の縦いっぱい）
+        const line = (d, h, colors, s, streak, { part = 1, wave = 0.32 } = {}) => {
+          const w = Math.round(len * 1.2 * part);
+          const img = brushImage(w, h, colors, seed + s, { core: false, streak, wave });
+          const full = h + img.pad * 2;
+          const left = part < 1 ? Math.random() * len * (1 - part) : -len * 0.1;
+          Object.assign(img.style, { left: `${left}px`, top: `${bw - d - full / 2}px`, width: `${w}px`, height: `${full}px` });
+          return img;
+        };
+        const R = rail;
+        frame.append(
+          line(R * 0.12, R * 0.3, CHARCOAL, 1, '5 0 0 0 -1.9', { wave: 0.8 }),
+          line(R * 0.45, R * 0.8, RAINBOW, 2, '5 0 0 0 -1.9', { wave: 0.4 }),
+          line(R * 0.55, R * 0.5, RAINBOW, 3, '6 0 0 0 -2.3', { wave: 0.5 }),
+          line(R * 1.1, R * 0.16, RAINBOW, 4, '7 0 0 0 -2.6', { wave: 2 }),
+          line(R * 1.45, R * 0.1, RAINBOW, 5, '5 0 0 0 -2.1', { part: 0.45, wave: 2.6 }),
+          line(R * 0.9, R * 0.1, CHARCOAL, 6, '5 0 0 0 -2.1', { part: 0.55, wave: 2.6 }),
+        );
+        return frame;
+      });
+      rot.append(...frames);
+      $(id).replaceChildren(rot);
+      brushFrames.push(frames);
+    }
+  }
+  // 筆跡を順に切り替える（出ているときだけ）
+  let boil = 0;
+  setInterval(() => {
+    if (level < 0.01) return;
+    boil = (boil + 1) % 3;
+    for (const frames of brushFrames) frames.forEach((f, i) => f.classList.toggle('show', i === boil));
+  }, 120);
+
+  // --- 虹のシャワー（canvas） ---
+  const cv = $('shower');
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  let streams = [];
+  let sparks = [];
+  let level = 0; // 0（消えている）〜 1（出ている）
+  let levelTo = 0;
+  let boost = 1; // ギフトで一瞬強くなる
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  function resizeCanvas() {
+    dpr = Math.min(devicePixelRatio || 1, 1.5);
+    W = innerWidth;
+    H = innerHeight;
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    const rail = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rail'));
+    const zone = Math.max(110, W * 0.15);
+    streams = [];
+    for (const side of [-1, 1]) {
+      const n = 5;
+      for (let i = 0; i < n; i++) {
+        const d = ((i + rnd(0.2, 0.8)) / n) * zone; // 帯からの距離
+        streams.push({
+          side,
+          d,
+          x: side < 0 ? rail + d : W - rail - d,
+          amp: rnd(5, 15),
+          k: (Math.PI * 2) / rnd(160, 340),
+          w: rnd(2.2, 3.8),
+          ph: rnd(0, Math.PI * 2),
+          hue: rnd(0, 360),
+          near: 1 - (d / zone) * 0.75, // 帯に近いほど明るい
+          drops: [rnd(-H, H), rnd(-H, H)].map((y) => ({ y, v: rnd(700, 1300), len: rnd(90, 200) })),
+        });
+      }
+    }
+  }
+
+  const xAt = (s, y, t) => s.x + s.amp * Math.sin(y * s.k - t * s.w + s.ph) + s.amp * 0.35 * Math.sin(y * s.k * 2.3 + t * s.w * 1.6);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const t = now / 1000;
+    level += (levelTo - level) * Math.min(1, dt * (levelTo > level ? 3 : 1.6));
+    boost += (1 - boost) * Math.min(1, dt * 1.8);
+    tickHud();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (level > 0.01) draw(t, dt);
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t, dt) {
+    const L = level;
+    const I = boost;
+    const hurry = rush.active && rush.endsAt - serverNow() < 10_000;
+    const speed = (hurry ? 1.5 : 1) * (0.8 + I * 0.4);
+    ctx.globalCompositeOperation = 'lighter';
+    const rail = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rail'));
+
+    // 帯から内側に広がる、ぼんやりした虹の光
+    const reach = Math.max(160, W * 0.24);
+    for (const side of [-1, 1]) {
+      const x0 = side < 0 ? rail : W - rail;
+      const g = ctx.createLinearGradient(x0, 0, x0 - side * reach, 0);
+      const h = (t * 70 + (side < 0 ? 0 : 180)) % 360;
+      g.addColorStop(0, `hsla(${h}, 100%, 60%, ${0.28 * L * Math.min(1.6, I)})`);
+      g.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(side < 0 ? x0 : x0 - reach, 0, reach, H);
+    }
+
+    // 波打つ光の線
+    const step = 14;
+    for (const s of streams) {
+      const path = new Path2D();
+      for (let y = -step; y <= H + step; y += step) {
+        const x = xAt(s, y, t * speed);
+        y === -step ? path.moveTo(x, y) : path.lineTo(x, y);
+      }
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      const base = s.hue + t * 120;
+      for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${(base + i * 70) % 360}, 100%, 62%)`);
+      ctx.strokeStyle = g;
+      const a = L * s.near;
+      ctx.globalAlpha = 0.07 * a * I;
+      ctx.lineWidth = 20;
+      ctx.stroke(path);
+      ctx.globalAlpha = 0.2 * a * Math.min(1.5, I);
+      ctx.lineWidth = 6;
+      ctx.stroke(path);
+      ctx.globalAlpha = Math.min(1, 0.75 * a * I);
+      ctx.lineWidth = 2.2;
+      ctx.stroke(path);
+      ctx.strokeStyle = '#fff';
+      ctx.globalAlpha = 0.28 * a;
+      ctx.lineWidth = 0.8;
+      ctx.stroke(path);
+
+      // 線を伝って落ちる光の粒（シャワー）
+      for (const d of s.drops) {
+        d.y += d.v * dt * speed;
+        if (d.y - d.len > H) {
+          d.y = rnd(-400, -40);
+          d.v = rnd(700, 1300);
+        }
+        const dp = new Path2D();
+        for (let y = d.y - d.len; y <= d.y; y += 8) {
+          const x = xAt(s, y, t * speed);
+          y === d.y - d.len ? dp.moveTo(x, y) : dp.lineTo(x, y);
+        }
+        const dg = ctx.createLinearGradient(0, d.y - d.len, 0, d.y);
+        dg.addColorStop(0, 'rgba(255,255,255,0)');
+        dg.addColorStop(1, 'rgba(255,255,255,1)');
+        ctx.strokeStyle = dg;
+        ctx.globalAlpha = Math.min(1, 0.9 * a * I);
+        ctx.lineWidth = 3;
+        ctx.stroke(dp);
+        ctx.globalAlpha = 0.25 * a * I;
+        ctx.lineWidth = 12;
+        ctx.stroke(dp);
+      }
+      // ときどき火花
+      if (Math.random() < dt * 3 * I * L) {
+        const y = rnd(0, H);
+        sparks.push({ x: xAt(s, y, t * speed), y, vx: rnd(-40, 40), vy: rnd(80, 260), life: 1, hue: (base + rnd(0, 360)) % 360, r: rnd(1.5, 3.5) });
+      }
+    }
+
+    // 火花
+    for (const sp of sparks) {
+      sp.life -= dt * 1.4;
+      sp.x += sp.vx * dt;
+      sp.y += sp.vy * dt;
+      if (sp.life <= 0) continue;
+      ctx.globalAlpha = sp.life * L;
+      ctx.fillStyle = `hsl(${sp.hue}, 100%, 75%)`;
+      const r = sp.r * (0.6 + sp.life);
+      // 十字の光
+      ctx.fillRect(sp.x - r * 3, sp.y - r * 0.35, r * 6, r * 0.7);
+      ctx.fillRect(sp.x - r * 0.35, sp.y - r * 3, r * 0.7, r * 6);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sp.x - r * 0.6, sp.y - r * 0.6, r * 1.2, r * 1.2);
+    }
+    sparks = sparks.filter((sp) => sp.life > 0).slice(-160);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function burst(n = 30) {
+    boost = Math.min(2.8, boost + 0.9);
+    for (let i = 0; i < n; i++) {
+      const s = streams[(Math.random() * streams.length) | 0];
+      if (!s) break;
+      const y = rnd(0, H);
+      sparks.push({ x: s.x, y, vx: rnd(-120, 120), vy: rnd(-160, 220), life: rnd(0.8, 1.3), hue: rnd(0, 360), r: rnd(2, 4.5) });
+    }
+    for (const r of [$('railL'), $('railR'), $('brushL'), $('brushR')]) {
+      r.classList.remove('hit');
+      void r.offsetWidth;
+      r.classList.add('hit');
+    }
+  }
+
+  // --- 上の表示 ---
+  let lastSec = null;
+  function tickHud() {
+    if (!rush.active) return;
+    const remain = Math.max(0, rush.endsAt - serverNow());
+    const sec = Math.ceil(remain / 1000);
+    const time = $('time');
+    if (sec !== lastSec) {
+      time.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+      const hurry = sec <= 10;
+      time.classList.toggle('hurry', hurry);
+      if (hurry && lastSec != null && sec < lastSec && sec > 0) {
+        time.classList.remove('tick');
+        void time.offsetWidth;
+        time.classList.add('tick');
+        sfx('tick', sec <= 3);
+      }
+      lastSec = sec;
+    }
+    $('gauge').style.transform = `scaleX(${Math.min(1, remain / (p.duration * 1000))})`;
+  }
+
+  function setTotal(n) {
+    countTo($('total'), n, { duration: 700 });
+  }
+
+  // ギフトは左寄り、延長は残り時間の真下に出して重ならないようにする
+  function pop(html, cls = '') {
+    const el = document.createElement('div');
+    el.className = `pop ${cls}`;
+    el.innerHTML = html;
+    if (cls === 'ext') {
+      const r = $('time').getBoundingClientRect();
+      el.style.left = `${r.left + r.width / 2 - innerWidth / 2}px`;
+    } else {
+      el.style.left = `${rnd(-140, -20)}px`;
+      el.style.top = `${rnd(-10, 30)}px`;
+    }
+    $('pops').append(el);
+    setTimeout(() => el.remove(), 1900);
+  }
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+  // --- 効果音（音源なしで合成） ---
+  let ac;
+  const audio = () => (ac ??= new AudioContext());
+  function tone(type, f0, f1, at, len, peak, dest) {
+    const a = audio();
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, at);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, at + len * 0.6);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(peak, at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    o.connect(g).connect(dest ?? a.destination);
+    o.start(at);
+    o.stop(at + len + 0.05);
+  }
+  const SFX = {
+    // 突入: ドン → 駆け上がるキラキラ → キュイン
+    enter() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      tone('sine', 150, 40, t, 0.45, 0.9 * v);
+      const notes = [523, 659, 784, 1047, 1319, 1568, 2093, 2637];
+      notes.forEach((f, i) => {
+        tone('square', f, f, t + 0.08 + i * 0.055, 0.22, 0.07 * v);
+        tone('triangle', f * 2, f * 2, t + 0.08 + i * 0.055, 0.3, 0.06 * v);
+      });
+      for (const [f0, f1, d] of [[1400, 2800, 0.55], [2100, 4100, 0.57]]) tone('triangle', f0, f1, t + d, 1.1, 0.22 * v);
+    },
+    // RUSH 中のギフト: チャリン
+    gift(big) {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      tone('sine', 2093, 2093, t, 0.35, 0.18 * v);
+      tone('sine', 3136, 3136, t + 0.06, 0.45, 0.14 * v);
+      if (big) tone('triangle', 4186, 4186, t + 0.12, 0.6, 0.1 * v);
+    },
+    // 時間が延びた: ピロッ
+    extend() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      tone('square', 880, 1760, t, 0.16, 0.06 * v);
+      tone('square', 1320, 2640, t + 0.08, 0.2, 0.06 * v);
+    },
+    // 残り10秒のカウント
+    tick(strong) {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      tone('square', strong ? 1600 : 1200, strong ? 1600 : 1200, t, 0.05, (strong ? 0.12 : 0.06) * v);
+    },
+    // 終了: ジャーン
+    end() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      for (const f of [523, 659, 784, 1047]) {
+        tone('sawtooth', f, f, t, 1.6, 0.05 * v);
+        tone('triangle', f * 2, f * 2, t, 1.8, 0.04 * v);
+      }
+      tone('sine', 120, 50, t, 0.5, 0.6 * v);
+    },
+  };
+  const sfx = (name, ...args) => {
+    if (!p.sound) return;
+    try {
+      SFX[name](...args);
+    } catch {}
+  };
+
+  // --- 演出 ---
+  const restart = (el, cls) => {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  };
+
+  async function slam(text, sub) {
+    const enter = $('enter');
+    const word = $('word');
+    for (const s of word.children) s.textContent = text;
+    // 画面の幅（帯の内側）に収まる大きさにする
+    const rail = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rail'));
+    const avail = (innerWidth - rail * 2) * 0.9;
+    let fs = Math.min(innerWidth * 0.2, innerHeight * 0.14);
+    word.style.setProperty('--fs', `${fs}px`);
+    enter.style.setProperty('--fs', `${fs}px`);
+    const w = word.offsetWidth;
+    if (w > avail) {
+      fs *= avail / w;
+      word.style.setProperty('--fs', `${fs}px`);
+      enter.style.setProperty('--fs', `${fs}px`);
+    }
+    $('sub').innerHTML = sub;
+    enter.classList.remove('out', 'go');
+    void enter.offsetWidth;
+    restart($('flash'), 'go');
+    restart($('tint'), 'go');
+    enter.classList.add('go');
+    sfx('enter');
+    await sleep(140);
+    shake(0.55);
+    burst(60);
+    await sleep(1500);
+    enter.classList.add('out');
+    await sleep(260);
+    enter.classList.remove('go', 'out');
+  }
+
+  async function shake(seconds) {
+    const end = performance.now() + seconds * 1000;
+    while (performance.now() < end) {
+      const k = (end - performance.now()) / (seconds * 1000);
+      stage.style.transform = `translate(${rnd(-14, 14) * k}px, ${rnd(-14, 14) * k}px)`;
+      await sleep(30);
+    }
+    stage.style.transform = '';
+  }
+
+  function show(on) {
+    stage.classList.toggle('on', on);
+    levelTo = on ? 1 : 0;
+  }
+
+  async function onStart(r) {
+    lastSec = null;
+    $('total').dataset.value = '0';
+    $('total').textContent = '0';
+    show(true);
+    const secs = Math.round((r.endsAt - r.startedAt) / 1000);
+    await slam(p.enterText, `<b>${secs}</b>秒間　ギフトで時間が延びる`);
+    setTotal(rush.total);
+  }
+
+  async function onEnd(result) {
+    stage.classList.add('ending');
+    levelTo = 0.35;
+    const el = $('result');
+    const dur = Math.max(0, Math.round((result.endedAt - result.startedAt) / 1000));
+    $('rMeta').innerHTML = `ギフト<b>${fmt(result.gifts)}</b>個　·　<b>${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}</b>`;
+    $('rTotal').dataset.value = '0';
+    $('rTotal').textContent = '0';
+    stage.classList.remove('on');
+    restart($('flash'), 'go');
+    el.classList.add('go');
+    sfx('end');
+    countTo($('rTotal'), result.total, { duration: 1400 });
+    await sleep(5200);
+    el.classList.remove('go');
+    levelTo = 0;
+    stage.classList.remove('ending');
+  }
+
+  // 演出は順番に（突入の途中で終わりが来ても崩れないように）
+  let chain = Promise.resolve();
+  const seq = (fn) => (chain = chain.then(fn).catch(() => {}));
+
+  function apply(msg) {
+    const r = msg.rush;
+    offset = r.now - Date.now();
+    rush = r;
+    const ev = msg.event;
+    if (!p.enabled) return;
+    if (ev?.kind === 'start') return seq(() => onStart(r));
+    if (ev?.kind === 'again') {
+      burst(40);
+      return seq(() => slam('RUSH延長', `残り時間 <b>+${p.duration}</b>秒`));
+    }
+    if (ev?.kind === 'end') return seq(() => onEnd(ev.result));
+    if (ev?.kind === 'gift') {
+      setTotal(r.total);
+      burst(ev.coins >= 1000 ? 50 : 24);
+      sfx('gift', ev.coins >= 1000);
+      pop(`<span>${esc(ev.user?.name ?? '')}</span><b>+${fmt(ev.coins)}</b>`);
+      if (ev.extended) {
+        setTimeout(() => {
+          pop(`<span>時間延長</span><b>+${ev.extended}秒</b>`, 'ext');
+          sfx('extend');
+        }, 380);
+      }
+    }
+  }
+
+  // 読み込み直したとき・つなぎ直したときは、今の状態から続きを出す
+  async function sync() {
+    try {
+      const r = await (await fetch('/api/rush')).json();
+      offset = r.now - Date.now();
+      rush = r;
+      if (!p.enabled) return show(false);
+      if (r.active && !stage.classList.contains('on')) {
+        $('total').dataset.value = String(r.total);
+        $('total').textContent = fmt(r.total);
+        show(true);
+      } else if (!r.active && stage.classList.contains('on')) {
+        show(false);
+      }
+    } catch {}
+  }
+
+  addEventListener('resize', layout);
+  layout();
+  await document.fonts.ready.catch(() => {});
+  layout();
+  requestAnimationFrame(frame);
+  connect({ hello: sync, rush: apply });
+</script>
+</body>
+</html>

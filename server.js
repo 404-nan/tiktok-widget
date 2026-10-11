@@ -14,6 +14,7 @@ import { RouletteEngine } from './src/roulette.js';
 import { Minecraft } from './src/minecraft.js';
 import { History } from './src/history.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './src/superstream.js';
+import { RushEngine } from './src/rush.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3939;
@@ -25,10 +26,12 @@ const demo = new DemoSource(hub);
 const roulette = new RouletteEngine(hub);
 const minecraft = new Minecraft(hub);
 const history = new History(hub);
+const rush = new RushEngine(hub);
 
 hub.on('config', (config) => {
   roulette.setConfig(config);
   minecraft.setConfig(config.minecraft);
+  rush.setConfig(config.rush);
 });
 // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
 hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
@@ -68,6 +71,7 @@ app.delete('/api/history/:id', (req, res) => res.json({ ok: history.remove(req.p
 // --- Minecraft 連携 ---
 
 app.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
+app.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
 // SuperStream のプロフィールに設定済みの演出（読むだけ）
 app.get('/api/superstream', (_req, res) => {
   const mc = hub.config?.minecraft ?? {};
@@ -208,6 +212,11 @@ app.post('/api/control', (req, res) => {
     return spin ? res.json({ ok: true, spin }) : res.status(404).json({ error: 'ルーレットの設定がありません' });
   }
   if (target === 'roulette' && action === 'reset') roulette.clear();
+  // RUSH はサーバーで状態を持つ
+  if (target === 'rush') {
+    const r = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
+    return res.json({ ok: true, rush: r ?? rush.snapshot() });
+  }
   hub.control(String(target), String(action), data ?? {});
   res.json({ ok: true });
 });

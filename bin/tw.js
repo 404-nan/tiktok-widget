@@ -36,6 +36,7 @@ Minecraft / SuperStream
   test gift <名前> [個数] [1個のコイン]
   test like [数] | test follow | test share | test chat
   spin [ルーレットの名前]
+  rush [start|stop]         RUSH に入る・終わらせる（省くと今の状態）
   status
 
 AI と使う
@@ -125,6 +126,9 @@ try {
       else for (const s of r) print(`${s.id}${s.live ? '（配信中）' : ''}\t${Math.round(s.durationMs / 60000)}分\tコイン ${s.totals.coins}\tフォロー ${s.totals.follows}\t最大視聴者 ${s.totals.peakViewers}`);
       break;
     }
+    case 'rush':
+      print(await admin.rush(args[0]));
+      break;
     case 'spin':
       print(await admin.spinRoulette(args[0]));
       break;

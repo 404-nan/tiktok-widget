@@ -191,6 +191,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'rush',
+  {
+    title: 'RUSH',
+    description: 'RUSH（確変）モードに入る・終わらせる・今の状態を見る（サーバー起動中のみ）。設定は config.yaml の rush。',
+    inputSchema: { action: z.enum(['start', 'stop', 'status']).default('status').describe('start 突入 / stop 終了 / status 状態') },
+  },
+  wrap(async ({ action }) => text(await admin.rush(action))),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',

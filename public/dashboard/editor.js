@@ -4,7 +4,7 @@
 import { icon } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'minecraft', 'theme'];
+const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'rush', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -26,7 +26,9 @@ const LABELS = {
   keep: '中身を残す', sizeMin: '小さい玉の倍率', sizeMax: '大きい玉の倍率', liquid: '中の液体', liquidColor: '液体の色',
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
-  enabled: '連携する', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
+  enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
+  extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
+  'rush.text': '帯に流れる文字', enterText: '突入の文字', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
   superstreamProfile: 'SuperStream のプロフィール名', superstreamFile: 'SuperStream のプロフィールのファイル',
   forwardGifts: 'ギフトを SuperStream に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
@@ -45,6 +47,7 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
+  rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
@@ -287,7 +290,7 @@ export function createEditor({ api, setMessage }) {
       input.type = 'checkbox';
       input.checked = Boolean(value);
       input.addEventListener('change', () => save(key, input.checked));
-      wrap.append(input, LABELS[key] ?? key);
+      wrap.append(input, LABELS[`${tab}.${key}`] ?? LABELS[key] ?? key);
       wrap.title = field.desc ?? '';
       return wrap;
     }
@@ -594,7 +597,7 @@ export function createEditor({ api, setMessage }) {
   function currentWidget() {
     if (tab === 'minecraft') return null;
     const section = tab === 'theme' ? 'alerts' : tab;
-    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : id;
+    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : isObj(tab) ? null : id;
     return payload.widgets.find((w) => w.section === section && w.id === wid);
   }
 
@@ -676,6 +679,15 @@ export function createEditor({ api, setMessage }) {
         ...tiers.map(([label, coins]) =>
           chip(`${label}（${coins} コイン）`, null, () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: coins })),
         ),
+      );
+    } else if (tab === 'rush') {
+      const r = payload.config.rush ?? {};
+      box.replaceChildren(
+        chip('RUSH 突入', 'zap', control('rush', 'start')),
+        chip(`RUSH 中のギフト（${r.extendMinCoins ?? 100} コイン）`, 'gift', () =>
+          api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: r.extendMinCoins ?? 100 }),
+        ),
+        chip('RUSH 終了', 'square', control('rush', 'stop')),
       );
     } else if (tab === 'counters' || tab === 'goals' || tab === 'rankings') {
       box.append(

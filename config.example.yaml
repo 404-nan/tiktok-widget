@@ -93,6 +93,18 @@ roulettes:
       - {label: リクエスト曲, image: media/samples/note.svg}
       - {label: プレゼント, image: media/samples/gift.svg, color: gold}
       - {label: もう一回, color: ink-2}
+      - {label: RUSH, color: gold, rush: true} # 当たったら RUSH 突入
+
+# RUSH（確変）モード … /widgets/rush.html（配信画面いっぱいに重ねる）
+# 突入すると左右に「RUSH中」の帯と虹色の光のシャワー。RUSH 中のギフトで時間が延び、合計が数え上がる。
+rush:
+  enabled: true
+  gifts: [Lion] # このギフトで突入
+  enterCoins: 20000 # この合計コイン以上のギフトでも突入（0 で無効）
+  duration: 60 # 秒
+  extendMinCoins: 100 # RUSH 中、このコイン以上のギフトで
+  extendSeconds: 5 # この秒数だけ延びる
+  maxSeconds: 300 # 延びても最長この秒数まで
 
 # ランキング … /widgets/ranking.html（default 以外は ?id=名前）
 rankings:

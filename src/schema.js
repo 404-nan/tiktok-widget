@@ -147,7 +147,7 @@ export const SCHEMA = {
           '項目の一覧。「歌う*2」のような文字か、{ label, weight, color, textColor, image, commands } で書く。' +
           'weight は当たりやすさ（丸型では扇の大きさも比例）。image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こす SuperStream の演出（minecraft の設定が必要）',
+          'superstreamGift / superstreamAction は当たったときに起こす SuperStream の演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入',
       },
     },
   },
@@ -205,6 +205,31 @@ SCHEMA.imageCutins = {
     photo: str('', '写真（media/ のファイルか URL）。inside で空のときは段階の色で埋める'),
     layout: oneOf(['inside', 'side'], 'inside', 'inside 帯の中いっぱい（縁が木炭のかすれ線）/ side 色の帯の横に大きく乗る'),
     ...cutinFields(),
+  },
+};
+
+SCHEMA.rush = {
+  kind: 'object',
+  page: 'rush',
+  title: 'RUSH',
+  size: () => [1080, 1920],
+  desc:
+    'RUSH（確変）モード。突入すると画面の左右に「RUSH中」の帯が出て、その内側に虹色の筆のかすれ線と光のシャワーが流れる。' +
+    'RUSH 中のギフトで時間が延び、合計コインが数え上がり、終わると結果を出す。' +
+    '突入のきっかけ: gifts のギフト / enterCoins 以上のギフト / ルーレットの rush: true の項目 / ダッシュボードのボタン。' +
+    '配信画面いっぱいに重ねる。URL は /widgets/rush.html',
+  fields: {
+    enabled: bool(true, 'RUSH を使う'),
+    gifts: list([], 'このギフト名で突入'),
+    enterCoins: num(20000, 'この合計コイン以上のギフトで突入（0 で無効）', { min: 0 }),
+    duration: num(60, 'RUSH の長さ（秒）', { min: 5, max: 600 }),
+    extendMinCoins: num(100, 'RUSH 中、この合計コイン以上のギフトで時間が延びる', { min: 1 }),
+    extendSeconds: num(5, '1回で延びる秒数（0 で延びない）', { min: 0, max: 120 }),
+    maxSeconds: num(300, '延びても最長この秒数まで', { min: 5, max: 3600 }),
+    text: str('RUSH中', '左右の帯に流れる文字'),
+    enterText: str('RUSH突入', '突入のときの文字'),
+    sound: bool(true, '効果音'),
+    volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
   },
 };
 

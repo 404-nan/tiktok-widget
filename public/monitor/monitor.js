@@ -138,6 +138,45 @@ function setupFeedFilter() {
   $('feed').innerHTML = '<li class="empty">まだイベントはありません</li>';
 }
 
+// --- RUSH ---
+
+let rush = { active: false };
+let rushOffset = 0;
+
+function renderRushButtons() {
+  const box = $('rushButtons');
+  const btn = (label, iconName, action) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip pressable';
+    b.append(icon(iconName), label);
+    b.addEventListener('click', () => api('/api/control', { target: 'rush', action }));
+    return b;
+  };
+  box.replaceChildren(rush.active ? btn('RUSH を終わらせる', 'square', 'stop') : btn('RUSH 突入', 'zap', 'start'));
+  $('rushSection').hidden = config?.rush?.enabled === false;
+}
+
+function renderRush() {
+  const el = $('rushText');
+  if (rush.active) {
+    const sec = Math.max(0, Math.ceil((rush.endsAt - (Date.now() + rushOffset)) / 1000));
+    el.textContent = `RUSH 中　残り ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}　合計 ${fmtNum(rush.total)} コイン`;
+  } else if (rush.last) {
+    el.textContent = `待機中（前回 ${fmtNum(rush.last.total)} コイン / ギフト ${fmtNum(rush.last.gifts)} 個）`;
+  } else {
+    el.textContent = '待機中';
+  }
+}
+
+function setRush(r) {
+  const was = rush.active;
+  rushOffset = r.now - Date.now();
+  rush = r;
+  if (was !== r.active) renderRushButtons();
+  renderRush();
+}
+
 // --- ルーレット ---
 
 const spins = []; // { spin, revealed }
@@ -271,6 +310,11 @@ const { recent } = await api('/api/status');
 for (const e of [...recent].reverse()) addFeed(e);
 
 setInterval(renderElapsed, 1000);
+setInterval(renderRush, 1000);
+api('/api/rush').then((r) => {
+  setRush(r);
+  renderRushButtons();
+}).catch(() => {});
 setInterval(syncSession, 5000);
 setInterval(syncTimeline, 20000);
 
@@ -305,6 +349,10 @@ connect({
     config = c;
     renderRoulettes();
     renderGoals();
+    renderRushButtons();
+  },
+  rush(msg) {
+    setRush(msg.rush);
   },
   roulette({ spin }) {
     spins.unshift({ spin, revealed: false });
