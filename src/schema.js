@@ -132,6 +132,8 @@ export const SCHEMA = {
       ),
       comboUp: bool(true, '連続妨害（15 秒以内に続けて減る）で段階を上げる。×3 で1段、×5 で2段、×8 で壊滅'),
       power: num(1, '演出の強さ（揺れ・ひび・ダメージの数字の大きさの倍率）', { min: 0.3, max: 3 }),
+      minusAmbient: bool(true, 'マイナスの間、全画面演出の縁を赤く脈打たせる（深いほど強く）'),
+      celebrate: bool(true, '目標達成・マイナス脱出・リーチを全画面演出で祝う'),
       bigLoss: num(10, '「大妨害」になる減り方（lossPreset が custom のとき。一度にこの数以上減ったら）', { min: 1 }),
       hugeLoss: num(100, '「超妨害」になる減り方（custom のとき）', { min: 1 }),
       ruinLoss: num(1000, '「壊滅」になる減り方（custom のとき）', { min: 1 }),

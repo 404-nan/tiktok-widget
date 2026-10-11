@@ -30,7 +30,7 @@ const LABELS = {
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
   'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減するルール（YAML）', 'wins.style': '形',
-  negative: 'マイナス WIN まで減らせる', lossPreset: '演出の段階の境目', comboUp: '連続妨害で段階を上げる', power: '演出の強さ（倍率）', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
+  negative: 'マイナス WIN まで減らせる', lossPreset: '演出の段階の境目', comboUp: '連続妨害で段階を上げる', power: '演出の強さ（倍率）', minusAmbient: 'マイナスの間、画面の縁を赤く', celebrate: '目標達成などを全画面で祝う', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
   bigLossText: '大妨害の文字', hugeLossText: '超妨害の文字', ruinLossText: '壊滅の文字', winText: 'クリアの文字', milestone: '大きく祝う間隔',
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
@@ -53,7 +53,7 @@ const BASIC = {
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
-  wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'comboUp', 'power', 'winText', 'milestone', 'style', 'color'],
+  wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'comboUp', 'power', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };

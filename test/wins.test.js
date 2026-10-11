@@ -155,3 +155,14 @@ test('減るたびに連続妨害の数と段階をウィジェットに送る�
 function pickEvent(msg) {
   return { combo: msg.event.combo, tier: msg.event.tier };
 }
+
+test('連続妨害の合計を数え、続いている間は get で見える', () => {
+  const { wins } = setup({ default: counter() });
+  wins.apply('default', 'add', -2);
+  wins.apply('default', 'add', -5);
+  const c = wins.get('default');
+  assert.deepEqual([c.combo.n, c.combo.total], [2, -7]);
+  assert.equal(c.depth, 0); // -7 は large の大妨害（-10）より浅い
+  wins.apply('default', 'add', -10);
+  assert.equal(wins.get('default').depth, 1);
+});

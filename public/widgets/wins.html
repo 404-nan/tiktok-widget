@@ -176,6 +176,48 @@
   }
   .stamp.jp b { font-family: "Zen Kaku Gothic New", var(--font); font-weight: 900; font-style: normal; font-size: 54px; letter-spacing: .02em; }
 
+  /* --- 連続妨害メーター: 続いている間、右側に「×5　合計 -23」と途切れるまでの残り時間 --- */
+  .combo-meter { display: none; margin-left: auto; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 150px; }
+  .combo-on .combo-meter { display: flex; }
+  .combo-on .meta { display: none; }
+  .cm-label { font-size: 15px; font-weight: 900; color: #FFC53D; white-space: nowrap; }
+  .cm-label b { font-family: var(--font-num); font-weight: 800; font-style: italic; font-size: 26px; margin-left: 4px; }
+  .cm-total { font-family: var(--font-num); font-weight: 800; font-style: italic; font-size: 46px; line-height: .9; color: #FF2A2A; white-space: nowrap; }
+  .cm-total small { font-size: 18px; font-weight: 700; color: var(--on-surface-dim); margin-left: 4px; font-style: normal; }
+  .cm-bar { display: block; width: 100%; height: 5px; background: var(--rule); overflow: hidden; }
+  .cm-bar i { display: block; height: 100%; width: 100%; background: #FFC53D; transform-origin: left; }
+  .cm-hurry .cm-bar i { background: #FF2A2A; }
+  .combo-meter.bump { animation: bump .35s cubic-bezier(.2, 1.6, .4, 1); }
+  @keyframes bump { 0% { transform: scale(1.3); } 100% { transform: none; } }
+
+  /* --- マイナスの深さ: 深いほど不穏に --- */
+  /* 1段: 数字がときどきノイズで乱れる */
+  .depth1 .value { animation: glitch 2.6s steps(1) infinite; }
+  @keyframes glitch {
+    0%, 86%, 100% { text-shadow: none; transform: none; }
+    88% { text-shadow: -4px 0 #00E5FF, 4px 0 #FF2A2A; transform: translateX(3px) skewX(-6deg); }
+    91% { text-shadow: 3px 0 #00E5FF, -3px 0 #FF2A2A; transform: translateX(-4px); }
+    94% { text-shadow: -2px 0 #00E5FF, 2px 0 #FF2A2A; transform: translateX(1px) skewX(4deg); }
+  }
+  /* 2段: 走査線が流れ、板が細かく震える */
+  .scan { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: repeating-linear-gradient(0deg, rgba(255, 42, 42, .14) 0 2px, transparent 2px 5px); background-size: 100% 10px; }
+  .depth2 .scan { opacity: 1; animation: scan .5s linear infinite; }
+  @keyframes scan { to { background-position: 0 10px; } }
+  .depth2 .plate { animation: alarm 1.2s ease-in-out infinite, tremble .18s steps(2) infinite; }
+  @keyframes tremble { 0% { translate: 0 0; } 50% { translate: 1px -1px; } 100% { translate: -1px 1px; } }
+  /* 3段: 板の中が赤く燃え、数字が鼓動する */
+  .ember { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 120%, rgba(255, 42, 42, .55), transparent 65%); }
+  .depth3 .ember { animation: ember 1s ease-in-out infinite; }
+  @keyframes ember { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+  .depth3 .count { animation: beat 1s ease-in-out infinite; }
+  @keyframes beat { 0%, 60%, 100% { transform: none; } 10% { transform: scale(1.06); } 25% { transform: scale(1.02); } 35% { transform: scale(1.07); } }
+
+  /* --- 目標まであと1つ: リーチ --- */
+  .reach-tag { padding: 2px 10px 3px; background: var(--gold); color: var(--ink) !important; font-weight: 900 !important; letter-spacing: .1em; animation: reach .8s steps(2) infinite; }
+  @keyframes reach { 50% { opacity: .35; } }
+  .reach .head { background-image: linear-gradient(105deg, transparent 30%, rgba(255, 220, 120, .7) 50%, transparent 70%); background-size: 250% 100%; animation: shimmer 1.4s linear infinite; }
+  @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+
   /* big: 画面の端に置く、大きな数字の形 */
   .style-big .plate { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 320px; }
   .style-big .head { flex-direction: row; align-items: baseline; justify-content: center; gap: 12px; padding: 14px 20px 18px; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), 0 100%); }
@@ -184,6 +226,7 @@
   .style-big .value { font-size: 168px; }
   .style-big .goal { font-size: 44px; }
   .style-big .meta { margin: 0; flex-direction: row; align-items: baseline; gap: 16px; }
+  .style-big .combo-meter { margin: 0; align-items: center; }
 </style>
 </head>
 <body>
@@ -193,7 +236,14 @@
     <div class="main">
       <div class="count"><span class="value num" id="value"></span><span class="goal" id="goal"></span></div>
       <div class="meta" id="meta"></div>
+      <div class="combo-meter" id="comboMeter">
+        <span class="cm-label">連続妨害<b id="cmN"></b></span>
+        <span class="cm-total"><span id="cmTotal"></span><small>WIN</small></span>
+        <span class="cm-bar"><i id="cmBar"></i></span>
+      </div>
     </div>
+    <div class="scan"></div>
+    <div class="ember"></div>
     <div class="bar" id="barWrap"><i id="bar"></i></div>
     <div class="glint"></div>
     <div class="redflash" id="redflash"></div>
@@ -230,7 +280,13 @@
     $('bar').style.transform = `scaleX(${p.goal > 0 ? Math.max(0, Math.min(1, n / p.goal)) : 0})`;
     const done = p.goal > 0 && n >= p.goal;
     document.body.classList.toggle('done', done);
+    // マイナスの深さ（サーバーが lossPreset の境目で決める）
+    for (const d of [1, 2, 3]) document.body.classList.toggle(`depth${d}`, (c.depth ?? 0) >= d);
+    // 目標まであと1つ: リーチ
+    const reach = p.goal > 0 && n === p.goal - 1;
+    document.body.classList.toggle('reach', reach);
     const meta = [];
+    if (reach) meta.push('<span class="reach-tag">リーチ</span>');
     if (p.goal > 0) meta.push(done ? '<span>目標達成</span>' : `<span>あと<b>${fmt(p.goal - n)}</b></span>`);
     if (c.low < 0) meta.push(`<span>最低<b>${fmt(c.low)}</b></span>`);
     $('meta').innerHTML = meta.join('');
@@ -475,6 +531,10 @@
       } else if (escaped) {
         stamp('マイナス脱出!', 'gold', { who: by, line: [by?.text, giftLine].filter(Boolean).join('　') });
         SOUND.big();
+      } else if (p.goal > 0 && n === p.goal - 1) {
+        // 目標まであと1つ: リーチ
+        stamp('リーチ!', 'gold', { who: by, line: `あと 1 WIN で目標 ${fmt(p.goal)}` });
+        SOUND.big();
       } else if (mile) {
         stamp(`${fmt(Math.floor(n / p.milestone) * p.milestone)} WIN!`, 'gold', { who: by, line: giftLine });
         SOUND.big();
@@ -528,10 +588,54 @@
     render(c);
   }
 
+  // --- 連続妨害メーター ---
+  let comboEnds = 0; // この画面の時計で、連続妨害が途切れる時刻
+  let comboSpan = 15000;
+  function showCombo(k) {
+    if (!k || k.n < 2) return;
+    const offset = Date.now() - (k.now ?? Date.now());
+    comboEnds = k.endsAt + offset;
+    comboSpan = Math.max(1000, comboEnds - Date.now());
+    $('cmN').textContent = `×${k.n}`;
+    $('cmTotal').textContent = fmt(k.total);
+    document.body.classList.add('combo-on');
+    restart($('comboMeter'), 'bump');
+  }
+  function hideCombo() {
+    comboEnds = 0;
+    document.body.classList.remove('combo-on');
+  }
+  (function tick() {
+    if (comboEnds) {
+      const left = comboEnds - Date.now();
+      $('cmBar').style.transform = `scaleX(${Math.max(0, left / comboSpan)})`;
+      $('comboMeter').classList.toggle('cm-hurry', left < 4000);
+      if (left <= -1500) hideCombo(); // 終わりの知らせが届かなかったとき
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  // 連続妨害が途切れた: 何回続いて、合わせていくつ減ったか
+  function comboEnd({ combo: k }) {
+    hideCombo();
+    if (k.n < 2) return;
+    const big = k.tier >= 2;
+    stamp(`合計 ${fmt(k.total)}`, big ? 'danger' : 'lose', { combo: `連続妨害 ×${k.n} 終了`, boost: Math.min(1.4, 1 + k.tier * 0.12), hold: 2400 });
+    restart($('redflash'), 'go');
+    cracks(Math.min(16, 4 + k.tier * 4));
+    // ジャラララ…ドン
+    for (let i = 0; i < Math.min(14, k.n * 2); i++) tones([1600 - i * 70], { type: 'square', len: 0.04, vol: 0.2, at: i * 0.05 });
+    setTimeout(() => SOUND.hit(Math.min(8, 2 + k.tier * 2)), Math.min(14, k.n * 2) * 50);
+    shake((6 + k.tier * 6) * p.power, 0.5 + k.tier * 0.2);
+  }
+
   async function sync() {
     try {
       const all = await (await fetch('/api/wins')).json();
-      render(all[id] ?? { wins: 0, low: 0 });
+      const c = all[id] ?? { wins: 0, low: 0 };
+      render(c);
+      if (c.combo) showCombo(c.combo);
+      else hideCombo();
     } catch {}
   }
 
@@ -539,7 +643,12 @@
   connect({
     hello: sync,
     wins(msg) {
-      if (msg.id === id) onChange(msg);
+      if (msg.id !== id) return;
+      onChange(msg);
+      if (msg.counter?.combo) showCombo(msg.counter.combo);
+    },
+    winsCombo(msg) {
+      if (msg.id === id) comboEnd(msg);
     },
   });
 </script>

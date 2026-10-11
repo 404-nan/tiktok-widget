@@ -110,11 +110,42 @@
   .band.bottom .run { animation-direction: reverse; }
   .band .run span { font-family: "Dela Gothic One", var(--font); font-size: 5vh; line-height: 1; color: #FF2A2A; padding: 0 3vh; }
   @keyframes run { to { transform: translateX(-50%); } }
+  /* マイナスの間ずっと: 画面の縁が赤く脈打つ（深いほど強く速く） */
+  .ambient { position: absolute; inset: 0; opacity: 0; transition: opacity .8s linear; background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 20, 20, var(--amb-a, .35)) 100%); }
+  .ambient.on { opacity: 1; animation: breathe var(--amb-s, 2.4s) ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { filter: brightness(.6); } 50% { filter: brightness(1.2); } }
+
+  /* お祝い（目標達成・マイナス脱出・リーチ）: 金の放射、金の文字、紙吹雪 */
+  canvas.confetti { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .rays {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: 170vmax;
+    height: 170vmax;
+    margin: -85vmax 0 0 -85vmax;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(255, 210, 90, .45) 0deg 6deg, transparent 6deg 16deg);
+    -webkit-mask: radial-gradient(closest-side, #000 12%, transparent 100%);
+    mask: radial-gradient(closest-side, #000 12%, transparent 100%);
+    opacity: 0;
+    transform: scale(0);
+  }
+  .rays.on { opacity: 1; transform: scale(1); transition: transform .45s var(--ease-out), opacity .1s linear; animation: spin 8s linear infinite; }
+  .rays.off { opacity: 0; transition: opacity .6s linear; }
+  @keyframes spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+  .center.gold .word .front { background: linear-gradient(180deg, #FFF6C8, #FFC53D 55%, #C98A00); -webkit-background-clip: text; background-clip: text; }
+  .center.gold .label { background: #FFC53D; color: #111113; border-image: none; border: 6px solid #fff; }
+  .center.gold .who { border-left-color: #FFC53D; }
+  .center.gold .who b { color: #FFC53D; }
 </style>
 </head>
 <body>
 <div class="stage" id="stage">
+  <div class="ambient" id="ambient"></div>
+  <div class="rays" id="rays"></div>
   <canvas class="glass" id="glass"></canvas>
+  <canvas class="confetti" id="confetti"></canvas>
   <div class="alarm" id="alarm"></div>
   <div class="bands" id="bands">
     <div class="band top"><div class="run"></div></div>
@@ -134,6 +165,7 @@
   // 設定は config.yaml の wins.<id>（?id= がなければ default）。WIN数の板（wins.html）と同じ設定で動く
   const p = await setupWidget('wins', {
     sound: true, volume: 0.4, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅', power: 1,
+    goal: 0, minusAmbient: true, celebrate: true,
   });
   const id = new URLSearchParams(location.search).get('id') || 'default';
   const $ = (x) => document.getElementById(x);
@@ -416,7 +448,7 @@
     }
 
     const center = $('center');
-    center.classList.remove('go', 'out');
+    center.classList.remove('go', 'out', 'gold');
     $('label').textContent = [TIER_TEXT[tier], event.combo >= 2 ? `連続妨害 ×${event.combo}` : ''].filter(Boolean).join('　');
     fitWord(`WIN ${delta}`);
     whoLine(event.by);
@@ -466,12 +498,171 @@
     bands(false);
   }
 
+  // --- マイナスの間の赤い縁（深さで強さが変わる） ---
+  function ambient(c) {
+    const el = $('ambient');
+    const on = p.minusAmbient && c.wins < 0;
+    el.classList.toggle('on', on);
+    if (!on) return;
+    const d = c.depth ?? 0;
+    el.style.setProperty('--amb-a', String([0.25, 0.4, 0.55, 0.75][d]));
+    el.style.setProperty('--amb-s', `${[2.6, 1.8, 1.2, 0.8][d]}s`);
+  }
+
+  // --- 紙吹雪 ---
+  const cf = $('confetti');
+  const cx2 = cf.getContext('2d');
+  let bits = [];
+  let cfRaf = null;
+  const COLORS = ['#FFC53D', '#FFE38A', '#FFFFFF', '#FF4F1F', '#3DFF8A', '#2EE6FF', '#D04DFF'];
+  function confetti(count) {
+    cf.width = Math.round(innerWidth * dpr);
+    cf.height = Math.round(innerHeight * dpr);
+    for (let i = 0; i < count; i++) {
+      bits.push({
+        x: innerWidth / 2 + rnd(-60, 60),
+        y: innerHeight * 0.46 + rnd(-40, 40),
+        vx: rnd(-900, 900),
+        vy: rnd(-1500, -300),
+        w: rnd(8, 16),
+        h: rnd(4, 9),
+        rot: rnd(0, Math.PI),
+        vr: rnd(-10, 10),
+        flip: rnd(0, Math.PI * 2),
+        color: COLORS[(Math.random() * COLORS.length) | 0],
+        born: performance.now(),
+      });
+    }
+    if (!cfRaf) {
+      let prev = performance.now();
+      const step = (now) => {
+        const dt = Math.min(0.05, (now - prev) / 1000);
+        prev = now;
+        cx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cx2.clearRect(0, 0, innerWidth, innerHeight);
+        bits = bits.filter((b) => b.y < innerHeight + 40 && now - b.born < 6000);
+        for (const b of bits) {
+          b.vx *= 1 - 1.6 * dt;
+          b.vy = b.vy * (1 - 1.2 * dt) + 1500 * dt;
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+          b.rot += b.vr * dt;
+          b.flip += 9 * dt;
+          cx2.save();
+          cx2.translate(b.x, b.y);
+          cx2.rotate(b.rot);
+          cx2.scale(1, Math.cos(b.flip));
+          cx2.fillStyle = b.color;
+          cx2.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+          cx2.restore();
+        }
+        cfRaf = bits.length ? requestAnimationFrame(step) : null;
+        if (!cfRaf) cx2.clearRect(0, 0, innerWidth, innerHeight);
+      };
+      cfRaf = requestAnimationFrame(step);
+    }
+  }
+
+  // ファンファーレ: パッパラー
+  function fanfare(big) {
+    const notes = big ? [523, 523, 523, 659, 784, 1047] : [784, 1047];
+    const at = big ? [0, 0.12, 0.24, 0.36, 0.5, 0.66] : [0, 0.14];
+    notes.forEach((f, i) => {
+      tone('sawtooth', f, f, at[i], 0.22, 0.18);
+      tone('triangle', f * 2, f * 2, at[i], 0.25, 0.12);
+    });
+    const end = at.at(-1);
+    for (const f of [523, 659, 784, 1047]) {
+      tone('sawtooth', f, f, end, big ? 1.6 : 0.9, 0.08);
+      tone('triangle', f * 2, f * 2, end, big ? 1.8 : 1, 0.06);
+    }
+    for (let i = 0; i < 8; i++) tone('sine', rnd(2000, 4200), rnd(2000, 4200), end + rnd(0, 0.8), 0.15, 0.08);
+  }
+
+  // お祝い: 目標達成（big）・マイナス脱出・リーチ
+  async function celebrate(label, word, by, { big = false, bits = 120 } = {}) {
+    const center = $('center');
+    center.classList.remove('go', 'out');
+    center.classList.add('gold');
+    $('label').textContent = label;
+    fitWord(word);
+    whoLine(by);
+    restart($('flash'), 'go');
+    $('rays').classList.remove('off');
+    $('rays').classList.add('on');
+    void center.offsetWidth;
+    center.classList.add('go');
+    confetti(bits);
+    if (big) setTimeout(() => confetti(bits), 600);
+    fanfare(big);
+    shake(big ? 12 : 6, 0.4);
+    await sleep(big ? 3600 : 2200);
+    center.classList.add('out');
+    $('rays').classList.add('off');
+    await sleep(500);
+    $('rays').classList.remove('on', 'off');
+    center.classList.remove('go', 'out', 'gold');
+  }
+
+  async function onPlus({ counter: c, prev, event }) {
+    if (!p.celebrate || event.kind === 'undo' || !(event.delta > 0)) return;
+    if (!event.by && (event.kind === 'set' || event.kind === 'reset')) return;
+    const n = c.wins;
+    if (p.goal > 0 && prev.wins < p.goal && n >= p.goal) return celebrate('目標達成', `${fmt(p.goal)} WIN`, event.by, { big: true, bits: 220 });
+    if (prev.wins < 0 && n >= 0) return celebrate('マイナス脱出', `WIN ${fmt(n)}`, event.by, { bits: 120 });
+    if (p.goal > 0 && n === p.goal - 1) return celebrate('リーチ', `あと 1 WIN`, event.by, { bits: 50 });
+  }
+
+  // 連続妨害が途切れたとき: ×3 以上か、合計が大妨害以上なら全画面で結果を出す
+  async function onComboEnd({ combo: k }) {
+    if (k.n < 3 && k.tier < 1) return;
+    const tier = Math.max(1, k.tier);
+    const center = $('center');
+    center.classList.remove('go', 'out', 'gold');
+    $('label').textContent = `連続妨害 ×${k.n}`;
+    fitWord(`合計 ${fmt(k.total)} WIN`);
+    $('who').replaceChildren();
+    restart($('flash'), 'go');
+    void center.offsetWidth;
+    center.classList.add('go');
+    // ジャラララ…ドン
+    const n = Math.min(18, k.n * 2);
+    for (let i = 0; i < n; i++) tone('square', 1600 - i * 60, 1600 - i * 60, i * 0.05, 0.04, 0.15);
+    await sleep(n * 50);
+    makeWeb(W / 2, H * 0.46, Math.min(W, H) * (0.3 + tier * 0.18) * Math.min(2, p.power), 12 + tier * 6, 2 + tier, 2400 + tier * 600);
+    animate();
+    SOUND.boom(tier * 0.6);
+    SOUND.glass(0.3 + tier * 0.2);
+    if (tier >= 2) $('alarm').classList.add('on');
+    shake((10 + tier * 8) * p.power, 0.5 + tier * 0.2);
+    await sleep(1600 + tier * 500);
+    center.classList.add('out');
+    await sleep(400);
+    center.classList.remove('go', 'out');
+    $('alarm').classList.remove('on');
+  }
+
   // 演出は順番に（続けて来ても重ならないように）
   let chain = Promise.resolve();
+  const queue = (fn) => (chain = chain.then(fn).catch(() => {}));
+  async function sync() {
+    try {
+      const all = await (await fetch('/api/wins')).json();
+      if (all[id]) ambient(all[id]);
+    } catch {}
+  }
+  await sync();
   connect({
+    hello: sync,
     wins(msg) {
       if (msg.id !== id) return;
-      chain = chain.then(() => play(msg)).catch(() => {});
+      ambient(msg.counter);
+      queue(() => play(msg));
+      queue(() => onPlus(msg));
+    },
+    winsCombo(msg) {
+      if (msg.id !== id) return;
+      queue(() => onComboEnd(msg));
     },
   });
 </script>

@@ -36,7 +36,7 @@ export class WinsEngine {
     this.config = {};
     this.counts = {}; // id → { wins, low（いちばん下まで行った数）, updatedAt }
     this.undo = {}; // id → 前の数の一覧
-    this.combos = {}; // id → { n, t }（連続妨害）
+    this.combos = {}; // id → { n, total, t, timer }（連続妨害: 何回続いて、合わせていくつ減ったか）
     this.#load();
     hub.on('event', (e) => this.onGift(e));
   }
@@ -51,8 +51,15 @@ export class WinsEngine {
     return ids.length ? ids : ['default'];
   }
 
+  /** 今の数。depth はマイナスの深さの段階（0〜3、境目は lossPreset）、combo は続いている連続妨害 */
   get(id) {
-    return { wins: 0, low: 0, updatedAt: 0, ...this.counts[id] };
+    const c = { wins: 0, low: 0, updatedAt: 0, ...this.counts[id] };
+    const k = this.combos[id];
+    return {
+      ...c,
+      depth: c.wins < 0 ? lossTier({ ...this.config[id], comboUp: false }, c.wins) : 0,
+      combo: k ? { n: k.n, total: k.total, endsAt: k.t + COMBO_WINDOW, now: Date.now() } : null,
+    };
   }
 
   snapshot() {
@@ -108,23 +115,43 @@ export class WinsEngine {
       (this.undo[id] ??= []).push({ wins: prev.wins, low: prev.low });
       if (this.undo[id].length > UNDO) this.undo[id].shift();
     }
-    const c = { wins, low, updatedAt: Date.now() };
-    this.counts[id] = c;
+    this.counts[id] = { wins, low, updatedAt: Date.now() };
     // 「クリアで +1」なのか「ギフトで -1」なのか「戻した」なのかをウィジェットに伝える
     const event = { kind: action, delta: wins - prev.wins, by };
     // 減ったとき（戻す・手で入れ直す・リセットは除く）は、連続妨害の数と演出の段階を決める
     const quiet = action === 'undo' || (!by && (action === 'set' || action === 'reset'));
     if (event.delta < 0 && !quiet) {
-      const now = Date.now();
-      const last = this.combos[id];
-      const combo = last && now - last.t < COMBO_WINDOW ? last.n + 1 : 1;
-      this.combos[id] = { n: combo, t: now };
-      event.combo = combo;
-      event.tier = lossTier(this.config[id], event.delta, combo);
+      const k = this.#comboHit(id, event.delta);
+      event.combo = k.n;
+      event.comboTotal = k.total;
+      event.tier = lossTier(this.config[id], event.delta, k.n);
     }
+    const c = this.get(id);
     this.hub.broadcast({ type: 'wins', id, counter: c, prev, event });
     this.hub.emit('wins', id, c, event);
     return c;
+  }
+
+  // 連続妨害: 前の妨害から COMBO_WINDOW 以内なら続き。途切れたら合計を知らせる
+  #comboHit(id, delta) {
+    const now = Date.now();
+    const last = this.combos[id];
+    const k = last && now - last.t < COMBO_WINDOW ? last : { n: 0, total: 0 };
+    clearTimeout(k.timer);
+    k.n += 1;
+    k.total += delta;
+    k.t = now;
+    k.timer = setTimeout(() => this.#comboEnd(id), COMBO_WINDOW);
+    k.timer.unref?.();
+    this.combos[id] = k;
+    return k;
+  }
+
+  #comboEnd(id) {
+    const k = this.combos[id];
+    if (!k) return;
+    delete this.combos[id];
+    this.hub.broadcast({ type: 'winsCombo', id, combo: { n: k.n, total: k.total, tier: lossTier(this.config[id], k.total, k.n) }, counter: this.get(id) });
   }
 
   #load() {
