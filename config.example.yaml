@@ -1,0 +1,76 @@
+# TikTok LIVE ウィジェットの設定
+#
+# このファイルを保存すると、開いているウィジェットに自動で反映されます。
+# 書ける項目の一覧: npm run tw -- reference
+# AI に頼むときは MCP サーバー（npm run mcp）か CLI（npm run tw）を使います。
+#
+# 色は "#RRGGBB" か、テーマの色の名前 accent（朱）/ gold（金）/ ink（墨）/ ink-2 / paper（白）。
+# ギフト名は TikTok の英語名（Rose, Doughnut, Galaxy …）。
+
+theme:
+  mode: dark # dark / light
+  accent: "#FF4F1F" # 差し色（朱）
+  gold: "#FFC53D" # コイン・達成の色
+
+# ギフト通知 … /widgets/gift-alert.html（default 以外は ?id=名前）
+alerts:
+  default:
+    events: [gift, follow]
+    minCoins: 1
+    bigCoins: 100
+    position: top
+    align: left
+    # rules: 条件ごとに見た目を変える。上から順に、最初に合ったものを使う
+    #   常連さんの色を変える例: - { users: [your_friend_id], color: "#3FA9F5" }
+    rules:
+      # 高額ギフトは長めに、文も変える
+      - gifts: [Lion, Universe]
+        big: true
+        duration: 8
+        text: 本当にありがとうございます！
+
+# ギフト瓶 … /widgets/gift-jar.html（default 以外は ?id=名前）
+jars:
+  default:
+    shape: jar # jar 保存瓶 / heart ハート / potion エリクサー
+    title: ギフト瓶
+  elixir:
+    shape: potion
+    title: エリクサー
+    liquidColor: accent
+
+# 目標バー … /widgets/goal.html
+goals:
+  default:
+    title: フォロー目標
+    metric: follows # follows / likes / diamonds / gifts / shares / comments / viewers
+    goal: 100
+
+# いいね・視聴者数 … /widgets/counter.html
+counters:
+  default:
+    show: [likes, viewers]
+
+# ルーレット … /widgets/roulette.html（全部）または ?ids=名前,名前
+# 届いたギフトに合うルーレットに切り替わって回ります。
+roulettes:
+  punishment:
+    name: 罰ゲーム
+    style: wheel # wheel 丸 / strip 横スライド
+    gifts: [Rose]
+    items:
+      - ハズレ
+      - {label: 歌う, weight: 2, image: media/samples/mic.svg}
+      - {label: 激辛チャレンジ, image: media/samples/chili.svg}
+      - 一発ギャグ
+      - {label: 変顔, weight: 2}
+  reward:
+    name: ご褒美
+    style: strip
+    gifts: [Doughnut]
+    minCoins: 100 # 100 コイン以上のギフトでも回る
+    items:
+      - {label: 名前を呼ぶ, weight: 3}
+      - {label: リクエスト曲, image: media/samples/note.svg}
+      - {label: プレゼント, image: media/samples/gift.svg, color: gold}
+      - {label: もう一回, color: ink-2}

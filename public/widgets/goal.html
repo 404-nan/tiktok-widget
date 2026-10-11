@@ -69,18 +69,15 @@
   <div class="foot"><span id="remain"></span><span class="pct" id="pct"></span></div>
 </div>
 <script type="module">
-  import { setupPage, params, connect, odometer, fmt, chime } from './lib/overlay.js';
+  import { setupWidget, connect, odometer, fmt, chime, resolveColor } from './lib/overlay.js';
 
-  setupPage();
-  const p = params({
-    metric: 'follows',     // follows / likes / diamonds / gifts / shares / comments / viewers
-    goal: 100,             // 目標値
-    start: 0,              // 接続前に稼いだ分などを足しておく
-    step: 0,               // 達成したら目標をこの数だけ引き上げる（0 なら引き上げない）
-    title: 'フォロー目標',
-    sound: true,
-    volume: 0.3,
+  // 設定は config.yaml の goals.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('goals', {
+    metric: 'follows', goal: 100, start: 0, step: 0, title: 'フォロー目標', sound: true, volume: 0.3, color: 'accent', doneColor: 'gold',
   });
+  // バーの色（達成前・達成後）
+  document.body.style.setProperty('--signal', resolveColor(p.color));
+  document.body.style.setProperty('--gold', resolveColor(p.doneColor));
   const UNITS = { follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト', shares: 'シェア', comments: 'コメント', viewers: '人' };
   const unit = UNITS[p.metric] ?? '';
 

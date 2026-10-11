@@ -63,26 +63,29 @@
 </div>
 <script src="/vendor/matter.min.js"></script>
 <script type="module">
-  import { setupPage, params, connect, isFor, loadImage, iconImage, odometer, icon, tier } from './lib/overlay.js';
+  import { setupWidget, connect, isFor, loadImage, iconImage, odometer, icon, tier, giftNamed, resolveColor } from './lib/overlay.js';
   import { buildVessel, inside } from './lib/vessels.js';
 
-  setupPage();
-  const p = params({
-    minCoins: 1,        // この合計コイン未満のギフトは入れない
-    maxItems: 300,      // 瓶に入れておく最大数（超えたら古いものから消える）
-    perGift: 30,        // ×100 などの連打でも一度に落とすのはこの数まで
-    keep: true,         // 読み込み直しても中身を残す
-    label: true,
-    title: 'ギフト瓶',
-    shape: 'jar',       // jar（保存瓶） / heart（ハート） / potion（エリクサーのフラスコ）
-    liquid: 'auto',     // 中の液体。auto はフラスコだけ表示。1 / 0 で指定
-    sizeMin: 1,         // 玉の大きさの倍率（小さいギフト）
-    sizeMax: 1,         // 玉の大きさの倍率（大きいギフト）
+  // 設定は config.yaml の jars.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('jars', {
+    shape: 'jar', title: 'ギフト瓶', label: true, gifts: [], minCoins: 1, maxItems: 300, perGift: 30, keep: true,
+    sizeMin: 1, sizeMax: 1, liquid: 'auto', liquidColor: 'accent', glassColor: 'paper',
   });
+  const jarId = new URLSearchParams(location.search).get('id') || 'default';
 
   const { Engine, Bodies, Body, Composite, Sleeping } = Matter;
-  const STORAGE_KEY = `tiktok-widget:gift-jar:v1:${p.shape}`;
-  const showLiquid = p.liquid === 'auto' ? p.shape === 'potion' : p.liquid === '1' || p.liquid === 'true';
+  const STORAGE_KEY = `tiktok-widget:gift-jar:v1:${jarId}:${p.shape}`;
+  // 'on' / 'off' / 'auto'（URL では 1 / 0 も可）
+  const showLiquid = p.liquid === 'auto' ? p.shape === 'potion' : ['on', '1', 'true'].includes(String(p.liquid));
+  const LIQUID = resolveColor(p.liquidColor);
+  // ガラスの色（不透明度を変えて使う）
+  const glassRgb = (() => {
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.fillStyle = resolveColor(p.glassColor);
+    const hex = probe.fillStyle; // ブラウザが #rrggbb にそろえてくれる
+    return /^#/.test(hex) ? [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ') : '246, 245, 241';
+  })();
+  const glass = (a) => `rgba(${glassRgb}, ${a})`;
 
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
@@ -252,12 +255,12 @@
     jar.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
   }
 
-  const GLASS = 'rgba(246, 245, 241, .85)';
+  const GLASS = glass(0.85);
 
   function drawJarBack() {
     jarPath();
     ctx.closePath();
-    ctx.fillStyle = 'rgba(246, 245, 241, .08)';
+    ctx.fillStyle = glass(0.08);
     ctx.fill();
   }
 
@@ -285,7 +288,7 @@
     ctx.lineTo(right + 10, bottom + 10);
     ctx.closePath();
     ctx.globalAlpha = 0.62;
-    ctx.fillStyle = SIGNAL;
+    ctx.fillStyle = LIQUID;
     ctx.fill();
 
     // 泡
@@ -320,7 +323,7 @@
       ctx.beginPath();
       h.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
       ctx.lineWidth = h.width;
-      ctx.strokeStyle = `rgba(246, 245, 241, ${h.alpha})`;
+      ctx.strokeStyle = glass(h.alpha);
       ctx.stroke();
     }
 
@@ -423,11 +426,13 @@
   connect({
     event(e) {
       if (e.kind !== 'gift' || e.totalDiamonds < p.minCoins) return;
+      if (p.gifts.length && !giftNamed(e.gift, p.gifts)) return;
       const n = Math.min(p.perGift, e.gift.count);
       for (let i = 0; i < n; i++) setTimeout(() => drop(e.gift), i * 90);
     },
     control(msg) {
       if (!isFor(msg, 'gift-jar')) return;
+      if (msg.data?.id && msg.data.id !== jarId) return; // 特定の瓶だけへの操作
       if (msg.action === 'reset') reset();
       else if (msg.action === 'shake') shake();
     },

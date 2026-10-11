@@ -74,12 +74,13 @@
       <h2>ウィジェット</h2>
       <div class="segmented" id="tabs" role="tablist"></div>
     </div>
+    <div class="entries" id="entries" aria-label="設定の名前"></div>
     <p class="desc" id="widgetDesc"></p>
 
     <div class="widget-body">
-      <form class="settings" id="settings"></form>
+      <form class="settings" id="settings" onsubmit="return false"></form>
 
-      <div class="preview-col">
+      <div class="preview-col" id="previewCol">
         <div class="url-row">
           <input id="widgetUrl" readonly aria-label="ウィジェットの URL">
           <button class="btn primary pressable" id="copyBtn" data-icon="copy" type="button"><span>コピー</span></button>
@@ -87,6 +88,49 @@
         <p class="hint" id="sizeHint"></p>
         <div class="row wrap" id="actions"></div>
         <div class="preview" id="preview"><iframe id="frame" title="プレビュー"></iframe></div>
+        <p class="form-message" id="formMessage" role="status"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel section config-panel">
+    <h2>設定ファイルと AI</h2>
+    <div class="config-body">
+      <div class="stack">
+        <p class="desc">上のフォームと同じ設定を YAML で直接編集できます。AI やエディタで書き換えても、ここと配信中のウィジェットに自動で反映されます。</p>
+        <textarea id="yamlText" class="mono yaml" rows="22" spellcheck="false" aria-label="config.yaml"></textarea>
+        <div class="row wrap">
+          <button class="btn primary pressable" id="yamlSave" data-icon="save" type="button">保存</button>
+          <button class="btn pressable" id="yamlRevert" type="button">元に戻す</button>
+          <span class="hint" id="yamlState"></span>
+        </div>
+        <ul class="issues" id="yamlIssues"></ul>
+      </div>
+      <div class="stack ai">
+        <div class="field">
+          <span class="field-label">設定ファイルの場所</span>
+          <code class="code" id="aiPath"></code>
+        </div>
+        <div class="field">
+          <span class="field-label">Claude Code に MCP サーバーとして登録</span>
+          <code class="code" id="aiClaude"></code>
+          <button class="chip pressable" data-copy="aiClaude" data-icon="copy" type="button"><span>コピー</span></button>
+        </div>
+        <div class="field">
+          <span class="field-label">Claude Desktop など（設定ファイルの mcpServers に追加）</span>
+          <pre class="code" id="aiDesktop"></pre>
+          <button class="chip pressable" data-copy="aiDesktop" data-icon="copy" type="button"><span>コピー</span></button>
+        </div>
+        <div class="field">
+          <span class="field-label">登録したら、AI にこう頼めます</span>
+          <ul class="examples">
+            <li>「Rose で回る罰ゲームルーレットを作って。項目は歌う・変顔・激辛で、激辛は赤にして」</li>
+            <li>「Doughnut と Corgi はご褒美ルーレット（横スライド）にして」</li>
+            <li>「Lion のときだけ通知を金色で8秒出して」</li>
+            <li>「ギフト瓶をハートにして、液体を青に」</li>
+          </ul>
+          <span class="hint">シェルが使える AI なら CLI でも同じことができます: <code>npm run tw -- help</code></span>
+        </div>
       </div>
     </div>
   </section>

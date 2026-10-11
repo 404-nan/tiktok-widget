@@ -95,18 +95,12 @@
 <body>
 <div id="stage"></div>
 <script type="module">
-  import { setupPage, params, list, connect, isFor, giftNode, avatarNode, icon, fmt, chime, createQueue, sleep } from './lib/overlay.js';
+  import { setupWidget, list, connect, isFor, giftNode, giftNamed, avatarNode, icon, fmt, chime, createQueue, sleep, resolveColor } from './lib/overlay.js';
 
-  setupPage();
-  const p = params({
-    events: 'gift,follow',  // 通知するイベント: gift, follow, share
-    minCoins: 1,            // この合計コイン未満のギフトは通知しない
-    bigCoins: 100,          // この合計コイン以上は金色にする
-    duration: 4.5,          // 1件あたりの表示秒数
-    position: 'top',        // top / center / bottom
-    align: 'left',          // left / center / right
-    sound: true,
-    volume: 0.3,
+  // 設定は config.yaml の alerts.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('alerts', {
+    events: ['gift', 'follow'], gifts: [], minCoins: 1, bigCoins: 100, duration: 4.5, position: 'top', align: 'left',
+    sound: true, volume: 0.3, followText: 'フォローしてくれました', shareText: '配信をシェアしてくれました', rules: [],
   });
   const kinds = new Set(list(p.events));
   document.body.classList.add(`pos-${p.position}`, `align-${p.align}`);
@@ -117,7 +111,10 @@
   connect({
     event(e) {
       if (!kinds.has(e.kind)) return;
-      if (e.kind === 'gift' && e.totalDiamonds < p.minCoins) return;
+      if (e.kind === 'gift') {
+        if (e.totalDiamonds < p.minCoins) return;
+        if (p.gifts.length && !giftNamed(e.gift, p.gifts)) return;
+      }
       queue.push(e);
     },
     control(msg) {
@@ -132,9 +129,21 @@
     return n;
   };
 
-  function build(e) {
+  // rules: 上から順に、最初に条件が合ったものを使う
+  function ruleFor(e) {
+    for (const r of p.rules ?? []) {
+      if (r.gifts && !giftNamed(e.gift, r.gifts)) continue;
+      if (r.users && !list(r.users).includes(e.user?.id)) continue;
+      if (r.minCoins && (e.totalDiamonds ?? 0) < r.minCoins) continue;
+      return r;
+    }
+    return {};
+  }
+
+  function build(e, rule) {
     const lt = el('div', 'lt');
     lt.dataset.kind = e.kind;
+    if (rule.color) lt.style.setProperty('--signal', resolveColor(rule.color));
 
     const badge = el('div', 'lt-badge');
     const main = el('div', 'lt-main');
@@ -146,16 +155,16 @@
 
     if (e.kind === 'gift') {
       badge.append(giftNode(e.gift, 68));
-      descRow.append(el('span', null, e.gift.name));
+      descRow.append(el('span', null, rule.text || e.gift.name));
       const count = el('span', 'count num', `×${e.gift.count}`);
       descRow.append(count);
-      if (e.totalDiamonds >= p.bigCoins) lt.classList.add('big');
+      if (rule.big ?? e.totalDiamonds >= p.bigCoins) lt.classList.add('big');
     } else {
       const visual = el('span', 'gift-visual');
       visual.style.setProperty('--size', '68px');
       visual.append(icon(e.kind === 'follow' ? 'user-plus' : 'repeat-2'));
       badge.append(visual);
-      descRow.textContent = e.kind === 'follow' ? 'フォローしてくれました' : '配信をシェアしてくれました';
+      descRow.textContent = rule.text || (e.kind === 'follow' ? p.followText : p.shareText);
     }
 
     const l1 = el('div', 'line');
@@ -178,14 +187,15 @@
   }
 
   async function show(e) {
-    const lt = build(e);
+    const rule = ruleFor(e);
+    const lt = build(e, rule);
     stage.replaceChildren(lt);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     lt.classList.add('in');
-    if (p.sound) chime(e.kind === 'gift' ? 'gift' : 'follow', p.volume);
+    if (rule.sound ?? p.sound) chime(e.kind === 'gift' ? 'gift' : 'follow', p.volume);
 
     // 列が詰まっているときは表示時間を短くする
-    await sleep(p.duration * 1000 * (queue.size > 5 ? 0.5 : 1));
+    await sleep((rule.duration ?? p.duration) * 1000 * (queue.size > 5 ? 0.5 : 1));
     lt.classList.add('out');
     await sleep(420);
     lt.remove();

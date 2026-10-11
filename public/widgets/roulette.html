@@ -7,17 +7,93 @@
 <link rel="stylesheet" href="lib/overlay.css">
 <link rel="stylesheet" href="lib/roulette.css">
 <style>
-  body { display: grid; place-items: center; }
-  .wrap { position: relative; display: grid; justify-items: center; gap: 14px; }
-  canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); }
-  .result { top: 58%; }
+  body { display: grid; grid-template-columns: minmax(0, 1fr); }
+  body.style-wheel { place-items: center; }
+  body.style-strip { align-content: start; padding: 20px 16px; }
+  .stage { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 14px; min-width: 0; width: 100%; }
+  .view { width: 100%; display: grid; justify-items: center; }
+  .view[hidden] { display: none; }
+  /* ルーレットが切り替わったときは左から拭き出す */
+  .stage.swap .view:not([hidden]) { animation: wipe-in .5s var(--ease-wipe); }
+  @keyframes wipe-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+  /* 丸型 */
+  .wheel-view canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); }
+  .style-wheel .result { top: 58%; }
+
+  /* 横スライド型 */
+  .window {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 0;
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+  }
+  .viewport {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+  }
+  .track { display: flex; gap: var(--gap); width: max-content; will-change: transform; }
+  .tile {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 6px;
+    width: var(--tile);
+    height: var(--tile-h);
+    padding: 10px 12px;
+    border-radius: 3px;
+    font-weight: 900;
+    line-height: 1.25;
+    text-align: center;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    transition: opacity .3s linear, transform .5s var(--ease-out);
+  }
+  .tile.has-image { grid-template-rows: minmax(0, 1fr) auto; padding: 10px 10px 8px; }
+  .tile.has-image img { width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+  .tile.has-image span { font-size: .78em; }
+  .settled .tile:not(.win) { opacity: .3; }
+  .settled .tile.win { transform: scale(1.04); }
+
+  .marker { --pointer: var(--signal); position: absolute; left: 50%; top: 0; bottom: 0; width: 0; pointer-events: none; }
+  .marker::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: -1.5px;
+    width: 3px;
+    background: var(--pointer);
+    box-shadow: 0 0 0 1.5px var(--ink);
+  }
+  .marker i { position: absolute; left: -13px; width: 26px; height: 16px; background: var(--pointer); transition: transform .08s linear; }
+  .marker i:first-child { top: -8px; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  .marker i:last-child { bottom: -8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+  .marker.kick i:first-child { transform: translateX(-5px) rotate(-8deg); }
+  .marker.kick i:last-child { transform: translateX(-5px) rotate(8deg); }
+  .style-strip .queue { top: -12px; right: 0; }
+  .style-strip .result { top: calc(var(--window-h, 150px) + 14px); }
+
+  /* 当たりに画像があるときは、結果の左の面に画像を出す */
+  .result .kicker.has-image { width: 96px; padding: 10px; }
+  .result .kicker img { width: 100%; height: 100%; max-height: 76px; object-fit: contain; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <canvas id="wheel"></canvas>
-  <div class="queue chip" id="queue"><span>あと</span><span class="num" id="queueNum"></span><span>回</span></div>
+<div class="stage" id="stage">
+  <div class="view wheel-view" id="wheelView" hidden><canvas></canvas></div>
+  <div class="view strip-view" id="stripView" hidden>
+    <div class="window">
+      <div class="viewport"><div class="track"></div></div>
+      <div class="marker"><i></i><i></i></div>
+    </div>
+  </div>
   <div class="hint chip" id="hint"></div>
+  <div class="queue chip" id="queue"><span>あと</span><span class="num" id="queueNum"></span><span>回</span></div>
   <div class="result" id="result">
     <div class="kicker" id="kicker"></div>
     <div class="body">
@@ -28,176 +104,32 @@
   </div>
 </div>
 <script type="module">
-  import { setupPage } from './lib/overlay.js';
-  import { readParams, parseItems, startRoulette, tick } from './lib/roulette.js';
+  // 設定は config.yaml の roulettes。?ids=a,b で使うルーレットを絞り込める。
+  // ギフトが届くと、条件に合うルーレットに切り替わって回る。
+  import { loadRoulettes, startRoulettes } from './lib/roulette.js';
+  import { createWheel } from './lib/roulette-wheel.js';
+  import { createStrip } from './lib/roulette-strip.js';
 
-  setupPage();
-  const p = readParams();
-  const items = parseItems(p.items);
-
-  const css = getComputedStyle(document.documentElement);
-  const C = (name) => css.getPropertyValue(name).trim();
-  const INK = C('--ink'), PAPER = C('--paper'), SIGNAL = C('--signal');
-  const TAU = Math.PI * 2;
-  const FONT = '"Zen Kaku Gothic New", "Hiragino Sans", sans-serif';
-
-  const canvas = document.getElementById('wheel');
-  const ctx = canvas.getContext('2d');
-  let size = 0;
-  let rotation = 0;
-  let pointerKick = 0; // 針がペグにはじかれた角度（ラジアン）
-
-  function resize() {
-    size = Math.floor(Math.max(160, Math.min(innerWidth, innerHeight - 70) - 12));
-    const dpr = devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = canvas.style.height = `${size}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw();
-  }
-
-  function draw() {
-    const c = size / 2;
-    const rim = 14;
-    const r = c - rim - 2;
-    ctx.clearRect(0, 0, size, size);
-
-    // 縁
-    ctx.beginPath();
-    ctx.arc(c, c, r + rim, 0, TAU);
-    ctx.fillStyle = INK;
-    ctx.fill();
-
-    for (const it of items) {
-      const a0 = it.start * TAU + rotation;
-      const a1 = it.end * TAU + rotation;
-      ctx.beginPath();
-      ctx.moveTo(c, c);
-      ctx.arc(c, c, r, a0, a1);
-      ctx.closePath();
-      ctx.fillStyle = it.fill;
-      ctx.fill();
-
-      // 文字は扇の中心線に沿って、外周側に右寄せ
-      const mid = (a0 + a1) / 2;
-      const arc = (it.end - it.start) * TAU * r * 0.6;
-      const fontSize = Math.max(12, Math.min(r * 0.12, arc * 0.5));
-      ctx.save();
-      ctx.translate(c, c);
-      ctx.rotate(mid);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.font = `900 ${fontSize}px ${FONT}`;
-      ctx.fillStyle = it.ink;
-      ctx.fillText(fitText(it.name, r * 0.62), r - 18, 1);
-      ctx.restore();
-    }
-
-    // 扇の境目の線とペグ
-    for (const it of items) {
-      const a = it.start * TAU + rotation;
-      ctx.beginPath();
-      ctx.moveTo(c, c);
-      ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(c + Math.cos(a) * (r + rim / 2), c + Math.sin(a) * (r + rim / 2), 3.5, 0, TAU);
-      ctx.fillStyle = PAPER;
-      ctx.fill();
-    }
-
-    // 中心
-    ctx.beginPath();
-    ctx.arc(c, c, r * 0.13, 0, TAU);
-    ctx.fillStyle = INK;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(c, c, r * 0.13 - 5, 0, TAU);
-    ctx.strokeStyle = SIGNAL;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(c, c, 4, 0, TAU);
-    ctx.fillStyle = PAPER;
-    ctx.fill();
-
-    // 針（上）。ペグに当たると少しはじかれる
-    ctx.save();
-    ctx.translate(c, 6);
-    ctx.rotate(pointerKick);
-    ctx.beginPath();
-    ctx.moveTo(-15, 0);
-    ctx.lineTo(15, 0);
-    ctx.lineTo(0, 38);
-    ctx.closePath();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = INK;
-    ctx.stroke();
-    ctx.fillStyle = SIGNAL;
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function fitText(text, maxWidth) {
-    if (ctx.measureText(text).width <= maxWidth) return text;
-    let t = text;
-    while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
-    return `${t}…`;
-  }
-
-  const POINTER = -Math.PI / 2;
-  const norm = (a) => ((a % TAU) + TAU) % TAU;
-  const indexAtPointer = () => {
-    const a = norm(POINTER - rotation) / TAU;
-    return items.findIndex((it) => a >= it.start && a < it.end);
+  const roulettes = await loadRoulettes();
+  const stage = document.getElementById('stage');
+  const views = {
+    wheel: createWheel(document.getElementById('wheelView')),
+    strip: createStrip(document.getElementById('stripView')),
   };
 
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  async function spin(winner) {
-    const land = (winner.start + (0.15 + Math.random() * 0.7) * (winner.end - winner.start)) * TAU;
-    const turns = reduced ? 0 : 5 + Math.floor(Math.random() * 3);
-    const from = rotation;
-    const to = from + norm(POINTER - land - from) + turns * TAU;
-    const duration = reduced ? 300 : p.duration * 1000;
-
-    let lastIndex = indexAtPointer();
-    await new Promise((resolve) => {
-      const t0 = performance.now();
-      let prev = t0;
-      const frame = (now) => {
-        const t = Math.min(1, (now - t0) / duration);
-        rotation = from + (to - from) * (1 - Math.pow(1 - t, 4));
-        const idx = indexAtPointer();
-        if (idx !== lastIndex) {
-          pointerKick = -0.32;
-          tick(p);
-        }
-        lastIndex = idx;
-        // はじかれた針はすぐ戻る
-        pointerKick *= Math.pow(0.0005, (now - prev) / 1000);
-        prev = now;
-        draw();
-        if (t < 1) requestAnimationFrame(frame);
-        else resolve();
-      };
-      requestAnimationFrame(frame);
-    });
-    rotation = norm(rotation);
-    pointerKick = 0;
-    draw();
-  }
-
-  startRoulette({ p, items, spin, name: 'roulette' });
-
-  addEventListener('resize', resize);
-  resize();
-  // 和文フォントは使う文字の分だけ読み込まれるので、項目の文字を指定して待ってから描き直す
-  document.fonts.load(`900 24px ${FONT}`, items.map((it) => it.name).join('')).then(draw, draw);
+  startRoulettes({
+    roulettes,
+    views,
+    onSwitch(_r, style) {
+      document.body.classList.toggle('style-wheel', style !== 'strip');
+      document.body.classList.toggle('style-strip', style === 'strip');
+      const win = document.querySelector('#stripView .window');
+      stage.style.setProperty('--window-h', `${win.offsetHeight}px`);
+      stage.classList.remove('swap');
+      void stage.offsetWidth;
+      stage.classList.add('swap');
+    },
+  });
 </script>
 </body>
 </html>

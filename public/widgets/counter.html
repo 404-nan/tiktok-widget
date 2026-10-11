@@ -54,16 +54,11 @@
 <body>
 <div class="board" id="board"></div>
 <script type="module">
-  import { setupPage, params, list, connect, odometer, icon } from './lib/overlay.js';
+  import { setupWidget, list, connect, odometer, icon, resolveColor } from './lib/overlay.js';
 
-  setupPage();
-  const p = params({
-    show: 'likes,viewers',  // likes, viewers, follows, diamonds, gifts, shares, comments
-    layout: 'row',          // row / column
-    align: 'left',          // left / center / right
-    labels: true,
-    hearts: true,           // いいねが来たらハートを浮かべる
-  });
+  // 設定は config.yaml の counters.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('counters', { show: ['likes', 'viewers'], layout: 'row', align: 'left', labels: true, hearts: true, color: 'accent' });
+  document.body.style.setProperty('--signal', resolveColor(p.color));
   document.body.classList.add(`layout-${p.layout}`, `align-${p.align}`);
   if (!p.labels) document.body.classList.add('no-labels');
 

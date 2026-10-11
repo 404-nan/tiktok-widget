@@ -1,4 +1,103 @@
-// ウィジェット共通: サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
+// ウィジェット共通: 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
+
+// --- 設定（config.yaml） ---
+
+let configSelector = null; // 設定のどこが変わったら読み込み直すか
+let configSnapshot = null;
+
+/** サーバーから設定と初期値を取る（サーバーが古い・落ちているときは null） */
+export async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) return { config: null, defaults: {} };
+    const { config, defaults } = await res.json();
+    return { config, defaults: defaults ?? {} };
+  } catch {
+    return { config: null, defaults: {} };
+  }
+}
+
+/**
+ * ウィジェットの設定を作る。初期値 ← config.yaml の該当する名前（?id=、なければ default）← URL パラメータ の順に上書き。
+ * テーマも当てて、設定ファイルのこの部分が変わったら自動で読み込み直す。
+ */
+export async function setupWidget(section, fallback = {}) {
+  const { config, defaults } = await loadConfig();
+  applyTheme(config?.theme);
+  setupPage();
+  const id = new URLSearchParams(location.search).get('id') || 'default';
+  const entry = config?.[section]?.[id] ?? {};
+  reloadOnConfigChange((c) => [c?.theme, c?.[section]?.[id]]);
+  configSnapshot = JSON.stringify([config?.theme, config?.[section]?.[id]]);
+  return params({ ...fallback, ...defaults[section], ...entry });
+}
+
+/** selector(config) の結果が変わったらページを読み込み直す */
+export function reloadOnConfigChange(selector, initialConfig) {
+  configSelector = selector;
+  if (initialConfig !== undefined) configSnapshot = JSON.stringify(selector(initialConfig));
+}
+
+function handleConfig(config) {
+  if (!configSelector) return;
+  const next = JSON.stringify(configSelector(config));
+  if (configSnapshot !== null && next !== configSnapshot) location.reload();
+  configSnapshot = next;
+}
+
+const TOKEN_VARS = { accent: '--signal', gold: '--gold', ink: '--ink', 'ink-2': '--ink-2', paper: '--paper' };
+
+/** 設定の色（#RRGGBB か accent などの名前）を CSS で使える値にする */
+export const cssColor = (v) => (TOKEN_VARS[v] ? `var(${TOKEN_VARS[v]})` : v);
+
+/** 設定の色を canvas で使える実際の色にする */
+export function resolveColor(v) {
+  if (!TOKEN_VARS[v]) return v;
+  return getComputedStyle(document.documentElement).getPropertyValue(TOKEN_VARS[v]).trim();
+}
+
+const hexToRgb = (hex) => {
+  let h = hex.replace('#', '');
+  if (h.length <= 4) h = [...h].map((c) => c + c).join('');
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+};
+const mix = (hex, toward, amount) => {
+  const a = hexToRgb(hex);
+  const b = hexToRgb(toward);
+  return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * amount)).join(', ')})`;
+};
+
+/** 背景色に対して読みやすい文字色（墨か白） */
+export function readableOn(color) {
+  const c = resolveColor(color);
+  let m = [0, 0, 0];
+  if (c.startsWith('#')) m = hexToRgb(c);
+  else if (/^rgb/.test(c)) m = c.match(/\d+/g).slice(0, 3).map(Number);
+  const lum = (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255;
+  return lum > 0.6 ? resolveColor('ink') : resolveColor('paper');
+}
+
+/** config.yaml の theme を CSS 変数にする */
+export function applyTheme(theme) {
+  if (!theme) return;
+  const root = document.documentElement;
+  if (theme.mode === 'light') root.dataset.theme = 'light';
+  const hex = (v) => (/^#/.test(v ?? '') ? v : null);
+  if (hex(theme.accent)) root.style.setProperty('--signal', theme.accent);
+  if (hex(theme.gold)) root.style.setProperty('--gold', theme.gold);
+  if (hex(theme.ink)) {
+    root.style.setProperty('--ink', theme.ink);
+    root.style.setProperty('--ink-2', mix(theme.ink, '#ffffff', 0.06));
+    root.style.setProperty('--ink-3', mix(theme.ink, '#ffffff', 0.12));
+  }
+  if (hex(theme.paper)) {
+    const [r, g, b] = hexToRgb(theme.paper);
+    root.style.setProperty('--paper', theme.paper);
+    root.style.setProperty('--paper-dim', `rgba(${r}, ${g}, ${b}, .64)`);
+    root.style.setProperty('--paper-faint', `rgba(${r}, ${g}, ${b}, .14)`);
+  }
+  if (theme.scale && theme.scale !== 1) root.style.zoom = String(theme.scale);
+}
 
 /** 全ウィジェット共通のパラメータ（theme / preview / scale）を反映する */
 export function setupPage() {
@@ -42,6 +141,8 @@ export function params(defaults) {
     if (typeof def === 'number') {
       const n = Number(raw);
       if (Number.isFinite(n)) out[key] = n;
+    } else if (Array.isArray(def)) {
+      out[key] = list(raw);
     } else if (typeof def === 'boolean') {
       out[key] = raw === '1' || raw === 'true' || raw === '';
     } else {
@@ -52,9 +153,8 @@ export function params(defaults) {
 }
 
 export const list = (s) =>
-  String(s ?? '')
-    .split(',')
-    .map((x) => x.trim())
+  (Array.isArray(s) ? s : String(s ?? '').split(','))
+    .map((x) => String(x).trim())
     .filter(Boolean);
 
 /**
@@ -73,11 +173,14 @@ export function connect(handlers) {
       } catch {
         return;
       }
+      if (msg.type === 'hello' || msg.type === 'config') handleConfig(msg.config);
       if (msg.type === 'hello') handlers.hello?.(msg.status, msg.state);
       else if (msg.type === 'event') handlers.event?.(msg.event, msg.state);
       else if (msg.type === 'state') handlers.state?.(msg.state);
       else if (msg.type === 'status') handlers.status?.(msg.status);
       else if (msg.type === 'control') handlers.control?.(msg);
+      else if (msg.type === 'config') handlers.config?.(msg.config);
+      else if (msg.type === 'configError') handlers.configError?.(msg.errors);
     };
     ws.onclose = () => setTimeout(open, 2000);
   };
@@ -302,10 +405,16 @@ export function createQueue(run, { max = 50 } = {}) {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** ギフトの名前か ID が一覧に入っているか（大文字小文字は区別しない） */
+export function giftNamed(gift, names) {
+  if (!gift || !names?.length) return false;
+  const want = list(names).map((n) => n.toLowerCase());
+  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.id));
+}
+
 /** ギフトがトリガー条件（ギフト名/ID の一覧、または最低コイン数）に合うか */
-export function giftMatches(e, { gifts = [], minCoins = 0 }) {
+export function giftMatches(e, { gifts = [], minCoins = 0, maxCoins = 0 }) {
   if (e.kind !== 'gift') return false;
-  const names = gifts.map((g) => g.toLowerCase());
-  if (names.length && (names.includes(e.gift.name.toLowerCase()) || names.includes(String(e.gift.id)))) return true;
-  return minCoins > 0 && e.totalDiamonds >= minCoins;
+  if (giftNamed(e.gift, gifts)) return true;
+  return minCoins > 0 && e.totalDiamonds >= minCoins && (!maxCoins || e.totalDiamonds <= maxCoins);
 }

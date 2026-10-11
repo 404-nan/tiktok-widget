@@ -31,7 +31,12 @@ export function makeEvent(kind, opts = {}) {
   const user = opts.user ? demoUser(opts.user) : demoUser();
   switch (kind) {
     case 'gift': {
-      const g = DEMO_GIFTS.find((x) => x.name === opts.giftName || x.id === opts.giftId) ?? weightedGift();
+      // 一覧にないギフト名でも、名前とコインを指定すればテストできる（ルーレットの条件の確認用）
+      const custom = opts.giftName && { id: '', name: String(opts.giftName), diamonds: Math.max(1, Number(opts.diamonds) || 1), icon: 'gift' };
+      const g =
+        DEMO_GIFTS.find((x) => x.name.toLowerCase() === String(opts.giftName ?? '').toLowerCase() || x.id === opts.giftId) ??
+        custom ??
+        weightedGift();
       const count = Math.max(1, Number(opts.count) || (g.diamonds <= 5 ? randInt(1, 10) : 1));
       return {
         kind: 'gift',

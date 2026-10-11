@@ -1,0 +1,122 @@
+// 設定や動作確認の操作。MCP サーバー（mcp/server.js）と CLI（bin/tw.js）が共通で使う。
+// 設定ファイルは直接読み書きし、テスト送信などは起動中のサーバーに HTTP で頼む。
+
+import fs from 'node:fs';
+import path from 'node:path';
+import * as cfg from './config.js';
+import { DEMO_GIFTS } from './demo.js';
+
+export const SERVER = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
+
+async function callServer(pathname, { method = 'GET', body } = {}) {
+  let res;
+  try {
+    res = await fetch(`${SERVER}${pathname}`, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error(`サーバー（${SERVER}）に接続できません。先に npm start で起動してください`);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+/** 設定を検証した結果（エラーと警告）を文字にする */
+export function describeResult(result) {
+  const lines = [];
+  if (result.ok === false) lines.push('保存していません。次のエラーを直してください:');
+  else if (result.ok) lines.push('保存しました。開いているウィジェットに自動で反映されます。');
+  for (const e of result.errors ?? []) lines.push(`  エラー: ${e}`);
+  for (const w of result.warnings ?? []) lines.push(`  注意: ${w}`);
+  return lines.join('\n');
+}
+
+export function getConfig(p) {
+  const { text, config, errors, warnings } = cfg.load();
+  if (!p) return { path: cfg.CONFIG_PATH, yaml: text, errors, warnings };
+  let value = config;
+  for (const key of cfg.toPath(p)) value = value?.[key];
+  return { path: p, value: value ?? null, errors, warnings };
+}
+
+export const setConfig = (p, value) => cfg.setValue(p, value);
+export const mergeConfig = (p, value) => cfg.mergeValue(p, value);
+export const deleteConfig = (p) => cfg.deleteValue(p);
+export const replaceConfig = (yaml) => cfg.replaceText(yaml);
+export const reference = () => cfg.reference();
+
+export function validate() {
+  const { errors, warnings } = cfg.load();
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+export function widgetUrls() {
+  const { config, errors } = cfg.load();
+  if (!config) return { errors, widgets: [] };
+  return { errors, widgets: cfg.widgetList(config, SERVER) };
+}
+
+/** ギフト一覧。サーバーが動いていれば、実際の配信で届いたギフトも含む */
+export async function gifts() {
+  try {
+    return { source: 'server', gifts: await callServer('/api/gifts') };
+  } catch {
+    return { source: 'demo', gifts: DEMO_GIFTS };
+  }
+}
+
+export function media() {
+  const out = [];
+  const walk = (dir, prefix) => {
+    if (!fs.existsSync(dir)) return;
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.isDirectory()) walk(path.join(dir, ent.name), `${prefix}${ent.name}/`);
+      else if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(ent.name)) out.push(`media/${prefix}${ent.name}`);
+    }
+  };
+  walk(cfg.MEDIA_DIR, '');
+  return out;
+}
+
+const IMAGE_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/avif': 'avif' };
+
+/** 画像を URL から media/ に保存する（ルーレットの項目などに使う） */
+export async function addMediaFromUrl(url, name) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`画像を取得できませんでした（HTTP ${res.status}）`);
+  const type = (res.headers.get('content-type') || '').split(';')[0].trim();
+  const ext = IMAGE_TYPES[type];
+  if (!ext) throw new Error(`画像ではありません（${type || '種類不明'}）`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > 5 * 1024 * 1024) throw new Error('5MB より大きい画像は保存できません');
+  const base = (name || path.basename(new URL(url).pathname).replace(/\.[^.]+$/, '') || 'image')
+    .replace(/[^\p{L}\p{N}_-]+/gu, '-')
+    .slice(0, 60);
+  fs.mkdirSync(cfg.MEDIA_DIR, { recursive: true });
+  const file = `${base}.${ext}`;
+  fs.writeFileSync(path.join(cfg.MEDIA_DIR, file), buf);
+  return `media/${file}`;
+}
+
+/** テスト用のイベントを送る（サーバーが必要） */
+export async function testEvent(kind, opts = {}) {
+  await callServer('/api/simulate', { method: 'POST', body: { kind, ...opts } });
+  return `${kind} を送りました`;
+}
+
+export async function spinRoulette(id) {
+  await callServer('/api/control', { method: 'POST', body: { target: 'roulette', action: 'spin', data: id ? { id } : {} } });
+  return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
+}
+
+export async function control(target, action, data) {
+  await callServer('/api/control', { method: 'POST', body: { target, action, data } });
+  return `${target} に ${action} を送りました`;
+}
+
+export async function status() {
+  return callServer('/api/status');
+}

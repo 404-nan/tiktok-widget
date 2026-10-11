@@ -23,12 +23,20 @@ export class Hub {
     this.status = { mode: 'idle', username: null, message: '' };
     this.recent = [];
     this.seq = 0;
+    this.config = null;
+    this.seenGifts = new Map(); // 配信中に届いたギフト（名前 → { id, name, diamonds, image }）
   }
 
   addClient(ws) {
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
-    this.#send(ws, { type: 'hello', status: this.status, state: this.state });
+    this.#send(ws, { type: 'hello', status: this.status, state: this.state, config: this.config });
+  }
+
+  /** 設定が変わったらウィジェットに知らせる */
+  setConfig(config) {
+    this.config = config;
+    this.broadcast({ type: 'config', config });
   }
 
   /** 正規化済みイベントを集計に反映して配信する */
@@ -70,6 +78,10 @@ export class Hub {
     const s = this.state;
     switch (e.kind) {
       case 'gift': {
+        if (e.gift.name && !String(e.user.id).startsWith('demo_')) {
+          const { id, name, diamonds, image } = e.gift;
+          this.seenGifts.set(name, { id, name, diamonds, image });
+        }
         s.gifts += e.gift.count;
         s.diamonds += e.totalDiamonds;
         const key = e.user.id || e.user.name;
