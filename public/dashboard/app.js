@@ -27,10 +27,18 @@ const WIDGETS = [
   {
     id: 'gift-jar',
     name: 'ギフト瓶',
-    desc: '届いたギフトが瓶に落ちてたまっていきます。高いギフトほど玉が大きくなり、ラベルに合計コインが出ます。',
-    size: [500, 700],
-    actions: [['shake', '瓶をゆらす'], ['reset', '中身を空にする']],
+    desc: '届いたギフトが入れ物に落ちてたまっていきます。高いギフトほど玉が大きくなり、ラベルに合計コインが出ます。',
+    size: (v) => ({ jar: [500, 700], heart: [600, 600], potion: [520, 700] })[v.shape] ?? [500, 700],
+    actions: [['shake', 'ゆらす'], ['reset', '中身を空にする']],
     params: [
+      {
+        key: 'shape',
+        label: '入れ物の形',
+        type: 'select',
+        options: [['jar', '保存瓶'], ['heart', 'ハート'], ['potion', 'エリクサーのフラスコ']],
+        default: 'jar',
+      },
+      { key: 'liquid', label: '中の液体（たまるほど増える）', type: 'select', options: [['auto', '形に合わせる'], ['1', '表示'], ['0', '表示しない']], default: 'auto' },
       { key: 'title', label: 'ラベル', type: 'text', default: 'ギフト瓶' },
       { key: 'label', label: '合計コインを表示', type: 'bool', default: true },
       { key: 'minCoins', label: '入れる最低コイン', type: 'number', default: 1, min: 0 },
@@ -42,15 +50,17 @@ const WIDGETS = [
   {
     id: 'roulette',
     name: 'ルーレット',
-    desc: '決めたギフトが届くとルーレットがまわります。「名前*重み」で当たりやすさ（扇の大きさ）を変えられます。',
-    size: [600, 680],
+    desc: '決めたギフトが届くとルーレットがまわります。「名前*重み」で当たりやすさを変えられます（丸型は扇の大きさも変わります）。',
+    file: (v) => (v.type === 'strip' ? 'roulette-strip' : 'roulette'),
+    size: (v) => (v.type === 'strip' ? [820, 330] : [600, 680]),
     actions: [['spin', 'まわす'], ['reset', '待ち列を消す']],
     params: [
+      { key: 'type', label: '形', type: 'select', options: [['wheel', '丸（ホイール）'], ['strip', '横スライド']], default: 'wheel', inUrl: false },
       { key: 'items', label: '項目（1行に1つ。「名前*2」で2倍出やすい）', type: 'lines', default: 'ハズレ,歌う*2,一発ギャグ,ハズレ,変顔*2,質問に答える*2' },
       { key: 'gifts', label: 'まわすギフト名（カンマ区切り）', type: 'text', default: '', placeholder: '例: Rose, Doughnut' },
       { key: 'minCoins', label: 'これ以上のコインでもまわす（0 で無効）', type: 'number', default: 30, min: 0 },
       { key: 'perCount', label: '×5 なら 5 回まわす', type: 'bool', default: false },
-      { key: 'duration', label: '回転の秒数', type: 'number', default: 6, step: 0.5, min: 1 },
+      { key: 'duration', label: '回る秒数', type: 'number', default: 6, step: 0.5, min: 1 },
       { key: 'hold', label: '結果の表示秒数', type: 'number', default: 4, step: 0.5, min: 1 },
       { key: 'hint', label: '案内文（空なら自動）', type: 'text', default: '' },
       { key: 'sound', label: '効果音', type: 'bool', default: true },
@@ -342,11 +352,14 @@ function settingsFor(w) {
   return out;
 }
 
+const fileOf = (w, v) => w.file?.(v) ?? w.id;
+const sizeOf = (w, v) => (typeof w.size === 'function' ? w.size(v) : w.size);
+
 function buildUrl(w, values, extra = {}) {
-  const url = new URL(`/widgets/${w.id}.html`, location.origin);
+  const url = new URL(`/widgets/${fileOf(w, values)}.html`, location.origin);
   for (const prm of [...w.params, ...COMMON]) {
     const v = values[prm.key];
-    if (v === prm.default) continue;
+    if (v === prm.default || prm.inUrl === false) continue;
     url.searchParams.set(prm.key, prm.type === 'bool' ? (v ? '1' : '0') : String(v));
   }
   for (const [k, v] of Object.entries(extra)) url.searchParams.set(k, v);
@@ -377,7 +390,6 @@ function renderWidget() {
   const w = current;
   values = settingsFor(w);
   $('widgetDesc').textContent = w.desc;
-  $('sizeHint').textContent = `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
 
   const form = $('settings');
   form.replaceChildren();
@@ -488,6 +500,8 @@ function fieldFor(prm) {
 let previewTimer = null;
 function updateUrl(immediate = false) {
   $('widgetUrl').value = buildUrl(current, values);
+  const [sw, sh] = sizeOf(current, values);
+  $('sizeHint').textContent = `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${sw}・高さ ${sh} に設定してください。`;
   // 入力のたびに読み込み直すと重いので少し待つ
   clearTimeout(previewTimer);
   previewTimer = setTimeout(
@@ -500,7 +514,7 @@ function updateUrl(immediate = false) {
 }
 
 function fitPreview() {
-  const [w, h] = current.size;
+  const [w, h] = sizeOf(current, values);
   const box = $('preview');
   const scale = Math.min(1, box.clientWidth / w);
   const frame = $('frame');

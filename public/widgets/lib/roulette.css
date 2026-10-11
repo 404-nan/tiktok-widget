@@ -1,0 +1,54 @@
+/* ルーレット共通: 案内チップ、待ち回数、結果カード */
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 9px 12px;
+  background: var(--surface);
+  border-radius: var(--r);
+  box-shadow: var(--lift);
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip .icon { --size: 18px; color: var(--signal); }
+.queue { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity .2s linear; }
+.queue.show { opacity: 1; }
+.queue .num { font-size: 20px; line-height: 1; }
+
+/* 結果: テロップと同じ作り（朱の面 + 墨の面）をワイプで出す */
+.result {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  max-width: 92%;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .4));
+  pointer-events: none;
+}
+.result .kicker {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  flex: none;
+  background: var(--signal);
+  color: var(--paper);
+  clip-path: inset(0 100% 0 0);
+}
+.result .kicker .icon { --size: 34px; }
+.result .body {
+  display: grid;
+  gap: 2px;
+  min-width: 220px;
+  padding: 14px 28px 16px 22px;
+  background: var(--surface);
+  clip-path: inset(0 100% 0 0);
+}
+.result .label { font-size: 13px; font-weight: 700; color: var(--on-surface-dim); letter-spacing: .08em; }
+.result .name { font-size: 40px; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+.result .by { font-size: 13px; font-weight: 700; color: var(--on-surface-dim); }
+.result.show .kicker { clip-path: inset(0 0 0 0); transition: clip-path .36s var(--ease-wipe); }
+.result.show .body { clip-path: inset(0 0 0 0); transition: clip-path .5s var(--ease-wipe) .1s; }
+.result.hide { clip-path: inset(0 0 0 100%); transition: clip-path .36s var(--ease-wipe); }
