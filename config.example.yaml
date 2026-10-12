@@ -29,6 +29,21 @@ alerts:
         duration: 8
         text: 本当にありがとうございます！
 
+# コメント欄 … /widgets/chat.html（default 以外は ?id=名前）
+# この配信でギフトを送った人のコメントは、金の縁と送ったコインの合計で目立たせる。
+# 合計が gifterCoins 以上で金の帯 → bigGifterCoins 以上で金の縁 → topGifterCoins 以上で金の面。
+chats:
+  default:
+    style: telop # telop テロップ風（下から積み上がる）/ bubble 吹き出し風
+    maxItems: 8
+    lifetime: 60 # この秒数で古いものを消す（0 で消さない）
+    bigGifterCoins: 1000
+    topGifterCoins: 10000
+    hideWords: [] # 出さない言葉（NG ワード）。例: [宣伝, 荒らし]
+    hideUsers: [] # 出さないユーザーの ID（ボットなど）
+    hideCommands: true # 「!」で始まるコメント（ボットへのコマンド）を出さない
+    tts: false # 読み上げ（パソコンの日本語の声）。ギフトした人だけは ttsGiftersOnly: true
+
 # ギフト瓶 … /widgets/gift-jar.html（default 以外は ?id=名前）
 jars:
   default:

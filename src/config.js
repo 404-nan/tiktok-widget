@@ -247,6 +247,17 @@ function checkWinRules(value, where, issues) {
   });
 }
 
+// コメント欄: 項目どうしの組み合わせ（書いている途中でも保存できるよう、警告にとどめる）
+function checkChat(c, where, issues) {
+  if (!(c.gifterCoins <= c.bigGifterCoins && c.bigGifterCoins <= c.topGifterCoins)) {
+    issues.warnings.push(
+      `${where}: 目立たせる段階のコインは gifterCoins ≤ bigGifterCoins ≤ topGifterCoins の順にしてください（今: ${c.gifterCoins} / ${c.bigGifterCoins} / ${c.topGifterCoins}）`,
+    );
+  }
+  // 「@名前」と書いても ID として扱う
+  c.hideUsers = c.hideUsers.map((u) => u.replace(/^@/, ''));
+}
+
 function checkFields(section, raw, where, issues) {
   const { fields } = SCHEMA[section];
   const out = defaultsFor(section);
@@ -293,6 +304,7 @@ export function normalize(raw) {
     for (const [id, entry] of Object.entries(entries)) {
       if (!ID_RE.test(id)) issues.errors.push(`${section}.${id}: 名前は英数字と - _ だけにしてください（URL に使うため）`);
       config[section][id] = checkFields(section, entry, `${section}.${id}`, issues);
+      if (section === 'chats') checkChat(config[section][id], `${section}.${id}`, issues);
     }
   }
   return { config, ...issues };
@@ -492,7 +504,7 @@ export function reference() {
     '',
     `場所: ${CONFIG_PATH}`,
     '',
-    'セクションは theme（共通）と、ウィジェットごとの alerts / jars / goals / counters / roulettes。',
+    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
     'ギフト名は TikTok の英語名（Rose, Doughnut, Galaxy など）。list_gifts で配信中に届いたギフトを確認できる。',

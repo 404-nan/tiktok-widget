@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>コメント欄</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  /* 下から積み上がる一覧。はみ出した古いものは上から消える */
+  body { padding: 16px; }
+  #list {
+    --fs: 22px;
+    --av: 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+    height: 100%;
+    overflow: hidden;
+  }
+  .c { flex: none; display: flex; align-items: flex-start; gap: 10px; }
+  .c.flip { transition: transform .42s var(--ease-out); }
+  .face { position: relative; min-width: 0; overflow: hidden; }
+  .who { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: calc(var(--fs) * .64); font-weight: 700; line-height: 1.25; }
+  .name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 送ったコインの合計: 「1,200 コイン」 */
+  .coins { display: inline-flex; align-items: baseline; gap: 3px; flex: none; font-size: calc(var(--fs) * .8); line-height: 1; }
+  .coins .unit { font-family: var(--font); font-size: calc(var(--fs) * .5); font-weight: 700; letter-spacing: .04em; }
+  .text {
+    font-size: var(--fs);
+    font-weight: 700;
+    line-height: 1.38;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+  }
+  .no-avatars .avatar { display: none; }
+
+  /* 送った人のアイコン（文字の大きさに合わせる） */
+  .c > .avatar { width: var(--av); height: var(--av); font-size: calc(var(--av) * .44); }
+
+  /* --- テロップ風: 墨の面に左の帯。いちばん新しいものだけ帯が朱 --- */
+  .telop .face {
+    flex: 1;
+    display: grid;
+    gap: 2px;
+    padding: 8px 16px 9px 18px;
+    background: var(--surface);
+    border-radius: 2px var(--r) var(--r) 2px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .28);
+  }
+  .telop .face::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--rule);
+    transition: background-color .5s linear;
+  }
+  .telop .c.latest .face::before { background: var(--signal); }
+  .telop .who { color: var(--on-surface-dim); }
+  .telop .coins { color: var(--gold); }
+
+  /* 1段目: 金の帯 / 2段目: 太い金の帯と金の縁、名前も金 / 3段目: 金の面 */
+  .telop .c.t1 .face::before, .telop .c.t2 .face::before { background: var(--gold); }
+  .telop .c.t2 .face { box-shadow: inset 0 0 0 2px var(--gold), 0 6px 16px rgba(0, 0, 0, .28); padding-left: 22px; }
+  .telop .c.t2 .face::before { width: 9px; }
+  .telop .c.t2 .who { color: var(--gold); }
+  .telop .c.t3 .face { background: var(--gold); color: var(--ink); padding-left: 22px; }
+  .telop .c.t3 .face::before { width: 9px; background: var(--ink); }
+  .telop .c.t3 .who, .telop .c.t3 .coins { color: var(--ink); }
+
+  /* ライトテーマ: 白い面の上の金の文字は読みにくいので、金は帯と縁と札だけにする */
+  :root[data-theme=light] .telop .coins { padding: 3px 6px 2px; border-radius: 3px; background: var(--gold); color: var(--ink); font-size: calc(var(--fs) * .66); }
+  :root[data-theme=light] .telop .c.t2 .who { color: var(--ink); }
+  :root[data-theme=light] .telop .c.t3 .coins { background: var(--ink); color: var(--gold); }
+
+  /* --- 吹き出し風: 白い吹き出し。アイコン側の角だけ尖らせる --- */
+  .bubble#list { gap: 12px; }
+  .bubble .c { gap: 10px; }
+  .bubble .face {
+    display: grid;
+    gap: 2px;
+    max-width: calc(100% - var(--av) - 10px);
+    padding: 8px 16px 10px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 4px 18px 18px 18px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .28);
+  }
+  .no-avatars .bubble .face { max-width: 100%; }
+  .bubble .who { color: rgba(17, 17, 19, .58); }
+  .bubble .coins { padding: 3px 6px 2px; border-radius: 3px; background: var(--gold); color: var(--ink); font-size: calc(var(--fs) * .66); }
+  .bubble .c.t1 .face { box-shadow: inset 0 0 0 3px var(--gold), 0 6px 16px rgba(0, 0, 0, .28); }
+  .bubble .c.t2 .face { box-shadow: inset 0 0 0 6px var(--gold), 0 6px 16px rgba(0, 0, 0, .28); padding: 11px 19px 13px; }
+  .bubble .c.t3 .face { background: var(--gold); }
+  .bubble .c.t3 .who { color: var(--ink); }
+  .bubble .c.t3 .coins { background: var(--ink); color: var(--gold); }
+
+  /* 3段目は、出たときに一度だけ光を走らせる */
+  .c.t3 .face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .5) 50%, transparent 65%);
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+  .c.t3.in .face::after { transform: translateX(100%); transition: transform 1s var(--ease-out) .45s; }
+
+  /* 出る: 面をワイプして、文字がせり上がる */
+  .c > .avatar { clip-path: circle(0 at 50% 50%); }
+  .telop .face { clip-path: inset(0 100% 0 0); }
+  .bubble .face { clip-path: inset(0 100% 100% 0 round 4px 18px 18px 18px); }
+  .rise { transform: translateY(105%); }
+  .line { overflow: hidden; }
+  .c.in > .avatar { clip-path: circle(75% at 50% 50%); transition: clip-path .4s var(--ease-out); }
+  .c.in .face { clip-path: inset(0 0 0 0 round 0); transition: clip-path .46s var(--ease-wipe) .04s; }
+  .bubble .c.in .face { clip-path: inset(0 0 0 0 round 4px 18px 18px 18px); }
+  .c.in .rise { transform: none; transition: transform .5s var(--ease-out) .16s; }
+  .c.in .line + .line .rise { transition-delay: .22s; }
+  .c.instant, .c.instant * { transition: none !important; }
+
+  /* 消える: 右へ拭き取る */
+  .c.out { transition: opacity .3s linear .1s; opacity: 0; }
+  .c.out .face { clip-path: inset(0 0 0 100%); transition: clip-path .36s var(--ease-wipe); }
+  .bubble .c.out .face { clip-path: inset(0 0 0 100% round 4px 18px 18px 18px); }
+  .c.out > .avatar { clip-path: circle(0 at 50% 50%); transition: clip-path .3s var(--ease-wipe); }
+</style>
+</head>
+<body>
+<div id="list"></div>
+<script type="module">
+  import { setupWidget, connect, isFor, avatarNode, fmt, sleep, resolveColor } from './lib/overlay.js';
+  import { chatFilter, gifterTier, speechText } from './lib/chat.js';
+
+  // 設定は config.yaml の chats.<id>（?id= がなければ default）。URL パラメータでも上書きできる
+  const p = await setupWidget('chats', {
+    style: 'telop', maxItems: 8, lifetime: 60, avatars: true, fontSize: 22, color: 'accent',
+    highlight: true, showCoins: true, gifterCoins: 1, bigGifterCoins: 1000, topGifterCoins: 10000,
+    hideWords: [], hideUsers: [], hideCommands: true,
+    tts: false, ttsRate: 1.1, ttsVolume: 1, ttsName: true, ttsGiftersOnly: false,
+  });
+  // ダッシュボードのプレビュー（?sound=0）では読み上げない
+  const muted = new URLSearchParams(location.search).get('sound') === '0';
+
+  const list = document.getElementById('list');
+  list.classList.add(p.style === 'bubble' ? 'bubble' : 'telop');
+  if (!p.avatars) document.body.classList.add('no-avatars');
+  list.style.setProperty('--fs', `${p.fontSize}px`);
+  list.style.setProperty('--av', `${Math.round(p.fontSize * 1.65)}px`);
+  list.style.setProperty('--signal', resolveColor(p.color));
+
+  const visible = chatFilter(p);
+  const tierOf = (e) => gifterTier(e.giftCoins, p);
+
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  function build(e) {
+    const tier = p.highlight ? tierOf(e) : 0;
+    const c = el('div', `c${tier ? ` t${tier}` : ''}`);
+    const face = el('div', 'face');
+
+    const who = el('div', 'who');
+    who.append(el('span', 'name', e.user?.name || '名無し'));
+    if (tier && p.showCoins) {
+      const coins = el('span', 'coins num');
+      coins.append(el('span', null, fmt(e.giftCoins)), el('span', 'unit', 'コイン'));
+      coins.title = 'この配信で送ったコイン';
+      who.append(coins);
+    }
+    const l1 = el('div', 'line');
+    const r1 = el('div', 'rise');
+    r1.append(who);
+    l1.append(r1);
+    const l2 = el('div', 'line');
+    const r2 = el('div', 'rise');
+    r2.append(el('div', 'text', e.text));
+    l2.append(r2);
+    face.append(l1, l2);
+
+    c.append(avatarNode(e.user, Math.round(p.fontSize * 1.65)), face);
+    return c;
+  }
+
+  const live = () => [...list.children].filter((n) => !n.classList.contains('out'));
+
+  /** 古いものを拭き取って消す */
+  async function dismiss(c) {
+    if (c.classList.contains('out')) return;
+    clearTimeout(c.timer);
+    c.classList.add('out');
+    await sleep(420);
+    c.remove();
+  }
+
+  /** コメントを1件足す。instant は読み込み直したときの復元（動きなし） */
+  function add(e, { instant = false } = {}) {
+    // いま並んでいるものの位置を覚えておき、押し上げられる動きをなめらかにする
+    const before = new Map(live().map((n) => [n, n.getBoundingClientRect().top]));
+
+    const c = build(e);
+    if (instant) c.classList.add('instant', 'in');
+    for (const n of list.querySelectorAll('.latest')) n.classList.remove('latest');
+    c.classList.add('latest');
+    list.append(c);
+
+    // 件数を超えた分と、上にはみ出した分は古いものから消す
+    const items = live();
+    const over = items.length - p.maxItems;
+    items.slice(0, Math.max(0, over)).forEach((n) => (instant ? n.remove() : dismiss(n)));
+    const top = list.getBoundingClientRect().top;
+    for (const n of live()) {
+      if (n !== c && n.getBoundingClientRect().top < top - 1) instant ? n.remove() : dismiss(n);
+    }
+
+    if (!instant) {
+      for (const [n, y] of before) {
+        if (!n.isConnected || n.classList.contains('out')) continue;
+        const dy = y - n.getBoundingClientRect().top;
+        if (!dy) continue;
+        n.classList.remove('flip');
+        n.style.transform = `translateY(${dy}px)`;
+        requestAnimationFrame(() => {
+          n.classList.add('flip');
+          n.style.transform = '';
+        });
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('in')));
+    } else {
+      requestAnimationFrame(() => c.classList.remove('instant'));
+    }
+
+    if (p.lifetime > 0) {
+      const age = Math.max(0, Date.now() - (e.ts ?? Date.now()));
+      c.timer = setTimeout(() => dismiss(c), Math.max(0, p.lifetime * 1000 - age));
+    }
+  }
+
+  // --- 読み上げ ---
+  const tts = p.tts && !muted && 'speechSynthesis' in window;
+  let voice = null;
+  let waiting = 0;
+  function pickVoice() {
+    const ja = speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang));
+    // オフラインでも動く、パソコンに入っている声を先に
+    voice = ja.find((v) => v.localService) ?? ja[0] ?? null;
+  }
+  if (tts) {
+    pickVoice();
+    speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  }
+  function speak(e) {
+    if (!tts) return;
+    if (p.ttsGiftersOnly && tierOf(e) === 0) return;
+    // コメントが速すぎるときは読み飛ばす（読み上げが遅れ続けないように）
+    if (waiting >= 3) return;
+    const text = speechText(e, p);
+    if (!text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    if (voice) u.voice = voice;
+    u.rate = p.ttsRate;
+    u.volume = p.ttsVolume;
+    waiting += 1;
+    u.onend = u.onerror = () => (waiting = Math.max(0, waiting - 1));
+    speechSynthesis.speak(u);
+  }
+
+  connect({
+    hello(_status, _state, msg) {
+      // OBS を読み込み直したとき: 最近のコメントを動きなしで並べ直す（読み上げはしない）
+      if (list.children.length) return;
+      const now = Date.now();
+      const recent = (msg?.recentChats ?? [])
+        .filter((e) => visible(e) && (!p.lifetime || now - (e.ts ?? 0) < p.lifetime * 1000))
+        .slice(0, p.maxItems)
+        .reverse();
+      for (const e of recent) add(e, { instant: true });
+    },
+    event(e) {
+      if (e.kind !== 'chat' || !visible(e)) return;
+      add(e);
+      speak(e);
+    },
+    control(msg) {
+      if (!isFor(msg, 'chat') || msg.action !== 'reset') return;
+      for (const n of live()) dismiss(n);
+      if (tts) speechSynthesis.cancel();
+      waiting = 0;
+    },
+  });
+</script>
+</body>
+</html>

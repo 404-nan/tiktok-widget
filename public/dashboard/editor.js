@@ -4,7 +4,7 @@
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'rush', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'rush', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -20,6 +20,7 @@ const ENUM_LABELS = {
   'gainPreset.large': '大きく増える配信（+10 大 / +100 超 / +1000 最大）', 'gainPreset.medium': '中くらい（+3 / +10 / +30）',
   'gainPreset.small': '+1 から派手に（+1 / +3 / +5）', 'gainPreset.custom': '自分で決める（下の詳しい設定）',
   inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
+  telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -45,10 +46,16 @@ const LABELS = {
   image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
+  'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
+  fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
+  gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
+  hideWords: 'NG ワード（カンマ区切り）', hideUsers: '隠すユーザー（ID か名前、カンマ区切り）', hideCommands: '「!」で始まるコマンドを隠す',
+  tts: '読み上げる', ttsRate: '読み上げの速さ', ttsVolume: '読み上げの音量', ttsName: '名前も読む', ttsGiftersOnly: 'ギフトした人だけ読み上げる',
 };
 // フォームの上に出す、よく使う設定
 const BASIC = {
   alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
+  chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
   roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
   counters: ['show', 'layout', 'align', 'color'],
@@ -419,7 +426,7 @@ export function createEditor({ api, setMessage }) {
     } else if (field.type === 'list') {
       control = document.createElement('input');
       control.value = (value ?? []).join(', ');
-      control.placeholder = key === 'gifts' ? '例: Rose, Doughnut' : '';
+      control.placeholder = { gifts: '例: Rose, Doughnut', hideWords: '例: 宣伝, 荒らし', hideUsers: '例: spam_bot, @someone' }[key] ?? '';
       control.addEventListener('input', () =>
         save(key, control.value.split(',').map((s) => s.trim()).filter(Boolean), 500),
       );
@@ -817,6 +824,29 @@ export function createEditor({ api, setMessage }) {
           api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: r.extendMinCoins ?? 100 }),
         ),
         chip('RUSH 終了', 'square', control('rush', 'stop')),
+      );
+    } else if (tab === 'chats') {
+      // コメントと、ギフトを送った人のコメント（先にその人のギフトを送り、同じ人がコメントする）
+      const e = payload.config.chats?.[id] ?? {};
+      const say = (body) => api('/api/simulate', { kind: 'chat', ...body });
+      const gifterSays = (user, coins, text) => async () => {
+        try {
+          await api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: coins, count: 1, user });
+          await say({ user, text });
+        } catch (err) {
+          setMessage(err.message, true);
+        }
+      };
+      box.replaceChildren(
+        chip('コメントを送る', 'message-square', () => say({})),
+        chip(`ギフトした人のコメント（${e.gifterCoins ?? 1}〜）`, 'gift', gifterSays('みお', Math.max(30, e.gifterCoins ?? 1), 'ギフト送りました！')),
+        chip(`2段目（${e.bigGifterCoins ?? 1000}〜）`, 'gift', gifterSays('Ken', e.bigGifterCoins ?? 1000, 'いつも楽しい配信ありがとう')),
+        chip(`3段目（${e.topGifterCoins ?? 10000}〜）`, 'gift', gifterSays('つむぎ', e.topGifterCoins ?? 10000, '今日もがんばって！応援してます')),
+        chip('長いコメント', null, () =>
+          say({ text: 'はじめまして！いつも切り抜きから見ていて、今日やっと生で見られました。声がすごく落ち着くので作業用に流してます' }),
+        ),
+        chip('「!」のコマンド', null, () => say({ text: '!roulette' })),
+        chip('コメント欄を空にする', null, control('chat', 'reset')),
       );
     } else if (tab === 'counters' || tab === 'goals' || tab === 'rankings') {
       box.append(

@@ -57,6 +57,39 @@ export const SCHEMA = {
     },
   },
 
+  chats: {
+    kind: 'map',
+    page: 'chat',
+    title: 'コメント欄',
+    desc:
+      '配信のコメントを流して見せる。テロップ風（下から積み上がる一覧）か吹き出し風。' +
+      'この配信でギフトを送った人のコメントは金の縁と送ったコインの合計で目立たせ、多く送った人ほど目立つ（3段階）。' +
+      'NG ワード・隠すユーザー・「!」で始まるコマンドは出さない。読み上げ（パソコンの日本語の声）もできる。' +
+      'URL は /widgets/chat.html?id=<名前>',
+    size: () => [460, 640],
+    fields: {
+      style: oneOf(['telop', 'bubble'], 'telop', 'telop テロップ風（下から積み上がる一覧）/ bubble 吹き出し風'),
+      maxItems: num(8, '一度に出しておく最大件数。超えたら古いものから消える', { min: 1, max: 30 }),
+      lifetime: num(60, 'この秒数がたったコメントは消す（0 で消さない）', { min: 0, max: 3600 }),
+      avatars: bool(true, 'アイコンを出す'),
+      fontSize: num(22, 'コメントの文字の大きさ（px）', { min: 12, max: 60 }),
+      color: color('accent', 'いちばん新しいコメントの帯の色'),
+      highlight: bool(true, 'この配信でギフトを送った人のコメントを目立たせる'),
+      showCoins: bool(true, '送ったコインの合計を名前の横に出す'),
+      gifterCoins: num(1, '合計がこのコイン以上の人を目立たせる（1段目: 金の帯・細い縁）', { min: 1 }),
+      bigGifterCoins: num(1000, '2段目（太い金の縁）になる合計コイン', { min: 1 }),
+      topGifterCoins: num(10000, '3段目（金の面）になる合計コイン', { min: 1 }),
+      hideWords: list([], 'この言葉を含むコメントは出さない（NG ワード。大文字小文字は区別しない）'),
+      hideUsers: list([], 'このユーザー（ID か名前）のコメントは出さない'),
+      hideCommands: bool(true, '「!」で始まるコメント（ボットへのコマンド）を出さない'),
+      tts: bool(false, 'コメントを読み上げる（パソコンに入っている日本語の声）'),
+      ttsRate: num(1.1, '読み上げの速さ（1 がふつう）', { min: 0.5, max: 2 }),
+      ttsVolume: num(1, '読み上げの音量（0〜1）', { min: 0, max: 1 }),
+      ttsName: bool(true, '名前も読む（「さくらさん、こんばんは」）'),
+      ttsGiftersOnly: bool(false, 'ギフトを送った人（1段目以上）のコメントだけ読む'),
+    },
+  },
+
   jars: {
     kind: 'map',
     page: 'gift-jar',

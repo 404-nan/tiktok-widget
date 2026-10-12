@@ -170,7 +170,8 @@ export const list = (s) =>
 
 /**
  * サーバーに WebSocket でつなぎ、切れたら自動でつなぎ直す。
- * handlers: { hello(status, state), event(e, state), state(state), status(status), control(msg) }
+ * handlers: { hello(status, state, msg), event(e, state), state(state), status(status), control(msg) }
+ * hello の msg には、最近のコメント（recentChats）なども入っている
  */
 export function connect(handlers) {
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws`;
@@ -185,7 +186,7 @@ export function connect(handlers) {
         return;
       }
       if (msg.type === 'hello' || msg.type === 'config') handleConfig(msg.config);
-      if (msg.type === 'hello') handlers.hello?.(msg.status, msg.state);
+      if (msg.type === 'hello') handlers.hello?.(msg.status, msg.state, msg);
       else if (msg.type === 'event') handlers.event?.(msg.event, msg.state);
       else if (msg.type === 'state') handlers.state?.(msg.state);
       else if (msg.type === 'status') handlers.status?.(msg.status);

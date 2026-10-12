@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 import { publicConfig } from './config.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
+const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
 
 export function emptyState() {
   return {
@@ -30,6 +31,7 @@ export class Hub extends EventEmitter {
     this.state = emptyState();
     this.status = { mode: 'idle', username: null, message: '' };
     this.recent = [];
+    this.recentChats = []; // 新しい順
     this.seq = 0;
     this.config = null;
     this.seenGifts = new Map(); // 配信中に届いたギフト（名前 → { id, name, diamonds, image }）
@@ -39,7 +41,8 @@ export class Hub extends EventEmitter {
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
     // ウィジェットにはパスワードなどを抜いた設定を配る
-    this.#send(ws, { type: 'hello', status: this.status, state: this.state, config: publicConfig(this.config) });
+    // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
+    this.#send(ws, { type: 'hello', status: this.status, state: this.state, config: publicConfig(this.config), recentChats: this.recentChats });
   }
 
   /** 設定が変わったらウィジェットに知らせる */
@@ -76,6 +79,7 @@ export class Hub extends EventEmitter {
     this.gifters.clear();
     this.likers.clear();
     this.recent = [];
+    this.recentChats = [];
     this.broadcast({ type: 'state', state: this.state });
     this.control('all', 'reset');
     this.emit('reset');
@@ -133,9 +137,15 @@ export class Hub extends EventEmitter {
       case 'share':
         s.shares += 1;
         break;
-      case 'chat':
+      case 'chat': {
         s.comments += 1;
+        // この配信でこの人が送ったコインの合計（コメント欄で目立たせる）
+        const key = e.user?.id || e.user?.name || '?';
+        e.giftCoins = this.gifters.get(key)?.diamonds ?? 0;
+        this.recentChats.unshift(e);
+        this.recentChats.length = Math.min(this.recentChats.length, RECENT_CHATS);
         break;
+      }
     }
   }
 }
