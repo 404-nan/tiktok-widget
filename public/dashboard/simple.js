@@ -57,7 +57,7 @@ const CUTIN_SCALE = {
 export const SIMPLE = {
   alerts: {
     groups: [
-      { title: 'いつ出す', fields: ['events', 'minCoins'] },
+      { title: 'いつ出す', fields: ['events', 'gifts', 'minCoins'] },
       {
         title: '見た目',
         presets: [

@@ -2,6 +2,7 @@
 // 「かんたん」モードで使う。ここで触らない項目（users・perCount など）は、そのまま残す。
 
 import { icon } from '/widgets/lib/overlay.js';
+import { giftPicker } from './gift-picker.js';
 
 const el = (tag, props = {}, ...children) => {
   const n = Object.assign(document.createElement(tag), props);
@@ -107,38 +108,22 @@ export function rulesEditor({ type, value = [], gifts = [], onChange }) {
     const cond = el('select', { className: 'rule-cond' });
     cond.append(new Option('このギフト', 'gifts'), new Option('このコイン以上', 'minCoins'));
     cond.value = !r.gifts?.length && r.minCoins != null ? 'minCoins' : 'gifts';
-    const names = el('input', { value: (r.gifts ?? []).join(', '), placeholder: 'ギフトの名前（例: Rose）', className: 'rule-gifts' });
-    const pick = el('select', { className: 'rule-pick', title: 'ギフトを選んで足す' });
-    pick.append(new Option('＋ 選ぶ', ''));
-    for (const g of gifts) pick.append(new Option(`${g.name}（${g.diamonds} コイン）`, g.name));
+    const picker = giftPicker({ value: r.gifts ?? [], gifts, onChange: (names) => { r.gifts = names; commit(0); } });
     const coins = num(r.minCoins ?? 100, { min: 0, title: 'コイン' });
-    const readNames = () => names.value.split(/[,、]/).map((s) => s.trim()).filter(Boolean);
     const show = () => {
       const byGift = cond.value === 'gifts';
-      names.hidden = !byGift;
-      pick.hidden = !byGift;
+      picker.hidden = !byGift;
       coins.hidden = byGift;
     };
     show();
     cond.addEventListener('change', () => {
       if (cond.value === 'gifts') {
         delete r.minCoins;
-        r.gifts = readNames();
       } else {
         delete r.gifts;
         r.minCoins = Number(coins.value) || 0;
       }
       show();
-      commit(0);
-    });
-    names.addEventListener('input', () => ((r.gifts = readNames()), commit(500)));
-    pick.addEventListener('change', () => {
-      if (!pick.value) return;
-      const now = readNames();
-      if (!now.includes(pick.value)) now.push(pick.value);
-      names.value = now.join(', ');
-      r.gifts = now;
-      pick.value = '';
       commit(0);
     });
     coins.addEventListener('input', () => ((r.minCoins = Number(coins.value) || 0), commit(500)));
@@ -152,7 +137,7 @@ export function rulesEditor({ type, value = [], gifts = [], onChange }) {
     return el(
       'div',
       { className: 'rule-row' },
-      el('div', { className: 'rule-when' }, cond, names, pick, coins),
+      el('div', { className: 'rule-when' }, cond, picker, coins),
       el('div', { className: 'rule-then' }, icon('arrow-right'), ...kind.effect(r, commit), del),
     );
   };

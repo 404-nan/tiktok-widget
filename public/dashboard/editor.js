@@ -5,6 +5,7 @@ import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
 import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
 import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
+import { giftPicker } from './gift-picker.js';
 
 const $ = (id) => document.getElementById(id);
 const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'minecraft', 'theme'];
@@ -488,9 +489,6 @@ export function createEditor({ api, setMessage }) {
   // OBS に入れる URL をまとめて見る
   function renderObs() {
     const box = $('cards');
-    const steps = document.createElement('ol');
-    steps.className = 'steps';
-    for (const t of ['「見本を出す」を ON にする', 'URL を1つずつ配信ソフトに入れて、場所を決める', '配信を始めたら「接続」']) steps.append(Object.assign(document.createElement('li'), { textContent: t }));
     const sample = document.createElement('div'); sample.className = 'sample-control';
     const sampleRow = document.createElement('label'); sampleRow.className = 'check';
     const sampleBtn = document.createElement('input'); sampleBtn.type = 'checkbox'; sampleBtn.setAttribute('aria-label', '見本を出す');
@@ -499,7 +497,7 @@ export function createEditor({ api, setMessage }) {
     const sampleText = document.createElement('p'); sampleText.className = 'hint';
     const updateSample = (s) => { sampleBtn.checked = Boolean(s.on); sampleText.textContent = s.on && s.until ? `あと ${Math.max(1, Math.ceil((s.until - Date.now()) / 60000))} 分` : '場所と大きさを決めるときに使います。15分で自動で消えます（配信中は出ません）'; };
     sampleBtn.onchange = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.checked }, 'POST')); } catch (e) { sampleBtn.checked = false; setMessage(e.message, true); } };
-    api('/api/sample').then(updateSample).catch(() => {}); sample.append(viewHead('見本を出す'), sampleRow, sampleText);
+    api('/api/sample').then(updateSample).catch(() => {}); sample.append(sampleRow, sampleText);
     const rows = obsList().filter((w) => w.section !== 'all').map((w) => {
       const row = document.createElement('div');
       row.className = 'srow url-item';
@@ -524,8 +522,7 @@ export function createEditor({ api, setMessage }) {
       row.append(icon(INFO[w.section].icon), main, copy, setting);
       return row;
     });
-    box.replaceChildren(viewHead('配信ソフトに入れる', '使うものを1つずつ、OBS / TikTok LIVE Studio の「ブラウザ」ソースとして入れます'), steps);
-    steps.after(sample);
+    box.replaceChildren(viewHead('配信ソフトに入れる', '使うものを1つずつ、OBS / TikTok LIVE Studio の「ブラウザ」ソースとして入れます'), sample);
     if (rows.length) box.append(listGroup('URL（1つずつ、別のソースとして入れます）', rows));
     else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを足す」から選んでください。' }));
     const all = obsList().find((w) => w.section === 'all');
@@ -802,15 +799,17 @@ export function createEditor({ api, setMessage }) {
         control.append(l);
       }
     } else if (field.type === 'list') {
-      control = document.createElement('input');
-      control.value = (value ?? []).join(', ');
-      control.placeholder = { gifts: '例: Rose, Doughnut', hideWords: '例: 宣伝, 荒らし', hideUsers: '例: spam_bot, @someone' }[key] ?? '';
-      control.addEventListener('input', () =>
-        save(key, control.value.split(',').map((s) => s.trim()).filter(Boolean), 500),
-      );
       if (key === 'gifts') {
-        wrap.append(control, giftChips(control, key));
+        control = giftPicker({ value: value ?? [], gifts, onChange: (names) => save(key, names) });
+        wrap.append(control);
         control = null;
+      } else {
+        control = document.createElement('input');
+        control.value = (value ?? []).join(', ');
+        control.placeholder = { gifts: '例: Rose, Doughnut', hideWords: '例: 宣伝, 荒らし', hideUsers: '例: spam_bot, @someone' }[key] ?? '';
+        control.addEventListener('input', () =>
+          save(key, control.value.split(',').map((s) => s.trim()).filter(Boolean), 500),
+        );
       }
     } else if (tab === 'bosses' && key === 'roulette') {
       // 討伐で回すルーレット: 設定にあるルーレットから選ぶ
@@ -885,27 +884,6 @@ export function createEditor({ api, setMessage }) {
     if (control) wrap.append(control);
     if (wrap.hint) wrap.append(wrap.hint);
     return wrap;
-  }
-
-  // ギフト名の欄の下に、知っているギフトをチップで出す（押すと追加）
-  function giftChips(input, key) {
-    const box = document.createElement('span');
-    box.className = 'gift-chips';
-    for (const g of gifts.slice(0, 14)) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'mini-chip pressable';
-      b.textContent = g.name;
-      b.title = `${g.diamonds} コイン${g.seen ? '・配信で受信' : ''}`;
-      b.addEventListener('click', () => {
-        const names = input.value.split(',').map((s) => s.trim()).filter(Boolean);
-        if (!names.includes(g.name)) names.push(g.name);
-        input.value = names.join(', ');
-        save(key, names);
-      });
-      box.append(b);
-    }
-    return box;
   }
 
   function colorControl(value, onChange) {
@@ -1227,7 +1205,7 @@ export function createEditor({ api, setMessage }) {
 
   function fillActions() {
     const box = $('actions');
-    box.replaceChildren(chip(simple() ? 'テストのギフトを送る' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
+    box.replaceChildren(chip(simple() ? '見本のギフトを出してみる' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
     if (!live) {
       const sample = chip('見本を出す', 'layout-template', async () => {
         try {

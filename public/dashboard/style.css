@@ -620,6 +620,21 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 .rule-check { min-height: 36px; font-size: 13px; }
 .rule-then .icon-btn { margin-left: auto; }
 
+/* ギフトを名前の入力ではなく、一覧から選ぶ */
+.gift-picker { position: relative; display: grid; gap: 8px; min-width: 0; }
+.gift-picker-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.gift-picker-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px 0 10px; border-radius: var(--r-pill); background: var(--accent-fill); box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
+.gift-picker-remove { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; font-size: 18px; line-height: 1; }
+.gift-picker-add { min-height: 32px; padding: 0 12px; border: 1px dashed var(--stroke-primary); border-radius: var(--r-pill); background: transparent; color: var(--text-secondary); font-size: 13px; }
+.gift-picker-panel { position: absolute; z-index: 12; top: calc(100% + 6px); left: 0; width: min(360px, 100%); max-height: min(420px, 60vh); padding: 10px; overflow: auto; border-radius: var(--r-md); background: var(--glass-solid); box-shadow: var(--shadow), inset 0 0 0 1px var(--stroke-secondary); }
+.gift-picker-search { width: 100%; min-height: 38px; margin-bottom: 8px; }
+.gift-picker-list { display: grid; gap: 2px; }
+.gift-picker-group { margin: 7px 4px 3px; font-size: 11px; color: var(--text-secondary); }
+.gift-picker-option, .gift-picker-custom { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 38px; padding: 6px 8px; border: 0; border-radius: var(--r-sm); background: transparent; text-align: left; }
+.gift-picker-option small { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.gift-picker-custom { color: var(--attention); }
+.rule-when .gift-picker { flex: 1 1 160px; }
+
 /* スマホ: プレビューを上に貼り付けて、変えた結果を見ながら決められるようにする */
 @media (max-width: 760px) {
   body[data-mode] .topbar { position: static; }
@@ -897,6 +912,18 @@ body:not(.ai-on) #aiView { display: none; }
 
 /* 配信中は、テスト送信が画面に出るだけだと知らせる */
 #actions.live::after { content: "配信中のテストは画面に出るだけです（フォローやコインの数・WIN・タイマーは変わりません）"; flex: 0 0 100%; font-size: 12px; color: var(--text-tertiary); }
+
+@media (max-width: 600px) {
+  .gift-picker-panel { position: fixed; left: 10px; right: 10px; top: 64px; width: auto; max-height: calc(100vh - 80px); }
+  [data-mode=simple] #connectionSection.connected #username,
+  [data-mode=simple] #connectionSection.connected .input-wrap,
+  [data-mode=simple] #connectionSection.connected .field,
+  [data-mode=simple] #connectionSection.connected #connectBtn,
+  [data-mode=simple] #connectionSection.connected #demoBtn { display: none; }
+  [data-mode=simple] #connectionSection.connected #connectForm { min-height: 30px; }
+  [data-mode=simple] #connectionSection.connected #connectForm .row { display: flex; justify-content: flex-end; }
+  [data-mode=simple] #connectionSection.connected #connectForm .message { display: none; }
+}
 
 /* スマホ: サイドバーは、上に貼り付く横並びのボタンになる */
 @media (max-width: 760px) {

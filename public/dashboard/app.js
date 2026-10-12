@@ -11,6 +11,7 @@ function renderStatus(status) {
   mode = status.mode;
   $('status').dataset.mode = status.mode;
   $('statusText').textContent = statusText(status);
+  $('connectionSection').classList.toggle('connected', status.mode === 'live');
   const active = ['live', 'connecting', 'demo'].includes(status.mode);
   $('disconnectBtn').hidden = !active;
   $('connectBtn').hidden = active;
