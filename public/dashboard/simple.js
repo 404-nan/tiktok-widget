@@ -1,15 +1,18 @@
-// 「かんたん」モードの中身: ウィジェットのやさしい説明、よく使う項目だけの一覧、押すだけで決まる「型」。
+// 「かんたん」モードの中身。
+// iPhone の設定のように、まとまりごとの一覧 → 押すと中に入る、という形にする:
+//   ホーム（画面に出しているものの一覧）→ ウィジェット1つの設定（まとまりごとの行）
 // 細かい項目・YAML は「くわしく」モード（今までのフォーム）で触る。
+// 新しいウィジェットや項目を足したら、ここに「かんたん」で出すもの（説明・まとまり・呼び名・型）も足す。
 
-// カードの並び（グループごと）
+// 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['まずはこれ', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
+  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush']],
-  ['そのほか', ['minecraft', 'theme']],
+  ['連携', ['minecraft']],
 ];
 
-// カードに出すアイコンとひとこと（URL や設定の名前は書かない）
+// アイコンとひとこと（URL や設定の名前は書かない）
 export const INFO = {
   alerts: { icon: 'gift', desc: 'ギフトやフォローが来たら、名前つきのテロップを出す' },
   chats: { icon: 'message-circle', desc: 'コメントを画面に流す。読み上げもできる' },
@@ -30,7 +33,7 @@ export const INFO = {
 
 // 配信の大きさで、演出が出るコインの境目をまとめて決める
 const CUTIN_SCALE = {
-  title: '配信の大きさ（演出が出るコインの境目）',
+  title: '配信の大きさ',
   options: [
     { label: '小さめ（10 コインから）', value: { minCoins: 10, greenCoins: 30, redCoins: 100, goldCoins: 500, rainbowCoins: 2000 } },
     { label: 'ふつう（100 コインから）', value: { minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000 } },
@@ -39,112 +42,235 @@ const CUTIN_SCALE = {
 };
 
 /**
- * ウィジェットごとの「かんたん」の中身。
- * fields: 出す項目（上から順）。presets: 押すとまとめて値が入る「型」。note: 項目の代わりに出す案内。
+ * ウィジェットごとの設定のまとまり。
+ * groups: [{ title, presets?（押すとまとめて値が入る型）, fields（出す項目） }]、note: 項目の代わりに出す案内
  */
 export const SIMPLE = {
   alerts: {
-    presets: [
+    groups: [
+      { title: 'いつ出す', fields: ['events', 'minCoins'] },
       {
-        title: '出しかた',
-        options: [
-          { label: 'ひかえめ（短く・音なし）', value: { duration: 3, sound: false } },
-          { label: 'ふつう', value: { duration: 4.5, sound: true, volume: 0.3 } },
-          { label: 'しっかり見せる（長め）', value: { duration: 7, sound: true, volume: 0.5 } },
+        title: '見た目',
+        presets: [
+          {
+            title: '出しかた',
+            options: [
+              { label: 'ひかえめ', value: { duration: 3, sound: false } },
+              { label: 'ふつう', value: { duration: 4.5, sound: true, volume: 0.3 } },
+              { label: 'しっかり', value: { duration: 7, sound: true, volume: 0.5 } },
+            ],
+          },
         ],
+        fields: ['position', 'align'],
       },
+      { title: '大きいギフト・特別なギフト', fields: ['bigCoins', 'rules'] },
     ],
-    fields: ['events', 'position', 'align', 'minCoins', 'bigCoins', 'rules'],
   },
   chats: {
-    fields: ['style', 'fontSize', 'maxItems', 'highlight', 'hideWords', 'tts'],
+    groups: [
+      { title: '見た目', fields: ['style', 'fontSize', 'maxItems'] },
+      { title: 'ギフトした人', fields: ['highlight'] },
+      { title: '読み上げ・出さない言葉', fields: ['tts', 'hideWords'] },
+    ],
   },
   counters: {
-    fields: ['show', 'layout', 'color'],
+    groups: [
+      { title: '出す数', fields: ['show'] },
+      { title: '見た目', fields: ['layout', 'color'] },
+    ],
   },
   goals: {
-    fields: ['title', 'metric', 'goal', 'step', 'color'],
+    groups: [
+      { title: '目標', fields: ['title', 'metric', 'goal', 'step'] },
+      { title: '見た目', fields: ['color'] },
+    ],
   },
   rankings: {
-    fields: ['title', 'metric', 'limit'],
+    groups: [{ title: '中身', fields: ['title', 'metric', 'limit'] }],
   },
   roulettes: {
-    presets: [
+    groups: [
+      { title: 'いつ回す', fields: ['gifts'] },
       {
-        title: '項目の型（押すと今の項目と入れ替わります）',
-        confirm: '今の項目を、この型の項目に入れ替えますか？',
-        options: [
-          { label: '罰ゲーム', value: { items: ['歌う*2', '変顔*2', '一発ギャグ', 'モノマネ', 'セーフ*2'] } },
-          { label: 'ごほうび', value: { items: ['名前を呼ぶ*3', '質問に答える*2', 'リクエストに応える', '大当たり'] } },
-          { label: '当たり・ハズレ', value: { items: ['当たり', 'ハズレ*3'] } },
+        title: '項目',
+        presets: [
+          {
+            title: '型から選ぶ（今の項目と入れ替わります）',
+            confirm: '今の項目を、この型の項目に入れ替えますか？',
+            options: [
+              { label: '罰ゲーム', value: { items: ['歌う*2', '変顔*2', '一発ギャグ', 'モノマネ', 'セーフ*2'] } },
+              { label: 'ごほうび', value: { items: ['名前を呼ぶ*3', '質問に答える*2', 'リクエストに応える', '大当たり'] } },
+              { label: '当たり・ハズレ', value: { items: ['当たり', 'ハズレ*3'] } },
+            ],
+          },
         ],
+        fields: ['items'],
       },
+      { title: '見た目', fields: ['name', 'style'] },
     ],
-    fields: ['name', 'style', 'gifts', 'items'],
   },
   jars: {
-    fields: ['shape', 'title', 'gifts', 'liquidColor'],
+    groups: [
+      { title: '入れるギフト', fields: ['gifts'] },
+      { title: '見た目', fields: ['shape', 'title', 'liquidColor'] },
+    ],
   },
   wins: {
-    presets: [
+    groups: [
+      { title: '数えかた', fields: ['title', 'goal', 'negative'] },
+      { title: 'ギフトで増やす・減らす', fields: ['rules'] },
       {
-        title: '配信の大きさ（演出が派手になる増え方・減り方）',
-        options: [
-          { label: '±1 から派手に', value: { lossPreset: 'small', gainPreset: 'small' } },
-          { label: '中くらい（±3 から）', value: { lossPreset: 'medium', gainPreset: 'medium' } },
-          { label: '大きく動く配信（±10 から）', value: { lossPreset: 'large', gainPreset: 'large' } },
+        title: '演出',
+        presets: [
+          {
+            title: '派手になる増え方・減り方',
+            options: [
+              { label: '±1 から', value: { lossPreset: 'small', gainPreset: 'small' } },
+              { label: '±3 から', value: { lossPreset: 'medium', gainPreset: 'medium' } },
+              { label: '±10 から', value: { lossPreset: 'large', gainPreset: 'large' } },
+            ],
+          },
         ],
+        fields: ['style'],
       },
     ],
-    fields: ['title', 'goal', 'rules', 'negative', 'style'],
   },
   timers: {
-    fields: ['startMinutes', 'coinSeconds', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds', 'maxHours'],
+    groups: [
+      { title: '時間', fields: ['startMinutes', 'maxHours'] },
+      { title: 'ギフトで延ばす', fields: ['coinSeconds', 'rules'] },
+      { title: 'フォロー・いいねで延ばす', fields: ['followSeconds', 'likeEvery', 'likeSeconds'] },
+    ],
   },
   bosses: {
-    fields: ['name', 'hp', 'hpScale', 'image', 'damageFrom', 'defeatText'],
+    groups: [
+      { title: 'ボス', fields: ['name', 'hp', 'hpScale', 'image'] },
+      { title: 'ダメージ', fields: ['damageFrom'] },
+      { title: '倒したとき', fields: ['defeatText'] },
+    ],
   },
   cutins: {
-    presets: [CUTIN_SCALE],
-    fields: ['gifts', 'redText', 'goldText', 'rainbowText', 'sound'],
+    groups: [
+      { title: 'いつ出す', presets: [CUTIN_SCALE], fields: ['gifts'] },
+      { title: '文字と音', fields: ['redText', 'goldText', 'rainbowText', 'sound'] },
+    ],
   },
   imageCutins: {
-    presets: [CUTIN_SCALE],
-    fields: ['photo', 'layout', 'gifts', 'redText', 'goldText', 'sound'],
+    groups: [
+      { title: '写真', fields: ['photo', 'layout'] },
+      { title: 'いつ出す', presets: [CUTIN_SCALE], fields: ['gifts'] },
+      { title: '文字と音', fields: ['redText', 'goldText', 'sound'] },
+    ],
   },
   rush: {
-    presets: [
+    groups: [
+      { title: '使う', fields: ['enabled'] },
       {
-        title: '配信の大きさ（突入するコイン）',
-        options: [
-          { label: '小さめ（1,000 コインで突入）', value: { enterCoins: 1000, extendMinCoins: 10 } },
-          { label: 'ふつう（5,000 コインで突入）', value: { enterCoins: 5000, extendMinCoins: 50 } },
-          { label: '大きい（20,000 コインで突入）', value: { enterCoins: 20000, extendMinCoins: 100 } },
+        title: 'いつ入る',
+        presets: [
+          {
+            title: '配信の大きさ',
+            options: [
+              { label: '小さめ（1,000 コイン）', value: { enterCoins: 1000, extendMinCoins: 10 } },
+              { label: 'ふつう（5,000 コイン）', value: { enterCoins: 5000, extendMinCoins: 50 } },
+              { label: '大きい（20,000 コイン）', value: { enterCoins: 20000, extendMinCoins: 100 } },
+            ],
+          },
         ],
+        fields: ['gifts'],
       },
+      { title: '中身', fields: ['duration', 'text', 'enterText'] },
     ],
-    fields: ['enabled', 'gifts', 'duration', 'text', 'enterText'],
   },
   minecraft: {
     note: 'Minecraft 連携は、サーバーのアドレスやパスワードを入れる必要があるので「くわしく」で設定します。',
-    fields: [],
+    groups: [],
   },
   theme: {
-    presets: [
+    groups: [
       {
-        title: '色の組み合わせ',
-        options: [
-          { label: '朱と金（初めの色）', value: { accent: '#FF4F1F', gold: '#FFC53D' } },
-          { label: '青', value: { accent: '#3FA9F5', gold: '#FFC53D' } },
-          { label: 'ピンク', value: { accent: '#FF4F9A', gold: '#FFC53D' } },
-          { label: '緑', value: { accent: '#2ECC71', gold: '#FFC53D' } },
-          { label: '紫', value: { accent: '#9B5DE5', gold: '#FFC53D' } },
+        title: '色',
+        presets: [
+          {
+            title: '色の組み合わせ',
+            options: [
+              { label: '朱と金', value: { accent: '#FF4F1F', gold: '#FFC53D' } },
+              { label: '青', value: { accent: '#3FA9F5', gold: '#FFC53D' } },
+              { label: 'ピンク', value: { accent: '#FF4F9A', gold: '#FFC53D' } },
+              { label: '緑', value: { accent: '#2ECC71', gold: '#FFC53D' } },
+              { label: '紫', value: { accent: '#9B5DE5', gold: '#FFC53D' } },
+            ],
+          },
         ],
+        fields: ['mode', 'accent', 'gold'],
       },
+      { title: '大きさ', fields: ['scale'] },
     ],
-    fields: ['mode', 'accent', 'gold', 'scale'],
   },
 };
+
+// 「かんたん」での呼び名（そのまま読んで分かる言い方にする。説明文は出さない）
+export const SIMPLE_LABELS = {
+  'alerts.events': '出すきっかけ', 'alerts.minCoins': '何コインから出す', 'alerts.position': 'たての位置', 'alerts.align': 'よこの位置',
+  'alerts.bigCoins': '何コインから金色にする', 'alerts.rules': 'このギフトのときだけ特別にする',
+  'chats.style': '形', 'chats.fontSize': '文字の大きさ', 'chats.maxItems': '一度に出す数', 'chats.highlight': 'ギフトした人を目立たせる',
+  'chats.tts': 'コメントを読み上げる', 'chats.hideWords': '出さない言葉（、で区切る）',
+  'counters.show': '出す数', 'counters.layout': '並べかた', 'counters.color': '色',
+  'goals.title': '見出し', 'goals.metric': '数えるもの', 'goals.goal': '目標の数', 'goals.step': '達成したら目標を上げる数', 'goals.color': 'バーの色',
+  'rankings.title': '見出し', 'rankings.metric': '順位を決めるもの', 'rankings.limit': '出す人数',
+  'roulettes.gifts': '回すギフト', 'roulettes.items': '項目と当たりやすさ', 'roulettes.name': '名前', 'roulettes.style': '形',
+  'jars.gifts': '入れるギフト（空なら全部）', 'jars.shape': '入れ物の形', 'jars.title': 'ラベルの文字', 'jars.liquidColor': '中の液体の色',
+  'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.negative': 'マイナスまで減らせる', 'wins.rules': 'ギフトで WIN 数を変える', 'wins.style': '形',
+  'timers.startMinutes': '初めの時間', 'timers.maxHours': '上限（0 でなし）', 'timers.coinSeconds': '1 コインで延びる', 'timers.rules': 'このギフトで決まった時間だけ延ばす',
+  'timers.followSeconds': 'フォローで延びる', 'timers.likeEvery': 'いいね何回ごとに延ばす', 'timers.likeSeconds': 'そのとき延びる',
+  'bosses.name': 'ボスの名前', 'bosses.hp': '最大 HP', 'bosses.hpScale': '次のボスの HP', 'bosses.image': 'ボスの画像', 'bosses.damageFrom': 'ダメージにするもの', 'bosses.defeatText': '倒したときの文字',
+  'cutins.gifts': 'このギフトなら必ず出す', 'cutins.redText': '赤の文字', 'cutins.goldText': '金の文字', 'cutins.rainbowText': '虹の文字', 'cutins.sound': '効果音',
+  'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
+  'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
+  'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
+};
+
+// 数字の後ろに付ける単位
+export const UNITS = {
+  minCoins: 'コイン', bigCoins: 'コイン', fontSize: 'px', maxItems: '件', limit: '人', startMinutes: '分', maxHours: '時間',
+  coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', scale: '倍',
+};
+
+const EVENT = { gift: 'ギフト', follow: 'フォロー', share: 'シェア' };
+const METRIC = { follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト', shares: 'シェア', comments: 'コメント', viewers: '視聴者', coins: 'コイン' };
+const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).join('・') + (list.length > 2 ? ' ほか' : '') : fallback);
+
+// ホームの一覧に出す、今の設定のひとこと（1件目の設定から作る）
+const SUMMARY = {
+  alerts: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・') || 'なし'}で出す`,
+  chats: (e) => `${e.style === 'bubble' ? '吹き出し' : 'テロップ'}${e.tts ? '・読み上げあり' : ''}`,
+  counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),
+  goals: (e) => `${e.title}（目標 ${e.goal}）`,
+  rankings: (e) => e.title,
+  roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目`,
+  jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
+  wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),
+  timers: (e) => `${e.startMinutes} 分から${e.coinSeconds ? `・1 コインで +${e.coinSeconds} 秒` : ''}`,
+  bosses: (e) => `${e.name}（HP ${e.hp}）`,
+  cutins: (e) => `${e.minCoins} コインから`,
+  imageCutins: (e) => `${e.minCoins} コインから${e.photo ? '' : '・写真なし'}`,
+  rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
+  minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
+  theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),
+};
+
+/** ホームの一覧に出すひとこと。config はそのセクションの設定（「名前: {…}」か、そのまま） */
+export function summaryOf(section, value, isObject) {
+  try {
+    if (isObject) return SUMMARY[section]?.(value ?? {}) ?? '';
+    const entries = Object.values(value ?? {});
+    if (!entries.length) return 'まだ作っていません';
+    const first = SUMMARY[section]?.(entries[0]) ?? '';
+    return entries.length > 1 ? `${entries.length} つ・${first}` : first;
+  } catch {
+    return '';
+  }
+}
 
 /** 今の値が、その型の値と同じか（選ばれている型に印を付ける） */
 export const presetActive = (values, preset) => Object.entries(preset).every(([k, v]) => JSON.stringify(values?.[k]) === JSON.stringify(v));

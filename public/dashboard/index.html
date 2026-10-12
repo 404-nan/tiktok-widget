@@ -26,11 +26,10 @@
 
   <div class="col">
     <section class="panel section">
-      <h2><span data-adv>接続</span><span data-simple>1. TikTok につなぐ</span></h2>
-      <p class="desc" data-simple>配信を始めてから、自分のユーザー名を入れて「接続」を押します。配信していないときは「デモを流す」で動きを確かめられます。</p>
+      <h2 data-adv>接続</h2>
       <form id="connectForm" class="stack">
         <label class="field">
-          <span class="field-label">TikTok のユーザー名</span>
+          <span class="field-label"><span data-adv>TikTok のユーザー名</span><span data-simple>配信を始めたら、自分の TikTok のユーザー名を入れて「接続」</span></span>
           <span class="input-wrap"><span class="prefix">@</span><input id="username" name="username" autocomplete="off" placeholder="username" required></span>
         </label>
         <details class="more" data-adv>
@@ -76,10 +75,10 @@
   </div>
 
   <section class="panel section widgets" id="widgetsPanel">
-    <div class="widgets-head">
-      <h2><span data-adv>ウィジェット</span><span data-simple>2. 使うものを選んで、決める</span></h2>
-      <div class="picker" id="picker" hidden data-adv></div>
-      <div class="segmented" id="tabs" role="tablist" data-adv></div>
+    <div class="widgets-head" data-adv>
+      <h2 data-adv>ウィジェット</h2>
+      <div class="picker" id="picker" hidden></div>
+      <div class="segmented" id="tabs" role="tablist"></div>
     </div>
     <div class="ai-box" id="aiBox" hidden></div>
 
@@ -88,7 +87,7 @@
 
     <div class="detail" id="detail">
     <div class="detail-head" id="detailHead" hidden>
-      <button class="chip pressable" id="backBtn" data-icon="arrow-left" type="button">一覧にもどる</button>
+      <button class="chip pressable" id="backBtn" data-icon="arrow-left" type="button">もどる</button>
       <h3 id="detailTitle"></h3>
     </div>
     <div class="entries" id="entries" aria-label="設定の名前"></div>
@@ -98,15 +97,15 @@
       <form class="settings" id="settings" onsubmit="return false"></form>
 
       <div class="preview-col" id="previewCol">
-        <span class="field-label url-label" data-simple>3. OBS / TikTok LIVE Studio に入れる URL</span>
+        <div class="preview" id="preview"><iframe id="frame" title="プレビュー"></iframe></div>
+        <div class="row wrap" id="actions"></div>
+        <p class="form-message" id="formMessage" role="status"></p>
+        <span class="field-label url-label" data-simple>OBS / TikTok LIVE Studio に入れる URL</span>
         <div class="url-row">
           <input id="widgetUrl" readonly aria-label="ウィジェットの URL">
           <button class="btn primary pressable" id="copyBtn" data-icon="copy" type="button"><span>コピー</span></button>
         </div>
         <p class="hint" id="sizeHint"></p>
-        <div class="row wrap" id="actions"></div>
-        <div class="preview" id="preview"><iframe id="frame" title="プレビュー"></iframe></div>
-        <p class="form-message" id="formMessage" role="status"></p>
       </div>
     </div>
     </div>

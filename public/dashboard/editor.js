@@ -2,7 +2,7 @@
 // フォームの変更は1項目ずつ PATCH /api/config で保存する（ファイルのコメントは残る）。
 
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
-import { GROUPS, INFO, SIMPLE, presetActive } from './simple.js';
+import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 
 const $ = (id) => document.getElementById(id);
@@ -103,9 +103,10 @@ export function createEditor({ api, setMessage }) {
   let id = null;
   let yamlDirty = false;
   let superstream = { gifts: [] };
-  // 「かんたん」は、カードの一覧（cards）から1つ選んで設定（detail）する。「くわしく」は今までのタブとフォーム
+  // 「かんたん」は、ホーム（home: 出しているものの一覧）から1つ選んで設定（detail）する。
+  // ほかに、出すものを足す（catalog）と、OBS に入れる URL の一覧（obs）。「くわしく」は今までのタブとフォーム
   let mode = 'simple';
-  let view = 'cards';
+  let view = 'home';
   const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
 
@@ -285,7 +286,7 @@ export function createEditor({ api, setMessage }) {
     store.set('mode', mode);
     document.body.dataset.mode = mode;
     for (const b of $('modeSeg').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
-    if (!keepView) view = 'cards';
+    if (!keepView) view = 'home';
     if (payload) select(tab);
   }
 
@@ -309,38 +310,132 @@ export function createEditor({ api, setMessage }) {
     try {
       me = await api('/api/me/widgets', { widgets: me.widgets.filter((w) => w !== section) }, 'PUT');
       renderPicker();
-      view = 'cards';
+      view = 'home';
       select(visibleTabs()[0]);
     } catch (err) {
       setMessage(err.message, true);
     }
   }
 
-  function renderCards() {
+  // 一覧の1行（アイコン・名前・ひとこと・右向きの矢印）
+  function listRow({ iconName, title, sub, onClick, trailing = 'chevron-right' }) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'srow pressable';
+    const main = document.createElement('span');
+    main.className = 'srow-main';
+    main.append(Object.assign(document.createElement('span'), { className: 'srow-title', textContent: title }));
+    if (sub) main.append(Object.assign(document.createElement('span'), { className: 'srow-sub', textContent: sub }));
+    if (iconName) b.append(icon(iconName));
+    b.append(main);
+    if (trailing) b.append(Object.assign(icon(trailing), { className: 'icon srow-go' }));
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function listGroup(title, rows) {
+    const g = document.createElement('div');
+    g.className = 'sgroup';
+    if (title) g.append(Object.assign(document.createElement('p'), { className: 'sgroup-title', textContent: title }));
+    const body = document.createElement('div');
+    body.className = 'sgroup-body';
+    body.append(...rows);
+    g.append(body);
+    return g;
+  }
+  function viewHead(title) {
+    const head = document.createElement('div');
+    head.className = 'detail-head';
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'chip pressable';
+    back.append(icon('arrow-left'), 'もどる');
+    back.addEventListener('click', () => {
+      view = 'home';
+      render();
+    });
+    head.append(back, Object.assign(document.createElement('h3'), { textContent: title }));
+    return head;
+  }
+  const goTo = (next) => () => {
+    view = next;
+    render();
+    $('widgetsPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  /** いま画面に出しているもの（配信者ごとの URL では選んだもの、1人で使うときは設定があるもの） */
+  function usedSections() {
+    const all = TABS.filter((t) => t !== 'theme');
+    if (isTenant()) return all.filter((t) => me.widgets.includes(t) && unlocked(t));
+    return all.filter((t) => (isObj(t) ? payload.config[t]?.enabled !== false : entriesOf(t).length > 0));
+  }
+  /** OBS に入れる URL（かんたん用: ルーレットは全部まとめた1つだけ） */
+  function obsList() {
+    const used = usedSections();
+    return payload.widgets.filter((w) => {
+      if (!used.includes(w.section)) return false;
+      if (w.section === 'roulettes') return w.id === '*';
+      if (w.extra) return !isTenant() || me.access?.winsFx?.on;
+      return true;
+    });
+  }
+  const obsTitle = (w) => {
+    const def = schema.sections[w.section];
+    if (w.section === 'roulettes') return 'ルーレット';
+    const base = w.extra ? w.title.split(':')[0] : def.title;
+    const names = entriesOf(w.section);
+    return w.id && names.length > 1 ? `${base} ${names.indexOf(w.id) + 1}` : base;
+  };
+
+  // ホーム: 出しているものの一覧 → 押すと設定に入る
+  function renderHome() {
     const box = $('cards');
-    box.replaceChildren();
+    const used = usedSections();
+    const rows = used.map((section) =>
+      listRow({
+        iconName: INFO[section].icon,
+        title: schema.sections[section].title,
+        sub: summaryOf(section, payload.config[section], isObj(section)),
+        onClick: () => openCard(section),
+      }),
+    );
+    const canAdd = TABS.some((t) => t !== 'theme' && !used.includes(t));
+    if (canAdd) rows.push(listRow({ iconName: 'plus', title: '出すものを足す', sub: used.length ? null : 'まずは「ギフト通知」がおすすめです', onClick: goTo('catalog') }));
+    const urls = obsList();
+    box.replaceChildren(
+      listGroup(used.length ? '画面に出しているもの（押すと設定できます）' : 'まだ何も出していません', rows),
+      listGroup('配信ソフトに入れる', [
+        listRow({ iconName: 'monitor-up', title: 'OBS / TikTok LIVE Studio に入れる URL', sub: urls.length ? `${urls.length} 個` : '出すものを足すと、URL ができます', onClick: goTo('obs') }),
+      ]),
+      listGroup('全体', [listRow({ iconName: INFO.theme.icon, title: '色とテーマ', sub: summaryOf('theme', payload.config.theme, true), onClick: () => openCard('theme') })]),
+    );
+  }
+
+  // 出すものを足す: まだ使っていないものを、目的ごとに並べる
+  function renderCatalog() {
+    const box = $('cards');
+    const used = usedSections();
+    box.replaceChildren(viewHead('出すものを足す'));
     for (const [title, sections] of GROUPS) {
+      const rest = sections.filter((t) => !used.includes(t));
+      if (!rest.length) continue;
       const group = document.createElement('div');
       group.className = 'card-group';
       group.append(Object.assign(document.createElement('p'), { className: 'card-group-title', textContent: title }));
       const grid = document.createElement('div');
       grid.className = 'card-grid';
-      for (const section of sections) {
-        const open = section === 'theme' || unlocked(section);
-        const used = section === 'theme' || !isTenant() || me.widgets.includes(section);
+      for (const section of rest) {
+        const open = unlocked(section);
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = `card pressable${used && open ? ' used' : ''}${open ? '' : ' locked'}`;
+        b.className = `card pressable${open ? '' : ' locked'}`;
         b.disabled = !open;
         const head = document.createElement('span');
         head.className = 'card-head';
         head.append(icon(INFO[section].icon), Object.assign(document.createElement('span'), { className: 'card-title', textContent: schema.sections[section].title }));
         const state = document.createElement('span');
         state.className = 'card-state';
-        if (!open) state.append(icon('lock'), '管理者に頼むと使えます');
-        else if (section === 'theme') state.append('色を変える');
-        else if (used) state.append(icon('check'), `使っています${untilText(me.access?.[section]) ? `・${untilText(me.access?.[section])}` : ''}`);
-        else state.append(icon('plus'), '使う');
+        if (open) state.append(icon('plus'), '使う');
+        else state.append(icon('lock'), '管理者に頼むと使えます');
         b.append(head, Object.assign(document.createElement('span'), { className: 'card-desc', textContent: INFO[section].desc }), state);
         b.addEventListener('click', () => openCard(section));
         grid.append(b);
@@ -348,6 +443,39 @@ export function createEditor({ api, setMessage }) {
       group.append(grid);
       box.append(group);
     }
+  }
+
+  // OBS に入れる URL をまとめて見る
+  function renderObs() {
+    const box = $('cards');
+    const steps = document.createElement('ol');
+    steps.className = 'steps';
+    for (const t of ['OBS / TikTok LIVE Studio で「ブラウザ」のソースを足す', '下の URL を「コピー」して貼る', '幅と高さを、書いてある数字にする']) steps.append(Object.assign(document.createElement('li'), { textContent: t }));
+    const rows = obsList().map((w) => {
+      const row = document.createElement('div');
+      row.className = 'srow url-item';
+      const main = document.createElement('span');
+      main.className = 'srow-main';
+      const full = w.size[0] === 1080 && w.size[1] === 1920;
+      main.append(
+        Object.assign(document.createElement('span'), { className: 'srow-title', textContent: obsTitle(w) }),
+        Object.assign(document.createElement('span'), { className: 'srow-sub', textContent: `幅 ${w.size[0]}・高さ ${w.size[1]}${full ? '（配信画面いっぱいに重ねる）' : ''}` }),
+      );
+      const copy = chip('コピー', 'copy', async () => {
+        try {
+          await navigator.clipboard.writeText(w.url);
+          copy.lastChild.textContent = 'コピーしました';
+          setTimeout(() => (copy.lastChild.textContent = 'コピー'), 1500);
+        } catch {
+          prompt('この URL をコピーしてください', w.url);
+        }
+      });
+      row.append(icon(INFO[w.section].icon), main, copy);
+      return row;
+    });
+    box.replaceChildren(viewHead('OBS / TikTok LIVE Studio に入れる'), steps);
+    if (rows.length) box.append(listGroup('URL（1つずつ、別のソースとして入れます）', rows));
+    else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。「もどる」から、出すものを足してください。' }));
   }
 
   /** 押すとまとめて値が入る「型」 */
@@ -461,12 +589,14 @@ export function createEditor({ api, setMessage }) {
       if (/^#/.test(theme[t] ?? '')) document.documentElement.style.setProperty(`--tok-${t}`, theme[t]);
     }
     // かんたんの一覧: カードだけ出す
-    const cardsView = simple() && view === 'cards';
-    $('cards').hidden = !cardsView;
-    $('detail').hidden = cardsView;
-    $('detailHead').hidden = !simple() || cardsView;
-    if (cardsView) {
-      renderCards();
+    const listView = simple() && view !== 'detail';
+    $('cards').hidden = !listView;
+    $('detail').hidden = listView;
+    $('detailHead').hidden = !simple() || listView;
+    if (listView) {
+      if (view === 'catalog') renderCatalog();
+      else if (view === 'obs') renderObs();
+      else renderHome();
       return;
     }
     renderEntries();
@@ -496,32 +626,22 @@ export function createEditor({ api, setMessage }) {
     }
     $('previewCol').hidden = false;
     renderSide();
-    // かんたん: 型と、よく使う項目だけ。細かいものは「くわしく」へ
+    // かんたん: まとまりごとに、型とよく使う項目だけ。細かいものは「くわしく」へ
     const easy = simple() ? SIMPLE[tab] : null;
     if (easy) {
       if (easy.note) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
-      for (const preset of easy.presets ?? []) form.append(presetRow(preset, values));
+      for (const g of easy.groups) {
+        form.append(listGroup(g.title, [...(g.presets ?? []).map((preset) => presetRow(preset, values)), ...g.fields.map((key) => fieldFor(key, def.fields[key], values[key]))]));
+      }
+      const tail = [listRow({ iconName: 'sliders-horizontal', title: 'もっと細かく決める', sub: '全部の項目を出す（くわしく）', onClick: () => setMode('advanced') })];
+      if (isTenant() && tab !== 'theme') tail.push(listRow({ iconName: 'eye-off', title: `${def.title}を使うのをやめる`, sub: '設定は残ります', trailing: null, onClick: () => dropCard(tab) }));
+      if (!isObj(tab) && entriesOf(tab).length > 1) tail.push(listRow({ iconName: 'trash-2', title: 'この設定を消す', trailing: null, onClick: removeEntry }));
+      form.append(listGroup('そのほか', tail));
     }
     // よく使う設定を上に、それ以外は「詳しい設定」に畳む
-    const basic = easy ? easy.fields : BASIC[tab] ?? Object.keys(def.fields);
+    const basic = easy ? [] : BASIC[tab] ?? Object.keys(def.fields);
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
     const rest = easy ? [] : Object.keys(def.fields).filter((k) => !basic.includes(k));
-    if (easy) {
-      const more = document.createElement('button');
-      more.type = 'button';
-      more.className = 'text-btn pressable';
-      more.append(icon('sliders-horizontal'), ' もっと細かく決める（くわしく）');
-      more.addEventListener('click', () => setMode('advanced'));
-      form.append(more);
-      if (isTenant() && tab !== 'theme') {
-        const drop = document.createElement('button');
-        drop.type = 'button';
-        drop.className = 'text-btn pressable';
-        drop.textContent = `${def.title}を使うのをやめる（設定は残ります）`;
-        drop.addEventListener('click', () => dropCard(tab));
-        form.append(drop);
-      }
-    }
     if (rest.length) {
       const more = document.createElement('details');
       more.className = 'more';
@@ -535,7 +655,7 @@ export function createEditor({ api, setMessage }) {
       more.append(summary, inner);
       form.append(more);
     }
-    if (!isObj(tab) && (!simple() || entriesOf(tab).length > 1)) {
+    if (!isObj(tab) && !simple()) {
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'text-btn danger pressable';
@@ -547,14 +667,16 @@ export function createEditor({ api, setMessage }) {
     updateUrl(true);
   }
 
+  const labelText = (key) => (simple() && SIMPLE_LABELS[`${tab}.${key}`]) || LABELS[`${tab}.${key}`] || LABELS[key] || key;
+
   function labelFor(key, field) {
     const wrap = document.createElement('label');
     wrap.className = 'field';
     const label = document.createElement('span');
     label.className = 'field-label';
-    label.textContent = LABELS[`${tab}.${key}`] ?? LABELS[key] ?? key;
+    label.textContent = labelText(key);
     wrap.append(label);
-    if (field.desc && field.desc !== LABELS[key] && !(simple() && /[a-z]{3,}/.test(field.desc))) {
+    if (!simple() && field.desc && field.desc !== LABELS[key]) {
       const hint = document.createElement('span');
       hint.className = 'hint';
       hint.textContent = field.desc;
@@ -563,8 +685,21 @@ export function createEditor({ api, setMessage }) {
     return wrap;
   }
 
+  // かんたんでは、短い項目は「呼び名 | 入れるところ」の1行に、長い項目は呼び名の下に置く
+  const WIDE_TYPES = ['list', 'items', 'rules', 'winRules', 'timerRules', 'mcRules', 'commands'];
+
   function fieldFor(key, field, value) {
-    if (field.type === 'items') return itemsEditor(value);
+    const el = buildField(key, field, value);
+    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'photo' || key === 'image' ? 'wide' : 'inline');
+    return el;
+  }
+
+  function buildField(key, field, value) {
+    if (field.type === 'items') {
+      const editor = itemsEditor(value);
+      if (simple()) editor.querySelector('.field-label').textContent = labelText(key);
+      return editor;
+    }
 
     if (field.type === 'boolean') {
       const wrap = document.createElement('label');
@@ -573,7 +708,7 @@ export function createEditor({ api, setMessage }) {
       input.type = 'checkbox';
       input.checked = Boolean(value);
       input.addEventListener('change', () => save(key, input.checked));
-      wrap.append(input, LABELS[`${tab}.${key}`] ?? LABELS[key] ?? key);
+      wrap.append(input, labelText(key));
       wrap.title = field.desc ?? '';
       return wrap;
     }
@@ -644,8 +779,6 @@ export function createEditor({ api, setMessage }) {
       wrap.append(dl);
       control.addEventListener('input', () => save(key, control.value.trim(), 500));
     } else if (simple() && hasRulesEditor(field.type)) {
-      wrap.querySelector('.field-label').textContent = { rules: 'このギフトのときだけ特別にする', winRules: 'ギフトで WIN 数を変える', timerRules: 'このギフトで決まった時間だけ延ばす' }[field.type];
-      wrap.hint = null;
       control = rulesEditor({ type: field.type, value, gifts, onChange: (rules, delay) => save(key, rules, delay) });
     } else if (field.type === 'rules' || field.type === 'mcRules' || field.type === 'winRules' || field.type === 'timerRules') {
       control = document.createElement('textarea');
@@ -677,6 +810,14 @@ export function createEditor({ api, setMessage }) {
         const n = Number(control.value);
         if (control.value !== '' && Number.isFinite(n)) save(key, n, 500);
       });
+    }
+    // かんたんでは、数字の後ろに単位を付ける
+    if (control && simple() && field.type === 'number' && UNITS[key]) {
+      const unit = document.createElement('span');
+      unit.className = 'with-unit';
+      unit.dataset.unit = UNITS[key];
+      unit.append(control);
+      control = unit;
     }
     if (control) wrap.append(control);
     if (wrap.hint) wrap.append(wrap.hint);
@@ -923,7 +1064,7 @@ export function createEditor({ api, setMessage }) {
       tab === 'roulettes'
         ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
-    if (simple()) $('sizeHint').textContent = `この URL を OBS / TikTok LIVE Studio の「ブラウザ」ソースに入れます（幅 ${w.size[0]}・高さ ${w.size[1]}）。`;
+    if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]} の「ブラウザ」ソースとして入れます。`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
     if (simple()) {
       // ボタン用の URL などは「くわしく」で出す
@@ -1017,7 +1158,7 @@ export function createEditor({ api, setMessage }) {
 
   function fillActions() {
     const box = $('actions');
-    box.replaceChildren(chip('条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
+    box.replaceChildren(chip(simple() ? 'テストのギフトを送る' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
     const control = (target, action, data) => () => api('/api/control', { target, action, data });
     if (tab === 'roulettes') {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));
@@ -1370,7 +1511,7 @@ export function createEditor({ api, setMessage }) {
       });
       for (const b of $('modeSeg').querySelectorAll('button')) b.addEventListener('click', () => setMode(b.dataset.mode, { keepView: b.dataset.mode === mode }));
       $('backBtn').addEventListener('click', () => {
-        view = 'cards';
+        view = 'home';
         render();
       });
       tab = TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0];
