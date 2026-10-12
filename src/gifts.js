@@ -5,14 +5,20 @@ import path from 'node:path';
 const DAY = 24 * 60 * 60 * 1000;
 
 // TikTok の gift/list（webcast_language=ja-JP）で取った日本語名の控え。取得できないときに ID→英語名の順で引く
-let BUNDLED = { byId: new Map(), byName: new Map() };
+let BUNDLED = { byId: new Map(), byName: new Map(), list: [] };
 try {
   const raw = JSON.parse(fs.readFileSync(new URL('./gift-names-ja.json', import.meta.url), 'utf8'));
   for (const [id, [en, ja]] of Object.entries(raw.names ?? {})) {
     BUNDLED.byId.set(String(id), ja);
-    if (!BUNDLED.byName.has(String(en).toLocaleLowerCase())) BUNDLED.byName.set(String(en).toLocaleLowerCase(), ja);
+    if (!BUNDLED.byName.has(String(en).toLocaleLowerCase())) {
+      BUNDLED.byName.set(String(en).toLocaleLowerCase(), ja);
+      BUNDLED.list.push({ id: String(id), name: String(en), nameJa: ja });
+    }
   }
 } catch {}
+/** 控えにある全ギフト（コイン数・画像はなし）。一覧を網羅するための補い */
+export function bundledGifts() { return BUNDLED.list.map((g) => ({ ...g })); }
+
 export function bundledNameJa(gift) {
   return BUNDLED.byId.get(String(gift?.id ?? gift?.giftId ?? '').trim())
     ?? BUNDLED.byName.get(String(gift?.name ?? gift?.giftName ?? '').trim().toLocaleLowerCase()) ?? null;

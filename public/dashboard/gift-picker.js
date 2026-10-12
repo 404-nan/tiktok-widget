@@ -8,7 +8,7 @@ async function giftList() {
 }
 
 const sortGifts = (gifts) => [...new Map(gifts.filter((g) => g?.name).map((g) => [g.name, g])).values()]
-  .sort((a, b) => Number(Boolean(b.seen)) - Number(Boolean(a.seen)) || (a.diamonds ?? 0) - (b.diamonds ?? 0) || a.name.localeCompare(b.name));
+  .sort((a, b) => Number(Boolean(b.seen)) - Number(Boolean(a.seen)) || (a.diamonds ?? 1e9) - (b.diamonds ?? 1e9) || a.name.localeCompare(b.name));
 
 // 検索用にそろえる: 小文字・全角英数を半角・カタカナをひらがな（「ばら」でも「バラ」でも「rose」でも当たる）
 export const norm = (v) => String(v ?? '').normalize('NFKC').toLocaleLowerCase().replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
@@ -85,7 +85,7 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
         b.type = 'button';
         b.className = 'gift-picker-option pressable';
         b.disabled = selected.includes(g.name);
-        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: `${g.diamonds ?? 0} コイン` }));
+        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: g.diamonds == null ? '' : `${g.diamonds} コイン` }));
         b.addEventListener('click', () => choose(g.name));
         list.append(b);
       }

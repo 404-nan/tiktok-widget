@@ -22,7 +22,7 @@ import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
-import { GiftCatalog } from './gifts.js';
+import { GiftCatalog, bundledGifts } from './gifts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -238,7 +238,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/gifts', (_req, res) => {
     const seen = [...hub.seenGifts.values()].map((g) => ({ ...g, seen: true }));
     const saved = giftCatalog.list();
-    res.json([...DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), ...saved, ...seen]
+    const known = [...DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), ...saved, ...seen];
+    const names = new Set(known.map((g) => String(g.name ?? '').toLocaleLowerCase()));
+    const extra = bundledGifts().filter((g) => !names.has(g.name.toLocaleLowerCase()));
+    res.json([...known, ...extra]
       .filter((g, i, all) => all.findIndex((x) => String(x.id) === String(g.id)) === i));
   });
 

@@ -41,3 +41,10 @@ test('配信中のテストギフトでもルーレットは回るが、結果�
   await new Promise((r) => setTimeout(r, 700));
   assert.equal(emitted, 0); eng.clear?.();
 });
+
+test('ギフト一覧は控えの全ギフトで補う（数百件・日本語名つき）', async () => {
+  const { bundledGifts } = await import('../src/gifts.js');
+  const all = bundledGifts();
+  assert.ok(all.length > 500);
+  assert.ok(all.every((g) => g.id && g.name && g.nameJa));
+});
