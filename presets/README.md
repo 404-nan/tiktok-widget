@@ -12,13 +12,19 @@
 
 1. `npm start` で起動して、**配信の準備**（`http://127.0.0.1:3939/stream/`）を開く
 2. 「配信の種類」で使うひな形の「この配信にする」を押す
-3. 「目標の WIN 数」をその日の目標にする（− / ＋ か、数を打つ。すぐ保存されます）
-4. 「配信画面に出す」の URL を OBS / TikTok LIVE Studio のブラウザソースに入れる（幅 1080 × 高さ 1920）
+3. 「配信の前に」の **「Minecraft をこのゲームにする」** を押す
+   - パネル（`minecraft.via: panel`）なら、サーバーを止める → そのゲームの世界と設定にする → 起動し直す → ゲームの設定のコマンド、まで自動でやります（入っている人は一度抜けます）
+   - エンドラ・ダイヤは毎回 **新しい世界**（`bougai-endra-20261012-2105` のような名前）、アスレはマップの世界 `parkour`
+   - 浮く・吹き飛ぶ妨害で追い出されないよう、どれも `allow-flight=true` にします
+   - RCON のときは世界は変えられないので、コマンドだけ送ります
+   - CLI では `npm run tw -- preset server bougai-endra`
+4. 「目標の WIN 数」をその日の目標にする（− / ＋ か、数を打つ。すぐ保存されます）
+5. 「配信画面に出す」の URL を OBS / TikTok LIVE Studio のブラウザソースに入れる（幅 1080 × 高さ 1920）
    - これ1つで WIN 数・WIN数の全画面演出・カットイン・RUSH・妨害ルーレットがまとめて出ます。ルーレットは回っている間だけ出ます
    - ひな形を切り替えると、OBS に入れたまとめ表示も自動で切り替わります
    - 1つずつ入れたいときは「1つずつ入れるとき」を開く
-5. 「配信の前に」のチェックを上から済ませる
-6. 配信中は、同じページ（スマホでも開けます）の「クリア +1」「ボーナス」「戻す」を押す
+6. 「配信の前に」のチェックを上から済ませる
+7. 配信中は、同じページ（スマホでも開けます）の「クリア +1」「ボーナス」「戻す」を押す
 
 CLI や AI からも同じことができます。
 
@@ -65,6 +71,7 @@ Minecraft で起きることは、ひな形ごとに違います（配信の準�
 - プロフィールのギフトは TikTok のギフト ID で書きます（Rose 5655・TikTok 5269・Finger Heart 5487・Perfume 5658・Doughnut 5879・Corgi 6267 など）
 - SuperStream に入っている見本のプロフィール（`default_profile.yml`）の 6000〜8018 は演出の見本用の番号で、本物のギフトの ID ではありません。そのまま `/ss profile start` しても、ほとんどのギフトでは何も起きません
 - SuperStream の `execute` の中で、このひな形と同じ普通のコマンドも書けます
+- SuperStream 5.0.7 は **Paper 26.2 以上**が必要です（プラグインの `api-version: 26.2`）。アスレのマップも 26.2 用なので、Paper 26.2 にそろえるのがおすすめです
 
 そこで、このひな形は **SuperStream がなくても動く、Minecraft の普通のコマンド**（summon・effect・give・clear・title など）だけで組んでいます。
 コマンドは Paper 1.21.11 のサーバーで1つずつ試して、書き方の間違いがないことを確かめています。
@@ -107,9 +114,14 @@ setup: [配信の前にやること, ...]
 layout:                        # まとめ表示に並べるウィジェット（1080 × 1920 の中の位置。下に書いたものほど上に重なる）
   - {widget: wins, x: 240, y: 60, w: 600, h: 200}
   - {widget: roulette, query: ids=bougai, show: spin, hold: 3, x: 240, y: 1180, w: 600, h: 680}
+server:                        # 「Minecraft をこのゲームにする」でサーバーをどうするか
+  world: new                   # new 毎回新しい世界 / フォルダの名前（例 parkour）
+  properties: {gamemode: survival, difficulty: normal, allow-flight: true}   # server.properties（パネルのときだけ。接続・パスワードの項目は書けない）
+  commands: ["gamemode survival @a"]   # 起動したあとに送る
 config:                        # config.yaml と同じ書き方（wins・roulettes・rush・minecraft など）
   wins: {default: {...}}
 ```
 
 - Minecraft のコマンドの対象は `@a`（サーバーにいる全員）です。配信者のほかに人がいるときは、配信者の名前に置き換えてください
+- `setup` の文に「: 」（コロンと空白）が入るときは `"..."` で囲みます（囲まないと YAML の「項目: 値」として読まれます）
 - 直したら `npm run tw -- preset check` で確かめます（`npm test` でも全部のひな形を調べます）

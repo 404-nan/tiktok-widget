@@ -21,10 +21,10 @@ buttons:
   - {label: 早クリア ボーナス, value: 1}
 
 setup:
-  - Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（minecraft の via: panel・panelUrl・panelServer・panelKey）、自分の PC は RCON（server.properties の enable-rcon=true・rcon.port・rcon.password）
+  - "Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（設定の minecraft で via を panel にして panelUrl・panelServer・panelKey を入れる）、自分の PC は RCON（server.properties の enable-rcon=true など）"
   - 設定画面の「Minecraft 連携」で接続を確かめ、minecraft.enabled を true にする
   - SuperStream のプロフィールは /ss profile start しない（このひな形がギフトを受けて演出を送るので、両方動くと二重になる）
-  - 難易度はノーマル以上（/difficulty normal）
+  - 上の「Minecraft をこのゲームにする」を押す（新しい世界・サバイバル・難易度ノーマルで起動し直す）
   - 1 WIN ごとに持ち物のダイヤを消す（/clear @a diamond）と、数え直しが分かりやすい
 
 layout:
@@ -33,6 +33,13 @@ layout:
   - {widget: cutin, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: rush, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: wins-fx, x: 0, y: 0, w: 1080, h: 1920}
+
+# 配信の準備の「Minecraft もこのゲームにする」で、サーバーをこのゲームに合わせる
+#   パネル（minecraft.via: panel）なら、止める → 新しい世界にする → 起動 → コマンド。RCON ならコマンドだけ
+server:
+  world: new # 毎回新しい世界（古い世界のフォルダは残るので、ディスクがいっぱいになったらパネルで消す）
+  properties: {gamemode: survival, difficulty: normal, level-type: "minecraft:normal", generator-settings: "{}", generate-structures: true, allow-flight: true, spawn-protection: 0}
+  commands: ["difficulty normal", "gamemode survival @a", "clear @a diamond", "time set day", "weather clear"]
 
 config:
   # WIN 数。ギフトで減るのは -1・-10・-100 の3段階（-100 より大きくは減らさない）

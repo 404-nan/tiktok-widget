@@ -72,7 +72,7 @@ async function applyPreset(p) {
     const r = await api(`/api/presets/${encodeURIComponent(p.id)}/apply`, {});
     current = r.current;
     selected = p.id;
-    msg.textContent = `「${p.name ?? p.id}」にしました。目標は ${p.goal ?? 0} WIN（下で変えられます）`;
+    msg.textContent = `「${p.name ?? p.id}」にしました。目標は ${p.goal ?? 0} WIN。Minecraft は「配信の前に」の「Minecraft をこのゲームにする」で切り替えます`;
     await loadPresets();
   } catch (err) {
     msg.classList.add('error');
@@ -273,6 +273,51 @@ function renderMinecraft(status) {
   $('mcText').textContent = status.state === 'ok' ? 'Minecraft につながっています' : status.message;
 }
 
+// --- Minecraft をこのゲームにする（パネルなら 止める → 世界 → 起動 → コマンド） ---
+
+let preparing = false;
+
+function renderServerPrep() {
+  const p = active();
+  const btn = $('serverBtn');
+  const panel = config?.minecraft?.via === 'panel';
+  btn.disabled = preparing || !p?.server;
+  const world = p?.server?.world;
+  $('serverHint').textContent = !p
+    ? '先に配信の種類を選んでください'
+    : !p.server
+      ? 'このひな形にはサーバーの準備が書かれていません'
+      : panel
+        ? `サーバーを一度止めて、${world === 'new' ? '新しい世界' : world ? `世界「${world}」` : '今の世界'}で起動し直し、ゲームの設定のコマンドを送ります（入っている人は一度抜けます）`
+        : 'RCON では世界は変えられないので、ゲームの設定のコマンドだけ送ります';
+}
+
+$('serverBtn').addEventListener('click', async () => {
+  const p = active();
+  if (!p) return;
+  const panel = config?.minecraft?.via === 'panel';
+  if (panel && !confirm(`Minecraft サーバーを「${p.name}」用にします。\nサーバーを一度止めて起動し直します。入っている人は一度抜けます。`)) return;
+  const msg = $('serverMsg');
+  msg.className = 'message';
+  msg.textContent = '始めています…';
+  try {
+    await api(`/api/presets/${encodeURIComponent(p.id)}/server`, {});
+    preparing = true;
+    renderServerPrep();
+  } catch (err) {
+    msg.classList.add('error');
+    msg.textContent = err.message;
+  }
+});
+
+function onServerSetup(m) {
+  const msg = $('serverMsg');
+  msg.className = `message${m.state === 'error' ? ' error' : m.state === 'done' ? ' done' : ''}`;
+  msg.textContent = m.state === 'error' ? `できませんでした: ${m.text}` : m.state === 'done' && m.world ? `準備ができました（世界: ${m.world}）` : m.text;
+  preparing = m.state === 'step';
+  renderServerPrep();
+}
+
 // --- まとめて描く ---
 
 function renderAll() {
@@ -281,6 +326,7 @@ function renderAll() {
   renderGifts();
   renderStage();
   renderSetup();
+  renderServerPrep();
 }
 
 let mcStatus = null;
@@ -297,6 +343,7 @@ connect({
   config(c) {
     config = c;
     renderNow();
+    renderServerPrep();
     renderMinecraft(mcStatus);
   },
   wins(msg) {
@@ -311,12 +358,14 @@ connect({
   preset() {
     loadPresets();
   },
+  serverSetup: onServerSetup,
 });
 
 // hello では config が handlers.config に来ないので、最初に取りに行く
 api('/api/config').then((r) => {
   config = r.config;
   renderNow();
+  renderServerPrep();
   renderMinecraft(mcStatus);
 });
 api('/api/wins').then((w) => {

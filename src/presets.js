@@ -6,6 +6,7 @@
 //   goal                           … 目標の WIN 数の初めの値（配信ページで配信ごとに変えられる）
 //   buttons                        … 配信ページに出す WIN のボタン（{label, action: win} か {label, value: 1}）
 //   setup                          … 配信の前に Minecraft 側でやること
+//   server                         … Minecraft サーバーをこのゲームに合わせる（世界・server.properties・コマンド。server-setup.js）
 //   layout                         … まとめ表示（/widgets/stage.html）に並べるウィジェット（show: spin で回っている間だけ出す）
 //   config                         … config.yaml に入れる設定。名前ごとのセクション（wins・roulettes など）は丸ごと入れ替え、
 //                                    1つだけのセクション（rush・minecraft など）は書いた項目だけ入れ替える（RCON の接続設定は残る）
@@ -17,6 +18,7 @@ import YAML from 'yaml';
 import * as cfg from './config.js';
 import { SCHEMA } from './schema.js';
 import { DEMO_GIFTS } from './demo.js';
+import { checkServer } from './server-setup.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const PRESETS_DIR = path.join(root, 'presets');
@@ -130,6 +132,9 @@ export function checkPreset(preset) {
   preset.buttons.forEach((b, i) => {
     if (!b?.label) errors.push(`buttons[${i}]: label が必要です`);
     if (b?.action !== 'win' && !Number.isFinite(Number(b?.value))) errors.push(`buttons[${i}]: action: win か value（数）を書いてください`);
+  });
+  (preset.setup ?? []).forEach((t, i) => {
+    if (typeof t !== 'string') errors.push(`setup[${i}]: 文で書いてください（「: 」を含むときは "..." で囲む）`);
   });
   preset.layout.forEach((l, i) => {
     if (!STAGE_WIDGETS.includes(l?.widget)) errors.push(`layout[${i}].widget: ${STAGE_WIDGETS.join(' / ')} のどれかにしてください`);

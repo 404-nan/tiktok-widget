@@ -23,11 +23,10 @@ buttons:
 
 # 配信の前に Minecraft 側でやること
 setup:
-  - Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（minecraft の via: panel・panelUrl・panelServer・panelKey）、自分の PC は RCON（server.properties の enable-rcon=true・rcon.port・rcon.password）
+  - "Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（設定の minecraft で via を panel にして panelUrl・panelServer・panelKey を入れる）、自分の PC は RCON（server.properties の enable-rcon=true など）"
   - 設定画面の「Minecraft 連携」で接続を確かめ、minecraft.enabled を true にする
   - SuperStream のプロフィールは /ss profile start しない（このひな形がギフトを受けて演出を送るので、両方動くと二重になる）
-  - 難易度はノーマル以上（/difficulty normal）。ピースフルだと敵が出ない
-  - 新しい世界ではじめる
+  - 上の「Minecraft をこのゲームにする」を押す（新しい世界・サバイバル・難易度ノーマルで起動し直す）
 
 # まとめ表示（/widgets/stage.html）に並べるウィジェット。配信画面 1080 × 1920 の中の位置（下にあるものほど上に重なる）
 # show: spin は回っている間だけ出す（ルーレットがずっと画面に残らないように）
@@ -37,6 +36,14 @@ layout:
   - {widget: cutin, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: rush, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: wins-fx, x: 0, y: 0, w: 1080, h: 1920}
+
+# 配信の準備の「Minecraft もこのゲームにする」で、サーバーをこのゲームに合わせる
+#   パネル（minecraft.via: panel）なら、止める → 新しい世界にする → 起動 → コマンド。RCON ならコマンドだけ
+#   allow-flight: 浮く・吹き飛ぶ妨害で「飛んでいる」とサーバーから追い出されないように
+server:
+  world: new # 毎回新しい世界（古い世界のフォルダは残るので、ディスクがいっぱいになったらパネルで消す）
+  properties: {gamemode: survival, difficulty: normal, level-type: "minecraft:normal", generator-settings: "{}", generate-structures: true, allow-flight: true, spawn-protection: 0}
+  commands: ["difficulty normal", "gamemode survival @a", "time set day", "weather clear"]
 
 config:
   # WIN 数。ギフトで減るのは -1・-10・-100 の3段階（-100 より大きくは減らさない）

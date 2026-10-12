@@ -17,6 +17,7 @@ import { readProfile, SUPERSTREAM_ACTIONS } from './src/superstream.js';
 import { RushEngine } from './src/rush.js';
 import { WinsEngine } from './src/wins.js';
 import * as presets from './src/presets.js';
+import { prepareServer } from './src/server-setup.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3939;
@@ -101,6 +102,26 @@ app.post('/api/presets/:id/apply', (req, res) => {
   applyConfigResult(result);
   if (result.ok) hub.broadcast({ type: 'preset', current: presets.currentPreset() });
   res.status(result.ok ? 200 : 422).json({ ok: result.ok, errors: result.errors, warnings: result.warnings, backup: result.backup, current: presets.currentPreset() });
+});
+
+// Minecraft サーバーをひな形のゲームに合わせる（止める → 世界と server.properties → 起動 → コマンド）。
+// 時間がかかるので、すぐ返事をして、途中経過は 'serverSetup' で全画面に配る
+let serverSetup = null; // 準備中のひな形の名前
+app.post('/api/presets/:id/server', (req, res) => {
+  const p = presets.readPreset(req.params.id);
+  if (!p) return res.status(404).json({ error: 'ひな形がありません' });
+  if (!p.server) return res.status(400).json({ error: 'このひな形にはサーバーの準備（server）が書かれていません' });
+  if (serverSetup) return res.status(409).json({ error: `いま「${serverSetup}」の準備をしています。終わるまで待ってください` });
+  serverSetup = p.name ?? p.id;
+  const send = (state, text, extra = {}) => hub.broadcast({ type: 'serverSetup', id: p.id, state, text, ...extra });
+  prepareServer(p, hub.config?.minecraft, { onStep: (text) => send('step', text) })
+    .then((r) => send('done', '準備ができました', { world: r.world }))
+    .catch((err) => send('error', err.message))
+    .finally(() => {
+      serverSetup = null;
+      minecraft.check();
+    });
+  res.status(202).json({ ok: true });
 });
 
 // SuperStream のプロフィールに設定済みの演出（読むだけ）

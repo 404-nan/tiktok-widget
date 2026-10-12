@@ -30,6 +30,8 @@ const HELP = `使い方: tw <コマンド>
   preset apply <名前> [目標] ひな形に切り替える（前の設定は data/backups/ に残る）
                               例: tw preset apply bougai-endra 3
   preset check [名前]       ひな形に間違いがないか調べる
+  preset server <名前>      Minecraft サーバーをそのゲームに合わせる
+                              （パネルなら 止める → 世界 → 起動 → コマンド。RCON ならコマンドだけ）
 
 Minecraft / SuperStream
   superstream               SuperStream のプロフィールに設定済みの演出
@@ -136,6 +138,10 @@ try {
         const r = admin.applyPreset(id, { goal: goal != null ? Number(goal) : undefined });
         report(r);
         if (r.ok) print(`ひな形「${id}」に切り替えました。前の設定: ${r.backup}`);
+      } else if (action === 'server') {
+        if (!id) throw new Error('ひな形の名前を指定してください');
+        const r = await admin.preparePresetServer(id, (t) => print(`… ${t}`));
+        if (r.world) print(`世界: ${r.world}`);
       } else if (action === 'check') {
         for (const r of admin.checkPresets(id)) {
           print(`${r.id}（${r.name}）: ${r.errors.length ? 'エラーあり' : r.warnings.length ? '注意あり' : '問題ありません'}`);

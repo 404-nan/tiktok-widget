@@ -22,12 +22,11 @@ buttons:
   - {label: ノーミス ボーナス, value: 1}
 
 setup:
-  - マップを配布ページから落とし、サーバーの世界のフォルダ（world）と入れ替えて起動する。マップの対応バージョンに合わせたサーバーを使う
+  - マップを配布ページから落とし、中の世界のフォルダを「parkour」という名前でサーバーのいちばん上に置く（パネルのファイル画面で zip を上げて展開）。マップの対応バージョン（26.2）に合わせた Paper を使う
   - 配信の前に、世界のフォルダを丸ごとコピーしておく
-  - Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（minecraft の via: panel・panelUrl・panelServer・panelKey）、自分の PC は RCON（server.properties の enable-rcon=true・rcon.port・rcon.password）
-  - 配信者はアドベンチャーモード（/gamemode adventure 名前）。ブロックを壊せなくなる
-  - 敵は出さないので、難易度はピースフルでよい（妨害の効果は効く）
+  - "Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（設定の minecraft で via を panel にして panelUrl・panelServer・panelKey を入れる）、自分の PC は RCON（server.properties の enable-rcon=true など）"
   - SuperStream のプロフィールは /ss profile start しない（演出が二重になる）
+  - 上の「Minecraft をこのゲームにする」を押す（世界 parkour・アドベンチャー・ピースフルで起動し直す）
   - Universe と Lion は /kill でチェックポイントに戻す。マップのチェックポイントがどこに戻すかを先に1回試しておく
 
 layout:
@@ -36,6 +35,14 @@ layout:
   - {widget: cutin, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: rush, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: wins-fx, x: 0, y: 0, w: 1080, h: 1920}
+
+# 配信の準備の「Minecraft もこのゲームにする」で、サーバーをこのゲームに合わせる
+#   パネル（minecraft.via: panel）なら、止める → マップの世界にする → 起動 → コマンド。RCON ならコマンドだけ
+#   マップは先にパネルのファイル画面で、サーバーのいちばん上に「parkour」という名前のフォルダで置いておく
+server:
+  world: parkour
+  properties: {gamemode: adventure, difficulty: peaceful, allow-flight: true, spawn-protection: 0}
+  commands: ["difficulty peaceful", "gamemode adventure @a", "time set day", "weather clear"]
 
 config:
   wins:

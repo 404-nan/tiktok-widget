@@ -7,6 +7,7 @@ import * as cfg from './config.js';
 import { DEMO_GIFTS } from './demo.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import * as presets from './presets.js';
+import { prepareServer } from './server-setup.js';
 
 export const SERVER = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
 
@@ -185,4 +186,14 @@ export function checkPresets(id) {
   const list = id ? [presets.readPreset(id)].filter(Boolean) : presets.listPresets();
   if (id && !list.length) throw new Error(`ひな形「${id}」がありません`);
   return list.map((p) => ({ id: p.id, name: p.name, ...presets.checkPreset(p) }));
+}
+
+/** Minecraft サーバーをひな形のゲームに合わせる（パネルなら 止める → 世界 → 起動 → コマンド） */
+export async function preparePresetServer(id, onStep) {
+  const p = presets.readPreset(id);
+  if (!p) throw new Error(`ひな形「${id}」がありません`);
+  if (!p.server) throw new Error('このひな形にはサーバーの準備（server）が書かれていません');
+  const { config, errors } = cfg.load();
+  if (errors.length) throw new Error(`設定ファイルにエラーがあります: ${errors[0]}`);
+  return prepareServer(p, config.minecraft, { onStep });
 }

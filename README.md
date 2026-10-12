@@ -103,6 +103,7 @@ roulettes:
 今あるのは 妨害マイクラの **エンドラ討伐**・**ダイヤ集め**・**アスレ**（Parkour Paradise 3）の3つです。
 
 - 配信の準備（`/stream/`）で「この配信にする」を押すか、`npm run tw -- preset apply bougai-endra 3`（最後の数は目標の WIN 数）
+- 「Minecraft をこのゲームにする」で、Minecraft サーバーもそのゲームに切り替わります（パネルなら 止める → 新しい世界・設定 → 起動 → コマンド）
 - `wins`・`roulettes` は丸ごと、`rush`・`minecraft` は書いた項目だけ入れ替わります（RCON の接続設定は残る）。前の `config.yaml` は `data/backups/` に残ります
 - OBS には `/widgets/stage.html` を 1080 × 1920 で1つ入れるだけで、そのひな形のウィジェットがまとめて出ます
 
@@ -230,6 +231,8 @@ src/rcon.js            RCON クライアント
 src/superstream.js     SuperStream のプロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）
 src/presets.js         配信のひな形（presets/*.yaml）の一覧・切り替え（前の設定は data/backups/ に残す）
+src/server-setup.js    Minecraft サーバーをひな形のゲームに合わせる（世界・server.properties・コマンド）
+src/panel.js           レンタルサーバーのパネル（Pterodactyl）の API（コマンド・起動停止・ファイル）
 mcp/server.js          MCP サーバー
 bin/tw.js              CLI
 src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は自動で再接続）

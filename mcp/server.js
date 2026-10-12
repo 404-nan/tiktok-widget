@@ -224,7 +224,7 @@ server.registerTool(
       '配信ごとの設定のひな形（presets/*.yaml。例: 妨害マイクラのエンドラ討伐・ダイヤ集め・アスレ）を見る・切り替える・調べる。' +
       'apply すると wins・roulettes は丸ごと、rush・minecraft は書かれた項目だけ入れ替わる（RCON の接続設定は残る）。前の config.yaml は data/backups/ に残る。',
     inputSchema: {
-      action: z.enum(['list', 'apply', 'check']).default('list').describe('list 一覧 / apply 切り替え / check 間違いを調べる'),
+      action: z.enum(['list', 'apply', 'check', 'server']).default('list').describe('list 一覧 / apply 切り替え / check 間違いを調べる / server Minecraft サーバーをそのゲームに合わせる（パネルなら止めて世界を変えて起動し直す）'),
       id: z.string().optional().describe('ひな形の名前（例 bougai-endra）'),
       goal: z.number().int().min(0).optional().describe('apply のときの目標の WIN 数（省くとひな形の値）'),
     },
@@ -234,6 +234,12 @@ server.registerTool(
       if (!id) throw new Error('id を指定してください');
       const r = admin.applyPreset(id, { goal });
       return { ...text([admin.describeResult(r), r.ok ? `前の設定: ${r.backup}` : ''].filter(Boolean).join('\n')), isError: r.ok === false };
+    }
+    if (action === 'server') {
+      if (!id) throw new Error('id を指定してください');
+      const steps = [];
+      const r = await admin.preparePresetServer(id, (t) => steps.push(t));
+      return text([...steps, r.world ? `世界: ${r.world}` : ''].filter(Boolean).join('\n'));
     }
     if (action === 'check') {
       const lines = admin.checkPresets(id).flatMap((r) => [`${r.id}: ${r.errors.length ? 'エラーあり' : '問題ありません'}`, ...r.errors.map((e) => `  エラー: ${e}`), ...r.warnings.map((w) => `  注意: ${w}`)]);
