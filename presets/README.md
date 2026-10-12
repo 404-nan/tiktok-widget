@@ -82,6 +82,12 @@ Minecraft で起きることは、ひな形ごとに違います（配信の準�
    （例 `~/server/plugins/SuperStream/default_profile.yml`）
 2. `npm run tw -- superstream` か、設定画面の「Minecraft 連携」を見る（ギフト ID ごとの演出が一覧で出ます）
 
+実際のサーバー（Paper 26.2・SuperStream 5.0.7）で確かめたこと:
+
+- `ss test action <プロフィール> <演出>`（例 `ss test action default_profile lightning`）は動く。このツールの `superstreamAction` はこの形で送ります
+- `ss test profile <プロフィール> <ギフト ID>` は、プロフィールを動かしていないとエラーになる（`superstreamGift` はそのままでは使えません）
+- 入れた直後のプロフィールは自分では動き出さない（auto-start がオフ）ので、このツールの演出と二重になりません
+
 SuperStream の演出も使いたいときは:
 
 - まず試し打ちする: `npm run tw -- mc "ss test action default_profile meteorite"`
