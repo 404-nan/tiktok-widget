@@ -19,6 +19,60 @@ export const store = {
   },
 };
 
+const copiedTimers = new WeakMap();
+
+/**
+ * 文字をコピーする。
+ * クリップボードの機能が無い・失敗する・返事が来ないときでも、その場で文字を選んでコピーする。
+ * 選ぶのはクリックの直後にやる。返事を待ってからだと、ブラウザに断られてボタンが止まったままになる。
+ * 成否は待たない。呼び出したそばから「コピーしました」と出してよい。
+ */
+export function copyText(text, field) {
+  const value = String(text ?? '');
+  selectAndCopy(value, field);
+  try {
+    const pending = navigator.clipboard?.writeText?.(value);
+    if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+  } catch {
+    // 機能そのものが壊れていても、上で選んでコピー済み
+  }
+}
+
+function selectAndCopy(value, field) {
+  const useField = !!field && typeof field.select === 'function' && field.value === value;
+  const el = useField ? field : document.createElement('textarea');
+  const prev = document.activeElement;
+  const x = window.scrollX;
+  const y = window.scrollY;
+  if (!useField) {
+    el.value = value;
+    el.readOnly = true;
+    el.setAttribute('aria-hidden', 'true');
+    el.tabIndex = -1;
+    el.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:0;outline:0;opacity:0';
+    document.body.append(el);
+  }
+  try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+  el.select();
+  try { el.setSelectionRange(0, el.value.length); } catch { /* 範囲を指定できない欄もある */ }
+  try { document.execCommand('copy'); } catch { /* 古いやり方が無いブラウザでも、選択は残す */ }
+  if (!useField) {
+    el.remove();
+    if (prev instanceof HTMLElement && prev.isConnected) {
+      try { prev.focus({ preventScroll: true }); } catch { prev.focus(); }
+    }
+  }
+  window.scrollTo(x, y);
+}
+
+/** ボタンの文字を「コピーしました」にして、少ししたら「コピー」に戻す */
+export function flashCopied(button, label = button?.querySelector?.('span:not(.icon)')) {
+  if (!label) return;
+  label.textContent = 'コピーしました';
+  clearTimeout(copiedTimers.get(button));
+  copiedTimers.set(button, setTimeout(() => { label.textContent = 'コピー'; }, 1500));
+}
+
 /** JSON の API を呼ぶ。body を渡すと POST（method で変えられる） */
 export async function api(path, body, method) {
   const res = await fetch(path, {

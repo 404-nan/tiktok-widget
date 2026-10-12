@@ -3,7 +3,7 @@
 // API は /admin/api/...（合言葉を x-admin-token で送る）
 
 import { icon } from '/widgets/lib/overlay.js';
-import { $, store, setupPanels, setupTheme } from '/dashboard/common.js';
+import { $, store, setupPanels, setupTheme, copyText } from '/dashboard/common.js';
 
 setupPanels();
 setupTheme();
@@ -183,13 +183,8 @@ const setter = (target, feature, done) => (on, hours) => act(() => api('/access'
 
 function copyField(label, url) {
   const input = el('input', { value: url, readOnly: true });
-  const b = button('コピー', async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      input.select();
-      document.execCommand('copy');
-    }
+  const b = button('コピー', () => {
+    copyText(url, input);
     message(`${label}の URL をコピーしました`);
   }, { iconName: 'copy' });
   return el('div', { className: 'group-item' }, el('span', { className: 'url-label', textContent: label }), el('div', { className: 'url' }, input, b));

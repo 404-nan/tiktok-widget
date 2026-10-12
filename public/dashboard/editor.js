@@ -2,6 +2,7 @@
 // フォームの変更は1項目ずつ PATCH /api/config で保存する（ファイルのコメントは残る）。
 
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
+import { copyText, flashCopied } from './common.js';
 import { WEIGHT_INPUT, parseWeight } from './weight.js';
 import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
 import { createStage } from './stage.js';
@@ -519,14 +520,10 @@ export function createEditor({ api, setMessage }) {
         Object.assign(document.createElement('span'), { className: 'srow-title', textContent: obsTitle(w) }),
         Object.assign(document.createElement('span'), { className: 'srow-sub', textContent: `幅 ${w.size[0]}・高さ ${w.size[1]}${full ? '（配信画面いっぱいに重ねる）' : ''}` }),
       );
-      const copy = chip('コピー', 'copy', async () => {
-        try {
-          await navigator.clipboard.writeText(w.url);
-          copy.lastChild.textContent = 'コピーしました';
-          setTimeout(() => (copy.lastChild.textContent = 'コピー'), 1500);
-        } catch {
-          prompt('この URL をコピーしてください', w.url);
-        }
+      const label = document.createTextNode('コピー');
+      const copy = chip(label, 'copy', () => {
+        copyText(w.url);
+        flashCopied(copy, label);
       });
       const setting = chip('', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
       setting.setAttribute('aria-label', `${obsTitle(w)}の設定`);
@@ -1655,14 +1652,9 @@ export function createEditor({ api, setMessage }) {
     $('aiClaude').textContent = ai.claudeCode;
     $('aiDesktop').textContent = ai.desktop;
     for (const btn of document.querySelectorAll('[data-copy]')) {
-      btn.addEventListener('click', async () => {
-        const src = $(btn.dataset.copy).textContent;
-        try {
-          await navigator.clipboard.writeText(src);
-        } catch {}
-        const span = btn.querySelector('span');
-        span.textContent = 'コピーしました';
-        setTimeout(() => (span.textContent = 'コピー'), 1400);
+      btn.addEventListener('click', () => {
+        copyText($(btn.dataset.copy).textContent);
+        flashCopied(btn);
       });
     }
   }
@@ -1694,16 +1686,11 @@ export function createEditor({ api, setMessage }) {
       renderYamlIssues(payload.errors, payload.warnings);
       await setupYaml();
       new ResizeObserver(() => fitPreview()).observe($('preview'));
-      $('copyBtn').addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText($('widgetUrl').value);
-        } catch {
-          $('widgetUrl').select();
-          document.execCommand('copy');
-        }
-        const label = $('copyBtn').querySelector('span');
-        label.textContent = 'コピーしました';
-        setTimeout(() => (label.textContent = 'コピー'), 1500);
+      $('copyBtn').addEventListener('click', () => {
+        const btn = $('copyBtn');
+        copyText($('widgetUrl').value, $('widgetUrl'));
+        // アイコンも span なので、見える「コピー」の文字だけを変える
+        flashCopied(btn, btn.querySelector('span:not(.icon)'));
       });
       tab = TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0];
       // 設定ファイル（YAML）は、右の中身の1つとして出す
