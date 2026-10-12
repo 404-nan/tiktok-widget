@@ -12,6 +12,16 @@ export const GROUPS = [
   ['連携', ['minecraft']],
 ];
 
+// 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
+export const PLAY_MODES = [
+  { id: 'talk', name: 'おしゃべり・歌', desc: 'コメントとギフトで、楽しく配信する', sections: ['alerts', 'chats', 'goals'] },
+  { id: 'roulette', name: 'ルーレット企画', desc: 'ギフトで回る企画を始める', sections: ['alerts', 'roulettes', 'chats'], setup: { roulettes: 'punishment' } },
+  { id: 'endurance', name: '耐久・カウントダウン', desc: 'ギフトで残り時間を延ばす', sections: ['timers', 'alerts', 'rankings'] },
+  { id: 'clear', name: 'ゲームのクリア数を数える', desc: 'クリアした回数をみんなと数える', sections: ['wins', 'alerts', 'timers'] },
+  { id: 'boss', name: 'ボスをみんなで倒す', desc: 'みんなのギフトでボスに挑む', sections: ['bosses', 'alerts', 'rankings'] },
+  { id: 'custom', name: '自分で選ぶ', desc: '出すものを自分で足す', sections: [] },
+];
+
 // アイコンとひとこと（URL や設定の名前は書かない）
 export const INFO = {
   alerts: { icon: 'gift', desc: 'ギフトやフォローが来たら、名前つきのテロップを出す' },

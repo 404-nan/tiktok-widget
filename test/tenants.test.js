@@ -24,6 +24,30 @@ test('配信者を追加すると、ダッシュボード用と OBS 用の鍵が
   assert.equal(again.get(a.id).name, 'りん');
 });
 
+test('遊び方を保存でき、案内を閉じた状態も配信者ごとに残る', () => {
+  const t = setup();
+  const a = t.create({ name: 'はじめて' });
+  assert.equal(t.info(a.id).template, null);
+  t.setTemplate(a.id, 'talk');
+  assert.equal(t.info(a.id).template, 'talk');
+  t.setGuideDone(a.id, true);
+  assert.equal(t.info(a.id).guideDone, true);
+  const again = new Tenants({ dir: t.dir });
+  assert.equal(again.info(a.id).template, 'talk');
+  assert.equal(again.info(a.id).guideDone, true);
+});
+
+test('今まで設定を使っている配信者は custom とみなし、管理者が止めたものは選べない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-'));
+  fs.mkdirSync(path.join(dir, 'tenants', 'old'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'tenants.json'), JSON.stringify({ tenants: [{ id: 'old', name: '前から', key: 'k'.repeat(24), obsKey: 'o'.repeat(24), enabled: true, widgets: ['alerts', 'chats', 'wins'], access: {} }] }));
+  fs.writeFileSync(path.join(dir, 'tenants', 'old', 'config.yaml'), 'alerts:\n  default: {}\n');
+  const t = new Tenants({ dir });
+  assert.equal(t.info('old').template, 'custom');
+  t.setAccess('old', 'roulettes', false);
+  assert.equal(t.entitled('old', 'roulettes'), false);
+});
+
 test('豪華な演出は最初は使えず、ほかのウィジェットは最初から使える', () => {
   const t = setup();
   const a = t.create({ name: 'A' });

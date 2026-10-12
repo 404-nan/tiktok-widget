@@ -57,7 +57,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, widgetBase, ai = null }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, widgetBase, ai = null }) {
   const hub = new Hub();
   const tiktok = new TikTokSource(hub);
   const demo = new DemoSource(hub);
@@ -142,6 +142,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (!list) return res.status(400).json({ error: 'widgets を一覧で送ってください' });
     setWidgets(list);
     res.json({ ok: true, ...info() });
+  });
+  r.put('/api/me/template', (req, res) => {
+    if (!setTemplate) return res.status(400).json({ error: '1人で使うときは遊び方を選びません' });
+    try { setTemplate(req.body?.template); res.json({ ok: true, ...info() }); } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  r.put('/api/me/guide', (req, res) => {
+    if (!setGuideDone) return res.status(400).json({ error: '1人で使うときは案内を保存しません' });
+    try { setGuideDone(req.body?.done !== false); res.json({ ok: true, ...info() }); } catch (err) { res.status(400).json({ error: err.message }); }
   });
 
   r.get('/api/status', (_req, res) => {

@@ -419,6 +419,7 @@ export function createEditor({ api, setMessage }) {
       item('plus', '出すものを足す', view === 'catalog', goTo('catalog')),
       label('じゅんび'),
       item('monitor-up', 'OBS に入れる URL', view === 'obs', goTo('obs')),
+      ...(isTenant() ? [item('sparkles', '遊び方をえらびなおす', false, async () => { await api('/api/me/template', { template: null }, 'PUT'); me = await api('/api/me'); view = 'stage'; renderNav(); stage?.render(); })] : []),
       item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
     );
     if (desktop) {
@@ -1570,6 +1571,7 @@ export function createEditor({ api, setMessage }) {
         getPayload: () => payload,
         getMe: () => me,
         onChanged: (data) => { if (data.config) payload = data; render(); },
+        onTemplate: async () => { me = await api('/api/me'); renderPicker(); renderNav(); },
         openWidget: (section, entry) => { view = 'detail'; select(section, entry); },
       });
       renderPicker();

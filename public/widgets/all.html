@@ -6,6 +6,7 @@
 <title>全部まとめて</title>
 <style>
   html, body { width: 1080px; height: 1920px; margin: 0; overflow: hidden; background: transparent; }
+  body.preview { background: linear-gradient(180deg, #25262b, #1d1e23); }
   #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
   iframe { position: absolute; display: block; border: 0; background: transparent; transform-origin: top left; pointer-events: none; }
 </style>
@@ -14,6 +15,8 @@
 <main id="stage" aria-label="配信画面"></main>
 <script type="module">
 import { BASE, connect } from './lib/overlay.js';
+
+if (new URLSearchParams(location.search).has('preview')) document.body.classList.add('preview');
 
 const stage = document.querySelector('#stage');
 const frameMap = new Map();

@@ -53,7 +53,13 @@ export class Tenants {
     try {
       const d = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       this.data = { tenants: d.tenants ?? [], global: { access: {}, ...d.global } };
-      for (const t of this.data.tenants) migrate(t);
+      for (const t of this.data.tenants) {
+        migrate(t);
+        t.template ??= null;
+        t.guideDone ??= false;
+        const customWidgets = JSON.stringify([...(t.widgets ?? [])].sort()) !== JSON.stringify([...DEFAULT_WIDGETS].sort());
+        if (t.template == null && (customWidgets || fs.existsSync(path.join(this.dataDir(t.id), 'config.yaml')))) t.template = 'custom';
+      }
       migrate(this.data.global);
     } catch {}
   }
@@ -167,6 +173,8 @@ export class Tenants {
       obsKey: newKey(),
       enabled: true,
       widgets: [...DEFAULT_WIDGETS],
+      template: null,
+      guideDone: false,
       access: {},
       createdAt: Date.now(),
     };
@@ -218,7 +226,27 @@ export class Tenants {
       name: t?.name ?? '',
       widgets: t?.widgets ?? [],
       access: this.accessState(id),
+      template: t?.template ?? null,
+      guideDone: Boolean(t?.guideDone),
     };
+  }
+
+  setTemplate(id, template) {
+    const t = this.get(id);
+    if (!t) throw new Error('その配信者は見つかりません');
+    t.template = template == null ? null : (String(template).trim() || 'custom');
+    t.guideDone = false;
+    this.#save();
+    this.#notify(id);
+    return t;
+  }
+
+  setGuideDone(id, done = true) {
+    const t = this.get(id);
+    if (!t) throw new Error('その配信者は見つかりません');
+    t.guideDone = Boolean(done);
+    this.#save();
+    return t;
   }
 
   runtime(id) {
@@ -233,6 +261,8 @@ export class Tenants {
       entitled: (f) => this.entitled(id, f),
       info: () => this.info(id),
       setWidgets: (list) => this.update(id, { widgets: list }),
+      setTemplate: (template) => this.setTemplate(id, template),
+      setGuideDone: (done) => this.setGuideDone(id, done),
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,
       ai: this.ai,
     });
