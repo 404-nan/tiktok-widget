@@ -3,6 +3,33 @@
 
 import { icon } from '/widgets/lib/overlay.js';
 import { giftPicker } from './gift-picker.js';
+import { timerGiftLength } from './timer-length.js';
+
+// この画面で長さ・増減・単位を自分で触った行。触るまでは、ギフトを選ぶと目安で上書きする。
+const lengthTouched = new WeakSet();
+const lengthFields = new WeakMap();
+
+const giftByName = (gifts, name) => {
+  const key = String(name ?? '').toLocaleLowerCase();
+  if (!key) return null;
+  return gifts.find((g) => g?.name && String(g.name).toLocaleLowerCase() === key) ?? null;
+};
+
+/** まだ長さを触っていない行だけ、選んだギフトのコインから目安を入れる */
+function fillTimerLength(r, name, gifts) {
+  if (lengthTouched.has(r)) return;
+  const gift = giftByName(gifts, name);
+  if (!gift || !Number.isFinite(Number(gift.diamonds))) return;
+  const len = timerGiftLength(gift.diamonds);
+  delete r.seconds;
+  delete r.minutes;
+  r[len.unit] = len.amount;
+  const f = lengthFields.get(r);
+  if (!f) return;
+  f.op.value = 'plus';
+  f.n.value = String(len.amount);
+  f.unit.value = len.unit;
+}
 
 const el = (tag, props = {}, ...children) => {
   const n = Object.assign(document.createElement(tag), props);
@@ -65,9 +92,11 @@ const KINDS = {
         r[unit.value] = (op.value === 'minus' ? -1 : 1) * (v > 0 ? v : 0);
         commit(delay);
       };
-      op.addEventListener('change', () => apply(0));
-      unit.addEventListener('change', () => apply(0));
-      n.addEventListener('input', () => apply(500));
+      lengthFields.set(r, { op, n, unit });
+      const touch = () => lengthTouched.add(r);
+      op.addEventListener('change', () => { touch(); apply(0); });
+      unit.addEventListener('change', () => { touch(); apply(0); });
+      n.addEventListener('input', () => { touch(); apply(500); });
       return [op, n, unit];
     },
   },
@@ -108,7 +137,18 @@ export function rulesEditor({ type, value = [], gifts = [], onChange }) {
     const cond = el('select', { className: 'rule-cond' });
     cond.append(new Option('このギフト', 'gifts'), new Option('このコイン以上', 'minCoins'));
     cond.value = !r.gifts?.length && r.minCoins != null ? 'minCoins' : 'gifts';
-    const picker = giftPicker({ value: r.gifts ?? [], gifts, onChange: (names) => { r.gifts = names; commit(0); } });
+    const picker = giftPicker({
+      value: r.gifts ?? [],
+      gifts,
+      onChange: (names) => {
+        const prev = new Set(r.gifts ?? []);
+        const added = names.filter((n) => !prev.has(n));
+        r.gifts = names;
+        // 新しく選んだギフト。長さを自分で変えていなければ、コインの目安を入れる
+        if (type === 'timerRules' && added.length) fillTimerLength(r, added.at(-1), gifts);
+        commit(0);
+      },
+    });
     const coins = num(r.minCoins ?? 100, { min: 0, title: 'コイン' });
     const show = () => {
       const byGift = cond.value === 'gifts';
@@ -153,7 +193,10 @@ export function rulesEditor({ type, value = [], gifts = [], onChange }) {
     list.lastElementChild?.querySelector('.rule-gifts')?.focus();
   });
   draw();
-  return el('div', { className: 'rules' }, list, add);
+  const note = type === 'timerRules'
+    ? el('p', { className: 'hint', textContent: '目安: 100 コインで 1 分。コンボは来た数だけ足されます' })
+    : null;
+  return el('div', { className: 'rules' }, list, note, add);
 }
 
 export const hasRulesEditor = (type) => type in KINDS;

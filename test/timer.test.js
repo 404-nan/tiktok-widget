@@ -167,6 +167,37 @@ test('data/ に残り、作り直しても続きから。止まっている間�
   b.timer.close();
 });
 
+test('secondsFor: ルールのギフトは来た数だけ足す。マイナスは減らす', () => {
+  const c = entry({
+    coinSeconds: 9,
+    rules: [
+      { gifts: ['Rose'], seconds: 30 },
+      { gifts: ['Panda'], seconds: 15, perCount: false },
+      { gifts: ['Lion'], seconds: -10 },
+    ],
+  });
+  assert.equal(secondsFor(c, gift('Rose', 1, 1)).seconds, 30);
+  assert.equal(secondsFor(c, gift('Rose', 1, 4)).seconds, 120); // 30 秒 × 4 個
+  assert.equal(secondsFor(c, gift('Panda', 1, 4)).seconds, 15); // 1回だけ
+  assert.equal(secondsFor(c, gift('Lion', 29999, 1)).seconds, -10);
+  assert.equal(secondsFor(c, gift('Lion', 29999, 3)).seconds, -30); // -10 秒 × 3 個
+  // ルールが合うときは、コイン × coinSeconds にはしない
+  assert.notEqual(secondsFor(c, gift('Rose', 1, 4)).seconds, 4 * 9);
+});
+
+test('減るルールは残り時間を短くする。コンボは来た数だけ', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1_000_000 });
+  const rules = [{ gifts: ['Rose'], seconds: 20 }, { gifts: ['Lion'], seconds: -15 }];
+  const { hub, timer } = setup({ default: entry({ startMinutes: 10, coinSeconds: 10, rules }) });
+  timer.apply('default', 'start');
+  hub.emit('event', gift('Rose', 1, 3));
+  assert.equal(sec(timer.remaining('default')), 600 + 60);
+  hub.emit('event', gift('Lion', 100, 2));
+  assert.equal(sec(timer.remaining('default')), 660 - 30);
+  assert.equal(timer.get('default').extended, 30);
+  timer.close();
+});
+
 test('secondsFor: 少額・条件に合わないギフトは延びない', () => {
   const c = entry({ coinSeconds: 5, minCoins: 10 });
   assert.equal(secondsFor(c, gift('Rose', 1, 5)).seconds, 0);
@@ -174,6 +205,10 @@ test('secondsFor: 少額・条件に合わないギフトは延びない', () =>
   assert.equal(secondsFor(entry({ coinSeconds: 0 }), gift('Rose', 100)).seconds, 0);
   assert.equal(secondsFor(entry({ followSeconds: 0 }), { kind: 'follow' }).seconds, 0);
   assert.equal(secondsFor(entry({ shareSeconds: 15 }), { kind: 'share' }).seconds, 15);
+});
+
+test('schema の coinSeconds の初期値は 10 のまま（新しいタイマーの目安とは別）', () => {
+  assert.equal(defaultsFor('timers').coinSeconds, 10);
 });
 
 test('設定の検証: minutes は秒になり、書き間違いはエラー', () => {

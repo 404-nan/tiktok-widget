@@ -7,6 +7,7 @@ import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } f
 import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 import { giftPicker } from './gift-picker.js';
+import { TIMER_COIN_SECONDS } from './timer-length.js';
 
 const $ = (id) => document.getElementById(id);
 const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'minecraft', 'theme'];
@@ -621,6 +622,8 @@ export function createEditor({ api, setMessage }) {
       if (entriesOf(tab).includes(name)) return alert('同じ名前がもうあります');
       if (tab === 'roulettes') value = { name, gifts: [], items: ['当たり', 'ハズレ*2'] };
     }
+    // 新しく作るタイマーだけ、100 コインで 1 分。すでにある設定と、schema の初期値は変えない
+    if (tab === 'timers') value = { ...value, coinSeconds: TIMER_COIN_SECONDS };
     await fetch('/api/config', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
