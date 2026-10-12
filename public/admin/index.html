@@ -20,7 +20,7 @@
 
 <main class="admin">
   <!-- 合言葉 -->
-  <section class="panel section" id="loginPanel" hidden>
+  <section class="panel section login" id="loginPanel" hidden>
     <h2>合言葉を入れてください</h2>
     <form id="loginForm" class="stack">
       <label class="field">
@@ -34,31 +34,36 @@
   </section>
 
   <div id="main" hidden>
-    <!-- 全員まとめて -->
-    <section class="panel section">
-      <div class="section-head">
-        <h2>豪華な演出（全員まとめて）</h2>
-        <span class="hint">ここでオンにすると、配信者ごとの設定に関係なく全員が使えます</span>
-      </div>
-      <div class="grants" id="globalGrants"></div>
-      <div class="row">
-        <button class="chip pressable" id="everyoneOff" type="button">全員の個別のオンを消す</button>
-        <span class="hint">配信者ごとに付けたオンを、全員分まとめてオフにします</span>
-      </div>
-    </section>
+    <!-- 人数 -->
+    <section class="panel kpis" id="kpis" aria-label="人数"></section>
 
-    <!-- 配信者を追加 -->
-    <section class="panel section">
-      <h2>配信者を追加</h2>
-      <form id="createForm" class="row">
-        <input id="newName" placeholder="配信者の名前（例: たろう）" autocomplete="off" required>
-        <button class="btn primary pressable" type="submit">追加して URL を作る</button>
-      </form>
-      <p class="form-message" id="message"></p>
-    </section>
+    <div class="split">
+      <!-- 配信者の一覧（1人1行） -->
+      <section class="panel list-panel solid">
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="名前で探す" autocomplete="off">
+          <div class="segmented" id="filters" role="tablist"></div>
+          <button class="btn primary pressable" id="addBtn" type="button">＋ 追加</button>
+        </div>
+        <form class="add-row" id="createForm" hidden>
+          <input id="newName" placeholder="配信者の名前（例: たろう）" autocomplete="off" required>
+          <button class="btn primary pressable" type="submit">追加して URL を作る</button>
+          <button class="chip pressable" id="addCancel" type="button">やめる</button>
+        </form>
+        <div class="list-head">
+          <label class="check"><input type="checkbox" id="checkAll" aria-label="表示中を全部選ぶ"></label>
+          <span>名前</span>
+          <span>状態</span>
+          <span class="legend" id="legend"></span>
+        </div>
+        <ol class="rows" id="rows"></ol>
+        <p class="hint empty" id="empty" hidden></p>
+      </section>
 
-    <!-- 配信者の一覧 -->
-    <div class="tenants" id="tenants"></div>
+      <!-- 右: 選んだ配信者 / まとめて / 全員まとめて -->
+      <aside class="panel detail" id="detail"></aside>
+    </div>
+    <p class="toast" id="message" role="status"></p>
   </div>
 </main>
 
