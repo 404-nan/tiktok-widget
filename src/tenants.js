@@ -18,7 +18,7 @@ const newKey = () => crypto.randomBytes(18).toString('base64url');
 const newId = () => `t${crypto.randomBytes(5).toString('hex')}`;
 
 // 配信者が最初に使えるウィジェット（豪華な演出は管理者がオンにしてから選べる）
-export const DEFAULT_WIDGETS = ['alerts', 'chats', 'counters', 'goals', 'rankings', 'roulettes', 'jars', 'wins', 'minecraft'];
+export const DEFAULT_WIDGETS = ['alerts', 'chats', 'counters', 'goals', 'rankings', 'roulettes', 'jars', 'wins', 'minecraft', 'timers'];
 
 /** 期限つきのオン: { until: null }（ずっと）/ { until: 時刻 } / なし（オフ） */
 const active = (grant, now = Date.now()) => Boolean(grant) && (grant.until == null || grant.until > now);

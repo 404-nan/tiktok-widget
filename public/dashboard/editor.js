@@ -4,7 +4,7 @@
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'rush', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'rush', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -51,6 +51,11 @@ const LABELS = {
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
   hideWords: 'NG ワード（カンマ区切り）', hideUsers: '隠すユーザー（ID か名前、カンマ区切り）', hideCommands: '「!」で始まるコマンドを隠す',
   tts: '読み上げる', ttsRate: '読み上げの速さ', ttsVolume: '読み上げの音量', ttsName: '名前も読む', ttsGiftersOnly: 'ギフトした人だけ読み上げる',
+  'timers.title': '見出し', startMinutes: '初めの時間（分）', maxHours: '上限（時間。0 で上限なし）', coinSeconds: '1 コインで延びる秒数',
+  'timers.minCoins': '延びる最低コイン', 'timers.rules': '指定のギフトで延ばす（YAML）', followSeconds: 'フォローで延びる秒数',
+  shareSeconds: 'シェアで延びる秒数', likeEvery: 'いいね何回ごとに延ばすか（0 で延ばさない）', likeSeconds: 'いいねで延びる秒数',
+  pausedExtend: '一時停止中もギフトで延びる', 'timers.hint': '案内文（空なら自動）', showHint: '案内文と延長の合計を出す',
+  'timers.avatars': '延ばした人のアイコン', warnMinutes: '時計を朱にする残り（分）', dangerMinutes: '赤く脈打つ残り（分）', endText: '0 になったときの文字',
 };
 // フォームの上に出す、よく使う設定
 const BASIC = {
@@ -64,6 +69,7 @@ const BASIC = {
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
+  timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -122,8 +128,8 @@ export function createEditor({ api, setMessage }) {
         });
         const data = await res.json().catch(() => ({}));
         if (data.config) payload = data;
-        // WIN数の「試す」ボタンは境目の設定で変わる
-        if (data.config && tab === 'wins') renderActions();
+        // WIN数・延長タイマーの「試す」ボタンは設定で変わる
+        if (data.config && (tab === 'wins' || tab === 'timers')) renderActions();
         showIssues(data.errors, data.warnings, data.ok ? '保存しました' : null);
         updateUrl();
         if (!yamlDirty && data.yaml) $('yamlText').value = data.yaml;
@@ -446,7 +452,7 @@ export function createEditor({ api, setMessage }) {
       for (const m of media) dl.append(new Option(m, m));
       wrap.append(dl);
       control.addEventListener('input', () => save(key, control.value.trim(), 500));
-    } else if (field.type === 'rules' || field.type === 'mcRules' || field.type === 'winRules') {
+    } else if (field.type === 'rules' || field.type === 'mcRules' || field.type === 'winRules' || field.type === 'timerRules') {
       control = document.createElement('textarea');
       control.rows = 6;
       control.className = 'mono';
@@ -457,7 +463,9 @@ export function createEditor({ api, setMessage }) {
           ? '- gifts: [Rose]\n  superstreamGift: 6001\n- events: [follow]\n  commands: ["say {user} ありがとう"]'
           : field.type === 'winRules'
             ? '- {gifts: [Lion], add: -1}\n- {gifts: [Universe], set: 0}\n- {gifts: [GG], add: 1}'
-            : '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
+            : field.type === 'timerRules'
+              ? '- {gifts: [Galaxy], minutes: 10}\n- {gifts: [Rose], seconds: 30}\n- {minCoins: 5000, minutes: 30}'
+              : '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
       control.rows = field.type === 'mcRules' ? 10 : 6;
       control.addEventListener('input', () => patch(pathOf(key), { yaml: control.value.trim() || '[]' }, 700));
     } else {
@@ -729,6 +737,12 @@ export function createEditor({ api, setMessage }) {
       $('sizeHint').textContent +=
         ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
     }
+    // 延長タイマーも、Stream Deck などから押せる URL を出す
+    if (tab === 'timers') {
+      const base = `${location.origin}${BASE}/api/timer/${id}`;
+      $('sizeHint').textContent +=
+        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: スタート ${base}/start ／ 一時停止 ${base}/pause ／ 止める・動かすを1つで ${base}/toggle ／ +1分 ${base}/add?seconds=60 ／ -1分 ${base}/add?seconds=-60 ／ リセット ${base}/reset`;
+    }
     const url = new URL(w.url, location.origin);
     url.searchParams.set('preview', '1');
     url.searchParams.set('sound', '0');
@@ -815,6 +829,27 @@ export function createEditor({ api, setMessage }) {
               api('/api/simulate', r.gifts?.length ? { kind: 'gift', giftName: r.gifts[0], count: 1, diamonds: 1 } : { kind: 'gift', giftName: 'テストギフト', diamonds: r.minCoins }),
             ),
           ),
+      );
+    } else if (tab === 'timers') {
+      const tm = (action, seconds) => control('timer', action, { id, seconds });
+      const e = payload.config.timers?.[id] ?? {};
+      const extra = [];
+      if (e.coinSeconds > 0) {
+        const coins = Math.max(10, e.minCoins ?? 1);
+        extra.push(chip(`${coins} コインのギフト`, 'gift', () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: coins, count: 1 })));
+      }
+      for (const r of (e.rules ?? []).filter((r) => r.gifts?.length).slice(0, 2)) {
+        extra.push(chip(r.gifts[0], 'gift', () => api('/api/simulate', { kind: 'gift', giftName: r.gifts[0], diamonds: 1, count: 1 })));
+      }
+      if (e.followSeconds > 0) extra.push(chip('フォロー', 'user-plus', () => api('/api/simulate', { kind: 'follow' })));
+      if (e.likeEvery > 0) extra.push(chip(`いいね ×${e.likeEvery}`, 'heart', () => api('/api/simulate', { kind: 'like', count: e.likeEvery })));
+      box.replaceChildren(
+        chip('スタート', 'play', tm('start')),
+        chip('一時停止', 'pause', tm('pause')),
+        chip('+1分', 'plus', tm('add', 60)),
+        chip('-1分', 'minus', tm('add', -60)),
+        chip('リセット（初めの時間に戻す）', 'rotate-ccw', () => confirm('タイマーを初めの時間に戻して、スタート前にしますか？') && tm('reset')()),
+        ...extra,
       );
     } else if (tab === 'rush') {
       const r = payload.config.rush ?? {};

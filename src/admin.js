@@ -125,6 +125,26 @@ export async function wins(action = 'status', id = null, value) {
   return Object.entries(out).map(([k, c]) => line(k, c)).join('\n');
 }
 
+/**
+ * 延長タイマーを動かす・見る（サーバーが必要）。
+ * action: start / pause / resume / toggle / add（seconds を足す。マイナスで引く）/ set（残りを seconds に）/ reset / status。id を省くと全部
+ */
+export async function timer(action = 'status', id = null, seconds) {
+  const STATE = { idle: 'スタート前', running: '動いている', paused: '一時停止中', ended: '終了' };
+  const clock = (ms) => {
+    const s = Math.ceil(ms / 1000);
+    return `${Math.floor(s / 3600)}時間${Math.floor((s % 3600) / 60)}分${s % 60}秒`;
+  };
+  const line = (k, t) => `${k}: ${STATE[t.status] ?? t.status}　残り ${clock(t.remaining)}${t.extended ? `（延長 ${t.extended} 秒）` : ''}`;
+  if (action === 'status') {
+    const all = await callServer('/api/timer');
+    const rows = Object.entries(all).filter(([k]) => !id || k === id);
+    return rows.length ? rows.map(([k, t]) => line(k, t)).join('\n') : '延長タイマーの設定がありません';
+  }
+  const { timers: out } = await callServer('/api/control', { method: 'POST', body: { target: 'timer', action, data: { id, seconds } } });
+  return Object.entries(out).map(([k, t]) => line(k, t)).join('\n');
+}
+
 /** RUSH に入る・終わらせる・今の状態（サーバーが必要） */
 export async function rush(action = 'status') {
   if (action === 'start' || action === 'stop') {

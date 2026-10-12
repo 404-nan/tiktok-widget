@@ -190,6 +190,46 @@ export const SCHEMA = {
     },
   },
 
+  timers: {
+    kind: 'map',
+    page: 'timer',
+    title: '延長タイマー',
+    desc:
+      '配信の残り時間（サブアソン）。ギフト・フォロー・シェア・いいねで時間が延びる。長時間配信・妨害マイクラの耐久配信向け。' +
+      'スタート・一時停止・時間の足し引き・リセットは、ダッシュボード・モニター・URL（Stream Deck など。例 /api/timer/<名前>/pause・/api/timer/<名前>/add?seconds=60）でできる。' +
+      '状態はサーバーの data/timers.json に残るので、OBS やサーバーを再起動しても続きから。URL は /widgets/timer.html?id=<名前>',
+    size: () => [720, 280],
+    fields: {
+      title: str('残り', '時計の左に出す見出し'),
+      startMinutes: num(60, '初めの時間（分）', { min: 0, max: 43200 }),
+      maxHours: num(0, '延びても合計（初めの時間 + 延びた時間）はこの時間まで（時間。0 で上限なし。ボタンでの足し引きは数えない）', { min: 0, max: 720 }),
+      coinSeconds: num(10, 'ギフト 1 コインで延びる秒数（0 で金額では延ばさない）', { min: 0, max: 3600 }),
+      minCoins: num(1, 'この合計コイン未満のギフトでは延ばさない（rules のギフトは別）', { min: 0 }),
+      rules: {
+        type: 'timerRules',
+        default: [],
+        desc:
+          '指定のギフトで延ばす秒数・分数。上から順に最初に合ったものを使い、合ったときは coinSeconds の計算はしない。' +
+          '条件: gifts（ギフト名の一覧）/ minCoins（この合計コイン以上）/ users。' +
+          '延ばす量: seconds か minutes（マイナスで減らす）。連打の個数分かかる（perCount: false で1回だけ）。text は延びたときに出すひと言',
+      },
+      followSeconds: num(0, 'フォロー1人で延びる秒数（0 で延びない）', { min: 0, max: 3600 }),
+      shareSeconds: num(0, 'シェア1回で延びる秒数（0 で延びない）', { min: 0, max: 3600 }),
+      likeEvery: num(0, 'いいねがこの回数たまるごとに延ばす（0 でいいねでは延びない）', { min: 0 }),
+      likeSeconds: num(10, 'いいね likeEvery 回で延びる秒数', { min: 0, max: 3600 }),
+      pausedExtend: bool(true, '一時停止中もギフトなどで延びる（false なら走っている間だけ）'),
+      hint: str('', '時計の下に出す案内文（空なら条件から「1コイン +10秒」のように自動で作る）'),
+      showHint: bool(true, '時計の下の案内文と、延びた合計を出す'),
+      avatars: bool(true, '延ばした人のアイコンを出す'),
+      warnMinutes: num(10, '残りがこの分数を切ったら時計を朱にする', { min: 0 }),
+      dangerMinutes: num(1, '残りがこの分数を切ったら板が赤く脈打つ（残り 10 秒はカウントの音と点滅）', { min: 0 }),
+      endText: str('終了', '0 になったときに叩きつける文字'),
+      color: color('accent', '見出しの色'),
+      sound: bool(true, '効果音'),
+      volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    },
+  },
+
   counters: {
     kind: 'map',
     page: 'counter',

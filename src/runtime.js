@@ -1,4 +1,4 @@
-// 配信者1人分の仕組み: TikTok の接続、集計、ルーレット、RUSH、WIN数、Minecraft 連携、配信の記録、設定ファイル。
+// 配信者1人分の仕組み: TikTok の接続、集計、ルーレット、RUSH、WIN数、延長タイマー、Minecraft 連携、配信の記録、設定ファイル。
 // 1人で使うときは1つだけ、配信者ごとに分けるときは配信者の数だけ作る（src/tenants.js）。
 
 import fs from 'node:fs';
@@ -17,8 +17,16 @@ import { History } from './history.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
 import { WinsEngine } from './wins.js';
+import { TimerEngine } from './timer.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+// 延長タイマーの秒数は seconds・minutes・value（秒）のどれでも受ける
+const timerSeconds = (o) => {
+  const pick = (v) => (v == null || v === '' ? null : Number(v));
+  const m = pick(o.minutes);
+  return pick(o.seconds) ?? (m != null ? m * 60 : pick(o.value));
+};
 
 // 管理者がオンにしないと使えない豪華な演出（設定のセクション名・ウィジェットのページ）
 export const PREMIUM = {
@@ -31,7 +39,7 @@ export const PREMIUM = {
 export const premiumOfPage = (page) => Object.entries(PREMIUM).find(([, p]) => p.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/me$/];
+const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/me$/];
 
 /**
  * 配信者1人分を作る。
@@ -47,6 +55,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
+  const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   let lastIssues = { errors: [], warnings: [] };
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
@@ -55,6 +64,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     minecraft.setConfig(config.minecraft);
     rush.setConfig(entitled('rush') ? config.rush : { ...config.rush, enabled: false });
     wins.setConfig(config.wins);
+    timer.setConfig(config.timers);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -138,6 +148,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       const wid = req.params.id === 'all' ? null : req.params.id;
       res.json({ ok: true, wins: wins.apply(wid, req.params.action, req.query.value ?? req.body?.value) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  // 延長タイマー。Stream Deck などから GET でも押せる
+  // 例: /api/timer/default/toggle（止める・動かす）・/api/timer/default/add?seconds=60（+1分）・?minutes=-1（-1分）・/api/timer/all/pause
+  r.get('/api/timer', (_req, res) => res.json(timer.snapshot()));
+  r.all('/api/timer/:id/:action', (req, res) => {
+    try {
+      const tid = req.params.id === 'all' ? null : req.params.id;
+      res.json({ ok: true, timers: timer.apply(tid, req.params.action, timerSeconds({ ...req.body, ...req.query })) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -276,6 +297,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return res.status(400).json({ error: err.message });
       }
     }
+    // 延長タイマーもサーバーで持つ（data: { id, seconds } か { id, minutes }）
+    if (target === 'timer') {
+      try {
+        return res.json({ ok: true, timers: timer.apply(data?.id || null, String(action), timerSeconds(data ?? {})) });
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+    }
     hub.control(String(target), String(action), data ?? {});
     res.json({ ok: true });
   });
@@ -301,6 +330,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       await tiktok.disconnect().catch(() => {});
       history.end();
       clearInterval(history.timer);
+      timer.close();
     },
   };
 }
