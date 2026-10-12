@@ -120,6 +120,16 @@ export class Minecraft {
     this.enqueue(commands, varsFor(trigger ?? {}, { item: safe(item.label, 40), roulette: safe(roulette.name || roulette.id, 40) }), 'roulette');
   }
 
+  /** ボスを討伐したら、そのボスの設定の commands と SuperStream の演出を送る（{user} はとどめを刺した人） */
+  onBossDefeated(cfg, boss, by, trigger) {
+    if (!this.config?.enabled) return;
+    const ss = { superstreamGift: /^\d+$/.test(String(cfg.superstreamGift ?? '').trim()) ? String(cfg.superstreamGift).trim() : '', superstreamAction: String(cfg.superstreamAction ?? '').split(/[\r\n]/)[0].trim() };
+    const commands = [...(cfg.commands ?? []), ...superstreamCommands(ss, this.config.superstreamProfile)];
+    if (!commands.length) return;
+    const e = trigger ?? (by?.user ? { user: by.user } : {});
+    this.enqueue(commands, varsFor(e, { boss: safe(boss.name, 40), round: boss.round }), 'boss');
+  }
+
   enqueue(commands, vars, source) {
     for (const c of commands) {
       if (this.queue.length >= MAX_QUEUE) break;

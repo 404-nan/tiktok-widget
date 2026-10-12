@@ -42,6 +42,10 @@ Minecraft / SuperStream
   wins add <数> [名前]      足す（-1 で減らす）
   wins set <数> [名前]      その数にする
   wins undo|reset [名前]    1つ戻す・0 に戻す
+  boss [名前]               ボス討伐の HP を見る
+  boss damage <数> [名前]   ダメージを与える
+  boss set <数> [名前]      HP をその数にする
+  boss defeat|heal|next|reset [名前]  討伐・HP を戻す・次のボス・1体目から
   status
 
 AI と使う
@@ -139,6 +143,13 @@ try {
       if (action === 'add' || action === 'set') print(await admin.wins(action, rest[1], Number(rest[0])));
       else if (action === 'undo' || action === 'reset') print(await admin.wins(action, rest[0]));
       else print(await admin.wins('status', action));
+      break;
+    }
+    case 'boss': {
+      const [action, ...rest] = args;
+      if (action === 'damage' || action === 'set') print(await admin.boss(action, rest[1], Number(rest[0])));
+      else if (['defeat', 'heal', 'next', 'reset'].includes(action)) print(await admin.boss(action, rest[0]));
+      else print(await admin.boss('status', action));
       break;
     }
     case 'rush':

@@ -1,4 +1,4 @@
-// 配信者1人分の仕組み: TikTok の接続、集計、ルーレット、RUSH、WIN数、Minecraft 連携、配信の記録、設定ファイル。
+// 配信者1人分の仕組み: TikTok の接続、集計、ルーレット、RUSH、WIN数、ボス討伐、Minecraft 連携、配信の記録、設定ファイル。
 // 1人で使うときは1つだけ、配信者ごとに分けるときは配信者の数だけ作る（src/tenants.js）。
 
 import fs from 'node:fs';
@@ -17,6 +17,7 @@ import { History } from './history.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
 import { WinsEngine } from './wins.js';
+import { BossEngine } from './boss.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -31,7 +32,7 @@ export const PREMIUM = {
 export const premiumOfPage = (page) => Object.entries(PREMIUM).find(([, p]) => p.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/me$/];
+const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/boss$/, /^\/api\/rush$/, /^\/api\/me$/];
 
 /**
  * 配信者1人分を作る。
@@ -47,6 +48,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
+  const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   let lastIssues = { errors: [], warnings: [] };
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
@@ -55,10 +57,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     minecraft.setConfig(config.minecraft);
     rush.setConfig(entitled('rush') ? config.rush : { ...config.rush, enabled: false });
     wins.setConfig(config.wins);
+    boss.setConfig(config.bosses);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
   hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
+  // ボスを討伐したら、設定にあるルーレットを回し、Minecraft にコマンドを送る
+  hub.on('bossDefeated', ({ config: c, boss: b, by, trigger }) => {
+    if (c.roulette && hub.config?.roulettes?.[c.roulette]) roulette.spin(c.roulette, trigger ?? (by?.user ? { kind: 'boss', user: by.user } : null));
+    minecraft.onBossDefeated(c, b, by, trigger);
+  });
 
   const applyConfigResult = (result) => {
     if (!result.ok && result.errors?.length) return;
@@ -138,6 +146,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       const wid = req.params.id === 'all' ? null : req.params.id;
       res.json({ ok: true, wins: wins.apply(wid, req.params.action, req.query.value ?? req.body?.value) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  // ボス討伐。例: /api/boss/default/damage?value=100・/api/boss/default/heal（HP を戻す）・/api/boss/default/defeat・/api/boss/all/reset
+  r.get('/api/boss', (_req, res) => res.json(boss.snapshot()));
+  r.all('/api/boss/:id/:action', (req, res) => {
+    try {
+      const bid = req.params.id === 'all' ? null : req.params.id;
+      res.json({ ok: true, boss: boss.apply(bid, req.params.action, req.query.value ?? req.body?.value) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -276,6 +294,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return res.status(400).json({ error: err.message });
       }
     }
+    // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
+    if (target === 'boss') {
+      try {
+        return res.json({ ok: true, boss: boss.apply(data?.id || null, String(action), data?.value) });
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+    }
     hub.control(String(target), String(action), data ?? {});
     res.json({ ok: true });
   });
@@ -301,6 +327,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       await tiktok.disconnect().catch(() => {});
       history.end();
       clearInterval(history.timer);
+      boss.flush();
     },
   };
 }

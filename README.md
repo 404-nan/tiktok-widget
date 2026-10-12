@@ -14,6 +14,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 目標バー `goal` | フォロー数などの目標までの進み具合。達成後に目標を自動で上げられる | 640 × 180 |
 | WIN数 `wins` | 妨害マイクラなどのゲームクリア回数。クリアしたらボタンや Stream Deck で +1、「このギフトで WIN -1」「このギフトで 0 に戻す」のようにギフトで増減（マイナスまで行く）。減ると板にひびが走り、ダメージの数字が飛んで、送った人のアイコン付きのハンコ。15 秒以内に続くと「連続妨害 ×N」でだんだん派手に、0 を割ると「マイナス突入」のサイレンと危険の縞、最低記録を更新すると「最低記録更新」、0 に戻ると「マイナス脱出!」。一度に大きく減ると 大妨害（-10〜）→ 超妨害（-100〜）→ 壊滅（-1000〜）と段階が上がり、数字がドゥルルルと減っていく。5 WIN ごとと目標達成は金で祝う。数は配信をまたいで残る | 横長 600 × 200 / 大きい数字 380 × 400 |
 | WIN数の全画面演出 `wins-fx` | WIN数で大きく減ったとき・連続妨害が途切れたとき・目標達成やマイナス脱出のときに、配信画面いっぱいに出す演出。大妨害は画面にガラスのひび、超妨害は全面のひび・サイレン・赤い警報、壊滅は暗転して止まってからガラスが割れて破片が落ちる。0 を割ると上下に「マイナス突入」の危険の帯。送った人の名前も大きく出す | 配信画面と同じ大きさ |
+| ボス討伐 `boss` | ギフトのコイン（といいね）がダメージになり、視聴者みんなでボスの HP を削る。HP バーが削れて白い残像がゆっくり追いかけ（格闘ゲームの体力ゲージ）、ダメージの数字が飛び、ボスが揺れる。大ダメージは板ごと揺れて斬撃。残りが少ないと HP が赤く点滅。HP 0 で一瞬暗転してから「討伐!」と金の光、とどめを刺した人のアイコン。少し待つと HP を増やした次のボスが出てくる（白鬼 → 赤鬼 → 黒鬼）。討伐でルーレットや Minecraft のコマンドも。HP は配信をまたいで残る | 720 × 260 |
 | ランキング `ranking` | この配信のトップギフター・いいねランキング。順位が入れ替わるとなめらかに動く | 420 × 416（5人） |
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
@@ -108,6 +109,13 @@ roulettes:
   - お祝い: 目標まであと1つは「リーチ」（喜びではなく溜め。鼓動と点滅だけ）、目標達成はいちばん派手な「CLEAR」（暗転 → 閃光 → 虹と花火と紙吹雪の嵐）。全画面のお祝いは `celebrate: false` で止められます
   - リセットはダッシュボード・モニターの「リセット」ボタン（確認が出ます。間違えても「戻す」で元に戻せます）
   - 数は `data/wins.json` に残ります。AI からは `npm run tw -- win` / `wins add -1` / `wins undo` / `wins reset`、MCP の `wins` ツール
+- **ボス討伐**: `bosses.<名前>` にボスの名前（`name`）と1体目の HP（`hp`）。1 コイン = 1 ダメージ（`coinDamage` で倍率）。いいねでも削るなら `damageFrom: [coins, likes]`（`likeDamage`）、特定のギフトだけにするなら `gifts`
+  - 倒すと `nextDelay` 秒（初期 6 秒）後に、HP を `hpScale` 倍（初期 1.5 倍）にした次のボスが出ます。2体目からの名前は `nextNames`。倒れたままにしたいときは `autoNext: false`
+  - 画像は `image` に `media/` のファイルか URL（空なら図形の鬼。何体目かで 白鬼 → 赤鬼 → 黒鬼 と変わる）
+  - 演出: `bigHit`（初期 1000）以上のダメージは「大ダメージ」で板ごと揺れ、その 10 倍で「特大」。残り HP が `lowHp`%（初期 20%）以下で HP が赤く点滅
+  - 討伐で回すルーレットは `roulette: reward` のように roulettes の名前。Minecraft に送るコマンドは `commands: ["say {user} が {boss} を討伐！"]`（`{user}` とどめを刺した人、`{boss}` ボスの名前、`{round}` 何体目）、SuperStream の演出は `superstreamGift` / `superstreamAction`（`minecraft.enabled: true` が必要）
+  - ボタン・URL: ダッシュボードの「ダメージ 100 を与える」「討伐する」「HP を戻す」「次のボス」「1体目からやり直す」。Stream Deck などからは `http://127.0.0.1:3939/api/boss/default/heal`（HP を戻す）／ `…/damage?value=100` ／ `…/defeat` ／ `…/next` ／ `…/set?value=500` ／ `…/reset`（`default` を `all` にすると全部）
+  - HP は `data/boss.json` に残ります。AI からは `npm run tw -- boss` / `boss damage 100` / `boss heal`、MCP の `boss` ツール
 - **RUSH**: `rush.gifts` のギフト、`rush.enterCoins` 以上のギフト、ルーレットの `rush: true` の項目、ダッシュボード・モニターのボタンで突入。RUSH 中は `extendMinCoins` 以上のギフトで `extendSeconds` 秒ずつ延び、最長 `maxSeconds` 秒。状態はサーバーが持つので、OBS を読み込み直しても続きから出ます
 - **同じウィジェットを複数**: `jars.elixir` のように名前を付けて作り、URL に `?id=elixir`
 
@@ -214,9 +222,10 @@ src/schema.js          設定の項目・初期値・説明（検証・フォー
 src/config.js          設定ファイルの検証・読み書き（コメントを残す）・監視
 src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
-src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・記録・設定の API）
+src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
 src/tenants.js         契約している配信者の一覧と鍵、豪華な演出のオン/オフ（期限つき・全員まとめて）
 src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
+src/boss.js            ボス討伐（ギフトのダメージで HP を削り、討伐・次のボスを配る。data/boss.json に残す）
 src/rush.js            RUSH（確変）モードの状態と時間（突入・延長・終了を全画面に配る）
 src/minecraft.js       Minecraft 連携（ルール・ルーレットの結果 → RCON）
 src/rcon.js            RCON クライアント

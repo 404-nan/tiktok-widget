@@ -71,6 +71,21 @@ wins:
       - {gifts: [Universe], reset: true} # ユニバースで 0 にリセット
       - {gifts: [GG], add: 1, text: 応援} # GG で WIN +1
 
+# ボス討伐 … /widgets/boss.html（default 以外は ?id=名前）
+# ギフトのコインがダメージになり、みんなでボスの HP を削る。HP が 0 で「討伐!」、少し待つと次のボス。
+# HP を戻す（Stream Deck など）: http://127.0.0.1:3939/api/boss/default/heal
+# HP は data/boss.json に残るので、OBS を読み込み直しても続きから出る。
+bosses:
+  default:
+    name: 魔王
+    hp: 10000 # 1体目の最大 HP（1 コイン = 1 ダメージ）
+    hpScale: 1.5 # 倒すたびに次のボスの HP を 1.5 倍
+    nextNames: [闇の騎士, 冥王] # 2体目からの名前
+    damageFrom: [coins] # likes も入れると、いいねでも削れる
+    image: "" # 例: media/boss.png（空なら図形の鬼）
+    roulette: "" # 討伐で回すルーレットの名前（例: reward）
+    commands: [] # 討伐で Minecraft に送るコマンド（例: ["say {user} が {boss} を討伐！"]）
+
 # 通常カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）
 # 筆の帯と文字だけ。ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
 cutins:

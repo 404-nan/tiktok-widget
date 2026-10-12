@@ -207,6 +207,22 @@ server.registerTool(
 );
 
 server.registerTool(
+  'boss',
+  {
+    title: 'ボス討伐',
+    description:
+      'ボス討伐の HP を変える・見る（サーバー起動中のみ）。damage で value のダメージ、defeat で今すぐ討伐、heal で HP を満タンに戻す、next で次のボス、set で HP を value にする、reset で1体目からやり直す、status で今の HP。id は bosses の名前（省くと全部）。' +
+      'ボスの名前・HP・討伐で回すルーレットなどは set_config で bosses.<名前> に書く。',
+    inputSchema: {
+      action: z.enum(['status', 'damage', 'defeat', 'heal', 'next', 'set', 'reset']).default('status'),
+      id: z.string().optional().describe('bosses の名前'),
+      value: z.number().int().optional().describe('damage / set のときの数'),
+    },
+  },
+  wrap(async ({ action, id, value }) => text(await admin.boss(action, id ?? null, value))),
+);
+
+server.registerTool(
   'rush',
   {
     title: 'RUSH',

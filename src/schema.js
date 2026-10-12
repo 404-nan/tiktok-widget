@@ -157,6 +157,49 @@ export const SCHEMA = {
     },
   },
 
+  bosses: {
+    kind: 'map',
+    page: 'boss',
+    title: 'ボス討伐',
+    desc:
+      'ギフトのコイン（といいね）がダメージになり、視聴者みんなでボスの HP を削る。HP が 0 になったら討伐。' +
+      'ダメージで HP バーが削れて白い残像が追いかけ、数字が飛び、ボスが揺れる。大ダメージは画面ごと揺れる。' +
+      '討伐で「討伐!」のハンコと金の演出、とどめを刺した人のアイコン。少し待つと HP を hpScale 倍にした次のボスが出てくる。' +
+      '討伐でルーレットを回したり（roulette）、Minecraft にコマンドを送ったり（commands）できる。' +
+      'HP はサーバーの data/boss.json に残るので、OBS を読み込み直しても続きから。URL は /widgets/boss.html?id=<名前>',
+    size: () => [720, 260],
+    fields: {
+      name: str('魔王', 'ボスの名前（1体目）'),
+      hp: num(10000, '1体目の最大 HP', { min: 1 }),
+      hpScale: num(1.5, '倒すたびに次のボスの HP を何倍にするか（1 で同じ）', { min: 1, max: 10 }),
+      image: str('', 'ボスの画像（media/ のファイルか URL）。空なら図形の鬼を描く'),
+      damageFrom: list(['coins'], 'ダメージにするもの（coins ギフトのコイン / likes いいね）', ['coins', 'likes']),
+      coinDamage: num(1, '1 コインあたりのダメージ', { min: 0 }),
+      likeDamage: num(1, 'いいね 1 回あたりのダメージ', { min: 0 }),
+      gifts: list([], 'このギフト名（または ID）だけダメージにする。空なら全部'),
+      bigHit: num(1000, 'このダメージ以上は「大ダメージ」（画面ごと揺れる）。その 10 倍で「特大」', { min: 1 }),
+      lowHp: num(20, '残り HP がこの % 以下になると HP が赤く点滅する（0 で点滅しない）', { min: 0, max: 100 }),
+      nextNames: list([], '2体目からの名前（順に使う。足りなければ最後の名前。空なら同じ名前）'),
+      autoNext: bool(true, '倒したら次のボスを出す（false なら倒れたまま。「HP を戻す」か「次のボス」で再開）'),
+      nextDelay: num(6, '討伐から次のボスが出るまでの秒数', { min: 2, max: 120 }),
+      defeatText: str('討伐!', '討伐のときに叩きつける文字'),
+      roulette: str('', '討伐で回すルーレットの名前（roulettes の名前。空なら回さない）'),
+      commands: {
+        type: 'commands',
+        default: [],
+        desc:
+          '討伐で Minecraft に送るコマンドの一覧（先頭の / は不要。minecraft の設定が必要）。' +
+          '{user} はとどめを刺した人、{boss} はボスの名前、{round} は何体目に置き換わる',
+      },
+      superstreamGift: str('', '討伐で起こす SuperStream の演出（そのギフト ID に設定した演出。minecraft の設定が必要）'),
+      superstreamAction: str('', '討伐で起こす SuperStream の演出を1つ（例 lightning）'),
+      power: num(1, '演出の強さ（揺れ・ダメージの数字の大きさの倍率）', { min: 0.3, max: 3 }),
+      color: color('accent', 'HP の色'),
+      sound: bool(true, '効果音'),
+      volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    },
+  },
+
   counters: {
     kind: 'map',
     page: 'counter',

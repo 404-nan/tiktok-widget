@@ -63,6 +63,9 @@ function checkValue(field, value, where, issues) {
       return checkMcRules(value, where, issues);
     case 'winRules':
       return checkWinRules(value, where, issues);
+    case 'commands':
+      // Minecraft のコマンドの一覧（ボス討伐のときに送るものなど）
+      return checkCommands(value ?? [], where, issues);
     default:
       return value;
   }
@@ -492,7 +495,7 @@ export function reference() {
     '',
     `場所: ${CONFIG_PATH}`,
     '',
-    'セクションは theme（共通）と、ウィジェットごとの alerts / jars / goals / counters / roulettes。',
+    'セクションは theme（共通）と、ウィジェットごとの alerts / jars / goals / counters / roulettes / wins / bosses など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
     'ギフト名は TikTok の英語名（Rose, Doughnut, Galaxy など）。list_gifts で配信中に届いたギフトを確認できる。',
