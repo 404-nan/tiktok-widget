@@ -5,6 +5,8 @@
 
 const SWITCH_MS = 450; // 別のルーレットに切り替わるときの待ち（ウィジェットと合わせる）
 const AFTER_MS = 400; // 結果を消すアニメーション
+const ENTER_MS = 500; // 何も回っていないときは、画面の外からすべり込む時間（ウィジェットと合わせる）
+const LEAVE_MS = 500; // 終わって画面の外へ戻る時間
 import { giftMatches } from './gifts.js';
 
 const named = (gift, names) => {
@@ -70,9 +72,12 @@ export class RouletteEngine {
     if (!r) return null;
     const winner = pickWeighted(r.items);
     const now = Date.now();
-    const start = Math.max(now, this.busyUntil);
+    // 待ちがなければ（画面の外にいるので）すべり込む時間を足す。戻っている途中なら、戻りきるのを待つ
+    const idle = now >= this.busyUntil;
+    const start = idle ? Math.max(now, this.leftAt ?? 0) + ENTER_MS : this.busyUntil;
     const reveal = start + (this.active === r.id ? 0 : SWITCH_MS) + r.duration * 1000;
     this.busyUntil = reveal + r.hold * 1000 + AFTER_MS;
+    this.leftAt = this.busyUntil + LEAVE_MS;
     this.active = r.id;
 
     const spin = { seq: ++this.seq, id: r.id, name: r.name || r.id, index: r.items.indexOf(winner), label: winner.label, trigger: slim(trigger), at: now, revealAt: reveal };
@@ -93,5 +98,6 @@ export class RouletteEngine {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
     this.busyUntil = 0;
+    this.leftAt = 0;
   }
 }

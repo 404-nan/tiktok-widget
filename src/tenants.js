@@ -47,6 +47,7 @@ export class Tenants {
     this.data = { tenants: [], global: { access: {} } };
     this.runtimes = new Map(); // id → runtime
     this.rental = new RentalState();
+    this.backupDir = backupData(dir);
     this.#load();
     // 期限が切れたら、その配信者の画面を読み込み直す（使えなくなったものは止まり、使えるようになったものは出る）
     this.lastState = new Map();
@@ -363,4 +364,35 @@ export class Tenants {
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/**
+ * 起動のたびに、配信者の一覧と設定を data/backups/<日時>/ に写しておく（更新や手違いで消えても戻せるように）。
+ * 新しい 20 回分だけ残す。写したところを返す（何もなければ null）
+ */
+export function backupData(dir, keep = 20) {
+  const files = [];
+  const list = path.join(dir, 'tenants.json');
+  if (fs.existsSync(list)) files.push('tenants.json');
+  const tdir = path.join(dir, 'tenants');
+  if (fs.existsSync(tdir)) {
+    for (const id of fs.readdirSync(tdir)) {
+      if (fs.existsSync(path.join(tdir, id, 'config.yaml'))) files.push(path.join('tenants', id, 'config.yaml'));
+    }
+  }
+  if (!files.length) return null;
+  const root = path.join(dir, 'backups');
+  const to = path.join(root, new Date().toISOString().replace(/[:.]/g, '-'));
+  try {
+    for (const f of files) {
+      fs.mkdirSync(path.dirname(path.join(to, f)), { recursive: true });
+      fs.copyFileSync(path.join(dir, f), path.join(to, f));
+    }
+    const all = fs.readdirSync(root).sort();
+    for (const old of all.slice(0, Math.max(0, all.length - keep))) fs.rmSync(path.join(root, old), { recursive: true, force: true });
+    return to;
+  } catch (err) {
+    console.warn(`[backup] 写せませんでした: ${err.message}`);
+    return null;
+  }
 }

@@ -2,6 +2,7 @@
 // 1人で使うときは1つだけ、配信者ごとに分けるときは配信者の数だけ作る（src/tenants.js）。
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -364,6 +365,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json([...out]);
   });
   for (const dir of mediaDirs) r.use('/media', express.static(dir));
+  // 画像を足す（ダッシュボードで画像を押して選んだもの）。配信者の media/uploads/ に置き、media/… の名前を返す
+  const UPLOAD_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/avif': 'avif' };
+  r.post('/api/media', express.raw({ type: Object.keys(UPLOAD_TYPES), limit: '8mb' }), (req, res) => {
+    const ext = UPLOAD_TYPES[String(req.get('content-type') ?? '').split(';')[0].trim()];
+    if (!ext || !Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: '画像（PNG・JPEG・GIF・WebP・AVIF）を選んでください' });
+    const dir = path.join(mediaDirs[0], 'uploads');
+    fs.mkdirSync(dir, { recursive: true });
+    const name = `${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
+    fs.writeFileSync(path.join(dir, name), req.body);
+    res.json({ ok: true, path: `media/uploads/${name}` });
+  });
 
   // 接続・デモ・テスト
   r.post('/api/connect', async (req, res) => {

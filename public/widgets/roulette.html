@@ -11,6 +11,11 @@
   body.style-wheel { place-items: center; }
   body.style-strip { align-content: start; padding: 20px 16px; }
   .stage { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 14px; min-width: 0; width: 100%; }
+  /* ギフトが来たときだけ、画面の外（下）からすべり込む */
+  .stage { transition: transform .5s var(--ease-out), opacity .5s linear; }
+  .stage:not(.on) { transform: translateY(110vh); opacity: 0; }
+  body.preview .stage { transform: none; opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .stage { transition: opacity .3s linear; } .stage:not(.on) { transform: none; } }
   .view { width: 100%; display: grid; justify-items: center; }
   .view[hidden] { display: none; }
   /* ルーレットが切り替わったときは左から拭き出す */

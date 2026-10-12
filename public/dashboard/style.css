@@ -397,7 +397,8 @@ input[type=color] { width: 48px; flex: none; padding: 4px; cursor: pointer; }
 /* --- ルーレットの項目 --- */
 .items { display: grid; gap: 8px; }
 .item-row { display: grid; gap: 6px; padding: 8px; border-radius: var(--r-md); background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
-.item-top { display: grid; grid-template-columns: 32px 1fr 64px 32px; gap: 6px; align-items: center; }
+.item-top { display: grid; grid-template-columns: 40px 1fr 64px 32px 32px; gap: 6px; align-items: center; }
+.item-row:not(.open) .item-bottom { display: none; }
 .item-bottom { display: flex; flex-wrap: wrap; gap: 6px; }
 .item-bottom select { flex: 1 1 120px; min-height: 34px; font-size: 13px; }
 .item-bottom input:not([type=color]) { flex: 1 1 100%; min-height: 34px; font-size: 13px; }
@@ -406,19 +407,25 @@ input[type=color] { width: 48px; flex: none; padding: 4px; cursor: pointer; }
 .thumb {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  color: var(--text-tertiary);
+  cursor: pointer;
   border-radius: var(--r-sm);
   background: var(--accent-fill);
   box-shadow: inset 0 0 0 1px var(--stroke-secondary);
   overflow: hidden;
 }
 .thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumb.drop { box-shadow: inset 0 0 0 2px var(--text-primary); }
+.thumb.loading { opacity: .5; }
 .icon-btn.small { width: 32px; height: 32px; }
 .icon-btn .icon { --size: 16px; }
 
 /* --- 設定ファイルと AI --- */
-.config-panel { grid-column: 1 / -1; }
+.config-panel { grid-column: 1 / -1; display: grid; gap: 16px; }
 .config-body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 @media (max-width: 1024px) { .config-body { grid-template-columns: 1fr; } }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.55; }
@@ -554,7 +561,6 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 .detail-head { display: flex; align-items: center; gap: 12px; }
 .detail-head h3 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
 [data-mode=simple] .widget-body { grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); }
-[data-mode=simple] .item-bottom { display: none; }
 .text-btn { display: inline-flex; align-items: center; gap: 4px; }
 .text-btn .icon { --size: 14px; }
 
