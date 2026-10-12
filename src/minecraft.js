@@ -2,6 +2,7 @@
 // RCON で Minecraft サーバーに送る（マイクラ側の演出プラグインのコマンドも送れる）。
 
 import { Rcon } from './rcon.js';
+import { giftMatches, giftDisplayName } from './gifts.js';
 
 const MAX_REPEAT = 50;
 const MAX_QUEUE = 500;
@@ -21,8 +22,7 @@ export function fill(command, vars) {
 
 const named = (gift, names) => {
   if (!gift || !names?.length) return false;
-  const want = names.map((n) => String(n).toLowerCase());
-  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.id));
+  return giftMatches(gift, names);
 };
 
 /** イベントに合うかどうか（events を書かなければギフトだけが対象） */
@@ -48,7 +48,7 @@ export function varsFor(e = {}, extra = {}) {
   return {
     user: safe(e.user?.name),
     userId: safe(e.user?.id),
-    gift: safe(e.gift?.name),
+    gift: safe(giftDisplayName(e.gift)),
     giftId: safe(e.gift?.id, 20),
     count: e.gift?.count ?? e.count ?? 1,
     coins: e.totalDiamonds ?? 0,

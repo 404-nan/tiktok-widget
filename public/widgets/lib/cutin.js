@@ -390,7 +390,7 @@ export async function startCutin(section) {
     tag.append(name);
     if (e.kind === 'gift') {
       const what = document.createElement('span');
-      what.textContent = `${e.gift.name} ×${e.gift.count}`;
+      what.textContent = `${e.gift.nameJa || e.gift.name} ×${e.gift.count}`;
       const coins = document.createElement('span');
       coins.className = 'num';
       coins.textContent = fmt(e.totalDiamonds);

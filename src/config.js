@@ -575,7 +575,7 @@ export function reference() {
     'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
-    'ギフト名は TikTok の英語名（Rose, Doughnut, Galaxy など）。list_gifts で配信中に届いたギフトを確認できる。',
+    'ギフト名は TikTok の英語名・日本語名・ID のどれでも書けます。画面には TikTok の日本語名を出します。list_gifts で確認できます。',
     '色は #RRGGBB か、テーマの色の名前 accent（朱）/ gold（金）/ ink（墨）/ ink-2（少し明るい墨）/ paper（白）。',
     '',
   ];

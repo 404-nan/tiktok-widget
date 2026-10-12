@@ -172,7 +172,7 @@ function renderTables(full) {
       bar.className = 'bar';
       bar.style.width = `${Math.max(2, (g.coins / maxCoins) * 100)}%`;
       bar.title = `${fmtNum(g.coins)} コイン`;
-      return [[g.name, 'name'], [bar, 'bar-cell'], [fmtNum(g.count), 'num'], [fmtNum(g.coins), 'num']];
+      return [[g.nameJa || g.name, 'name'], [bar, 'bar-cell'], [fmtNum(g.count), 'num'], [fmtNum(g.coins), 'num']];
     }),
     'ギフトはまだありません',
   );

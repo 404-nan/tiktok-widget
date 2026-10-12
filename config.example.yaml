@@ -5,7 +5,7 @@
 # AI に頼むときは MCP サーバー（npm run mcp）か CLI（npm run tw）を使います。
 #
 # 色は "#RRGGBB" か、テーマの色の名前 accent（朱）/ gold（金）/ ink（墨）/ ink-2 / paper（白）。
-# ギフト名は TikTok の英語名（Rose, Doughnut, Galaxy …）。
+# ギフト名は TikTok の英語名・日本語名・ID のどれでも書けます。画面には TikTok の日本語名を出します。
 
 theme:
   mode: dark # dark / light

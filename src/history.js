@@ -58,10 +58,12 @@ class Session {
         g.name = user.name;
         g.avatar = user.avatar ?? g.avatar;
         this.gifters.set(key, g);
-        const t = this.giftTypes.get(e.gift.name) ?? { name: e.gift.name, image: e.gift.image, icon: e.gift.icon, diamonds: e.gift.diamonds, count: 0, coins: 0 };
+        const giftKey = String(e.gift.id || e.gift.name);
+        const t = this.giftTypes.get(giftKey) ?? { id: e.gift.id, name: e.gift.name, nameJa: e.gift.nameJa ?? null, image: e.gift.image, icon: e.gift.icon, diamonds: e.gift.diamonds, count: 0, coins: 0 };
+        t.nameJa = e.gift.nameJa ?? t.nameJa ?? null;
         t.count += e.gift.count;
         t.coins += e.totalDiamonds;
-        this.giftTypes.set(e.gift.name, t);
+        this.giftTypes.set(giftKey, t);
         break;
       }
       case 'like': {

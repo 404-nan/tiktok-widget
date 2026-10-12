@@ -15,6 +15,8 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
   root.className = 'gift-picker';
   let selected = [...new Set(value.filter(Boolean))];
   let all = sortGifts(gifts);
+  const label = (g) => g?.nameJa || g?.name || g?.id || '';
+  const byValue = (value) => all.find((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => String(v).toLocaleLowerCase() === String(value).toLocaleLowerCase()));
   let open = false;
 
   const chips = document.createElement('div');
@@ -44,7 +46,7 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
     for (const name of selected) {
       const chip = document.createElement('span');
       chip.className = 'gift-picker-chip';
-      chip.append(Object.assign(document.createElement('span'), { textContent: name }));
+      chip.append(Object.assign(document.createElement('span'), { textContent: label(byValue(name)) || name }));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'gift-picker-remove pressable';
@@ -69,7 +71,7 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
   const drawList = () => {
     const query = search.value.trim().toLocaleLowerCase();
     list.replaceChildren();
-    const filtered = all.filter((g) => g.name.toLocaleLowerCase().includes(query));
+    const filtered = all.filter((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => v.toLocaleLowerCase().includes(query)));
     const seen = filtered.filter((g) => g.seen);
     const normal = filtered.filter((g) => !g.seen);
     const group = (title, rows) => {
@@ -80,14 +82,14 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
         b.type = 'button';
         b.className = 'gift-picker-option pressable';
         b.disabled = selected.includes(g.name);
-        b.append(Object.assign(document.createElement('span'), { textContent: g.name }), Object.assign(document.createElement('small'), { textContent: `${g.diamonds ?? 0} コイン` }));
+        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: `${g.diamonds ?? 0} コイン` }));
         b.addEventListener('click', () => choose(g.name));
         list.append(b);
       }
     };
     group('この配信で届いたギフト', seen);
     group('ギフト一覧', normal);
-    if (query && !all.some((g) => g.name.toLocaleLowerCase() === query)) {
+    if (query && !all.some((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => v.toLocaleLowerCase() === query))) {
       const custom = document.createElement('button');
       custom.type = 'button';
       custom.className = 'gift-picker-custom pressable';

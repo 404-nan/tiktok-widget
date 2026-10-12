@@ -28,7 +28,7 @@ export function normalizeUser(u) {
  * ギフト。連打（ストリーク）可能なギフトは連打が終わった最後のイベントだけを採用し、
  * 途中経過は null を返す。
  */
-export function normalizeGift(data) {
+export function normalizeGift(data, catalog = null) {
   const g = data.gift;
   const d = data.giftDetails;
   const x = data.extendedGiftInfo;
@@ -38,18 +38,21 @@ export function normalizeGift(data) {
 
   const diamonds = toNumber(g?.diamondCount ?? d?.diamondCount ?? x?.diamond_count);
   const count = Math.max(1, toNumber(data.repeatCount) || 1);
-  return {
+  const gift = {
     kind: 'gift',
     user: normalizeUser(data.user),
     gift: {
       id: String(data.giftId ?? g?.id ?? ''),
       name: g?.name || d?.giftName || x?.name || 'Gift',
+      nameJa: null,
       image: firstUrl(g?.image, g?.icon, x?.image) || d?.giftImage?.giftPictureUrl || null,
       diamonds,
       count,
     },
     totalDiamonds: diamonds * count,
   };
+  gift.gift = catalog?.enrich(gift.gift) ?? gift.gift;
+  return gift;
 }
 
 export function normalizeLike(data) {

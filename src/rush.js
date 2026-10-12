@@ -1,10 +1,10 @@
 // RUSH（確変）モード。突入するとしばらく「RUSH 中」になり、その間のギフトで時間が延び、合計が数え上がる。
 // 状態はサーバーで持ち、'rush' メッセージで全部の画面に配る（OBS を読み込み直しても続きから出せる）。
 
+import { giftMatches, giftDisplayName } from './gifts.js';
 const named = (gift, names) => {
   if (!gift || !names?.length) return false;
-  const want = names.map((n) => String(n).toLowerCase());
-  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.id));
+  return giftMatches(gift, names);
 };
 
 const slimUser = (u) => (u ? { id: u.id, name: u.name, avatar: u.avatar } : null);
@@ -51,7 +51,7 @@ export class RushEngine {
         this.state.endsAt += extended;
         if (extended) this.#schedule(this.state.endsAt - now);
       }
-      this.#send({ kind: 'gift', user: slimUser(e.user), coins: e.totalDiamonds, gift: e.gift.name, extended: Math.round(extended / 1000) });
+      this.#send({ kind: 'gift', user: slimUser(e.user), coins: e.totalDiamonds, gift: giftDisplayName(e.gift), extended: Math.round(extended / 1000) });
       return;
     }
     const byGift = named(e.gift, c.gifts);

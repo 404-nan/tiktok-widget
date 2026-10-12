@@ -5,11 +5,11 @@
 
 const SWITCH_MS = 450; // 別のルーレットに切り替わるときの待ち（ウィジェットと合わせる）
 const AFTER_MS = 400; // 結果を消すアニメーション
+import { giftMatches } from './gifts.js';
 
 const named = (gift, names) => {
   if (!gift || !names?.length) return false;
-  const want = names.map((n) => String(n).toLowerCase());
-  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.id));
+  return giftMatches(gift, names);
 };
 
 /** イベントで回すルーレット。ギフト名の指定が合うものを優先し、なければコイン数・フォローなどで探す */
@@ -36,7 +36,7 @@ const slim = (e) =>
   e && {
     kind: e.kind,
     user: e.user && { id: e.user.id, name: e.user.name, avatar: e.user.avatar },
-    gift: e.gift && { id: e.gift.id, name: e.gift.name, count: e.gift.count },
+    gift: e.gift && { id: e.gift.id, name: e.gift.name, nameJa: e.gift.nameJa ?? null, count: e.gift.count },
     totalDiamonds: e.totalDiamonds,
   };
 

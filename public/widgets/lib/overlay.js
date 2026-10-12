@@ -266,7 +266,7 @@ export function giftNode(gift, size = 64) {
   };
   if (gift?.image) {
     const img = new Image(size, size);
-    img.alt = gift.name ?? '';
+    img.alt = gift.nameJa || gift.name || '';
     img.referrerPolicy = 'no-referrer';
     img.src = gift.image;
     img.onerror = showToken;
@@ -451,8 +451,10 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export function giftNamed(gift, names) {
   if (!gift || !names?.length) return false;
   const want = list(names).map((n) => n.toLowerCase());
-  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.id));
+  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.nameJa ?? '').toLowerCase()) || want.includes(String(gift.id));
 }
+
+export const giftLabel = (gift) => gift?.nameJa || gift?.name || gift?.id || 'Gift';
 
 /** ギフトがトリガー条件（ギフト名/ID の一覧、または最低コイン数）に合うか */
 export function giftMatches(e, { gifts = [], minCoins = 0, maxCoins = 0 }) {

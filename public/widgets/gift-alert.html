@@ -155,7 +155,7 @@
 
     if (e.kind === 'gift') {
       badge.append(giftNode(e.gift, 68));
-      descRow.append(el('span', null, rule.text || e.gift.name));
+      descRow.append(el('span', null, rule.text || e.gift.nameJa || e.gift.name));
       const count = el('span', 'count num', `×${e.gift.count}`);
       descRow.append(count);
       if (rule.big ?? e.totalDiamonds >= p.bigCoins) lt.classList.add('big');

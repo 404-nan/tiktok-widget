@@ -116,7 +116,7 @@ export class TimerEngine {
       this.#extend(id, r.seconds * 1000, {
         from: e.kind, // gift / follow / share / like
         user: slimUser(e.user),
-        gift: e.kind === 'gift' ? { name: e.gift.name, count: e.gift.count, image: e.gift.image ?? null } : null,
+        gift: e.kind === 'gift' ? { id: e.gift.id, name: e.gift.name, nameJa: e.gift.nameJa ?? null, count: e.gift.count, image: e.gift.image ?? null } : null,
         coins: e.totalDiamonds ?? 0,
         text: r.text ?? '',
       });

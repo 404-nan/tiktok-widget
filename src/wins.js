@@ -88,7 +88,7 @@ export class WinsEngine {
     for (const [id, c] of Object.entries(this.config)) {
       const rule = (c.rules ?? []).find((r) => ruleMatches(r, e));
       if (!rule) continue;
-      const by = { user: slimUser(e.user), gift: e.gift.name, count: e.gift.count, text: rule.text ?? '' };
+      const by = { user: slimUser(e.user), gift: e.gift.nameJa || e.gift.name, count: e.gift.count, text: rule.text ?? '' };
       if (rule.set != null) this.#change(id, 'set', rule.set, by);
       else this.#change(id, 'add', rule.add * (rule.perCount === false ? 1 : e.gift.count), by);
       changed = true;

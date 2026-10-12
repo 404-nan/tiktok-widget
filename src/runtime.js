@@ -21,6 +21,7 @@ import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
+import { GiftCatalog } from './gifts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -60,7 +61,8 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  */
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, widgetBase, ai = null }) {
   const hub = new Hub();
-  const tiktok = new TikTokSource(hub);
+  const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
+  const tiktok = new TikTokSource(hub, giftCatalog);
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
   const minecraft = new Minecraft(hub);
@@ -234,7 +236,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
   r.get('/api/gifts', (_req, res) => {
     const seen = [...hub.seenGifts.values()].map((g) => ({ ...g, seen: true }));
-    res.json([...DEMO_GIFTS, ...seen.filter((g) => !DEMO_GIFTS.some((d) => d.name === g.name))]);
+    const saved = giftCatalog.list();
+    res.json([...DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), ...saved, ...seen]
+      .filter((g, i, all) => all.findIndex((x) => String(x.id) === String(g.id)) === i));
   });
 
   // AI から使うための案内（1人で使うときだけ。配信者ごとの URL では出さない）
@@ -294,8 +298,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     return { available: true, left: aiLeft(), limit: ai.dailyLimit, canUndo: canUndo(), maxChars: MAX_REQUEST_CHARS };
   };
   const knownGifts = () => {
-    const seen = [...hub.seenGifts.values()];
-    return [...DEMO_GIFTS, ...seen.filter((g) => !DEMO_GIFTS.some((d) => d.name === g.name))].slice(0, 60).map((g) => ({ name: g.name, diamonds: g.diamonds }));
+    return [...DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), ...giftCatalog.list(), ...hub.seenGifts.values()]
+      .slice(0, 60).map((g) => ({ name: g.name, nameJa: g.nameJa ?? null, id: g.id, diamonds: g.diamonds }));
   };
   r.get('/api/ai/state', (_req, res) => res.json(aiState()));
   r.post('/api/ai/ask', async (req, res) => {

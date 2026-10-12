@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultsFor } from './schema.js';
+import { giftMatches } from './gifts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BOSS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'boss.json');
@@ -18,8 +19,7 @@ const slimUser = (u) => (u ? { id: u.id, name: u.name, avatar: u.avatar ?? null 
 
 const named = (gift, names) => {
   if (!gift || !names?.length) return false;
-  const want = names.map((n) => String(n).toLowerCase());
-  return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.id));
+  return giftMatches(gift, names);
 };
 
 /** round 体目のボスの最大 HP（1体目は hp、そこから hpScale 倍ずつ） */

@@ -232,7 +232,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
-        const data = items.map(({ gift }) => ({ n: gift.name, i: gift.image, c: gift.icon, d: gift.diamonds }));
+        const data = items.map(({ gift }) => ({ n: gift.nameJa || gift.name, i: gift.image, c: gift.icon, d: gift.diamonds }));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       } catch {}
     }, 500);

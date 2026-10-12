@@ -34,7 +34,7 @@ export class Hub extends EventEmitter {
     this.recentChats = []; // 新しい順
     this.seq = 0;
     this.config = null;
-    this.seenGifts = new Map(); // 配信中に届いたギフト（名前 → { id, name, diamonds, image }）
+  this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
     this.testDirty = false; // テストやデモで数が増えているか
     this.sample = { on: false, until: null };
     this.sampleTimer = null;
@@ -141,8 +141,8 @@ export class Hub extends EventEmitter {
     switch (e.kind) {
       case 'gift': {
         if (e.gift.name && !String(e.user.id).startsWith('demo_')) {
-          const { id, name, diamonds, image } = e.gift;
-          this.seenGifts.set(name, { id, name, diamonds, image });
+          const { id, name, nameJa, diamonds, image } = e.gift;
+          this.seenGifts.set(String(id || name), { id, name, nameJa: nameJa ?? null, diamonds, image });
         }
         s.gifts += e.gift.count;
         s.diamonds += e.totalDiamonds;

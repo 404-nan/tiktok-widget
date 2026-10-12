@@ -14,13 +14,14 @@ import {
 const RETRY_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000];
 
 export class TikTokSource {
-  constructor(hub) {
+  constructor(hub, gifts = null) {
     this.hub = hub;
     this.connection = null;
     this.username = null;
     this.signApiKey = undefined;
     this.retry = 0;
     this.retryTimer = null;
+    this.gifts = gifts;
   }
 
   async connect(username, { signApiKey } = {}) {
@@ -50,6 +51,10 @@ export class TikTokSource {
     const conn = new TikTokLiveConnection(username, {
       signApiKey: this.signApiKey,
       processInitialData: false,
+      webConfigOverrides: {
+        DEFAULT_HTTP_CLIENT_PARAMS: { app_language: 'ja', browser_language: 'ja-JP', webcast_language: 'ja', region: 'JP', priority_region: 'JP' },
+        DEFAULT_WS_CLIENT_PARAMS: { app_language: 'ja', browser_language: 'ja-JP', webcast_language: 'ja', region: 'JP', priority_region: 'JP' },
+      },
     });
     this.connection = conn;
     this.#wire(conn);
@@ -57,6 +62,8 @@ export class TikTokSource {
     try {
       const state = await conn.connect();
       if (this.connection !== conn) return; // 接続中に切断・再接続された
+      const giftResult = await this.gifts?.refresh(conn);
+      if (giftResult?.error) console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message);
       this.retry = 0;
       this.hub.setStatus({ mode: 'live', username, message: `@${username} の LIVE に接続しました`, roomId: state.roomId });
     } catch (err) {
@@ -77,7 +84,7 @@ export class TikTokSource {
         console.warn('[tiktok] イベントの変換に失敗:', err);
       }
     };
-    conn.on(WebcastEvent.GIFT, pub(normalizeGift));
+    conn.on(WebcastEvent.GIFT, pub((data) => normalizeGift(data, this.gifts)));
     conn.on(WebcastEvent.LIKE, pub(normalizeLike));
     conn.on(WebcastEvent.ROOM_USER, pub(normalizeViewers));
     conn.on(WebcastEvent.CHAT, pub(normalizeChat));
