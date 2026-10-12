@@ -9,6 +9,7 @@
   body.preview { background: linear-gradient(180deg, #25262b, #1d1e23); }
   #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
   iframe { position: absolute; display: block; border: 0; background: transparent; transform-origin: top left; pointer-events: none; }
+  .preview-placeholder { position: absolute; z-index: 1; box-sizing: border-box; border: 2px dashed rgba(246, 245, 241, .28); border-radius: 12px; padding: 10px; color: rgba(246, 245, 241, .5); font: 28px/1.3 sans-serif; }
 </style>
 </head>
 <body>
@@ -20,6 +21,7 @@ if (new URLSearchParams(location.search).has('preview')) document.body.classList
 
 const stage = document.querySelector('#stage');
 const frameMap = new Map();
+const placeholderMap = new Map();
 const map = {
   alerts: ['gift-alert', [760, 200]], chats: ['chat', [460, 640]], jars: ['gift-jar', [500, 700]],
   goals: ['goal', [640, 180]], wins: ['wins', [600, 200]], timers: ['timer', [720, 260]],
@@ -79,6 +81,11 @@ function setFrame(key, url, x, y, scale, size, z) {
   f.hidden = false;
   return f;
 }
+function setPlaceholder(key, label, x, y, scale, size) {
+  let p = placeholderMap.get(key);
+  if (!p) { p = document.createElement('div'); p.className = 'preview-placeholder'; p.textContent = `${label}はここに出ます`; placeholderMap.set(key, p); stage.append(p); }
+  p.style.width = `${size[0]}px`; p.style.height = `${size[1]}px`; p.style.left = `${x}px`; p.style.top = `${y}px`; p.style.transform = `scale(${scale})`; p.hidden = false;
+}
 function render(config, me = {}) {
   const wanted = new Set();
   for (const section of Object.keys(map)) {
@@ -91,6 +98,7 @@ function render(config, me = {}) {
       wanted.add(key);
       const [x, y, scale] = place(section, entry, index);
       const size = sizeFor(section, entry);
+      if (document.body.classList.contains('preview')) setPlaceholder(key, title[section], 1080 * x / 100, 1920 * y / 100, scale, size);
       setFrame(key, pageUrl(map[section][0], id), 1080 * x / 100, 1920 * y / 100, scale, size, 2);
     });
   }
@@ -105,6 +113,7 @@ function render(config, me = {}) {
     });
   }
   for (const [key, f] of frameMap) f.hidden = !wanted.has(key);
+  for (const [key, p] of placeholderMap) p.hidden = !wanted.has(key);
 }
 async function boot() {
   const [data, me] = await Promise.all([fetch('/api/config').then((r) => r.json()), fetch('/api/me').then((r) => r.json()).catch(() => ({}))]);
