@@ -1,0 +1,29 @@
+// Cloudflare に置くための設定（npx wrangler deploy でここから公開される）
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tiktok-widget",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  // サーバー本体（server.js）を動かすコンテナ。Dockerfile はひとつ上（リポジトリの一番上）
+  "containers": [
+    {
+      "class_name": "Server",
+      "image": "../Dockerfile",
+      "image_build_context": "..",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "SERVER", "class_name": "Server" },
+      { "name": "VAULT", "class_name": "Vault" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Server", "Vault"] }],
+  // 5分ごとに起こす（作り直したあとも、すぐ動いているように）
+  "triggers": { "crons": ["*/5 * * * *"] }
+}

@@ -1,0 +1,8 @@
+node_modules
+data
+config.yaml
+cloudflare
+.git
+.claude
+test
+*.log

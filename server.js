@@ -9,6 +9,7 @@ import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
+import { createVault } from './src/vault.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -16,6 +17,10 @@ const PORT = Number(process.env.PORT) || 3939;
 const HOST = process.env.HOST || '127.0.0.1';
 // TW_HOSTED=1: 配信者ごとの URL（/t/<鍵>/...）と管理画面だけを出す（1人用の /dashboard/ は出さない）
 const HOSTED = process.env.TW_HOSTED === '1';
+
+// Cloudflare などで動かすとき（TW_VAULT あり）: data/ を置き場から戻してから始める
+const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
+if (vault) await vault.restore();
 
 // --- 1人で使うとき（今までどおり config.yaml と data/ を使う） ---
 const local = HOSTED
@@ -42,6 +47,8 @@ const ADMIN_TOKEN = (() => {
 const app = express();
 app.set('trust proxy', true);
 app.use(express.json());
+// 動いているかの確認（Cloudflare が定期的に呼ぶ）
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 // ライブラリ・フォント・アイコンは node_modules から直接配る（OBS がオフラインでも表示できる）
 app.get('/vendor/matter.min.js', (_req, res) => {
@@ -59,7 +66,8 @@ const sameToken = (t) => typeof t === 'string' && t.length === ADMIN_TOKEN.lengt
 const admin = express.Router();
 admin.use((req, res, next) => (sameToken(req.get('x-admin-token')) ? next() : res.status(401).json({ error: '合言葉が違います' })));
 
-const origin = (req) => `${req.protocol}://${req.get('host')}`;
+// 前に Cloudflare などがあるときは、そこに届いた URL（X-Forwarded-Host / Proto）を使う
+const origin = (req) => `${req.protocol}://${req.host}`;
 function tenantView(req, t) {
   const rt = tenants.runtimes.get(t.id);
   return {
@@ -197,6 +205,7 @@ setInterval(() => {
 }, 30_000).unref();
 
 server.listen(PORT, HOST, () => {
+  vault?.start();
   const base = `http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`;
   console.log(`\n  TikTok LIVE ウィジェット`);
   if (local) console.log(`  ダッシュボード  ${base}/dashboard/`);

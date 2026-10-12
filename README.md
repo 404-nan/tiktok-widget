@@ -82,6 +82,29 @@ URL が漏れたときは、管理画面の「URL を作り直す」で古い UR
 - サーバーとして公開するときは `TW_HOSTED=1`（1人用の `/dashboard/` を出さず、管理画面と配信者ごとの URL だけにする）と `HOST=0.0.0.0`。HTTPS で公開してください
 - AI からの設定（MCP / CLI）は、今のところ1人用の `config.yaml` だけが対象です
 
+## Cloudflare で公開する（配信者に URL を渡すとき）
+
+サーバー（`server.js`）は配信中ずっと TikTok とつながり続けるので、Cloudflare Containers の中でそのまま動かします。
+`cloudflare/worker.js` が入り口で、届いたリクエスト（WebSocket も）をコンテナに渡します。
+
+- **データ**: コンテナのファイルは作り直すと消えるので、`data/` の中身（配信者の一覧・設定・WIN数・記録など）は Cloudflare の中の置き場（Durable Object の `Vault`）に 15 秒ごとに送り、起動するときに戻します（`src/vault.js`）
+- **止まらないように**: 5分ごとに起こし、24時間何もなくても眠らせません（配信者がいつ配信してもよいように）
+- **費用のめやす**: Workers の有料プラン（月 5 ドル）が必要。コンテナ（`basic`: 1GB）を1台ずっと動かして、合わせて月 10〜12 ドルほど
+- **URL**: `https://tiktok-widget.<あなたのサブドメイン>.workers.dev`（管理画面は `/admin/`）。独自ドメインは Cloudflare の画面であとから付けられます
+
+### 初めの1回だけ
+
+1. Cloudflare の画面で Workers の有料プラン（Workers Paid）にする
+2. Cloudflare の「My Profile → API Tokens → Create Token」で「Edit Cloudflare Workers（Cloudflare Workers を編集する）」のテンプレートからトークンを作る。権限に「Containers: Edit」が無ければ足す
+3. GitHub のこのリポジトリの「Settings → Secrets and variables → Actions」に入れる
+   - `CLOUDFLARE_API_TOKEN` … 2 のトークン
+   - `TW_ADMIN_TOKEN` … 管理画面の合言葉（自分で決めた長めの文字）
+   - `CLOUDFLARE_ACCOUNT_ID`（アカウントが複数あるときだけ）・`TIKTOK_SIGN_API_KEY`（あれば）
+4. GitHub の「Actions → Cloudflare に公開 → Run workflow」を押す（以後は push するたびに自動で公開されます）
+
+手元から公開するなら `cd cloudflare && npm install && npx wrangler login && npx wrangler secret put TW_ADMIN_TOKEN && npx wrangler deploy`（Docker が必要）。
+手元で Cloudflare と同じ形で試すなら、`cloudflare/.dev.vars` に `TW_ADMIN_TOKEN=...` を書いて `npx wrangler dev`。
+
 ## 設定ファイル（config.yaml）
 
 設定はすべて `config.yaml` にまとまっています（初回起動時に `config.example.yaml` からコピーされます）。
@@ -247,6 +270,7 @@ src/config.js          設定ファイルの検証・読み書き（コメント
 src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
+src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）
 src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
 src/timer.js           延長タイマー（残り時間・延長・一時停止をサーバーで持ち、data/timers.json に残す）
@@ -268,6 +292,9 @@ public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト
+cloudflare/            Cloudflare に置くための入り口（worker.js）と設定（wrangler.jsonc）
+Dockerfile             コンテナのイメージ
+.github/workflows/     push したら Cloudflare に公開する
 ```
 
 ```bash

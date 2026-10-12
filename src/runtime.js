@@ -107,7 +107,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (JSON.stringify(result.config) !== JSON.stringify(hub.config)) hub.setConfig(result.config);
   });
 
-  const origin = (req) => `${req.protocol}://${req.get('host')}`;
+  const origin = (req) => `${req.protocol}://${req.host}`;
   function configPayload(req) {
     const defaults = Object.fromEntries(SECTIONS.map((s) => [s, defaultsFor(s)]));
     if (req.role === 'obs') return { config: cfg.publicConfig(hub.config), defaults: cfg.publicConfig(defaults) };
