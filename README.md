@@ -82,6 +82,21 @@ URL が漏れたときは、管理画面の「URL を作り直す」で古い UR
 - サーバーとして公開するときは `TW_HOSTED=1`（1人用の `/dashboard/` を出さず、管理画面と配信者ごとの URL だけにする）と `HOST=0.0.0.0`。HTTPS で公開してください
 - AI からの設定（MCP / CLI）は、今のところ1人用の `config.yaml` だけが対象です
 
+## 自分の PC で動かして公開する（無料・いちばん手軽）
+
+自分の PC でサーバーを動かし、Cloudflare Tunnel（無料）で https の URL を付けます。アカウントもカードも要りません。**PC をつけて、このウィンドウを開いている間だけ**配信者が使えます。
+
+**Windows**
+1. 初めの1回だけ、PowerShell で `winget install OpenJS.NodeJS.LTS` と `winget install Cloudflare.cloudflared`
+2. このフォルダの `deploy\pc\start.bat` をダブルクリック
+3. 黒い画面に出る `https://〇〇.trycloudflare.com` が公開 URL。管理画面は後ろに `/admin/`、合言葉は `data\admin-token.txt`
+
+**Mac**: `brew install node cloudflared` のあと `bash deploy/pc/start.sh`
+
+- 注意: この方法の URL は、**起動するたびに変わります**。変わると、配信者に渡した URL や OBS の URL も変わるので、そのたびに渡し直しです。
+- 毎回同じ URL にするには、自分のドメイン（Cloudflare に登録したもの。年1,000円ほど）で Tunnel を作り、トークンを `TUNNEL_TOKEN` に入れて起動します（Cloudflare の「Zero Trust → Networks → Tunnels」で作成、公開先は `http://localhost:3939`）。
+- 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
+
 ## 無料で公開する（配信者に URL を渡すとき）
 
 サーバーは配信中ずっと TikTok とつながり続けるので、いつも動いているサーバーが要ります。
@@ -301,6 +316,7 @@ public/widgets/        各ウィジェット（lib/ に共通処理・ルーレ�
 test/                  node --test のテスト
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
+deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 ```
 
