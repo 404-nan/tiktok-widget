@@ -1,6 +1,7 @@
 /* 管理画面: 配信者が増えても伸びないように、左に1人1行の一覧、右に選んだ人の詳細 */
 .admin { display: grid; gap: 16px; max-width: 1280px; margin: 0 auto; padding: 0 16px 48px; }
-.login { max-width: 520px; width: 100%; justify-self: center; }
+.login { max-width: 520px; width: 100%; justify-self: center; margin-top: 12vh; }
+.back-button { justify-self: start; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #main { display: grid; gap: 16px; }
 
@@ -147,3 +148,6 @@
   .detail.page-detail { grid-column: 1 / -1; }
   #tenantListPanel:has(~ .detail.page-detail) { display: none; }
 }
+
+/* 合言葉の画面（左の項目が出ていないとき）は、真ん中に置く */
+@media (min-width: 900px) { .admin:has(#main[hidden]) { padding-left: 32px; } }

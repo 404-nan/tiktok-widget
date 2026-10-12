@@ -5,30 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>ダッシュボードを開く</title>
-<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
-<link rel="stylesheet" href="/vendor/fonts/barlow-condensed/600.css">
+<link rel="stylesheet" href="/dashboard/style.css">
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #111113; color: #F6F5F1; font-family: 'Zen Kaku Gothic New', sans-serif; }
-  form { width: min(92vw, 360px); padding: 32px 24px; border-radius: 28px; background: rgba(246, 245, 241, 0.06); border: 1px solid rgba(246, 245, 241, 0.12); text-align: center; }
-  h1 { margin: 0 0 24px; font-size: 20px; }
-  input { width: 100%; padding: 14px; border-radius: 18px; border: 1px solid rgba(246, 245, 241, 0.2); background: #111113; color: #F6F5F1;
-    font: 600 44px/1 'Barlow Condensed', sans-serif; letter-spacing: 0.4em; text-align: center; text-indent: 0.4em; }
-  input:focus { outline: 2px solid #FFC53D; outline-offset: 2px; }
-  button { margin-top: 16px; width: 100%; padding: 16px; border: 0; border-radius: 18px; background: #F6F5F1; color: #111113; font: 700 18px 'Zen Kaku Gothic New', sans-serif; transition: transform 0.15s cubic-bezier(0.3, 1.6, 0.5, 1); }
-  button:active { transform: scale(0.96); }
-  button:disabled { opacity: 0.5; }
-  #msg { min-height: 1.5em; margin: 16px 0 0; color: #FF4F1F; font-size: 15px; }
+  /* 見た目はダッシュボードの「かんたん」と同じ（/dashboard/style.css）。ここは置き場所と数字の大きさだけ */
+  body { display: grid; place-items: center; padding: 16px; }
+  .pin-card { width: min(100%, 380px); text-align: center; }
+  .pin-card h1 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
+  #pin { min-height: 64px; font-family: "Barlow Condensed", sans-serif; font-size: 40px; font-weight: 600; letter-spacing: .4em; text-indent: .4em; text-align: center; font-variant-numeric: tabular-nums; }
+  #pin:focus { outline: none; }
+  #go { width: 100%; min-height: 48px; font-size: 16px; }
+  #msg { justify-content: center; }
 </style>
 </head>
 <body>
-<form id="f">
+<form id="f" class="panel section pin-card">
   <h1>4桁の数字を入れてください</h1>
   <input id="pin" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{4}" maxlength="4" required autofocus aria-label="4桁の数字">
-  <button id="go">開く</button>
-  <p id="msg" role="alert"></p>
+  <button id="go" class="btn primary pressable">開く</button>
+  <p id="msg" class="form-message error" role="alert"></p>
 </form>
+<script type="module">
+  // ほかの画面と同じガラスの面と、選んでいるテーマ（明るい / 暗い）
+  import { setupPanels, store } from '/dashboard/common.js';
+  document.documentElement.dataset.theme = store.get('theme', 'dark');
+  setupPanels();
+</script>
 <script>
   const f = document.getElementById('f');
   const pin = document.getElementById('pin');

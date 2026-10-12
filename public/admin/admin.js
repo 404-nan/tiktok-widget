@@ -352,7 +352,7 @@ function tenantDetail(t) {
       selected = null;
       renderRows();
       renderDetail();
-    }, { cls: 'back-button' }),
+    }, { cls: 'chip back-button' }),
     el(
       'div',
       { className: 'detail-head' },
