@@ -172,9 +172,13 @@ api('/api/status')
 connect({
   hello(status, state) {
     renderStatus(status);
+    editor.onStatus(status);
     renderState(state);
   },
-  status: renderStatus,
+  status(status) {
+    renderStatus(status);
+    editor.onStatus(status);
+  },
   state(state) {
     renderState(state);
     clearLog();

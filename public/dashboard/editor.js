@@ -103,10 +103,12 @@ export function createEditor({ api, setMessage }) {
   let id = null;
   let yamlDirty = false;
   let superstream = { gifts: [] };
-  // 「かんたん」は、ホーム（home: 出しているものの一覧）から1つ選んで設定（detail）する。
-  // ほかに、出すものを足す（catalog）と、OBS に入れる URL の一覧（obs）。「くわしく」は今までのタブとフォーム
+  // 「かんたん」は、左のサイドバーで選ぶと右が切り替わる:
+  //   detail（ウィジェット1つの設定）/ catalog（出すものを足す）/ obs（OBS に入れる URL）/ ai（AI にたのむ）
+  // 「くわしく」は今までのタブとフォーム
   let mode = 'simple';
-  let view = 'home';
+  let view = 'detail';
+  let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
   const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
 
@@ -286,7 +288,7 @@ export function createEditor({ api, setMessage }) {
     store.set('mode', mode);
     document.body.dataset.mode = mode;
     for (const b of $('modeSeg').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
-    if (!keepView) view = 'home';
+    if (!keepView) view = 'detail';
     if (payload) select(tab);
   }
 
@@ -310,7 +312,7 @@ export function createEditor({ api, setMessage }) {
     try {
       me = await api('/api/me/widgets', { widgets: me.widgets.filter((w) => w !== section) }, 'PUT');
       renderPicker();
-      view = 'home';
+      view = 'detail';
       select(visibleTabs()[0]);
     } catch (err) {
       setMessage(err.message, true);
@@ -342,24 +344,16 @@ export function createEditor({ api, setMessage }) {
     g.append(body);
     return g;
   }
-  function viewHead(title) {
+  function viewHead(title, desc) {
     const head = document.createElement('div');
-    head.className = 'detail-head';
-    const back = document.createElement('button');
-    back.type = 'button';
-    back.className = 'chip pressable';
-    back.append(icon('arrow-left'), 'もどる');
-    back.addEventListener('click', () => {
-      view = 'home';
-      render();
-    });
-    head.append(back, Object.assign(document.createElement('h3'), { textContent: title }));
+    head.className = 'view-title';
+    head.append(Object.assign(document.createElement('h3'), { textContent: title }));
+    if (desc) head.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: desc }));
     return head;
   }
   const goTo = (next) => () => {
     view = next;
     render();
-    $('widgetsPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
   /** いま画面に出しているもの（配信者ごとの URL では選んだもの、1人で使うときは設定があるもの） */
@@ -386,45 +380,42 @@ export function createEditor({ api, setMessage }) {
     return w.id && names.length > 1 ? `${base} ${names.indexOf(w.id) + 1}` : base;
   };
 
-  // ホーム: 出しているものの一覧 → 押すと設定に入る
-  function renderHome() {
-    const box = $('cards');
+  // サイドバー: いつも出ていて、押すと右が切り替わる（スマホでは横に流れるボタンの列になる）
+  function renderNav() {
+    const side = $('side');
     const used = usedSections();
-    const rows = used.map((section) =>
-      listRow({
-        iconName: INFO[section].icon,
-        title: schema.sections[section].title,
-        sub: summaryOf(section, payload.config[section], isObj(section)),
-        onClick: () => openCard(section),
-      }),
+    const item = (iconName, label, current, onClick, cls = '') => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `side-item pressable ${cls}`;
+      b.setAttribute('aria-current', String(current));
+      b.append(icon(iconName), Object.assign(document.createElement('span'), { textContent: label }));
+      b.addEventListener('click', onClick);
+      return b;
+    };
+    const label = (text) => Object.assign(document.createElement('p'), { className: 'side-label', textContent: text });
+    const onDetail = (t) => view === 'detail' && tab === t;
+    side.replaceChildren(
+      item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai'),
+      label('配信画面に出すもの'),
+      ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
+      item('plus', '出すものを足す', view === 'catalog', goTo('catalog')),
+      label('じゅんび'),
+      item('monitor-up', 'OBS に入れる URL', view === 'obs', goTo('obs')),
+      item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
+      Object.assign(document.createElement('span'), { className: 'side-spacer' }),
+      item('sliders-horizontal', 'くわしく設定する', false, () => setMode('advanced'), 'side-more'),
     );
-    const canAdd = TABS.some((t) => t !== 'theme' && !used.includes(t));
-    if (canAdd) rows.push(listRow({ iconName: 'plus', title: '出すものを足す', sub: used.length ? null : 'まずは「ギフト通知」がおすすめです', onClick: goTo('catalog') }));
-    const urls = obsList();
-    const title = document.createElement('div');
-    title.className = 'view-title';
-    title.append(
-      Object.assign(document.createElement('h3'), { textContent: '配信画面に出すもの' }),
-      Object.assign(document.createElement('p'), { className: 'desc', textContent: used.length ? '押すと、見た目や動きを決められます。' : 'まだ何も出していません。下の「出すものを足す」から選んでください。' }),
-    );
-    box.replaceChildren(
-      title,
-      listGroup(null, rows),
-      listGroup('配信ソフトに入れる', [
-        listRow({ iconName: 'monitor-up', title: 'OBS / TikTok LIVE Studio に入れる URL', sub: urls.length ? `${urls.length} 個` : '出すものを足すと、URL ができます', onClick: goTo('obs') }),
-      ]),
-      listGroup('全体', [
-        listRow({ iconName: INFO.theme.icon, title: '色とテーマ', sub: summaryOf('theme', payload.config.theme, true), onClick: () => openCard('theme') }),
-        listRow({ iconName: 'sliders-horizontal', title: 'くわしく設定する', sub: '全部の項目・設定ファイル・テスト送信', onClick: () => setMode('advanced') }),
-      ]),
-    );
+    // スマホの横並びでは、選んでいるものが見えるところまで流す
+    side.querySelector('[aria-current=true]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 
   // 出すものを足す: まだ使っていないものを、目的ごとに並べる
   function renderCatalog() {
     const box = $('cards');
     const used = usedSections();
-    box.replaceChildren(viewHead('出すものを足す'));
+    box.replaceChildren(viewHead('出すものを足す', '使いたいものを押すと、左に入って設定できるようになります。'));
+    if (TABS.every((t) => t === 'theme' || used.includes(t))) box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: '全部使っています。' }));
     for (const [title, sections] of GROUPS) {
       const rest = sections.filter((t) => !used.includes(t));
       if (!rest.length) continue;
@@ -485,7 +476,7 @@ export function createEditor({ api, setMessage }) {
     });
     box.replaceChildren(viewHead('OBS / TikTok LIVE Studio に入れる'), steps);
     if (rows.length) box.append(listGroup('URL（1つずつ、別のソースとして入れます）', rows));
-    else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。「もどる」から、出すものを足してください。' }));
+    else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを足す」から選んでください。' }));
   }
 
   /** 押すとまとめて値が入る「型」 */
@@ -599,16 +590,21 @@ export function createEditor({ api, setMessage }) {
       if (/^#/.test(theme[t] ?? '')) document.documentElement.style.setProperty(`--tok-${t}`, theme[t]);
     }
     // かんたんの一覧: カードだけ出す
-    const listView = simple() && view !== 'detail';
+    // かんたんで、まだ何も出していないときは「出すものを足す」から始める
+    if (simple() && view === 'detail' && tab !== 'theme' && !usedSections().includes(tab)) view = usedSections().length ? view : 'catalog';
+    const listView = simple() && (view === 'catalog' || view === 'obs');
+    const aiView = simple() && view === 'ai';
     $('cards').hidden = !listView;
-    $('detail').hidden = listView;
-    $('detailHead').hidden = !simple() || listView;
+    $('aiView').classList.toggle('show', aiView);
+    $('detail').hidden = listView || aiView;
+    $('detailHead').hidden = !simple();
+    if (simple()) renderNav();
     if (listView) {
       if (view === 'catalog') renderCatalog();
-      else if (view === 'obs') renderObs();
-      else renderHome();
+      else renderObs();
       return;
     }
+    if (aiView) return;
     renderEntries();
     const def = schema.sections[tab];
     $('widgetDesc').textContent = simple() ? INFO[tab].desc : def.desc;
@@ -1156,6 +1152,7 @@ export function createEditor({ api, setMessage }) {
     // かんたんでは、試すボタンが多いときは初めの4つだけ出す
     const box = $('actions');
     box.classList.remove('open');
+    box.classList.toggle('live', live);
     const chips = [...box.children];
     if (!simple() || chips.length <= 5) return;
     chips.slice(4).forEach((c) => c.classList.add('extra'));
@@ -1520,10 +1517,6 @@ export function createEditor({ api, setMessage }) {
         setTimeout(() => (label.textContent = 'コピー'), 1500);
       });
       for (const b of $('modeSeg').querySelectorAll('button')) b.addEventListener('click', () => setMode(b.dataset.mode, { keepView: b.dataset.mode === mode }));
-      $('backBtn').addEventListener('click', () => {
-        view = 'home';
-        render();
-      });
       tab = TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0];
       setMode(store.get('mode', 'simple'));
     },
@@ -1536,6 +1529,11 @@ export function createEditor({ api, setMessage }) {
       } else render();
     },
     current: () => ({ section: tab, id: isObj(tab) ? null : id, view: simple() ? view : 'detail' }),
+    /** TikTok につながった・切れた（配信中のテスト送信は画面に出るだけになる） */
+    onStatus(status) {
+      live = status.mode === 'live';
+      $('actions').classList.toggle('live', live);
+    },
     /** 管理者が豪華な演出をオン/オフしたとき */
     async onEntitlements() {
       me = await api('/api/me').catch(() => me);

@@ -35,6 +35,7 @@ export class Hub extends EventEmitter {
     this.seq = 0;
     this.config = null;
     this.seenGifts = new Map(); // 配信中に届いたギフト（名前 → { id, name, diamonds, image }）
+    this.testDirty = false; // テストやデモで数が増えているか
   }
 
   addClient(ws) {
@@ -56,6 +57,15 @@ export class Hub extends EventEmitter {
   publish(event) {
     if (!event) return;
     const e = { id: ++this.seq, ts: Date.now(), ...event };
+    // テスト送信（test: true）は、本番の数を汚さない:
+    // - 配信中（TikTok につないでいる間）は画面に出すだけ。集計・ランキングは変えず、
+    //   ほかの仕組み（WIN数・タイマー・ボス・ルーレット・Minecraft・記録）にも渡さない
+    // - つなぐ前に試した分は数えるが、つながったときに 0 に戻す（setStatus）
+    if (e.test && this.status.mode === 'live') {
+      this.broadcast({ type: 'event', event: e, state: this.state });
+      return;
+    }
+    if (e.test) this.testDirty = true;
     this.#apply(e);
     this.recent.unshift(e);
     this.recent.length = Math.min(this.recent.length, 50);
@@ -72,6 +82,8 @@ export class Hub extends EventEmitter {
     this.status = { ...this.status, ...patch };
     this.broadcast({ type: 'status', status: this.status });
     this.emit('status', this.status, prev);
+    // 配信が始まったら、その前のテストやデモで増えた数を 0 に戻す（途中で切れてつなぎ直したときは戻さない）
+    if (this.status.mode === 'live' && prev.mode !== 'live' && this.testDirty) this.reset();
   }
 
   reset() {
@@ -80,6 +92,7 @@ export class Hub extends EventEmitter {
     this.likers.clear();
     this.recent = [];
     this.recentChats = [];
+    this.testDirty = false;
     this.broadcast({ type: 'state', state: this.state });
     this.control('all', 'reset');
     this.emit('reset');

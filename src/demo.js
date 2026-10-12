@@ -87,7 +87,7 @@ export class DemoSource {
 
   start() {
     if (this.timer) return;
-    this.hub.publish(makeEvent('viewers', { viewers: this.viewers }));
+    this.hub.publish({ ...makeEvent('viewers', { viewers: this.viewers }), test: true });
     this.timer = setInterval(() => this.#tick(), 700);
   }
 
@@ -98,14 +98,14 @@ export class DemoSource {
 
   #tick() {
     const r = Math.random();
-    if (r < 0.45) this.hub.publish(makeEvent('like'));
-    else if (r < 0.62) this.hub.publish(makeEvent('chat'));
-    else if (r < 0.78) this.hub.publish(makeEvent('gift'));
-    else if (r < 0.86) this.hub.publish(makeEvent('follow'));
-    else if (r < 0.9) this.hub.publish(makeEvent('share'));
+    if (r < 0.45) this.hub.publish({ ...makeEvent('like'), test: true });
+    else if (r < 0.62) this.hub.publish({ ...makeEvent('chat'), test: true });
+    else if (r < 0.78) this.hub.publish({ ...makeEvent('gift'), test: true });
+    else if (r < 0.86) this.hub.publish({ ...makeEvent('follow'), test: true });
+    else if (r < 0.9) this.hub.publish({ ...makeEvent('share'), test: true });
     else {
       this.viewers = Math.max(5, this.viewers + randInt(-8, 10));
-      this.hub.publish(makeEvent('viewers', { viewers: this.viewers }));
+      this.hub.publish({ ...makeEvent('viewers', { viewers: this.viewers }), test: true });
     }
   }
 }

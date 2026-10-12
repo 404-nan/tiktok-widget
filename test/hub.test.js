@@ -55,3 +55,35 @@ test('リセットで集計が 0 に戻り、ウィジェットにも伝わる',
   const types = ws.sent.slice(-2).map((m) => `${m.type}:${m.action ?? ''}`);
   assert.deepEqual(types, ['state:', 'control:reset']);
 });
+
+test('テスト送信は本番の数を汚さない: 配信中は画面に出るだけ、配信前の分はつながったときに 0 に戻る', () => {
+  const hub = new Hub();
+  const seen = [];
+  const sent = [];
+  hub.on('event', (e) => seen.push(e.kind));
+  hub.addClient({ readyState: 1, on() {}, send: (text) => sent.push(JSON.parse(text)) });
+
+  // つなぐ前: 今までどおり数える（目標バーなどの動きを確かめられる）
+  hub.publish({ kind: 'follow', user: { id: 'demo_1', name: 'a' }, test: true });
+  assert.equal(hub.state.follows, 1);
+  assert.deepEqual(seen, ['follow']);
+
+  // つながったら、テストで増えた分は 0 に戻る
+  hub.setStatus({ mode: 'live', username: 'x' });
+  assert.equal(hub.state.follows, 0);
+
+  // 配信中: 本物は数える。テストは画面に出るだけで、数もほかの仕組みも動かない
+  hub.publish({ kind: 'follow', user: { id: 'u1', name: 'real' } });
+  sent.length = 0;
+  hub.publish({ kind: 'follow', user: { id: 'demo_2', name: 'b' }, test: true });
+  hub.publish({ kind: 'gift', user: { id: 'demo_2', name: 'b' }, gift: { name: 'Rose', diamonds: 1, count: 5 }, totalDiamonds: 5, test: true });
+  assert.equal(hub.state.follows, 1);
+  assert.equal(hub.state.diamonds, 0);
+  assert.deepEqual(seen, ['follow', 'follow']);
+  assert.deepEqual(sent.map((m) => [m.type, m.event.kind, m.state.follows]), [['event', 'follow', 1], ['event', 'gift', 1]]);
+
+  // 途中で切れてつなぎ直しても、本物の数は消えない
+  hub.setStatus({ mode: 'connecting' });
+  hub.setStatus({ mode: 'live' });
+  assert.equal(hub.state.follows, 1);
+});

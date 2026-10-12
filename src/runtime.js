@@ -370,8 +370,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.post('/api/simulate', (req, res) => {
     const event = makeEvent(req.body?.kind, req.body ?? {});
     if (!event) return res.status(400).json({ error: '不明なイベント種類です' });
-    hub.publish(event);
-    res.json({ ok: true });
+    hub.publish({ ...event, test: true });
+    // 配信中のテストは画面に出るだけ（数は変わらない）
+    res.json({ ok: true, visualOnly: hub.status.mode === 'live' });
   });
   r.post('/api/control', (req, res) => {
     const { target, action, data } = req.body ?? {};

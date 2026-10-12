@@ -81,12 +81,20 @@
       <div class="segmented" id="tabs" role="tablist"></div>
     </div>
 
-    <!-- かんたん: カードの一覧 -->
+    <div class="shell">
+    <!-- かんたん: 左のサイドバー（押すと右が切り替わる） -->
+    <nav class="side" id="side" aria-label="設定するもの" data-simple></nav>
+    <div class="shell-main">
+    <!-- AI にたのむ -->
+    <div class="ai-view" id="aiView">
+      <div class="view-title" data-simple><h3>AI にたのむ</h3><p class="desc">どうしたいかを、ふつうの言葉で書いてください。AI が案を出すので、よければ「この内容で変える」を押します（押すまで何も変わりません）。</p></div>
+      <div class="ai-box" id="aiBox" hidden></div>
+    </div>
+    <!-- かんたん: 出すものを足す / OBS に入れる URL -->
     <div class="cards" id="cards" hidden></div>
 
     <div class="detail" id="detail">
-    <div class="detail-head" id="detailHead" hidden>
-      <button class="chip pressable" id="backBtn" data-icon="arrow-left" type="button">もどる</button>
+    <div class="view-title" id="detailHead" hidden>
       <h3 id="detailTitle"></h3>
     </div>
     <div class="entries" id="entries" aria-label="設定の名前"></div>
@@ -108,8 +116,8 @@
       </div>
     </div>
     </div>
-    <!-- AI にたのむ: 画面の下に貼り付く入力（チャットの入力欄のように、いつも同じ場所にある） -->
-    <div class="ai-box" id="aiBox" hidden></div>
+    </div>
+    </div>
   </section>
 
   <section class="panel section config-panel" data-adv>

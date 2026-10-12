@@ -21,7 +21,7 @@ export function setupAi({ box, api, editor }) {
   let pending = null; // 見せている案（{ reply, changes }）
 
   const left = el('span', { className: 'hint' });
-  const text = el('textarea', { rows: 1, placeholder: 'AI にふつうの言葉でたのむ' });
+  const text = el('textarea', { rows: 3, placeholder: '例: Lion が来たら WIN を 5 減らして' });
   text.setAttribute('aria-label', 'AI にたのむこと');
   const ask = el('button', { type: 'submit', className: 'btn primary pressable' }, icon('sparkles'), el('span', { textContent: 'たのむ' }));
   const form = el('form', { className: 'ai-form' }, text, ask);
@@ -43,11 +43,13 @@ export function setupAi({ box, api, editor }) {
   document.addEventListener('pointerdown', (ev) => !box.contains(ev.target) && showExamples(false));
   const result = el('div', { className: 'ai-result', hidden: true });
   result.setAttribute('role', 'status');
-  // 上から: 案（出ているときだけ）→ 例（書いているときだけ）→ 入力
-  box.replaceChildren(result, el('div', { className: 'ai-more' }, examples, left), form);
+  // 上から: 入力 → 例 → 案
+  box.replaceChildren(form, el('div', { className: 'ai-more' }, examples, left), result);
 
   const renderState = () => {
     box.hidden = !state.available;
+    // サイドバーの「AI にたのむ」は、使えるときだけ出す
+    document.body.classList.toggle('ai-on', !!state.available);
     left.textContent = state.available ? `今日はあと ${state.left} 回` : '';
     ask.disabled = !state.available || state.left <= 0;
   };
@@ -93,10 +95,12 @@ export function setupAi({ box, api, editor }) {
           state = data.state ?? state;
           // 変えたウィジェットを開いて、結果を見せる
           const [section, entry] = changes[0].path.split('.');
-          result.replaceChildren(note('変えました。プレビューで確かめてください。'), el('div', { className: 'row wrap' }, undoButton(), closeButton()));
+          const see = el('button', { type: 'button', className: 'btn primary pressable', textContent: '変えたところを見る' });
+          see.addEventListener('click', () => editor.refresh(section, entry));
+          result.replaceChildren(note('変えました。'), el('div', { className: 'row wrap' }, see, undoButton(), closeButton()));
           text.value = '';
           pending = null;
-          await editor.refresh(section, entry);
+          await editor.refresh();
         } catch (err) {
           apply.disabled = false;
           parts.push(note(err.message, 'error'));
