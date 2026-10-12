@@ -82,28 +82,35 @@ URL が漏れたときは、管理画面の「URL を作り直す」で古い UR
 - サーバーとして公開するときは `TW_HOSTED=1`（1人用の `/dashboard/` を出さず、管理画面と配信者ごとの URL だけにする）と `HOST=0.0.0.0`。HTTPS で公開してください
 - AI からの設定（MCP / CLI）は、今のところ1人用の `config.yaml` だけが対象です
 
-## Cloudflare で公開する（配信者に URL を渡すとき）
+## 無料で公開する（配信者に URL を渡すとき）
 
-サーバー（`server.js`）は配信中ずっと TikTok とつながり続けるので、Cloudflare Containers の中でそのまま動かします。
-`cloudflare/worker.js` が入り口で、届いたリクエスト（WebSocket も）をコンテナに渡します。
+サーバーは配信中ずっと TikTok とつながり続けるので、いつも動いているサーバーが要ります。
+**Oracle Cloud の「ずっと無料（Always Free）」のサーバー**に置くのがおすすめです（月 0 円）。
 
-- **データ**: コンテナのファイルは作り直すと消えるので、`data/` の中身（配信者の一覧・設定・WIN数・記録など）は Cloudflare の中の置き場（Durable Object の `Vault`）に 15 秒ごとに送り、起動するときに戻します（`src/vault.js`）
-- **止まらないように**: 5分ごとに起こし、24時間何もなくても眠らせません（配信者がいつ配信してもよいように）
-- **費用のめやす**: Workers の有料プラン（月 5 ドル）が必要。コンテナ（`basic`: 1GB）を1台ずっと動かして、合わせて月 10〜12 ドルほど
-- **URL**: `https://tiktok-widget.<あなたのサブドメイン>.workers.dev`（管理画面は `/admin/`）。独自ドメインは Cloudflare の画面であとから付けられます
+### 手順
 
-### 初めの1回だけ
+1. [Oracle Cloud](https://www.oracle.com/jp/cloud/free/) に登録する
+   - ホームリージョンは「Japan East (Tokyo)」か「Japan Central (Osaka)」
+   - 本人確認でカードを入れますが、無料の範囲なら請求されません
+2. 「コンピュート → インスタンス → インスタンスの作成」
+   - イメージ: **Ubuntu 24.04**
+   - シェイプ: **VM.Standard.A1.Flex**（1 OCPU・6GB）。選べないときは **VM.Standard.E2.1.Micro**
+   - 「SSH キー」は「キーを生成して保存」を選び、秘密鍵をダウンロードしておく
+3. インスタンスの画面の「サブネット → セキュリティ・リスト → イングレス・ルールの追加」で、
+   ソース `0.0.0.0/0`・TCP・宛先ポート `80` と `443` を開ける
+4. Oracle の画面右上の「Cloud Shell」（または自分の PC）からサーバーに入り、次の1行を実行する
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/404-nan/tiktok-widget/claude/tiktok-widgets-2qpqbk/deploy/oracle/setup.sh | sudo bash
+   ```
+5. 最後に出る **管理画面の URL**（`https://<IP>.sslip.io/admin/`）と**合言葉**を控える
 
-1. Cloudflare の画面で Workers の有料プラン（Workers Paid）にする
-2. Cloudflare の「My Profile → API Tokens → Create Token」で「Edit Cloudflare Workers（Cloudflare Workers を編集する）」のテンプレートからトークンを作る。権限に「Containers: Edit」が無ければ足す
-3. GitHub のこのリポジトリの「Settings → Secrets and variables → Actions」に入れる
-   - `CLOUDFLARE_API_TOKEN` … 2 のトークン
-   - `TW_ADMIN_TOKEN` … 管理画面の合言葉（自分で決めた長めの文字）
-   - `CLOUDFLARE_ACCOUNT_ID`（アカウントが複数あるときだけ）・`TIKTOK_SIGN_API_KEY`（あれば）
-4. GitHub の「Actions → Cloudflare に公開 → Run workflow」を押す（以後は push するたびに自動で公開されます）
+- Node.js・サーバー（`tiktok-widget`）・https（Caddy。証明書は自動）を入れて、再起動しても自動で動くようにします。データはサーバーの `/var/lib/tiktok-widget/`、合言葉などは `/etc/tiktok-widget.env`
+- 新しくするとき: `sudo bash /opt/tiktok-widget/deploy/oracle/setup.sh`（データと合言葉はそのまま）
+- 自分のドメインを使うなら、Cloudflare Tunnel のトークンを付けて `TUNNEL_TOKEN=... ` を先頭に足して実行
+- 注意: 無料のアカウントのままだと、ほとんど使っていないサーバーは Oracle に止められることがあります。気になるときは「従量課金（Pay As You Go）」にしておくと止められません（無料の範囲なら 0 円のまま）
 
-手元から公開するなら `cd cloudflare && npm install && npx wrangler login && npx wrangler secret put TW_ADMIN_TOKEN && npx wrangler deploy`（Docker が必要）。
-手元で Cloudflare と同じ形で試すなら、`cloudflare/.dev.vars` に `TW_ADMIN_TOKEN=...` を書いて `npx wrangler dev`。
+お金をかけてよいなら、Cloudflare Containers にも置けます（`cloudflare/`・`Dockerfile`。Workers の有料プランとコンテナ代で月 10〜12 ドルほど。`cd cloudflare && npx wrangler deploy`）。
+このときは data/ を Cloudflare の中の置き場に送り、起動時に戻します（`src/vault.js`）。
 
 ## 設定ファイル（config.yaml）
 
@@ -292,9 +299,9 @@ public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト
-cloudflare/            Cloudflare に置くための入り口（worker.js）と設定（wrangler.jsonc）
+cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
-.github/workflows/     push したら Cloudflare に公開する
+deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 ```
 
 ```bash
