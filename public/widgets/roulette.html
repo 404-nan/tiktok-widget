@@ -125,7 +125,10 @@
   startRoulettes({
     roulettes,
     views,
-    onSwitch(_r, style) {
+    onSwitch(r, style) {
+      // 大きさ: URL の ?scale= があればそちらを優先
+      const q = new URLSearchParams(location.search); // プレビューは枠に合わせて縮めるので倍率はかけない
+      if (!q.get('scale') && q.get('preview') !== '1') document.documentElement.style.zoom = String(Number(r.scale) || 1);
       document.body.classList.toggle('style-wheel', style !== 'strip');
       document.body.classList.toggle('style-strip', style === 'strip');
       const win = document.querySelector('#stripView .window');
