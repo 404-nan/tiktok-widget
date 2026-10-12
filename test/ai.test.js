@@ -136,6 +136,14 @@ test('たのむ → 反映 → 元に戻す。1日の回数を超えたら断り
     assert.equal(fs.readFileSync(file, 'utf8'), before);
     assert.equal((await call('/api/ai/undo', {})).status, 400);
 
+    // 反映のあとに別の変更が入ったら、元に戻さない（その変更まで消さない）
+    await call('/api/ai/apply', { changes: asked.changes });
+    cfg.createStore(file).setValue('theme.scale', 2);
+    assert.equal((await call('/api/ai/state')).canUndo, false);
+    assert.equal((await call('/api/ai/undo', {})).status, 409);
+    assert.equal(cfg.createStore(file).load().config.theme.scale, 2);
+    assert.equal(cfg.createStore(file).load().config.theme.accent, '#3FA9F5');
+
     assert.equal((await call('/api/ai/ask', { text: '' })).status, 400);
     assert.equal((await call('/api/ai/ask', { text: 'あ'.repeat(601) })).status, 400);
     assert.equal((await call('/api/ai/ask', { text: 'もう1回' })).status, 200);

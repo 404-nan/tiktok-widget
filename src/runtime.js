@@ -257,7 +257,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // --- AI にたのむ ---
   // たのむ → 案を見る → 反映する → 気に入らなければ元に戻す。1日の回数は管理者が決める
   const aiUse = { day: '', count: 0, busy: false };
-  let aiUndo = null; // 反映する前の設定ファイルの文字
+  // 反映の前と後の設定ファイルの文字。反映のあとに別の変更が入っていたら、元に戻さない（その変更まで消してしまうので）
+  let aiUndo = null;
+  const canUndo = () => aiUndo != null && store.readText() === aiUndo.after;
   const aiLeft = () => {
     const day = new Date().toDateString();
     if (aiUse.day !== day) Object.assign(aiUse, { day, count: 0 });
@@ -266,7 +268,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const aiState = () => {
     if (!ai?.ready) return { available: false, reason: id === 'local' ? '環境変数 TW_AI_KEY に Claude API のキーを入れると使えます' : '管理者が AI のキーを入れると使えます' };
     if (!entitled('ai')) return { available: false, reason: '管理者が使えるようにすると使えます' };
-    return { available: true, left: aiLeft(), limit: ai.dailyLimit, canUndo: aiUndo != null, maxChars: MAX_REQUEST_CHARS };
+    return { available: true, left: aiLeft(), limit: ai.dailyLimit, canUndo: canUndo(), maxChars: MAX_REQUEST_CHARS };
   };
   const knownGifts = () => {
     const seen = [...hub.seenGifts.values()];
@@ -306,13 +308,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (!next.ok) return res.status(422).json({ ok: false, error: `反映できませんでした: ${next.errors.join(' / ')}`, errors: next.errors });
     const result = store.replaceText(next.text);
     if (!result.ok) return res.status(422).json({ ok: false, error: `反映できませんでした: ${result.errors.join(' / ')}`, errors: result.errors });
-    aiUndo = before;
+    aiUndo = { before, after: store.readText() };
     applyConfigResult(result);
     res.json({ ok: true, warnings: result.warnings, state: aiState(), ...configPayload(req) });
   });
   r.post('/api/ai/undo', (req, res) => {
     if (aiUndo == null) return res.status(400).json({ error: '元に戻せるものがありません' });
-    const result = store.replaceText(aiUndo);
+    if (!canUndo()) {
+      aiUndo = null;
+      return res.status(409).json({ error: 'AI が変えたあとに別の変更があるので、まとめて元には戻せません（変えたところを手で直してください）' });
+    }
+    const result = store.replaceText(aiUndo.before);
     if (!result.ok) return res.status(422).json({ ok: false, error: `元に戻せませんでした: ${result.errors.join(' / ')}` });
     aiUndo = null;
     applyConfigResult(result);
