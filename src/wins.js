@@ -52,6 +52,8 @@ export class WinsEngine {
     this.gains = {}; // id → { n, t }（続けて増えた回数）
     this.#load();
     hub.on('event', (e) => this.onGift(e));
+    // ルーレット（WIN ガチャ）の当たりの項目に wins があれば、その数だけ増減する
+    hub.on('roulette', ({ roulette, item, trigger }) => this.onRoulette(roulette, item, trigger));
   }
 
   setConfig(wins) {
@@ -94,6 +96,16 @@ export class WinsEngine {
       changed = true;
     }
     if (changed) this.#save();
+  }
+
+  /** ルーレットの当たり: 項目の wins（例 -5 / +10）を winsId（省くと default）に足す */
+  onRoulette(roulette, item, trigger) {
+    if (!item?.wins) return;
+    const ids = this.ids();
+    const id = item.winsId ?? (ids.includes('default') ? 'default' : ids[0]);
+    const by = { user: slimUser(trigger?.user), gift: trigger?.gift?.name ?? roulette?.name ?? '', count: 1, text: item.label ?? '' };
+    this.#change(id, 'add', item.wins, by);
+    this.#save();
   }
 
   /**

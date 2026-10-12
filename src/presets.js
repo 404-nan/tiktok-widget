@@ -18,6 +18,7 @@ import YAML from 'yaml';
 import * as cfg from './config.js';
 import { SCHEMA } from './schema.js';
 import { DEMO_GIFTS } from './demo.js';
+import { createRequire } from 'node:module';
 import { checkServer } from './server-setup.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -141,11 +142,28 @@ export function checkPreset(preset) {
     for (const k of ['x', 'y', 'w', 'h']) if (!Number.isFinite(Number(l?.[k]))) errors.push(`layout[${i}].${k}: 数で書いてください`);
     if (l?.show != null && !['always', 'spin'].includes(l.show)) errors.push(`layout[${i}].show: always（いつも出す）か spin（ルーレットが回っている間だけ）にしてください`);
   });
+  errors.push(...checkServer(preset.server));
+  // ギフト名の打ち間違い（Hand Hearts など、実在しない名前）は反応しないので知らせる
+  for (const n of giftNames(preset.config)) {
+    if (!/^\d+$/.test(n) && !COINS.has(n)) warnings.push(`ギフト「${n}」は日本で送れるギフトの一覧にありません（名前の打ち間違い？ src/data/gifts-jp.json）`);
+  }
   return { errors, warnings };
 }
 
-// デモの一覧にない高額ギフトのコイン数（早見表の並び用）
-const KNOWN_COINS = { Universe: 34999 };
+// 日本で送れるギフトの名前とコイン数（src/data/gifts-jp.json）。早見表の並びと、ひな形のギフト名の確認に使う
+const CATALOG = createRequire(import.meta.url)('./data/gifts-jp.json').gifts;
+const COINS = new Map(Object.entries(CATALOG));
+
+/** ひな形に出てくるギフト名の一覧（wins・minecraft・ルーレット・RUSH） */
+function giftNames(config = {}) {
+  const names = new Set();
+  const add = (list) => (list ?? []).forEach((n) => names.add(String(n)));
+  for (const w of Object.values(config.wins ?? {})) for (const r of w.rules ?? []) add(r.gifts);
+  for (const r of config.minecraft?.rules ?? []) add(r.gifts);
+  for (const ro of Object.values(config.roulettes ?? {})) add(ro.gifts);
+  add(config.rush?.gifts);
+  return [...names];
+}
 const EVENT_NAMES = { follow: 'フォロー', share: 'シェア', like: 'いいね' };
 
 /**
@@ -163,10 +181,8 @@ export function giftTable(preset) {
   for (const r of c.minecraft?.rules ?? []) {
     const names = r.gifts?.length ? r.gifts : (r.events ?? []).map((e) => EVENT_NAMES[e] ?? e);
     // 「Rose でゾンビ（送った人の名前つき）」→「ゾンビ（送った人の名前つき）」、後ろの（WIN …）は WIN の欄に出すので外す
-    const label = String(r.name ?? '')
-      .replace(/^.*?で/, '')
-      .replace(/（WIN[^）]*）$/, '')
-      .trim();
+    // 「で」がない名前（「Galaxy（WIN -10）」など）は、WIN の欄だけで分かるので出さない
+    const label = (String(r.name ?? '').match(/で(.*)$/)?.[1] ?? '').replace(/（WIN[^）]*）$/, '').trim();
     for (const n of names) if (label) row(n).effects.push(label);
   }
   // WIN は上から順に最初に合ったルールだけ
@@ -178,9 +194,8 @@ export function giftTable(preset) {
   }
   for (const [id, ro] of Object.entries(c.roulettes ?? {})) for (const n of ro.gifts ?? []) row(n).roulette = ro.name || id;
   for (const n of c.rush?.gifts ?? []) row(n).rush = true;
-  const coins = new Map([...DEMO_GIFTS.map((g) => [g.name, g.diamonds]), ...Object.entries(KNOWN_COINS)]);
-  const rank = (r) => (Object.values(EVENT_NAMES).includes(r.gift) ? -1 : coins.get(r.gift) ?? Infinity);
-  return [...rows.values()].map((r) => ({ ...r, coins: coins.get(r.gift) ?? null })).sort((a, b) => rank(a) - rank(b));
+  const rank = (r) => (Object.values(EVENT_NAMES).includes(r.gift) ? -1 : COINS.get(r.gift) ?? Infinity);
+  return [...rows.values()].map((r) => ({ ...r, coins: COINS.get(r.gift) ?? null })).sort((a, b) => rank(a) - rank(b));
 }
 
 /** 配信ページ・API 用の形（config は省いて軽くし、早見表を付ける） */

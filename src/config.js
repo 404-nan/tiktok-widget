@@ -99,7 +99,13 @@ function checkItems(value, where, issues) {
     if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
     checkSuperStream(raw, item, at, issues);
     if (raw.rush != null) item.rush = raw.rush === true || raw.rush === 'true';
-    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush'];
+    if (raw.wins != null) {
+      const n = Number(raw.wins);
+      if (Number.isInteger(n) && n !== 0) item.wins = n;
+      else issues.errors.push(`${at}.wins: 0 以外の整数で書いてください（当たったら WIN をこの数だけ増減。例 -5 / 10）`);
+    }
+    if (raw.winsId != null) item.winsId = String(raw.winsId);
+    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'wins', 'winsId'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });
@@ -192,11 +198,15 @@ function checkMcRules(value, where, issues) {
     if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
     if (raw.perCount != null) rule.perCount = checkValue({ type: 'boolean', default: false }, raw.perCount, `${at}.perCount`, issues);
     if (raw.name != null) rule.name = String(raw.name);
+    if (raw.everyLikes != null) {
+      rule.everyLikes = checkValue({ type: 'number', default: 100, min: 1 }, raw.everyLikes, `${at}.everyLikes`, issues);
+      if (rule.events && !rule.events.includes('like')) issues.warnings.push(`${at}.everyLikes: events に like がないので使われません`);
+    }
     if (!rule.gifts && !rule.events && rule.minCoins == null && !rule.users) {
       issues.warnings.push(`${at}: 条件（gifts / events / minCoins / users）がないので、ギフトのたびに実行されます`);
     }
     for (const key of Object.keys(raw)) {
-      if (!['commands', 'gifts', 'users', 'events', 'minCoins', 'perCount', 'name', 'superstreamGift', 'superstreamAction'].includes(key)) {
+      if (!['commands', 'gifts', 'users', 'events', 'minCoins', 'perCount', 'name', 'superstreamGift', 'superstreamAction', 'everyLikes'].includes(key)) {
         issues.warnings.push(`${at}.${key}: 使われない項目です`);
       }
     }
@@ -204,7 +214,7 @@ function checkMcRules(value, where, issues) {
   });
 }
 
-// WIN 数のギフトのルール（{ gifts: [Lion], add: -1 } / { gifts: [Universe], set: 0 }）
+// WIN 数のギフトのルール（{ gifts: [Lion], add: -1 } / { gifts: [TikTok Universe], set: 0 }）
 function checkWinRules(value, where, issues) {
   if (value == null) return [];
   if (!Array.isArray(value)) {

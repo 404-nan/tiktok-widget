@@ -1,94 +1,157 @@
-# 妨害マイクラ（エンドラ討伐）
+# 妨害マイクラ（サバイバル・エンドラ討伐）
 #
 # サバイバルの世界を1からはじめて、エンダードラゴンを倒したら 1 WIN。
-# 視聴者はギフトで妨害（WIN が減る）か救済（WIN が増える）をする。
+# ギフトの割り当ては、分析スプシ（reference-gifts_3.xlsx）の Minecraft 配信者 6 人・約 200 マスの傾向に合わせた:
+#   - 1〜30 コインは「ゲームの中で起きること」（妨害が多め・救済も混ぜる。Rose・Finger Heart・Doughnut・Perfume は多くの配信者と同じ使い方）
+#   - WIN を動かすのは 99 コインから。+ と - を同じくらいの値段で対にする（1 位の配信者の形）。1 回で動くのは最大 ±100
+#   - 299〜999 コインはガチャ（妨害ガチャ・救済ガチャ・WIN ガチャ）。いちばん高いギフトは TikTok Universe（44,999）
+#   - フォローといいね（200 回ごと）でも TNT（無料の妨害。10 人中 9 人が使っている）
 #
-# 切り替え: 配信ページ（/stream/）で選ぶか、npm run tw -- preset apply bougai-endra
-# config.yaml の wins・roulettes は丸ごと入れ替わり、rush と minecraft は下に書いた項目だけ入れ替わる。
-# 切り替える前の config.yaml は data/backups/ に残る。
-#
-# Minecraft のコマンドの対象は @a（サーバーにいる全員）。配信者のほかに人がいるときは、
-# @a を配信者の名前（例 tanaka123）に置き換える。
+# 切り替え: 配信の準備（/stream/）で選ぶか、npm run tw -- preset apply bougai-endra
+# Minecraft のコマンドの対象は @a（サーバーにいる全員）。配信者のほかに人がいるときは、配信者の名前に置き換える。
 
-name: 妨害マイクラ（エンドラ討伐）
-summary: サバイバルでエンダードラゴンを倒したら 1 WIN。ギフトで妨害と救済
+name: 妨害マイクラ（サバイバル・エンドラ討伐）
+summary: サバイバルでエンダードラゴンを倒したら 1 WIN。1〜30 コインで妨害・救済、99 コインから WIN が動く
 game: サバイバル（ふつうの世界を1から）
 clear: エンダードラゴンを倒したら +1。死なずに倒せたら「ノーデス」でさらに +1
-goal: 3 # 目標の WIN 数の初めの値（配信ページで配信ごとに変えられる）
+goal: 3 # 目標の WIN 数の初めの値（配信の準備で配信ごとに変えられる）
 
-# 配信ページに出す WIN のボタン（+1・戻す・リセットはいつも出る）
 buttons:
   - {label: クリア, action: win}
   - {label: ノーデス ボーナス, value: 1}
 
-# 配信の前に Minecraft 側でやること
 setup:
   - "Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（設定の minecraft で via を panel にして panelUrl・panelServer・panelKey を入れる）、自分の PC は RCON（server.properties の enable-rcon=true など）"
   - 設定画面の「Minecraft 連携」で接続を確かめ、minecraft.enabled を true にする
   - SuperStream のプロフィールは /ss profile start しない（このひな形がギフトを受けて演出を送るので、両方動くと二重になる）
   - 上の「Minecraft をこのゲームにする」を押す（新しい世界・サバイバル・難易度ノーマルで起動し直す）
+  - 配信の説明やピン留めに「ギフトで起きること」の表を出しておく（何で何が起きるか分かると投げやすい）
 
 # まとめ表示（/widgets/stage.html）に並べるウィジェット。配信画面 1080 × 1920 の中の位置（下にあるものほど上に重なる）
 # show: spin は回っている間だけ出す（ルーレットがずっと画面に残らないように）
 layout:
   - {widget: wins, x: 240, y: 60, w: 600, h: 200}
-  - {widget: roulette, query: ids=bougai, show: spin, hold: 3, x: 240, y: 1180, w: 600, h: 680}
+  - {widget: roulette, show: spin, hold: 3, x: 90, y: 1160, w: 900, h: 700}
   - {widget: cutin, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: rush, x: 0, y: 0, w: 1080, h: 1920}
   - {widget: wins-fx, x: 0, y: 0, w: 1080, h: 1920}
 
-# 配信の準備の「Minecraft もこのゲームにする」で、サーバーをこのゲームに合わせる
+# 配信の準備の「Minecraft をこのゲームにする」で、サーバーをこのゲームに合わせる
 #   パネル（minecraft.via: panel）なら、止める → 新しい世界にする → 起動 → コマンド。RCON ならコマンドだけ
-#   allow-flight: 浮く・吹き飛ぶ妨害で「飛んでいる」とサーバーから追い出されないように
+#   allow-flight: 吹き飛ぶ・浮く妨害で「飛んでいる」とサーバーから追い出されないように
 server:
   world: new # 毎回新しい世界（古い世界のフォルダは残るので、ディスクがいっぱいになったらパネルで消す）
   properties: {gamemode: survival, difficulty: normal, level-type: "minecraft:normal", generator-settings: "{}", generate-structures: true, allow-flight: true, spawn-protection: 0}
   commands: ["difficulty normal", "gamemode survival @a", "time set day", "weather clear"]
 
 config:
-  # WIN 数。ギフトで減るのは -1・-10・-100 の3段階（-100 より大きくは減らさない）
+  # WIN 数。99 コインから動く。+ と - は同じくらいの値段で対（-100 より大きくは動かない）
   wins:
     default:
       title: WIN
       goal: 3
       negative: true
-      # 演出の境目: -10 で大妨害、-50 で超妨害、-100 で壊滅（連続妨害でも段階が上がる）
+      # 演出の境目: -5 で大妨害、-30 で超妨害、-100 で壊滅（連続妨害でも段階が上がる）
       lossPreset: custom
-      bigLoss: 10
-      hugeLoss: 50
+      bigLoss: 5
+      hugeLoss: 30
       ruinLoss: 100
-      # 増えたとき: +5 で大、+10 で超、+30 で最大（クリアはいつも「大」以上）
-      gainPreset: custom
+      gainPreset: custom # +5 で大、+30 で超、+100 で最大（クリアはいつも「大」以上）
       bigGain: 5
-      hugeGain: 10
-      topGain: 30
-      milestone: 0 # 目標が小さいので、5 ごとのお祝いはしない
+      hugeGain: 30
+      topGain: 100
+      milestone: 0
       rules:
-        - {gifts: [Universe, Lion], add: -100, perCount: false, text: 壊滅} # 何個送っても -100 まで
+        - {gifts: [TikTok Universe, Pegasus], add: -100, perCount: false, text: 壊滅}
+        - {gifts: [Flying Jets], add: -30, text: 超妨害}
+        - {gifts: [Unicorn Fantasy], add: 30, text: 超救済}
         - {gifts: [Galaxy], add: -10, text: 大妨害}
-        - {gifts: [Doughnut], add: -1, text: 妨害成功}
-        - {gifts: [Money Gun], add: 5, perCount: false, text: 救済}
-        - {gifts: [Hand Hearts], add: 1, text: 救済}
+        - {gifts: [Fireworks], add: 10, text: 大救済}
+        - {gifts: [Money Gun], add: -5, text: 妨害}
+        - {gifts: [DJ Glasses], add: 5, text: 救済}
+        - {gifts: [Singing Mushroom], add: -1, text: 妨害成功}
+        - {gifts: [Hand Heart], add: 1, text: 救済}
 
-  # 妨害ルーレット（Corgi で回る）。当たった項目のコマンドを結果が出たときに送る
+  # ガチャ（どれも /widgets/roulette.html の1つで、届いたギフトに合うものが回る）
   roulettes:
+    unten:
+      name: 運試し
+      style: wheel
+      gifts: [Heart Me] # 1 日 1 回だけ送れる 1 コインのギフト（7 人が使っている）
+      duration: 3
+      hold: 2
+      items:
+        - {label: 金リンゴ, color: gold, weight: 0.5, commands: ["give @a golden_apple 1"]}
+        - {label: パン, commands: ["give @a bread 3"]}
+        - {label: ゾンビ 2体, color: accent, commands: ["execute at @a run summon zombie ~3 ~ ~3", "execute at @a run summon zombie ~-3 ~ ~3"]}
+        - {label: 鈍足, commands: ["effect give @a slowness 8 1"]}
+        - {label: ハズレ, color: ink-2, weight: 2}
     bougai:
-      name: 妨害ルーレット
+      name: 妨害ガチャ
       style: wheel
       gifts: [Corgi]
       duration: 5
       hold: 3
       items:
         - {label: クリーパー ×3, color: accent, commands: ["execute at @a run summon creeper ~3 ~ ~3", "execute at @a run summon creeper ~-3 ~ ~3", "execute at @a run summon creeper ~3 ~ ~-3"]}
-        - {label: 雷, commands: ["execute at @a run summon lightning_bolt ~ ~ ~"]}
         - {label: 金床の雨, weight: 2, commands: ["execute at @a run summon falling_block ~ ~8 ~ {BlockState:{Name:\"minecraft:anvil\"},Time:1}", "execute at @a run summon falling_block ~1 ~10 ~ {BlockState:{Name:\"minecraft:anvil\"},Time:1}", "execute at @a run summon falling_block ~-1 ~12 ~ {BlockState:{Name:\"minecraft:anvil\"},Time:1}"]}
         - {label: クモの巣, weight: 2, commands: ["execute at @a run fill ~-1 ~ ~-1 ~1 ~1 ~1 cobweb replace air"]}
         - {label: 真っ暗, weight: 2, commands: ["effect give @a darkness 15 0", "effect give @a blindness 8 0"]}
-        - {label: 金リンゴ, color: gold, commands: ["give @a golden_apple 2"]}
-        - {label: ハズレ, color: ink-2, weight: 2}
+        - {label: ファントム, commands: ["execute at @a run summon phantom ~ ~6 ~", "execute at @a run summon phantom ~2 ~7 ~"]}
+        - {label: ゾンビ ×5, commands: ["execute at @a run summon zombie ~3 ~ ~", "execute at @a run summon zombie ~-3 ~ ~", "execute at @a run summon zombie ~ ~ ~3", "execute at @a run summon zombie ~ ~ ~-3", "execute at @a run summon zombie ~3 ~ ~3"]}
+        - {label: ハズレ, color: ink-2}
         - {label: RUSH, color: gold, weight: 0.5, rush: true}
+    kyusai:
+      name: 救済ガチャ
+      style: wheel
+      gifts: [Puppy Kisses]
+      duration: 5
+      hold: 3
+      items:
+        - {label: 金リンゴ ×2, color: gold, commands: ["give @a golden_apple 2"]}
+        - {label: 鉄の装備, weight: 2, commands: ["give @a iron_helmet 1", "give @a iron_chestplate 1", "give @a iron_leggings 1", "give @a iron_boots 1"]}
+        - {label: エンダーパール ×4, weight: 2, commands: ["give @a ender_pearl 4"]}
+        - {label: 再生と耐性, weight: 2, commands: ["effect give @a regeneration 20 1", "effect give @a resistance 30 1"]}
+        - {label: ステーキ, weight: 2, commands: ["give @a cooked_beef 16"]}
+        - {label: ハズレ, color: ink-2}
+    wingacha:
+      fontScale: 1.8 # 数字を大きく
+      name: WINガチャ
+      style: strip
+      gifts: [Travel with You] # 999 コイン。R ±3 / N ±5 / SR ±10 の形（芳野にいなさんの WIN ガチャ）
+      duration: 6
+      hold: 3
+      items:
+        - {label: "-3", color: ink-2, textColor: paper, weight: 3, wins: -3}
+        - {label: "+3", color: paper, weight: 3, wins: 3}
+        - {label: "-5", color: accent, weight: 2, wins: -5}
+        - {label: "+5", color: accent, weight: 2, wins: 5}
+        - {label: "-10", color: gold, weight: 1, wins: -10}
+        - {label: "+10", color: gold, weight: 1, wins: 10}
+    oogacha:
+      fontScale: 1.8 # 数字を大きく
+      name: 大WINガチャ
+      style: strip
+      gifts: [Interstellar] # 10,000 コイン
+      duration: 7
+      hold: 3
+      items:
+        - {label: "-50", color: accent, wins: -50}
+        - {label: "-30", color: ink-2, textColor: paper, wins: -30}
+        - {label: "+30", color: paper, wins: 30}
+        - {label: "+50", color: gold, wins: 50}
+    unmei:
+      fontScale: 1.8 # 数字を大きく
+      name: 運命
+      style: strip
+      gifts: [Lion] # 29,999 コイン。±100 のどちらか（RUSH にも入る）
+      duration: 8
+      hold: 4
+      items:
+        - {label: "-100", color: accent, wins: -100}
+        - {label: "+100", color: gold, wins: 100}
 
-  # RUSH: Lion か 20000 コイン以上で突入。RUSH 中は 100 コイン以上のギフトで 5 秒ずつ延びる
+  # RUSH: Lion か 20,000 コイン以上で突入。RUSH 中は 100 コイン以上のギフトで 5 秒ずつ延びる
   rush:
     enabled: true
     gifts: [Lion]
@@ -102,42 +165,108 @@ config:
   minecraft:
     forwardGifts: false
     rules:
-      - name: フォローで雷
+      # 無料（フォロー・いいね）
+      - name: フォローで TNT
         events: [follow]
-        commands: ["execute at @a run summon lightning_bolt ~6 ~ ~6"]
+        commands: ["execute at @a run summon tnt ~3 ~ ~3 {fuse:80}"]
+      - name: いいね 200 回ごとに TNT
+        events: [like]
+        everyLikes: 200
+        commands: ["execute at @a run summon tnt ~-3 ~ ~3 {fuse:80}", "title @a actionbar {\"text\":\"いいね 200 TNT\",\"color\":\"red\"}"]
+      # 1 コイン
       - name: Rose でゾンビ（送った人の名前つき）
         gifts: [Rose]
         perCount: true
         commands: ["execute at @a run summon zombie ~3 ~ ~3 {CustomName:\"{user}\",CustomNameVisible:1b}"]
-      - name: TikTok でシルバーフィッシュ
+      - name: TikTok で小救済（パンと回復）
         gifts: [TikTok]
-        perCount: true
-        commands: ["execute at @a run summon silverfish ~2 ~ ~2"]
-      - name: GG で応援の文字
+        commands: ["give @a bread 2", "effect give @a instant_health 1 0"]
+      - name: GG で俊足
         gifts: [GG]
-        commands: ["title @a actionbar {\"text\":\"{user} GG!\",\"color\":\"gold\"}"]
-      - name: Finger Heart で目つぶし
+        commands: ["effect give @a speed 10 1"]
+      # 5 コイン
+      - name: Finger Heart でぶっ飛び
         gifts: [Finger Heart]
-        commands: ["effect give @a blindness 4 0"]
-      - name: Perfume で空腹と鈍足
-        gifts: [Perfume]
-        commands: ["effect give @a hunger 15 2", "effect give @a slowness 10 1"]
-      - name: Doughnut でクリーパー（WIN -1）
-        gifts: [Doughnut]
+        commands: ["execute as @a at @s run tp @s ~ ~6 ~"]
+      - name: Hello Traveler で少し後ろへ
+        gifts: [Hello Traveler]
+        commands: ["execute as @a at @s run tp @s ^ ^ ^-5"]
+      - name: Name shoutout で名前を呼んで回復
+        gifts: [Name shoutout]
+        commands: ["title @a actionbar {\"text\":\"{user} さん ありがとう\",\"color\":\"gold\"}", "effect give @a instant_health 1 0"]
+      # 10 コイン
+      - name: Nebaarukun でクリーパー（送った人の名前つき）
+        gifts: [Nebaarukun]
         perCount: true
         commands: ["execute at @a run summon creeper ~3 ~ ~3 {CustomName:\"{user}\",CustomNameVisible:1b}"]
-      - name: Hand Hearts で救済（WIN +1）
-        gifts: [Hand Hearts]
-        commands: ["effect give @a regeneration 10 1", "give @a golden_apple 1", "title @a actionbar {\"text\":\"救済 {user}\",\"color\":\"gold\"}"]
-      - name: Money Gun で大救済（WIN +5）
+      - name: Udon-nou でエンダーマン ×3
+        gifts: [Udon-nou]
+        commands: ["execute at @a run summon enderman ~4 ~ ~", "execute at @a run summon enderman ~-4 ~ ~", "execute at @a run summon enderman ~ ~ ~4"]
+      - name: Ice Lolly でガラスに閉じ込める
+        gifts: [Ice Lolly]
+        commands: ["execute at @a run fill ~-1 ~-1 ~-1 ~1 ~2 ~1 glass hollow"]
+      - name: Friendship Necklace で回復
+        gifts: [Friendship Necklace]
+        commands: ["effect give @a instant_health 1 1"]
+      # 20〜30 コイン
+      - name: Perfume で中救済（金リンゴと再生）
+        gifts: [Perfume]
+        commands: ["give @a golden_apple 1", "effect give @a regeneration 10 1"]
+      - name: Doughnut で TNT ×3
+        gifts: [Doughnut]
+        perCount: true
+        commands: ["execute at @a run summon tnt ~2 ~ ~ {fuse:40}", "execute at @a run summon tnt ~-2 ~ ~ {fuse:60}", "execute at @a run summon tnt ~ ~ ~2 {fuse:80}"]
+      # 50〜199 コイン
+      - name: Genius でスケルトン ×3
+        gifts: [Genius]
+        commands: ["execute at @a run summon skeleton ~4 ~ ~", "execute at @a run summon skeleton ~-4 ~ ~", "execute at @a run summon skeleton ~ ~ ~4"]
+      - name: Hat and Mustache でゾンビ ×10
+        gifts: [Hat and Mustache]
+        commands: ["execute at @a run summon zombie ~4 ~ ~", "execute at @a run summon zombie ~-4 ~ ~", "execute at @a run summon zombie ~ ~ ~4", "execute at @a run summon zombie ~ ~ ~-4", "execute at @a run summon zombie ~3 ~ ~3", "execute at @a run summon zombie ~-3 ~ ~3", "execute at @a run summon zombie ~3 ~ ~-3", "execute at @a run summon zombie ~-3 ~ ~-3", "execute at @a run summon zombie ~5 ~ ~1", "execute at @a run summon zombie ~-5 ~ ~1"]
+      - name: Confetti で動物園
+        gifts: [Confetti]
+        commands: ["execute at @a run summon goat ~3 ~ ~", "execute at @a run summon goat ~-3 ~ ~", "execute at @a run summon pig ~ ~ ~3", "execute at @a run summon cow ~ ~ ~-3", "execute at @a run summon sheep ~2 ~ ~2", "execute at @a run summon chicken ~-2 ~ ~2"]
+      - name: Mishka Bear で大救済（金リンゴ・鉄の装備・耐性）
+        gifts: [Mishka Bear]
+        commands: ["give @a golden_apple 3", "give @a iron_chestplate 1", "give @a iron_helmet 1", "effect give @a resistance 60 1", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"大救済\",\"color\":\"gold\"}"]
+      - name: Love You で TNT タワー
+        gifts: [Love You]
+        commands: ["execute at @a run summon tnt ~ ~4 ~ {fuse:60}", "execute at @a run summon tnt ~ ~6 ~ {fuse:70}", "execute at @a run summon tnt ~ ~8 ~ {fuse:80}", "execute at @a run summon tnt ~ ~10 ~ {fuse:90}", "execute at @a run summon tnt ~ ~12 ~ {fuse:100}"]
+      - name: Cheering Crab で上からマグマ
+        gifts: [Cheering Crab]
+        commands: ["execute at @a run setblock ~ ~5 ~ lava"]
+      - name: Hearts で全回復と満腹
+        gifts: [Hearts]
+        commands: ["effect give @a instant_health 1 3", "effect give @a saturation 5 4"]
+      # 1,000 コイン前後
+      - name: Exclusive Spark でいきなりエンドへ
+        gifts: [Exclusive Spark]
+        commands: ["execute in minecraft:the_end run spreadplayers 0 0 5 20 false @a", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"いきなりエンド\",\"color\":\"light_purple\"}"]
+      # WIN が動くギフトは、ゲームの中では名前と数だけ出す（減ったか増えたかが分かるように）
+      - name: Singing Mushroom（WIN -1）
+        gifts: [Singing Mushroom]
+        commands: ["title @a actionbar {\"text\":\"{user}  WIN -1\",\"color\":\"red\"}"]
+      - name: Hand Heart（WIN +1）
+        gifts: [Hand Heart]
+        commands: ["title @a actionbar {\"text\":\"{user}  WIN +1\",\"color\":\"gold\"}"]
+      - name: Money Gun（WIN -5）
         gifts: [Money Gun]
-        commands: ["give @a golden_apple 3", "give @a ender_pearl 4", "give @a arrow 32", "effect give @a resistance 30 1", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"救済\",\"color\":\"gold\"}"]
-      - name: Galaxy で TNT（WIN -10）
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -5\",\"color\":\"red\"}"]
+      - name: DJ Glasses（WIN +5）
+        gifts: [DJ Glasses]
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN +5\",\"color\":\"gold\"}"]
+      - name: Galaxy（WIN -10）
         gifts: [Galaxy]
-        commands: ["execute at @a run summon tnt ~ ~ ~ {fuse:50}", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -10\",\"color\":\"red\"}"]
-      - name: Lion でウォーデン（WIN -100・RUSH 突入）
-        gifts: [Lion]
-        commands: ["execute at @a run summon warden ~8 ~ ~8", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -100\",\"color\":\"dark_red\"}"]
-      - name: Universe で持ち物ぜんぶ消える（WIN -100）
-        gifts: [Universe]
-        commands: ["clear @a", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"壊滅\",\"color\":\"dark_red\"}"]
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -10\",\"color\":\"red\"}"]
+      - name: Fireworks（WIN +10）
+        gifts: [Fireworks]
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN +10\",\"color\":\"gold\"}"]
+      - name: Flying Jets（WIN -30）
+        gifts: [Flying Jets]
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -30\",\"color\":\"dark_red\"}"]
+      - name: Unicorn Fantasy（WIN +30）
+        gifts: [Unicorn Fantasy]
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN +30\",\"color\":\"gold\"}"]
+      - name: TikTok Universe・Pegasus（WIN -100）
+        gifts: [TikTok Universe, Pegasus]
+        commands: ["title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"壊滅  WIN -100\",\"color\":\"dark_red\"}"]

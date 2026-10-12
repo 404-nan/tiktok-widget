@@ -12,6 +12,7 @@ const cfg = await import('../src/config.js');
 const presets = await import('../src/presets.js');
 
 beforeEach(() => fs.copyFileSync(cfg.EXAMPLE_PATH, cfg.CONFIG_PATH));
+const readPresetOrFail = (id) => presets.readPreset(id) ?? assert.fail(`${id} がありません`);
 
 test('ひな形はどれもエラーも警告もない', () => {
   const list = presets.listPresets();
@@ -23,14 +24,24 @@ test('ひな形はどれもエラーも警告もない', () => {
   }
 });
 
-test('妨害マイクラのひな形は -1・-10・-100 で減り、-100 より大きくは減らない', () => {
+test('妨害マイクラのひな形: 1 回で動く WIN は最大 ±100、-100 は連打しても 1 回だけ、救済もある', () => {
   for (const id of ['bougai-endra', 'bougai-diamond', 'bougai-parkour']) {
-    const rules = presets.readPreset(id).config.wins.default.rules;
-    const losses = rules.filter((r) => r.add < 0).map((r) => r.add);
-    assert.deepEqual([...new Set(losses)].sort((a, b) => a - b), [-100, -10, -1], id);
-    // -100 は連打しても 1 回だけ
+    const p = readPresetOrFail(id);
+    const rules = p.config.wins.default.rules;
+    const adds = rules.map((r) => r.add).filter((n) => n != null);
+    assert.ok(adds.includes(-1) && adds.includes(-100), id);
+    assert.ok(adds.every((n) => Math.abs(n) <= 100), id);
     assert.ok(rules.filter((r) => r.add === -100).every((r) => r.perCount === false), id);
-    assert.ok(rules.some((r) => r.add > 0 && r.text === '救済'), id);
+    assert.ok(rules.some((r) => r.add > 0 && r.text?.includes('救済')), id);
+    // WIN ガチャも ±100 まで
+    for (const ro of Object.values(p.config.roulettes ?? {})) for (const it of ro.items) if (it.wins) assert.ok(Math.abs(it.wins) <= 100, `${id} ${ro.name}`);
+  }
+});
+
+test('サバイバルのひな形は、99 コイン未満のギフトでは WIN が動かない（分析スプシの傾向）', () => {
+  const coins = JSON.parse(fs.readFileSync(new URL('../src/data/gifts-jp.json', import.meta.url))).gifts;
+  for (const id of ['bougai-endra', 'bougai-diamond']) {
+    for (const r of readPresetOrFail(id).config.wins.default.rules) for (const g of r.gifts) assert.ok(coins[g] >= 99, `${id}: ${g}`);
   }
 });
 
@@ -44,7 +55,8 @@ test('切り替えると wins・roulettes は入れ替わり、RCON の接続設
   assert.equal(config.minecraft.password, 'secret');
   assert.equal(config.minecraft.enabled, true);
   assert.ok(config.minecraft.rules.some((x) => x.gifts?.includes('Rose')));
-  assert.deepEqual(Object.keys(config.roulettes), ['bougai']); // 前の罰ゲームルーレットは消える
+  assert.ok(!('punishment' in config.roulettes)); // 前の罰ゲームルーレットは消える
+  assert.ok('bougai' in config.roulettes && 'wingacha' in config.roulettes);
   assert.equal(config.wins.default.goal, 3);
   assert.equal(config.wins.default.lossPreset, 'custom');
   // 切り替えに関係ないセクションとコメントはそのまま

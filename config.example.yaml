@@ -24,7 +24,7 @@ alerts:
     #   常連さんの色を変える例: - { users: [your_friend_id], color: "#3FA9F5" }
     rules:
       # 高額ギフトは長めに、文も変える
-      - gifts: [Lion, Universe]
+      - gifts: [Lion, TikTok Universe]
         big: true
         duration: 8
         text: 本当にありがとうございます！
@@ -68,7 +68,7 @@ wins:
     # ギフトで増減（上から順に最初に合ったもの。add は個数分、set はその数にする、reset: true で 0 に）
     rules:
       - {gifts: [Lion], add: -1, text: 妨害成功} # ライオンで WIN -1
-      - {gifts: [Universe], reset: true} # ユニバースで 0 にリセット
+      - {gifts: [TikTok Universe], reset: true} # TikTok ユニバースで 0 にリセット
       - {gifts: [GG], add: 1, text: 応援} # GG で WIN +1
 
 # 通常カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）

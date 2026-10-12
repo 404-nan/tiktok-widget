@@ -27,7 +27,7 @@ setup:
   - "Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（設定の minecraft で via を panel にして panelUrl・panelServer・panelKey を入れる）、自分の PC は RCON（server.properties の enable-rcon=true など）"
   - SuperStream のプロフィールは /ss profile start しない（演出が二重になる）
   - 上の「Minecraft をこのゲームにする」を押す（世界 parkour・アドベンチャー・ピースフルで起動し直す）
-  - Universe と Lion は /kill でチェックポイントに戻す。マップのチェックポイントがどこに戻すかを先に1回試しておく
+  - TikTok Universe と Lion は /kill でチェックポイントに戻す。マップのチェックポイントがどこに戻すかを先に1回試しておく
 
 layout:
   - {widget: wins, x: 240, y: 60, w: 600, h: 200}
@@ -60,11 +60,11 @@ config:
       topGain: 30
       milestone: 5
       rules:
-        - {gifts: [Universe, Lion], add: -100, perCount: false, text: 壊滅}
+        - {gifts: [TikTok Universe, Lion], add: -100, perCount: false, text: 壊滅}
         - {gifts: [Galaxy], add: -10, text: 大妨害}
         - {gifts: [Doughnut], add: -1, text: 妨害成功}
         - {gifts: [Money Gun], add: 5, perCount: false, text: 救済}
-        - {gifts: [Hand Hearts], add: 1, text: 救済}
+        - {gifts: [Hand Heart], add: 1, text: 救済}
 
   roulettes:
     bougai:
@@ -117,8 +117,8 @@ config:
       - name: Doughnut で回れ右と鈍足（WIN -1）
         gifts: [Doughnut]
         commands: ["execute as @a at @s run tp @s ~ ~ ~ ~180 ~", "effect give @a slowness 3 1"]
-      - name: Hand Hearts で救済（WIN +1）
-        gifts: [Hand Hearts]
+      - name: Hand Heart で救済（WIN +1）
+        gifts: [Hand Heart]
         commands: ["effect give @a slow_falling 15 0", "title @a actionbar {\"text\":\"救済 {user}\",\"color\":\"gold\"}"]
       - name: Money Gun で大救済（WIN +5）
         gifts: [Money Gun]
@@ -129,8 +129,8 @@ config:
       - name: Lion でチェックポイントに戻る（WIN -100・RUSH 突入）
         gifts: [Lion]
         commands: ["kill @a", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -100\",\"color\":\"dark_red\"}"]
-      - name: Universe でチェックポイントに戻る（WIN -100）
-        gifts: [Universe]
+      - name: TikTok Universe でチェックポイントに戻る（WIN -100）
+        gifts: [TikTok Universe]
         commands: ["kill @a", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"壊滅\",\"color\":\"dark_red\"}"]
       # 破壊あり（マップを壊してもいい配信だけ。# を外す）: Galaxy で足元を爆破
       # - name: Galaxy で足元を爆破（破壊あり）

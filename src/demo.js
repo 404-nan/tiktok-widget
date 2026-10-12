@@ -9,7 +9,7 @@ export const DEMO_GIFTS = [
   { id: '5487', name: 'Finger Heart', diamonds: 5, icon: 'hand-heart' },
   { id: '5658', name: 'Perfume', diamonds: 20, icon: 'spray-can' },
   { id: '5879', name: 'Doughnut', diamonds: 30, icon: 'donut' },
-  { id: '5660', name: 'Hand Hearts', diamonds: 100, icon: 'hand-heart' },
+  { id: '5660', name: 'Hand Heart', diamonds: 100, icon: 'hand-heart' },
   { id: '6267', name: 'Corgi', diamonds: 299, icon: 'dog' },
   { id: '5761', name: 'Money Gun', diamonds: 500, icon: 'banknote' },
   { id: '6750', name: 'Galaxy', diamonds: 1000, icon: 'orbit' },

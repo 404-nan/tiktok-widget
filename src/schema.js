@@ -205,7 +205,8 @@ export const SCHEMA = {
           '項目の一覧。「歌う*2」のような文字か、{ label, weight, color, textColor, image, commands } で書く。' +
           'weight は当たりやすさ（丸型では扇の大きさも比例）。image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こす SuperStream の演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入',
+          'superstreamGift / superstreamAction は当たったときに起こす SuperStream の演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。' +
+          'wins: -5 は当たったら WIN を -5（WIN ガチャ。winsId で wins の名前を選べる、省くと default）',
       },
     },
   },
@@ -341,7 +342,7 @@ SCHEMA.minecraft = {
         'イベントごとに送るコマンド。条件: gifts（ギフト名）/ minCoins / events（gift, follow, share, like）/ users。' +
         '送るもの: commands（コマンドの一覧。先頭の / は不要）/ superstreamGift（SuperStream のそのギフト ID の演出）/ ' +
         'superstreamAction（SuperStream の演出1つ。例 "lightning" や "spawn type=ZOMBIE amount=3"）。' +
-        'perCount: true で ×5 なら5回（最大50回）。合ったルールは全部実行される',
+        'perCount: true で ×5 なら5回（最大50回）。everyLikes: 200 は events: [like] と一緒に書き、いいねが 200 回たまるごとに1回。合ったルールは全部実行される',
     },
   },
 };

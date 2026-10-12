@@ -375,7 +375,7 @@ export function createEditor({ api, setMessage }) {
         field.type === 'mcRules'
           ? '- gifts: [Rose]\n  superstreamGift: 6001\n- events: [follow]\n  commands: ["say {user} ありがとう"]'
           : field.type === 'winRules'
-            ? '- {gifts: [Lion], add: -1}\n- {gifts: [Universe], set: 0}\n- {gifts: [GG], add: 1}'
+            ? '- {gifts: [Lion], add: -1}\n- {gifts: [TikTok Universe], set: 0}\n- {gifts: [GG], add: 1}'
             : '- gifts: [Lion]\n  big: true\n  color: "#3FA9F5"';
       control.rows = field.type === 'mcRules' ? 10 : 6;
       control.addEventListener('input', () => patch(pathOf(key), { yaml: control.value.trim() || '[]' }, 700));

@@ -69,6 +69,7 @@ export class Minecraft {
     this.running = false;
     this.lastFailure = 0;
     this.status = { state: 'off', message: 'Minecraft 連携はオフです', sent: 0 };
+    this.likeTotals = new Map(); // everyLikes のルールごとの、いいねの累計
     hub.on('event', (e) => this.onEvent(e));
   }
 
@@ -108,7 +109,16 @@ export class Minecraft {
     }
     for (const rule of this.config.rules ?? []) {
       if (!ruleMatches(rule, e)) continue;
-      const times = rule.perCount ? Math.min(MAX_REPEAT, e.gift?.count ?? e.count ?? 1) : 1;
+      let times = rule.perCount ? Math.min(MAX_REPEAT, e.gift?.count ?? e.count ?? 1) : 1;
+      // everyLikes: いいねが N 回たまるごとに1回（配信中の合計で数える）
+      if (rule.everyLikes && e.kind === 'like') {
+        const key = rule.name ?? JSON.stringify(rule);
+        const before = this.likeTotals.get(key) ?? 0;
+        const after = before + Math.max(0, Number(e.count) || 0);
+        this.likeTotals.set(key, after);
+        times = Math.min(MAX_REPEAT, Math.floor(after / rule.everyLikes) - Math.floor(before / rule.everyLikes));
+        if (times <= 0) continue;
+      }
       const vars = varsFor(e);
       const commands = [...rule.commands, ...superstreamCommands(rule, profile)];
       for (let i = 0; i < times; i++) this.enqueue(commands, vars, rule.name);
