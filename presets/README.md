@@ -57,11 +57,14 @@ Minecraft で起きることは、ひな形ごとに違います（配信の準�
 
 ## SuperStream について
 
-調べたこと:
+調べたこと（販売ページと、実際のサーバーに入っている 5.0.4 のプロフィールを見て）:
 
 - SuperStream は有料のプラグインで、くわしい説明（wiki）は買った人だけが見られます。公開されているのは、販売ページと更新の記録くらいでした
-- プロフィール（`plugins/SuperStream/profiles/<名前>.yml`）に「ギフト ID → 演出」（`GiftListener`）と、フォロー・いいね・コメントなどの演出が書いてあります
-- 組み込みの演出は lightning・meteorite・earthquake・explode・blockrain など（一覧は `src/superstream.js`）
+- プロフィール（5.0.4 では `plugins/SuperStream/<名前>.yml`。`config.yml` と同じフォルダ）に「ギフト ID → 演出」（`GiftListener`）と、フォロー・いいね・コメントなどの演出が書いてあります
+- 組み込みの演出は lightning・meteorite・earthquake・explode・blockrain・cage・trap・freeze・launch・teleport など（一覧は `src/superstream.js`）
+- プロフィールのギフトは TikTok のギフト ID で書きます（Rose 5655・TikTok 5269・Finger Heart 5487・Perfume 5658・Doughnut 5879・Corgi 6267 など）
+- SuperStream に入っている見本のプロフィール（`default_profile.yml`）の 6000〜8018 は演出の見本用の番号で、本物のギフトの ID ではありません。そのまま `/ss profile start` しても、ほとんどのギフトでは何も起きません
+- SuperStream の `execute` の中で、このひな形と同じ普通のコマンドも書けます
 
 そこで、このひな形は **SuperStream がなくても動く、Minecraft の普通のコマンド**（summon・effect・give・clear・title など）だけで組んでいます。
 コマンドは Paper 1.21.11 のサーバーで1つずつ試して、書き方の間違いがないことを確かめています。
@@ -69,7 +72,7 @@ Minecraft で起きることは、ひな形ごとに違います（配信の準�
 自分のプロフィールに何が入っているかを調べるには:
 
 1. `config.yaml` の `minecraft.superstreamFile` に、プロフィールのファイルの場所を書く
-   （例 `~/server/plugins/SuperStream/profiles/default_profile.yml`）
+   （例 `~/server/plugins/SuperStream/default_profile.yml`）
 2. `npm run tw -- superstream` か、設定画面の「Minecraft 連携」を見る（ギフト ID ごとの演出が一覧で出ます）
 
 SuperStream の演出も使いたいときは:

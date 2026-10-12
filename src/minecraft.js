@@ -2,10 +2,12 @@
 // RCON で Minecraft サーバーに送る（SuperStream などのプラグインのコマンドも送れる）。
 
 import { Rcon } from './rcon.js';
+import { Panel } from './panel.js';
 
 const MAX_REPEAT = 50;
 const MAX_QUEUE = 500;
 const GAP_MS = 60; // コマンドの間隔（サーバーを詰まらせない）
+const PANEL_GAP_MS = 120; // パネルの API は1分あたりの回数に上限があるので、少しあける
 const RETRY_AFTER_MS = 5000;
 
 // 視聴者の名前などはコマンドに入るので、文字・数字・空白・_ . - 以外は取り除く
@@ -73,7 +75,8 @@ export class Minecraft {
   setConfig(mc) {
     const prev = this.config;
     this.config = mc;
-    const changed = !prev || prev.host !== mc.host || prev.port !== mc.port || prev.password !== mc.password;
+    const keys = ['via', 'host', 'port', 'password', 'panelUrl', 'panelServer', 'panelKey'];
+    const changed = !prev || keys.some((k) => prev[k] !== mc[k]);
     if (changed || !mc.enabled) {
       this.rcon?.close();
       this.rcon = null;
@@ -87,7 +90,7 @@ export class Minecraft {
     if (!this.config?.enabled) return this.status;
     try {
       await this.#client().connect();
-      this.#setStatus({ state: 'ok', message: `${this.config.host}:${this.config.port} に接続しました` });
+      this.#setStatus({ state: 'ok', message: `${this.#where()} に接続しました` });
     } catch (err) {
       this.lastFailure = Date.now();
       this.#setStatus({ state: 'error', message: err.message });
@@ -136,9 +139,17 @@ export class Minecraft {
     return response;
   }
 
+  // via: panel ならレンタルサーバーのパネルの API、それ以外は RCON で送る
   #client() {
-    if (!this.rcon) this.rcon = new Rcon(this.config);
+    if (!this.rcon) {
+      const c = this.config;
+      this.rcon = c.via === 'panel' ? new Panel({ url: c.panelUrl, server: c.panelServer, key: c.panelKey }) : new Rcon(c);
+    }
     return this.rcon;
+  }
+
+  #where() {
+    return this.config.via === 'panel' ? `パネル（サーバー ${this.config.panelServer}）` : `${this.config.host}:${this.config.port}`;
   }
 
   async #drain() {
@@ -153,7 +164,7 @@ export class Minecraft {
       }
       try {
         const response = await this.#client().send(command);
-        if (this.status.state !== 'ok') this.#setStatus({ state: 'ok', message: `${this.config.host}:${this.config.port} に接続しました` });
+        if (this.status.state !== 'ok') this.#setStatus({ state: 'ok', message: `${this.#where()} に接続しました` });
         this.status.sent += 1;
         this.#log({ command, ok: true, response, source });
       } catch (err) {
@@ -162,7 +173,7 @@ export class Minecraft {
         this.#setStatus({ state: 'error', message: err.message });
         this.#log({ command, ok: false, response: err.message, source });
       }
-      await new Promise((r) => setTimeout(r, GAP_MS));
+      await new Promise((r) => setTimeout(r, this.config.via === 'panel' ? PANEL_GAP_MS : GAP_MS));
     }
     this.running = false;
   }

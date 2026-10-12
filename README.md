@@ -110,7 +110,20 @@ roulettes:
 
 ## Minecraft / SuperStream 連携
 
-Minecraft サーバーの RCON にコマンドを送れます（`config.yaml` の `minecraft`）。
+Minecraft サーバーにコマンドを送れます（`config.yaml` の `minecraft`）。送り方は2つです。
+
+- **RCON**（`via: rcon`）: 自分の PC や、RCON のポートを外に開けられるサーバー
+- **パネルの API**（`via: panel`）: ポートが1つしかないレンタルサーバー（Pterodactyl のパネル）。RCON はいりません。パネルの「アカウント → API の認証情報」でキー（`ptlc_` で始まる）を作り、`panelUrl`・`panelServer`（パネルの URL の `/server/` の後ろ）・`panelKey` に入れます。返事（コマンドの結果の文字）は受け取れません
+
+```yaml
+minecraft:
+  enabled: true
+  via: panel
+  panelUrl: https://p-host.example.com
+  panelServer: 081b07e3
+  panelKey: ptlc_...   # config.yaml は git に入らないので、ここに書いてよい
+```
+
 SuperStream（TikTok のギフトで Minecraft に演出を起こすプラグイン）の演出も、このツールから起こせます。
 
 ```yaml
@@ -120,7 +133,7 @@ minecraft:
   port: 25575                 # server.properties の rcon.port
   password: "..."             # server.properties の rcon.password
   superstreamProfile: default_profile
-  superstreamFile: ~/server/plugins/SuperStream/profiles/default_profile.yml   # 設定済みの演出を一覧するため（任意）
+  superstreamFile: ~/server/plugins/SuperStream/default_profile.yml   # 設定済みの演出を一覧するため（任意）
   rules:
     - events: [follow]
       superstreamAction: lightning            # SuperStream の演出を1つ（ss test action）

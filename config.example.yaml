@@ -144,9 +144,15 @@ rankings:
 # superstreamAction: SuperStream の演出を1つ起こす（ss test action。例 lightning / meteorite）
 minecraft:
   enabled: false
+  # 送り方: rcon（host / port / password）か panel（レンタルサーバーのパネルの API。ポートが1つで RCON が届かないとき）
+  via: rcon
   host: 127.0.0.1
   port: 25575
   password: ""
+  # via: panel のとき: パネルの URL・サーバーの ID（URL の /server/ の後ろ）・API キー（ptlc_ で始まる）
+  panelUrl: ""
+  panelServer: ""
+  panelKey: ""
   superstreamProfile: default_profile
   # SuperStream のプロフィールの場所（書くと、設定済みの演出をダッシュボードや AI で一覧できる）
   superstreamFile: ""

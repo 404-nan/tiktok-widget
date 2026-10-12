@@ -316,9 +316,17 @@ SCHEMA.minecraft = {
     'コマンドの中の {user} {userId} {gift} {giftId} {count} {coins} {item} {roulette} は置き換わる（{user} などは記号を取り除いた安全な文字になる）',
   fields: {
     enabled: bool(false, 'コマンドを送る'),
+    via: oneOf(
+      ['rcon', 'panel'],
+      'rcon',
+      'コマンドの送り方。rcon は RCON（host / port / password）、panel はレンタルサーバーのパネル（Pterodactyl）の API（panelUrl / panelServer / panelKey）。ポートが1つしかなく RCON が外から届かないサーバーは panel',
+    ),
     host: str('127.0.0.1', 'Minecraft サーバーのアドレス'),
     port: num(25575, 'RCON のポート', { min: 1, max: 65535 }),
     password: str('', 'RCON のパスワード（rcon.password）', { secret: true }),
+    panelUrl: str('', 'パネルの URL（via: panel のとき。例 https://p-host.example.com）'),
+    panelServer: str('', 'パネルのサーバーの ID（via: panel のとき。パネルの URL の /server/ の後ろ。例 081b07e3）'),
+    panelKey: str('', 'パネルの API キー（via: panel のとき。パネルの「アカウント → API の認証情報」で作る。ptlc_ で始まる）', { secret: true }),
     superstreamProfile: str('default_profile', 'SuperStream のプロフィール名（plugins/SuperStream/profiles の .yml を除いた名前）'),
     forwardGifts: bool(
       false,

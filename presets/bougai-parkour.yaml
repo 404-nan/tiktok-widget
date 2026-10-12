@@ -24,7 +24,7 @@ buttons:
 setup:
   - マップを配布ページから落とし、サーバーの世界のフォルダ（world）と入れ替えて起動する。マップの対応バージョンに合わせたサーバーを使う
   - 配信の前に、世界のフォルダを丸ごとコピーしておく
-  - server.properties で enable-rcon=true・rcon.port・rcon.password を決め、設定画面の「Minecraft 連携」で接続を確かめる
+  - Minecraft への送り方を決める。レンタルサーバー（ポートが1つ）はパネルの API（minecraft の via: panel・panelUrl・panelServer・panelKey）、自分の PC は RCON（server.properties の enable-rcon=true・rcon.port・rcon.password）
   - 配信者はアドベンチャーモード（/gamemode adventure 名前）。ブロックを壊せなくなる
   - 敵は出さないので、難易度はピースフルでよい（妨害の効果は効く）
   - SuperStream のプロフィールは /ss profile start しない（演出が二重になる）
@@ -85,7 +85,7 @@ config:
     extendSeconds: 5
     maxSeconds: 300
 
-  # Minecraft で起きること（合ったルールは全部動く）。RCON の接続設定は変えない
+  # Minecraft で起きること（合ったルールは全部動く）。接続の設定は変えない
   minecraft:
     forwardGifts: false
     rules:
