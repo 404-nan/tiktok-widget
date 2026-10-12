@@ -9,7 +9,6 @@ export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush']],
-  ['連携', ['minecraft']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -37,7 +36,7 @@ export const INFO = {
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
-  minecraft: { icon: 'box', desc: 'マイクラで遊ぶとき、ギフトでゲームの中に何かを起こす' },
+  minecraft: { icon: 'box', desc: 'マイクラの枠の時間が分かります。枠の間は自動で TikTok につながります' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
 };
 
@@ -193,7 +192,7 @@ export const SIMPLE = {
     ],
   },
   minecraft: {
-    note: '管理者がサーバーを割り当てているときだけ、ギフトでマイクラの中に起こせます。',
+    note: 'マイクラの枠の時間を表示します。枠の間は自動で TikTok につながります。',
     groups: [],
   },
   theme: {

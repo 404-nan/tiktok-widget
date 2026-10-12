@@ -36,6 +36,8 @@ export class Hub extends EventEmitter {
     this.config = null;
     this.seenGifts = new Map(); // 配信中に届いたギフト（名前 → { id, name, diamonds, image }）
     this.testDirty = false; // テストやデモで数が増えているか
+    this.sample = { on: false, until: null };
+    this.sampleTimer = null;
   }
 
   addClient(ws) {
@@ -43,7 +45,24 @@ export class Hub extends EventEmitter {
     ws.on('close', () => this.clients.delete(ws));
     // ウィジェットにはパスワードなどを抜いた設定を配る
     // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
-    this.#send(ws, { type: 'hello', status: this.status, state: this.state, config: publicConfig(this.config), recentChats: this.recentChats });
+    this.#send(ws, { type: 'hello', status: this.status, state: this.state, sample: this.sampleState(), config: publicConfig(this.config), recentChats: this.recentChats });
+  }
+
+  sampleState() {
+    if (this.sample.on && this.sample.until <= Date.now()) this.setSample(false);
+    return { ...this.sample };
+  }
+
+  setSample(on) {
+    if (on && this.status.mode === 'live') throw new Error('配信中は見本を出せません');
+    clearTimeout(this.sampleTimer);
+    this.sample = on ? { on: true, until: Date.now() + 15 * 60 * 1000 } : { on: false, until: null };
+    if (on) {
+      this.sampleTimer = setTimeout(() => this.setSample(false), 15 * 60 * 1000);
+      this.sampleTimer.unref?.();
+    }
+    this.broadcast({ type: 'sample', on: this.sample.on });
+    return this.sampleState();
   }
 
   /** 設定が変わったらウィジェットに知らせる */
@@ -80,6 +99,7 @@ export class Hub extends EventEmitter {
   setStatus(patch) {
     const prev = this.status;
     this.status = { ...this.status, ...patch };
+    if (this.status.mode === 'live' && this.sample.on) this.setSample(false);
     this.broadcast({ type: 'status', status: this.status });
     this.emit('status', this.status, prev);
     // 配信が始まったら、その前のテストやデモで増えた数を 0 に戻す（途中で切れてつなぎ直したときは戻さない）

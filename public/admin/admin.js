@@ -559,7 +559,10 @@ function renderShell() {
   const tenants = page === 'tenants';
   $('tenantListPanel').hidden = !tenants;
   $('kpis').hidden = !tenants;
-  $('detail').classList.toggle('page-detail', !tenants || Boolean(selected));
+  const checkedCount = [...checked].filter((id) => data?.tenants.some((t) => t.id === id)).length;
+  const hasDetail = !tenants || Boolean(selected) || checkedCount >= 2;
+  $('detail').hidden = !hasDetail;
+  $('detail').classList.toggle('page-detail', hasDetail);
   document.querySelectorAll('.admin-side .side-item[data-page]').forEach((b) => b.setAttribute('aria-current', String(b.dataset.page === page)));
 }
 
@@ -585,7 +588,7 @@ function renderDetail(force = false) {
   else if (t) detailBody.replaceChildren(...tenantDetail(t));
   else {
     selected = null;
-    detailBody.replaceChildren(...globalDetail());
+    detailBody.replaceChildren();
   }
   renderShell();
 }

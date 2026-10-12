@@ -45,6 +45,20 @@ test('接続したクライアントに状態とイベントを配信する', ()
   assert.equal(msg.state.follows, 1);
 });
 
+test('見本モードは hello と更新通知に入り、配信中は始められない', () => {
+  const hub = new Hub();
+  const ws = fakeClient();
+  hub.addClient(ws);
+  assert.deepEqual(ws.sent[0].sample, { on: false, until: null });
+  const state = hub.setSample(true);
+  assert.equal(state.on, true);
+  assert.equal(ws.sent.at(-1).type, 'sample');
+  assert.equal(ws.sent.at(-1).on, true);
+  hub.setStatus({ mode: 'live' });
+  assert.deepEqual(hub.sampleState(), { on: false, until: null });
+  assert.throws(() => hub.setSample(true), /配信中は見本を出せません/);
+});
+
 test('リセットで集計が 0 に戻り、ウィジェットにも伝わる', () => {
   const hub = new Hub();
   const ws = fakeClient();

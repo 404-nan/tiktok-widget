@@ -109,7 +109,7 @@ export function createEditor({ api, setMessage }) {
   //   detail（ウィジェット1つの設定）/ catalog（出すものを足す）/ obs（OBS に入れる URL）/ ai（AI にたのむ）
   // 「くわしく」は今までのタブとフォーム
   let mode = 'simple';
-  let view = 'stage';
+  let view = 'obs';
   let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
   const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
@@ -295,7 +295,7 @@ export function createEditor({ api, setMessage }) {
     document.body.dataset.mode = mode;
     if (mode === 'advanced') restoreChrome();
     for (const b of $('modeSeg').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
-    if (!keepView) view = mode === 'simple' ? 'stage' : 'detail';
+    if (!keepView) view = mode === 'simple' ? 'obs' : 'detail';
     if (payload) select(tab);
   }
 
@@ -412,13 +412,13 @@ export function createEditor({ api, setMessage }) {
     const menu = document.createElement('div');
     menu.className = 'side-menu';
     menu.append(
-      item('monitor-up', '配信画面', view === 'stage', goTo('stage'), 'side-stage'),
+      item('monitor-up', '配信ソフトに入れる', view === 'obs', goTo('obs'), 'side-stage'),
       item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai'),
       label('配信画面に出すもの'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
       item('plus', '出すものを足す', view === 'catalog', goTo('catalog')),
       label('じゅんび'),
-      item('monitor-up', 'OBS に入れる URL', view === 'obs', goTo('obs')),
+      item('monitor-up', '1つにまとめる', view === 'stage', goTo('stage')),
       ...(isTenant() ? [item('sparkles', '遊び方をえらびなおす', false, async () => { await api('/api/me/template', { template: null }, 'PUT'); me = await api('/api/me'); view = 'stage'; renderNav(); stage?.render(); })] : []),
       item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
     );
@@ -491,7 +491,13 @@ export function createEditor({ api, setMessage }) {
     const all = obsList().find((w) => w.section === 'all');
     const steps = document.createElement('ol');
     steps.className = 'steps';
-    for (const t of ['OBS / TikTok LIVE Studio で「ブラウザ」のソースを足す', '下の URL を「コピー」して貼る', '幅と高さを、書いてある数字にする']) steps.append(Object.assign(document.createElement('li'), { textContent: t }));
+    for (const t of ['「見本を出す」を ON にする', 'URL を1つずつ配信ソフトに入れて、場所を決める', '配信を始めたら「接続」']) steps.append(Object.assign(document.createElement('li'), { textContent: t }));
+    const sample = document.createElement('div'); sample.className = 'sample-control';
+    const sampleBtn = document.createElement('button'); sampleBtn.type = 'button'; sampleBtn.className = 'btn primary pressable'; sampleBtn.textContent = '見本を出す';
+    const sampleText = document.createElement('p'); sampleText.className = 'hint';
+    const updateSample = (s) => { sampleBtn.textContent = s.on ? '見本を消す' : '見本を出す'; sampleBtn.setAttribute('aria-pressed', String(s.on)); sampleText.textContent = s.on && s.until ? `見本を出しています（あと${Math.max(1, Math.ceil((s.until - Date.now()) / 60000))}分）` : 'ON の間、どのウィジェットも見本と名前の枠が出ます。配信中は出ません。'; };
+    sampleBtn.onclick = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.getAttribute('aria-pressed') !== 'true' }, 'POST')); } catch (e) { setMessage(e.message, true); } };
+    api('/api/sample').then(updateSample).catch(() => {}); sample.append(viewHead('見本を出す', '場所と大きさを決めるときに使います。15分で自動で消えます。'), sampleBtn, sampleText);
     const rows = obsList().filter((w) => w.section !== 'all').map((w) => {
       const row = document.createElement('div');
       row.className = 'srow url-item';
@@ -511,10 +517,12 @@ export function createEditor({ api, setMessage }) {
           prompt('この URL をコピーしてください', w.url);
         }
       });
-      row.append(icon(INFO[w.section].icon), main, copy);
+      const setting = chip('設定', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
+      row.append(icon(INFO[w.section].icon), main, copy, setting);
       return row;
     });
-    box.replaceChildren(viewHead('OBS / TikTok LIVE Studio に入れる'), steps);
+    box.replaceChildren(viewHead('配信ソフトに入れる', '使うものを1つずつ、OBS / TikTok LIVE Studio の「ブラウザ」ソースとして入れます'), steps);
+    steps.after(sample);
     if (all) {
       const recommend = document.createElement('div');
       recommend.className = 'recommended-url';
@@ -1128,7 +1136,7 @@ export function createEditor({ api, setMessage }) {
       tab === 'roulettes'
         ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
-    if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]} の「ブラウザ」ソースとして入れます。1つずつ入れるときに使う URL です。主役は「配信画面」の URL です。`;
+    if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]}`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
     if (simple()) {
       // ボタン用の URL などは「くわしく」で出す
@@ -1224,6 +1232,16 @@ export function createEditor({ api, setMessage }) {
   function fillActions() {
     const box = $('actions');
     box.replaceChildren(chip(simple() ? 'テストのギフトを送る' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
+    if (!live) {
+      const sample = chip('見本を出す', 'layout-template', async () => {
+        try {
+          const now = await api('/api/sample');
+          await api('/api/sample', { on: !now.on }, 'POST');
+          fillActions();
+        } catch (e) { setMessage(e.message, true); }
+      });
+      box.append(sample);
+    }
     const control = (target, action, data) => () => api('/api/control', { target, action, data });
     if (tab === 'roulettes') {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));

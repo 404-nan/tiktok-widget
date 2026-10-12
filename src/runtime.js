@@ -51,7 +51,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/];
+const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/];
 
 /**
  * 配信者1人分を作る。
@@ -157,6 +157,18 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
 
   r.get('/api/status', (_req, res) => {
     res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
+  });
+
+  // 見本は設定中だけ出す。OBS 用の鍵では読むだけにする。
+  r.get('/api/sample', (_req, res) => res.json(hub.sampleState()));
+  r.post('/api/sample', (req, res) => {
+    try {
+      const on = req.body?.on;
+      if (on !== true && on !== false) return res.status(400).json({ error: 'on は true か false にしてください' });
+      res.json(hub.setSample(on));
+    } catch (err) {
+      res.status(409).json({ error: err.message });
+    }
   });
 
   // 配信の記録
