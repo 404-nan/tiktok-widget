@@ -18,6 +18,11 @@ const MEDIA_DIR = path.join(root, 'media');
 
 const newKey = () => crypto.randomBytes(18).toString('base64url');
 const newId = () => `t${crypto.randomBytes(5).toString('hex')}`;
+// 短い URL（/d/<短いID>）用。読み間違えやすい字（0 o 1 l i）は使わない
+const SHORT_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+const newShortId = () => Array.from(crypto.randomBytes(6), (b) => SHORT_CHARS[b % SHORT_CHARS.length]).join('');
+// ダッシュボードを開くための 4桁の数字
+const newPin = () => String(crypto.randomInt(0, 10000)).padStart(4, '0');
 
 // 配信者が最初に使えるウィジェット（豪華な演出は管理者がオンにしてから選べる）
 export const DEFAULT_WIDGETS = ['alerts', 'chats', 'goals'];
@@ -55,6 +60,7 @@ export class Tenants {
   // --- 読み書き ---
 
   #load() {
+    let needSave = false; // 前の形のファイルに、短い ID や 4桁の数字を足したとき
     try {
       const d = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       this.data = { tenants: d.tenants ?? [], global: { access: {}, ...d.global } };
@@ -62,11 +68,36 @@ export class Tenants {
         migrate(t);
         t.template ??= null;
         t.guideDone ??= false;
+        if (!t.shortId) (t.shortId = this.#uniqueShortId()), (needSave = true);
+        if (!t.pin) (t.pin = newPin()), (t.pinVer = 1), (needSave = true);
         const customWidgets = JSON.stringify([...(t.widgets ?? [])].sort()) !== JSON.stringify([...DEFAULT_WIDGETS].sort());
         if (t.template == null && (customWidgets || fs.existsSync(path.join(this.dataDir(t.id), 'config.yaml')))) t.template = 'custom';
       }
       migrate(this.data.global);
+      if (needSave) this.#save();
     } catch {}
+  }
+
+  #uniqueShortId() {
+    for (;;) {
+      const s = newShortId();
+      if (!this.data.tenants.some((t) => t.shortId === s)) return s;
+    }
+  }
+
+  /** 短い URL の ID から配信者を探す */
+  byShortId(shortId) {
+    return this.data.tenants.find((t) => typeof shortId === 'string' && t.shortId === shortId) ?? null;
+  }
+
+  /** 4桁の数字を作り直す。前の数字で覚えたスマホ・PC は、もう一度入れ直しになる */
+  repin(id) {
+    const t = this.get(id);
+    if (!t) throw new Error('その配信者は見つかりません');
+    t.pin = newPin();
+    t.pinVer = (t.pinVer ?? 1) + 1;
+    this.#save();
+    return t;
   }
 
   #save() {
@@ -177,6 +208,9 @@ export class Tenants {
       tiktokId: '',
       key: newKey(),
       obsKey: newKey(),
+      shortId: this.#uniqueShortId(),
+      pin: newPin(),
+      pinVer: 1,
       enabled: true,
       widgets: [...DEFAULT_WIDGETS],
       template: null,

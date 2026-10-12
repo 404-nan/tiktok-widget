@@ -12,6 +12,7 @@ import { Tenants, DATA_DIR } from './src/tenants.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
 import { createAi } from './src/ai.js';
+import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -87,7 +88,9 @@ function tenantView(req, t) {
     createdAt: t.createdAt,
     access: tenants.accessState(t.id),
     rental: tenants.info(t.id).rental,
-    urls: { dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
+    shortId: t.shortId,
+    pin: t.pin,
+    urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
   };
 }
@@ -116,6 +119,14 @@ admin.post('/tenants/:id/rekey', (req, res) => {
     const t = tenants.rekey(req.params.id, req.body?.which);
     tenants.close(t.id);
     res.json({ ok: true, tenant: tenantView(req, t) });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+// 4桁の数字を作り直す（前の数字で覚えた端末は入れ直し）
+admin.post('/tenants/:id/repin', (req, res) => {
+  try {
+    res.json({ ok: true, tenant: tenantView(req, tenants.repin(req.params.id)) });
   } catch (err) {
     res.status(404).json({ error: err.message });
   }
@@ -151,6 +162,40 @@ admin.put('/ai', (req, res) => {
   }
 });
 app.use('/admin/api', admin);
+
+// --- 短い URL と 4桁の数字（/d/<短いID>） ---
+// 正しい数字かクッキーがあれば、今までのダッシュボードの URL（/t/<鍵>/dashboard/）へ送る
+
+const pinLogin = createPinLogin({ dir: DATA_DIR });
+const pinPage = path.join(PUBLIC, 'pin', 'index.html');
+const cookieName = (t) => `twd_${t.shortId}`;
+const text = (res, code, msg) => res.status(code).type('text/plain; charset=utf-8').send(msg);
+const untilText = (until) => `${Math.max(1, Math.ceil((until - Date.now()) / 60_000))}分`;
+app.get('/d/:sid', (req, res) => {
+  const t = tenants.byShortId(req.params.sid);
+  if (!t) {
+    pinLogin.miss(req.ip);
+    return text(res, 404, 'この URL は使えません（管理者に確認してください）');
+  }
+  if (!t.enabled) return text(res, 403, 'この配信者の利用は止められています');
+  res.set('Cache-Control', 'no-store');
+  if (pinLogin.cookieOk(t, readCookie(req.headers.cookie, cookieName(t)))) return res.redirect(`/t/${t.key}/dashboard/`);
+  res.sendFile(pinPage);
+});
+app.post('/d/:sid', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const t = tenants.byShortId(req.params.sid);
+  if (!t) {
+    const until = pinLogin.miss(req.ip);
+    return res.status(until ? 429 : 404).json({ error: until ? `入れすぎです。${untilText(until)}ほど待ってください` : 'この URL は使えません' });
+  }
+  if (!t.enabled) return res.status(403).json({ error: 'この配信者の利用は止められています' });
+  const r = pinLogin.check(t, String(req.body?.pin ?? ''), req.ip);
+  if (r.reason === 'locked') return res.status(429).json({ error: `入れすぎです。${untilText(r.until)}ほど待ってください` });
+  if (!r.ok) return res.status(401).json({ error: `数字が違います（あと${r.left}回）`, left: r.left });
+  res.cookie(cookieName(t), pinLogin.cookieFor(t), { httpOnly: true, secure: req.secure, sameSite: 'lax', path: `/d/${t.shortId}`, maxAge: COOKIE_DAYS * 86400_000 });
+  res.json({ ok: true, url: `/t/${t.key}/dashboard/` });
+});
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 

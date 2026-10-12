@@ -369,6 +369,18 @@ function tenantDetail(t) {
       'div',
       { className: 'group' },
       el('p', { className: 'sub', textContent: '配信者に渡す URL' }),
+      copyField('短い URL', t.urls.short),
+      el('div', { className: 'group-item' },
+        el('span', { className: 'url-label', textContent: '4桁の数字' }),
+        el('div', { className: 'url' },
+          el('input', { value: t.pin ?? '', readOnly: true, className: 'pin-value' }),
+          button('作り直す', () => {
+            if (!confirm(`${t.name} の 4桁の数字を作り直しますか？ 今の数字で開いていたスマホ・PC は、新しい数字を入れ直すことになります。`)) return;
+            act(() => api(`/tenants/${t.id}/repin`, {}), '作り直しました。新しい数字を渡してください')();
+          }, { iconName: 'refresh-cw' }),
+        ),
+      ),
+      el('p', { className: 'sub hint', textContent: '短い URL と 4桁の数字を渡すと、配信者は数字を入れて開けます（一度入れた端末は次から数字なし）。下の URL はそのまま開けます。' }),
       copyField('ダッシュボード', t.urls.dashboard),
       el('div', { className: 'monitor-url' }, copyField('モニター', t.urls.monitor)),
     ),
