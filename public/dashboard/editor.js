@@ -1672,7 +1672,7 @@ export function createEditor({ api, setMessage }) {
       ]);
       if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のウィジェット`;
       // TikTok の署名キーは、配信者ごとの URL では管理者が入れる
-      if (isTenant()) document.querySelector('#connectForm details').hidden = true;
+      if (isTenant()) document.querySelector('#connectForm details')?.toggleAttribute('hidden', true);
       stage = createStage({
         api,
         getPayload: () => payload,
