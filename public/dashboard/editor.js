@@ -287,6 +287,7 @@ export function createEditor({ api, setMessage }) {
     mode = next === 'advanced' ? 'advanced' : 'simple';
     store.set('mode', mode);
     document.body.dataset.mode = mode;
+    if (mode === 'advanced') restoreChrome();
     for (const b of $('modeSeg').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
     if (!keepView) view = 'detail';
     if (payload) select(tab);
@@ -383,6 +384,12 @@ export function createEditor({ api, setMessage }) {
   // サイドバー: いつも出ていて、押すと右が切り替わる（スマホでは横に流れるボタンの列になる）
   function renderNav() {
     const side = $('side');
+    const topbar = document.querySelector('.topbar');
+    const brand = topbar.querySelector('.brand') || document.querySelector('.brand');
+    const nav = $('nav');
+    const themeBtn = $('themeBtn');
+    const connection = $('connectionSection');
+    const desktop = window.matchMedia('(min-width: 900px)').matches;
     const used = usedSections();
     const item = (iconName, label, current, onClick, cls = '') => {
       const b = document.createElement('button');
@@ -395,7 +402,9 @@ export function createEditor({ api, setMessage }) {
     };
     const label = (text) => Object.assign(document.createElement('p'), { className: 'side-label', textContent: text });
     const onDetail = (t) => view === 'detail' && tab === t;
-    side.replaceChildren(
+    const menu = document.createElement('div');
+    menu.className = 'side-menu';
+    menu.append(
       item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai'),
       label('配信画面に出すもの'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
@@ -403,11 +412,32 @@ export function createEditor({ api, setMessage }) {
       label('じゅんび'),
       item('monitor-up', 'OBS に入れる URL', view === 'obs', goTo('obs')),
       item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
-      Object.assign(document.createElement('span'), { className: 'side-spacer' }),
-      item('sliders-horizontal', 'くわしく設定する', false, () => setMode('advanced'), 'side-more'),
     );
+    if (desktop) {
+      const head = document.createElement('div');
+      head.className = 'side-head';
+      head.append(brand);
+      const footer = document.createElement('div');
+      footer.className = 'side-footer';
+      footer.append(nav, themeBtn, item('sliders-horizontal', 'くわしく設定する', false, () => setMode('advanced'), 'side-more'));
+      side.replaceChildren(head, connection, menu, footer);
+    } else {
+      const col = document.querySelector('.col');
+      topbar.prepend(brand);
+      topbar.append(nav, themeBtn);
+      col.prepend(connection);
+      side.replaceChildren(menu);
+    }
     // スマホの横並びでは、選んでいるものが見えるところまで流す
     side.querySelector('[aria-current=true]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+
+  function restoreChrome() {
+    const topbar = document.querySelector('.topbar');
+    const col = document.querySelector('.col');
+    topbar.prepend(document.querySelector('.brand'));
+    topbar.append($('nav'), $('themeBtn'));
+    col.prepend($('connectionSection'));
   }
 
   // 出すものを足す: まだ使っていないものを、目的ごとに並べる
@@ -1519,6 +1549,9 @@ export function createEditor({ api, setMessage }) {
       for (const b of $('modeSeg').querySelectorAll('button')) b.addEventListener('click', () => setMode(b.dataset.mode, { keepView: b.dataset.mode === mode }));
       tab = TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0];
       setMode(store.get('mode', 'simple'));
+      window.addEventListener('resize', () => {
+        if (simple()) renderNav();
+      });
     },
     /** AI などがまとめて設定を変えたあと: 読み直して、そのウィジェットを開く */
     async refresh(section, entry) {

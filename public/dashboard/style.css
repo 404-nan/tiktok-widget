@@ -575,6 +575,132 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
   .preview-col > .form-message { order: -1; }
 }
 
+/* --- かんたん: PC は画面全体のサイドバーにする --- */
+@media (min-width: 900px) {
+  [data-mode=simple] .topbar { display: none; }
+  [data-mode=simple] .layout {
+    display: block;
+    max-width: none;
+    margin: 0;
+    padding: 0 40px 48px 288px;
+  }
+  [data-mode=simple] .layout > .col { display: none; }
+  [data-mode=simple] .widgets {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 40px 0 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  [data-mode=simple] .widgets > .panel-bg { display: none; }
+  [data-mode=simple] .shell { display: block; }
+  [data-mode=simple] .shell-main { gap: 24px; }
+  [data-mode=simple] .side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 18px;
+    width: 248px;
+    max-height: none;
+    padding: 24px 16px 18px;
+    overflow: hidden;
+    background: var(--glass);
+    border-right: 1px solid var(--stroke-secondary);
+    -webkit-backdrop-filter: blur(50px);
+    backdrop-filter: blur(50px);
+  }
+  [data-mode=simple] .side-head .brand {
+    display: grid;
+    gap: 10px;
+    align-items: start;
+  }
+  [data-mode=simple] .side-head .brand-title { line-height: 1.35; }
+  [data-mode=simple] .side-head .status { padding-left: 14px; }
+  [data-mode=simple] .side #connectionSection {
+    display: grid;
+    gap: 8px;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  [data-mode=simple] .side #connectionSection > .panel-bg { display: none; }
+  [data-mode=simple] .side #connectionSection h2 { display: none; }
+  [data-mode=simple] .side #connectForm { grid-template-columns: 1fr; align-items: stretch; gap: 8px; }
+  [data-mode=simple] .side #connectForm .field-label { display: none; }
+  [data-mode=simple] .side #connectForm .row { display: grid; grid-template-columns: 1fr 1fr; }
+  [data-mode=simple] .side #connectForm .btn { min-width: 0; padding: 0 10px; }
+  [data-mode=simple] .side #connectForm #demoBtn { grid-column: 1 / -1; }
+  [data-mode=simple] .side #connectForm .message { min-height: 1.2em; font-size: 12px; }
+  [data-mode=simple] .side-menu { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+  [data-mode=simple] .side-footer { display: grid; gap: 4px; }
+  [data-mode=simple] .side-footer .nav { display: grid; gap: 2px; }
+  [data-mode=simple] .side-footer .nav a { justify-content: flex-start; }
+  [data-mode=simple] .side-footer #themeBtn { justify-self: start; }
+  [data-mode=simple] .side-footer .side-more { margin-top: 8px; }
+  [data-mode=simple] .side-spacer { display: none; }
+}
+
+/* --- かんたん: 狭い幅は上部に戻し、接続と横並びをカードの外に置く --- */
+@media (max-width: 899px) {
+  [data-mode=simple] .topbar {
+    position: static;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    padding: 10px 12px;
+    box-shadow: inset 0 -1px 0 var(--stroke-secondary);
+  }
+  [data-mode=simple] .layout {
+    display: block;
+    max-width: none;
+    margin: 0;
+    padding: 0 0 40px;
+  }
+  [data-mode=simple] .col { gap: 0; }
+  [data-mode=simple] .col > #connectionSection {
+    padding: 14px 16px;
+    border-radius: 0;
+    box-shadow: inset 0 -1px 0 var(--stroke-secondary);
+  }
+  [data-mode=simple] #connectionSection > .panel-bg { display: none; }
+  [data-mode=simple] #connectionSection h2 { display: none; }
+  [data-mode=simple] .widgets {
+    padding: 0 16px 40px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  [data-mode=simple] .widgets > .panel-bg { display: none; }
+  [data-mode=simple] .side {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    flex-direction: row;
+    gap: 6px;
+    max-height: none;
+    margin: 0 -16px;
+    padding: 10px 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--glass-solid);
+    border-radius: 0;
+    box-shadow: inset 0 -1px 0 var(--stroke-secondary);
+  }
+  [data-mode=simple] .side-menu { display: flex; gap: 6px; }
+  [data-mode=simple] .side-label, [data-mode=simple] .side-spacer { display: none; }
+  [data-mode=simple] .side-item {
+    width: auto;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: var(--r-pill);
+    box-shadow: inset 0 0 0 1px var(--stroke-secondary);
+    white-space: nowrap;
+  }
+  [data-mode=simple] .preview-col > .preview { top: 62px; }
+}
+
 /* かんたん: 試すボタンは見出しを付けて、多いときは畳む */
 [data-mode=simple] #actions::before { content: "ためす"; flex: 0 0 100%; font-size: 12px; color: var(--text-secondary); }
 #actions .chip.extra { display: none; }
