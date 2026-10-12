@@ -220,6 +220,7 @@ const cutinFields = () => ({
   goldCoins: num(5000, 'ここから金', { min: 1 }),
   rainbowCoins: num(20000, 'ここから虹（フリーズ演出つき）', { min: 1 }),
   gifts: list([], 'このギフト名なら金額に関係なく出す（赤から）'),
+  skipGifts: list([], 'このギフト名では出さない（WIN が動くギフトなど、別の全画面の演出があるもの。大きな文字が2つ重ならないように）'),
   events: list([], 'フォロー・シェアでも出す（青）', ['follow', 'share']),
   word: bool(true, '「激アツ」などの文字を出す'),
   blueText: str('チャンス', '青の文字'),

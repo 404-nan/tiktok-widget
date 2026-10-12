@@ -19,7 +19,7 @@ const STAGE = `
 `;
 
 const TIER_DEFAULTS = {
-  minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
+  minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], skipGifts: [], events: [],
   blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
   word: true, yieldToImage: false, angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
 };
@@ -74,6 +74,8 @@ export async function startCutin(section) {
 
   function tierFor(e, q = p) {
     if (e.kind !== 'gift') return list(q.events).includes(e.kind) ? 'blue' : null;
+    // 別の演出（WIN数の全画面など）があるギフトは出さない（大きな文字が2つ重ならないように）
+    if (list(q.skipGifts).length && giftNamed(e.gift, q.skipGifts)) return null;
     const c = e.totalDiamonds;
     let tier = c >= q.rainbowCoins ? 'rainbow' : c >= q.goldCoins ? 'gold' : c >= q.redCoins ? 'red' : c >= q.greenCoins ? 'green' : c >= q.minCoins ? 'blue' : null;
     // 指定したギフトは金額に関係なく赤から

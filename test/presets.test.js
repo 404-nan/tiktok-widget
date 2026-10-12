@@ -25,7 +25,7 @@ test('ひな形はどれもエラーも警告もない', () => {
 });
 
 test('妨害マイクラのひな形: 1 回で動く WIN は最大 ±100、-100 は連打しても 1 回だけ、救済もある', () => {
-  for (const id of ['bougai-endra', 'bougai-diamond', 'bougai-parkour']) {
+  for (const id of ['bougai-endra', 'bougai-diamond', 'bougai-nojiru', 'bougai-parkour']) {
     const p = readPresetOrFail(id);
     const rules = p.config.wins.default.rules;
     const adds = rules.map((r) => r.add).filter((n) => n != null);
@@ -40,7 +40,7 @@ test('妨害マイクラのひな形: 1 回で動く WIN は最大 ±100、-100 
 
 test('サバイバルのひな形は、99 コイン未満のギフトでは WIN が動かない（分析スプシの傾向）', () => {
   const coins = JSON.parse(fs.readFileSync(new URL('../src/data/gifts-jp.json', import.meta.url))).gifts;
-  for (const id of ['bougai-endra', 'bougai-diamond']) {
+  for (const id of ['bougai-endra', 'bougai-diamond', 'bougai-nojiru']) {
     for (const r of readPresetOrFail(id).config.wins.default.rules) for (const g of r.gifts) assert.ok(coins[g] >= 99, `${id}: ${g}`);
   }
 });
@@ -91,4 +91,11 @@ test('ひな形の間違いは場所つきで分かる', () => {
   assert.ok(errors.some((e) => e.startsWith('config.wins.default.rules[0].add')));
   assert.ok(errors.some((e) => e.startsWith('buttons[0]')));
   assert.ok(errors.some((e) => e.startsWith('layout[0].widget')));
+});
+
+test('脳汁MAX: WIN が動くギフトはカットインを出さない（WIN の全画面演出と重ねない）', () => {
+  const p = readPresetOrFail('bougai-nojiru');
+  const winGifts = p.config.wins.default.rules.flatMap((r) => r.gifts);
+  const skip = p.config.cutins.default.skipGifts;
+  for (const g of winGifts) assert.ok(skip.includes(g), g);
 });
