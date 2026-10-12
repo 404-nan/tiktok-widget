@@ -21,22 +21,30 @@ export function setupAi({ box, api, editor }) {
   let pending = null; // 見せている案（{ reply, changes }）
 
   const left = el('span', { className: 'hint' });
-  const text = el('textarea', { rows: 2, placeholder: 'どうしたいかを、ふつうの言葉で書いてください' });
+  const text = el('textarea', { rows: 1, placeholder: 'AI にふつうの言葉でたのむ' });
   text.setAttribute('aria-label', 'AI にたのむこと');
-  const ask = el('button', { type: 'submit', className: 'btn primary pressable' }, icon('sparkles'), 'たのむ');
+  const ask = el('button', { type: 'submit', className: 'btn primary pressable' }, icon('sparkles'), el('span', { textContent: 'たのむ' }));
   const form = el('form', { className: 'ai-form' }, text, ask);
   const examples = el('div', { className: 'ai-examples' });
   for (const ex of EXAMPLES) {
     const b = el('button', { type: 'button', className: 'mini-chip pressable', textContent: ex });
     b.addEventListener('click', () => {
       text.value = ex;
+      showExamples(false);
       text.focus();
     });
     examples.append(b);
   }
+  // 例は、何も書いていない入力欄を押したときだけ出す。
+  // （フォーカスの有無で出し入れすると、ボタンを押した瞬間に並びが動いて押せなくなる）
+  const showExamples = (on) => box.classList.toggle('open', on && !text.value.trim() && result.hidden);
+  text.addEventListener('focus', () => showExamples(true));
+  text.addEventListener('input', () => showExamples(true));
+  document.addEventListener('pointerdown', (ev) => !box.contains(ev.target) && showExamples(false));
   const result = el('div', { className: 'ai-result', hidden: true });
   result.setAttribute('role', 'status');
-  box.replaceChildren(el('div', { className: 'ai-head' }, icon('sparkles'), 'AI にたのむ', left), form, examples, result);
+  // 上から: 案（出ているときだけ）→ 例（書いているときだけ）→ 入力
+  box.replaceChildren(result, el('div', { className: 'ai-more' }, examples, left), form);
 
   const renderState = () => {
     box.hidden = !state.available;
@@ -44,6 +52,14 @@ export function setupAi({ box, api, editor }) {
     ask.disabled = !state.available || state.left <= 0;
   };
   const note = (message, cls = '') => el('p', { className: `ai-reply ${cls}`, textContent: message });
+  const closeButton = () => {
+    const b = el('button', { type: 'button', className: 'chip pressable', textContent: '閉じる' });
+    b.addEventListener('click', () => {
+      pending = null;
+      result.hidden = true;
+    });
+    return b;
+  };
   const undoButton = () => {
     const b = el('button', { type: 'button', className: 'chip pressable' }, icon('undo-2'), '元に戻す');
     b.addEventListener('click', async () => {
@@ -77,7 +93,7 @@ export function setupAi({ box, api, editor }) {
           state = data.state ?? state;
           // 変えたウィジェットを開いて、結果を見せる
           const [section, entry] = changes[0].path.split('.');
-          result.replaceChildren(note('変えました。プレビューで確かめてください。'), el('div', { className: 'row wrap' }, undoButton()));
+          result.replaceChildren(note('変えました。プレビューで確かめてください。'), el('div', { className: 'row wrap' }, undoButton(), closeButton()));
           text.value = '';
           pending = null;
           await editor.refresh(section, entry);
@@ -94,6 +110,8 @@ export function setupAi({ box, api, editor }) {
       });
       parts.push(el('div', { className: 'row wrap' }, apply, cancel));
     }
+    // 変えるところがない返事（できない理由・もう入っている、など）は、読んだら閉じられるようにする
+    if (errors.length || !changes.length) parts.push(el('div', { className: 'row wrap' }, closeButton()));
     result.replaceChildren(...parts);
   }
 
@@ -103,6 +121,7 @@ export function setupAi({ box, api, editor }) {
     if (!request) return text.focus();
     ask.disabled = true;
     result.hidden = false;
+    showExamples(false);
     result.replaceChildren(note('考えています…（30秒ほどかかることがあります）', 'thinking'));
     try {
       const data = await api('/api/ai/ask', { text: request, focus: editor.current() });

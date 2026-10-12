@@ -287,10 +287,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     aiUse.count++;
     try {
       const focus = { section: SECTIONS.includes(req.body?.focus?.section) ? req.body.focus.section : null, id: typeof req.body?.focus?.id === 'string' ? req.body.focus.id.slice(0, 64) : null };
-      const out = await ai.ask({ text, config: hub.config, focus, gifts: knownGifts() });
-      // そのまま当てたらどうなるかを確かめる（ファイルには書かない）
-      const dry = out.changes.length && !out.errors.length ? cfg.applyChanges(store.readText(), out.changes) : { ok: true, errors: [], warnings: [] };
-      res.json({ ok: true, reply: out.reply, changes: out.changes, errors: [...out.errors, ...dry.errors], warnings: dry.warnings ?? [], state: aiState() });
+      // そのまま当てたらどうなるかを確かめながら、案を作ってもらう（ファイルには書かない）
+      const out = await ai.ask({ text, config: hub.config, focus, gifts: knownGifts(), check: (changes) => cfg.applyChanges(store.readText(), changes) });
+      res.json({ ok: true, reply: out.reply, changes: out.changes, errors: out.errors, warnings: out.warnings, state: aiState() });
     } catch (err) {
       // AI を呼べなかったときは、回数に数えない
       aiUse.count = Math.max(0, aiUse.count - 1);

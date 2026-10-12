@@ -401,12 +401,22 @@ export function createEditor({ api, setMessage }) {
     const canAdd = TABS.some((t) => t !== 'theme' && !used.includes(t));
     if (canAdd) rows.push(listRow({ iconName: 'plus', title: '出すものを足す', sub: used.length ? null : 'まずは「ギフト通知」がおすすめです', onClick: goTo('catalog') }));
     const urls = obsList();
+    const title = document.createElement('div');
+    title.className = 'view-title';
+    title.append(
+      Object.assign(document.createElement('h3'), { textContent: '配信画面に出すもの' }),
+      Object.assign(document.createElement('p'), { className: 'desc', textContent: used.length ? '押すと、見た目や動きを決められます。' : 'まだ何も出していません。下の「出すものを足す」から選んでください。' }),
+    );
     box.replaceChildren(
-      listGroup(used.length ? '画面に出しているもの（押すと設定できます）' : 'まだ何も出していません', rows),
+      title,
+      listGroup(null, rows),
       listGroup('配信ソフトに入れる', [
         listRow({ iconName: 'monitor-up', title: 'OBS / TikTok LIVE Studio に入れる URL', sub: urls.length ? `${urls.length} 個` : '出すものを足すと、URL ができます', onClick: goTo('obs') }),
       ]),
-      listGroup('全体', [listRow({ iconName: INFO.theme.icon, title: '色とテーマ', sub: summaryOf('theme', payload.config.theme, true), onClick: () => openCard('theme') })]),
+      listGroup('全体', [
+        listRow({ iconName: INFO.theme.icon, title: '色とテーマ', sub: summaryOf('theme', payload.config.theme, true), onClick: () => openCard('theme') }),
+        listRow({ iconName: 'sliders-horizontal', title: 'くわしく設定する', sub: '全部の項目・設定ファイル・テスト送信', onClick: () => setMode('advanced') }),
+      ]),
     );
   }
 

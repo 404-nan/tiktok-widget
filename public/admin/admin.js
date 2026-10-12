@@ -425,43 +425,71 @@ function signKeyGroup() {
   );
 }
 
-// --- 右: 「AI にたのむ」の設定（キー・モデル・1日の回数） ---
+// --- 右: 「AI にたのむ」の設定（どの AI を使うか・キー・モデル・1日の回数・追加の指示） ---
 
-const AI_MODEL_LABELS = { 'claude-opus-5-5': 'Claude Opus 5.5（いちばん賢い・初めの設定）', 'claude-sonnet-5-5': 'Claude Sonnet 5.5（料金は半分くらい）', 'claude-haiku-4-5': 'Claude Haiku 4.5（いちばん安い）' };
+const AI_MODEL_LABELS = { 'claude-opus-5-5': 'Claude Opus 5.5（いちばん賢い）', 'claude-sonnet-5-5': 'Claude Sonnet 5.5（料金は半分くらい）', 'claude-haiku-4-5': 'Claude Haiku 4.5（いちばん安い）' };
 
 function aiGroup() {
-  const st = data.ai ?? { set: false, models: [] };
+  const st = data.ai ?? { set: false, providers: [] };
+  const put = (body, done) => act(() => api('/ai', body, 'PUT'), done);
+  const item = (label, control) => el('label', { className: 'group-item' }, el('span', { className: 'url-label', textContent: label }), control);
+
+  const provider = el('select');
+  provider.setAttribute('aria-label', '使う AI');
+  for (const p of st.providers ?? []) provider.append(new Option(p.label, p.id, false, p.id === st.provider));
+  provider.addEventListener('change', () => put({ provider: provider.value }, '使う AI を変えました')());
+
   const from = st.source === 'env' ? 'サーバーの環境変数' : 'ここで入れたもの';
-  const state = st.set ? `キーが入っています（${from}${st.tail ? `・末尾 ${st.tail}` : ''}）` : 'キーが入っていません（入れるまで、だれも使えません）';
-  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'Claude API のキー（sk-ant-…）' });
-  input.setAttribute('aria-label', 'Claude API のキー');
-  const save = () => {
-    const key = input.value.trim();
-    if (!key) return message('キーを入れてください', true);
-    input.value = '';
-    act(() => api('/ai', { key }, 'PUT'), 'AI のキーを保存しました')();
+  const state = !st.set ? 'キーが入っていません（入れるまで、だれも使えません）' : st.ready ? `使えます（キー: ${from}${st.tail ? `・末尾 ${st.tail}` : ''}）` : 'キーは入っています。API の場所とモデルを入れると使えます';
+  const key = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'API のキー' });
+  key.setAttribute('aria-label', 'AI の API キー');
+  const saveKey = () => {
+    if (!key.value.trim()) return message('キーを入れてください', true);
+    const body = { key: key.value.trim() };
+    key.value = '';
+    put(body, 'AI のキーを保存しました')();
   };
-  input.addEventListener('keydown', (e) => e.key === 'Enter' && save());
-  const model = el('select');
+  key.addEventListener('keydown', (e) => e.key === 'Enter' && saveKey());
+
+  // モデル: Claude は選ぶ、ほかは名前を入れる
+  let model;
+  if (st.models) {
+    model = el('select');
+    for (const m of st.models) model.append(new Option(AI_MODEL_LABELS[m] ?? m, m, false, m === st.model));
+  } else {
+    model = el('input', { value: st.model ?? '', placeholder: 'モデルの名前' });
+  }
   model.setAttribute('aria-label', 'AI のモデル');
-  for (const m of st.models ?? []) model.append(new Option(AI_MODEL_LABELS[m] ?? m, m, false, m === st.model));
-  model.addEventListener('change', act(() => api('/ai', { model: model.value }, 'PUT'), 'モデルを変えました'));
+  model.addEventListener('change', () => put({ model: model.value.trim() }, 'モデルを変えました')());
+
+  const baseUrl = el('input', { value: st.baseUrl ?? '', placeholder: 'https://…/v1' });
+  baseUrl.setAttribute('aria-label', 'API の場所');
+  baseUrl.addEventListener('change', () => put({ baseUrl: baseUrl.value.trim() }, 'API の場所を変えました')());
+
   const limit = el('input', { type: 'number', min: '0', max: '1000', step: '1', value: String(st.dailyLimit ?? 20), className: 'ai-limit' });
   limit.setAttribute('aria-label', '配信者1人が1日にたのめる回数');
-  limit.addEventListener('change', act(() => api('/ai', { dailyLimit: Number(limit.value) }, 'PUT'), '1日の回数を変えました'));
+  limit.addEventListener('change', () => put({ dailyLimit: Number(limit.value) }, '1日の回数を変えました')());
+
+  const extra = el('textarea', { rows: 3, value: st.extra ?? '', placeholder: '例: TNT や爆発の演出は使わない。返事はていねい語で。' });
+  extra.setAttribute('aria-label', 'AI への追加の指示');
+  extra.addEventListener('change', () => put({ extra: extra.value }, 'AI への追加の指示を保存しました')());
+
   const remove = button('キーを消す', () => {
     if (!confirm('ここで入れた AI のキーを消しますか？（だれも AI を使えなくなります）')) return;
-    act(() => api('/ai', { key: '' }, 'PUT'), 'AI のキーを消しました')();
+    put({ key: '' }, 'AI のキーを消しました')();
   });
   return el(
     'div',
     { className: 'group' },
     el('p', { className: 'sub', textContent: '「AI にたのむ」（配信者が文章でたのむと、設定の案を作る）' }),
-    el('p', { className: `sub hint${st.set ? ' key-on' : ''}`, textContent: `${state}。` }),
-    el('p', { className: 'sub hint', textContent: '1回たのむごとに Claude API の料金がかかります（目安: Opus 5.5 で 1回 10〜25 円）。使える配信者は、下の「AI にたのむ」のスイッチで決めます（初めは全員使えません）。' }),
-    el('div', { className: 'url' }, input, button('保存', save, { iconName: 'key-round' })),
-    el('label', { className: 'group-item' }, el('span', { className: 'url-label', textContent: 'モデル' }), model),
-    el('label', { className: 'group-item' }, el('span', { className: 'url-label', textContent: '配信者1人が1日にたのめる回数' }), limit),
+    el('p', { className: `sub hint${st.ready ? ' key-on' : ''}`, textContent: `${state}。` }),
+    el('p', { className: 'sub hint', textContent: '料金がかかる AI では、1回たのむごとに料金がかかります。使える配信者は、下の「AI にたのむ」のスイッチで決めます（初めは全員使えません）。' }),
+    item('使う AI', provider),
+    el('div', { className: 'url' }, key, button('保存', saveKey, { iconName: 'key-round' })),
+    st.provider === 'openai' ? item('API の場所', baseUrl) : null,
+    item('モデル', model),
+    item('配信者1人が1日にたのめる回数', limit),
+    item('AI への追加の指示（全員のたのみに付く。事務所の決まりなど）', extra),
     st.source === 'admin' ? el('div', { className: 'danger' }, remove) : null,
   );
 }
@@ -495,7 +523,7 @@ function globalDetail() {
 
 function renderDetail() {
   // 名前などを打っている最中は作り直さない
-  if (detailBody.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox])')) return;
+  if (detailBody.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox]), textarea, select')) return;
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));
   const t = data.tenants.find((x) => x.id === selected);
   if (ids.length >= 2) detailBody.replaceChildren(...bulkDetail(ids));

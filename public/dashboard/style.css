@@ -660,8 +660,29 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 
 /* AI にたのむ: ふだんは1行。書き始めると例が出る */
 .ai-form textarea { min-height: 44px; }
-.ai-box .ai-examples { display: none; }
-.ai-box:focus-within .ai-examples { display: flex; }
 
 /* プレビューだと分かるように、左上に小さく書く */
 .preview::after { content: "プレビュー"; position: absolute; left: 8px; top: 6px; font-size: 11px; color: rgba(255, 255, 255, .4); pointer-events: none; }
+
+/* --- 視線の流れ: 1画面に主役は1つ。上から 見出し → 中身、AI の入力はいつも下 --- */
+/* かんたんでは上のバーを軽くする（切り替えはホームの一覧の中。くわしくのときだけ「かんたん」に戻るボタンを出す） */
+[data-mode=simple] #modeSeg { display: none; }
+[data-mode=advanced] #modeSeg button[data-mode=advanced] { display: none; }
+[data-mode=advanced] #modeSeg button[data-mode=simple] { color: var(--text-primary); }
+[data-mode=advanced] #modeSeg button[data-mode=simple]::before { content: "← "; }
+[data-mode=advanced] #modeSeg button[data-mode=simple]::after { content: "にもどる"; }
+.view-title { display: grid; gap: 4px; }
+.view-title h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+[data-mode=simple] #connectForm .field { gap: 0; }
+
+/* AI にたのむ: 画面の下に貼り付く入力。案はその上に開く */
+.ai-box { position: sticky; bottom: 12px; z-index: 8; gap: 8px; padding: 10px; margin-top: 8px; border-radius: 20px; background: var(--glass-solid); box-shadow: var(--shadow), var(--bevel), inset 0 0 0 1px var(--stroke-secondary); }
+.ai-form { align-items: center; }
+.ai-form textarea { min-height: 44px; max-height: 120px; padding: 11px 14px; border-radius: 14px; resize: none; }
+.ai-form .btn { min-height: 44px; }
+.ai-more { display: none; align-items: flex-start; gap: 8px; }
+.ai-box.open .ai-more { display: flex; }
+.ai-more .ai-examples { display: flex; flex: 1; }
+.ai-more .hint { flex: none; padding-top: 6px; font-variant-numeric: tabular-nums; }
+.ai-result { padding: 4px 4px 10px; box-shadow: inset 0 -1px 0 var(--stroke-secondary); max-height: 46vh; overflow-y: auto; }
+@media (max-width: 600px) { .ai-form .btn span:not(.icon) { display: none; } .ai-form .btn { padding: 0 14px; } }

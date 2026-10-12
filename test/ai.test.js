@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import * as cfg from '../src/config.js';
-import { createAi, checkChanges, buildRequest } from '../src/ai.js';
+import { createAi, checkChanges, buildRequest, parseReply } from '../src/ai.js';
+import { buildSystem } from '../src/ai-prompt.js';
 import { createRuntime } from '../src/runtime.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'tw-ai-'));
@@ -31,7 +32,7 @@ test('変更の確かめ: 値は JSON の文字から読み、変えてはいけ
   ]);
   assert.deepEqual(ok.errors, []);
   assert.deepEqual(ok.changes[0].value.items, ['歌う*2', '変顔']);
-  assert.equal(ok.changes[1].label, 'wins.default');
+  assert.equal(ok.changes[1].label, 'WIN数の設定を変える');
   assert.equal('value' in ok.changes[2], false);
 
   const bad = checkChanges([
@@ -157,4 +158,77 @@ test('たのむ → 反映 → 元に戻す。1日の回数を超えたら断り
     server.close();
     await rt.close();
   }
+});
+
+test('OpenAI と同じ形の API（Space Bunny など）: キーは AI ごとに分け、返事の JSON を読む', async () => {
+  const dir = tmp();
+  const calls = [];
+  const reply = { reply: '色を青にします', changes: [{ op: 'merge', path: 'theme', value: { accent: '#3FA9F5' }, label: '色を青に' }] };
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, auth: init.headers.authorization, body: JSON.parse(init.body) });
+    // 1回目は「JSON で返す指定を知らない」API のふりをする
+    if (calls.length === 1) return new Response('{"error":"unknown response_format"}', { status: 400 });
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '```json\n' + JSON.stringify(reply) + '\n```' } }] }), { status: 200 });
+  };
+  const ai = createAi({ dir, fetchImpl });
+  ai.update({ key: 'sk-ant-claude-0000000000aaaa' });
+  // AI を切り替えると、前の AI のキーは使わない
+  let st = ai.update({ provider: 'spacebunny' });
+  assert.deepEqual({ provider: st.provider, set: st.set, ready: st.ready, model: st.model, baseUrl: st.baseUrl }, { provider: 'spacebunny', set: false, ready: false, model: 'space-bunny-alpha', baseUrl: 'https://spacebunnymodel.com/api/v1' });
+  st = ai.update({ key: 'sb_live_0000000000000000bbbb', extra: 'TNT と爆発の演出は使わない' });
+  assert.deepEqual({ set: st.set, ready: st.ready, tail: st.tail }, { set: true, ready: true, tail: 'bbbb' });
+
+  const config = cfg.parseText(fs.readFileSync(cfg.EXAMPLE_PATH, 'utf8')).config;
+  const out = await ai.ask({ text: '色を青にして', config });
+  assert.deepEqual(out.changes, [{ op: 'merge', path: 'theme', value: { accent: '#3FA9F5' }, label: '色を青に' }]);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].url, 'https://spacebunnymodel.com/api/v1/chat/completions');
+  assert.equal(calls[1].auth, 'Bearer sb_live_0000000000000000bbbb');
+  assert.equal(calls[0].body.response_format.type, 'json_object');
+  assert.equal(calls[1].body.response_format, undefined);
+  assert.match(calls[1].body.messages[0].content, /TNT と爆発の演出は使わない/);
+  assert.equal(JSON.stringify(calls).includes('sk-ant-claude'), false);
+
+  // 自分で場所を入れる API は、場所とモデルが入るまで使えない
+  st = ai.update({ provider: 'openai', key: 'key-0000000000000000cccc' });
+  assert.equal(st.ready, false);
+  assert.throws(() => ai.update({ baseUrl: 'http://example.com/v1' }), /https/);
+  assert.equal(ai.update({ baseUrl: 'https://example.com/v1', model: 'some-model' }).ready, true);
+  assert.equal(ai.update({ provider: 'claude' }).tail, 'aaaa');
+});
+
+test('返事の読み取りと、AI への指示', () => {
+  assert.deepEqual(parseReply('はい。\n{"reply":"a","changes":[]}\n以上です'), { reply: 'a', changes: [] });
+  assert.equal(parseReply('JSON ではない返事'), null);
+  assert.equal(parseReply('[1,2]'), null);
+  const forJson = buildSystem({ reference: 'REF', extra: 'ついか' });
+  assert.match(forJson, /# 返す形/);
+  assert.match(forJson, /# 管理者からの追加の指示[^#]*ついか/);
+  assert.match(forJson, /"value":\{"accent":"#3FA9F5"\}/);
+  assert.ok(forJson.trim().endsWith('REF'));
+  const forClaude = buildSystem({ reference: 'REF', valueAsText: true });
+  assert.equal(forClaude.includes('# 返す形'), false);
+  assert.match(forClaude, /"value_json":"\{\\"accent\\":\\"#3FA9F5\\"\}"/);
+});
+
+test('確かめて問題が出た案は、AI に伝えて1回だけ直してもらう', async () => {
+  const dir = tmp();
+  const bodies = [];
+  const answers = [
+    { reply: '派手にします', changes: [{ op: 'merge', path: 'wins.default', value: { power: 2, shake: 3 }, label: '演出を強く' }] },
+    { reply: '派手にします', changes: [{ op: 'merge', path: 'wins.default', value: { power: 2 }, label: '演出を強く' }] },
+  ];
+  const fetchImpl = async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(answers[bodies.length - 1]) } }] }), { status: 200 });
+  };
+  const ai = createAi({ dir, fetchImpl });
+  ai.update({ provider: 'spacebunny', key: 'sb_live_0000000000000000bbbb' });
+  const text = fs.readFileSync(cfg.EXAMPLE_PATH, 'utf8');
+  const out = await ai.ask({ text: 'もっと派手に', config: cfg.parseText(text).config, check: (changes) => cfg.applyChanges(text, changes) });
+  assert.equal(bodies.length, 2);
+  assert.match(bodies[1].messages.at(-1).content, /shake/);
+  assert.equal(bodies[1].messages.at(-2).role, 'assistant');
+  assert.deepEqual(out.changes[0].value, { power: 2 });
+  assert.deepEqual([out.errors, out.warnings], [[], []]);
 });

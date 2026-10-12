@@ -29,8 +29,8 @@
       <h2 data-adv>接続</h2>
       <form id="connectForm" class="stack">
         <label class="field">
-          <span class="field-label"><span data-adv>TikTok のユーザー名</span><span data-simple>配信を始めたら、自分の TikTok のユーザー名を入れて「接続」</span></span>
-          <span class="input-wrap"><span class="prefix">@</span><input id="username" name="username" autocomplete="off" placeholder="username" required></span>
+          <span class="field-label" data-adv>TikTok のユーザー名</span>
+          <span class="input-wrap"><span class="prefix">@</span><input id="username" name="username" autocomplete="off" placeholder="TikTok のユーザー名" required></span>
         </label>
         <details class="more" data-adv>
           <summary>詳細設定</summary>
@@ -80,7 +80,6 @@
       <div class="picker" id="picker" hidden></div>
       <div class="segmented" id="tabs" role="tablist"></div>
     </div>
-    <div class="ai-box" id="aiBox" hidden></div>
 
     <!-- かんたん: カードの一覧 -->
     <div class="cards" id="cards" hidden></div>
@@ -109,6 +108,8 @@
       </div>
     </div>
     </div>
+    <!-- AI にたのむ: 画面の下に貼り付く入力（チャットの入力欄のように、いつも同じ場所にある） -->
+    <div class="ai-box" id="aiBox" hidden></div>
   </section>
 
   <section class="panel section config-panel" data-adv>
