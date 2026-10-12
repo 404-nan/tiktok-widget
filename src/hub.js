@@ -3,6 +3,7 @@
 // サーバー内のほかの仕組み（履歴・ルーレット・Minecraft）は 'event' / 'status' / 'reset' を購読する。
 
 import { EventEmitter } from 'node:events';
+import { publicConfig } from './config.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 
@@ -37,13 +38,14 @@ export class Hub extends EventEmitter {
   addClient(ws) {
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
-    this.#send(ws, { type: 'hello', status: this.status, state: this.state, config: this.config });
+    // ウィジェットにはパスワードなどを抜いた設定を配る
+    this.#send(ws, { type: 'hello', status: this.status, state: this.state, config: publicConfig(this.config) });
   }
 
   /** 設定が変わったらウィジェットに知らせる */
   setConfig(config) {
     this.config = config;
-    this.broadcast({ type: 'config', config });
+    this.broadcast({ type: 'config', config: publicConfig(config) });
     this.emit('config', config);
   }
 

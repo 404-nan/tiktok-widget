@@ -2,7 +2,7 @@
 // 見た目（丸型・横スライド）は roulette-wheel.js / roulette-strip.js が受け持つ。
 
 import {
-  loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon,
+  loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
   reloadOnConfigChange, resolveColor, readableOn,
 } from './overlay.js';
 
@@ -30,7 +30,6 @@ export async function loadRoulettes() {
   return entries.map(([id, entry]) => prepare(id, params({ ...FALLBACK, ...defaults.roulettes, ...entry })));
 }
 
-const isUrl = (s) => /^(https?:|data:|blob:|\/)/.test(s);
 
 /** 項目に色・文字色・画像の URL・扇の範囲（0〜1）を付ける */
 function prepare(id, r) {
@@ -58,7 +57,7 @@ function prepare(id, r) {
     }
     it.fill = resolveColor(it.color);
     it.ink = it.textColor ? resolveColor(it.textColor) : readableOn(it.fill);
-    if (it.image) it.src = isUrl(it.image) ? it.image : `/${it.image.replace(/^\.?\//, '')}`;
+    if (it.image) it.src = mediaUrl(it.image);
   });
   return {
     ...r,

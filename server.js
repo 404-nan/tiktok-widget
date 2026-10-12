@@ -2,46 +2,47 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import express from 'express';
 import { WebSocketServer } from 'ws';
-import { Hub } from './src/hub.js';
-import { TikTokSource } from './src/tiktok.js';
-import { DemoSource, DEMO_GIFTS, makeEvent } from './src/demo.js';
 import * as cfg from './src/config.js';
-import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './src/schema.js';
-import YAML from 'yaml';
-import { RouletteEngine } from './src/roulette.js';
-import { Minecraft } from './src/minecraft.js';
-import { History } from './src/history.js';
-import { readProfile, SUPERSTREAM_ACTIONS } from './src/superstream.js';
-import { RushEngine } from './src/rush.js';
-import { WinsEngine } from './src/wins.js';
+import { SCHEMA, SECTIONS } from './src/schema.js';
+import { createRuntime, premiumOfPage, PREMIUM } from './src/runtime.js';
+import { Tenants, DATA_DIR } from './src/tenants.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC = path.join(root, 'public');
 const PORT = Number(process.env.PORT) || 3939;
 const HOST = process.env.HOST || '127.0.0.1';
+// TW_HOSTED=1: 配信者ごとの URL（/t/<鍵>/...）と管理画面だけを出す（1人用の /dashboard/ は出さない）
+const HOSTED = process.env.TW_HOSTED === '1';
 
-const hub = new Hub();
-const tiktok = new TikTokSource(hub);
-const demo = new DemoSource(hub);
-const roulette = new RouletteEngine(hub);
-const minecraft = new Minecraft(hub);
-const history = new History(hub);
-const rush = new RushEngine(hub);
-const wins = new WinsEngine(hub);
+// --- 1人で使うとき（今までどおり config.yaml と data/ を使う） ---
+const local = HOSTED
+  ? null
+  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR] });
 
-hub.on('config', (config) => {
-  roulette.setConfig(config);
-  minecraft.setConfig(config.minecraft);
-  rush.setConfig(config.rush);
-  wins.setConfig(config.wins);
-});
-// ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
-hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
+// --- 契約している配信者（data/tenants.json） ---
+const tenants = new Tenants();
+
+// 管理画面の合言葉。TW_ADMIN_TOKEN がなければ作って data/admin-token.txt に残す
+const ADMIN_TOKEN_FILE = path.join(DATA_DIR, 'admin-token.txt');
+const ADMIN_TOKEN = (() => {
+  if (process.env.TW_ADMIN_TOKEN) return process.env.TW_ADMIN_TOKEN;
+  try {
+    return fs.readFileSync(ADMIN_TOKEN_FILE, 'utf8').trim();
+  } catch {
+    const t = crypto.randomBytes(18).toString('base64url');
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(ADMIN_TOKEN_FILE, `${t}\n`, { mode: 0o600 });
+    return t;
+  }
+})();
 
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json());
-app.use(express.static(path.join(root, 'public')));
+
 // ライブラリ・フォント・アイコンは node_modules から直接配る（OBS がオフラインでも表示できる）
 app.get('/vendor/matter.min.js', (_req, res) => {
   res.sendFile(path.join(root, 'node_modules/matter-js/build/matter.min.js'));
@@ -51,208 +52,146 @@ app.use('/vendor/fonts/zen-kaku-gothic-new', vendor('@fontsource/zen-kaku-gothic
 app.use('/vendor/fonts/barlow-condensed', vendor('@fontsource/barlow-condensed'));
 app.use('/vendor/fonts/dela-gothic-one', vendor('@fontsource/dela-gothic-one'));
 app.use('/vendor/icons', vendor('lucide-static/icons'));
-// ルーレットの画像などは media/ に置く
-app.use('/media', express.static(cfg.MEDIA_DIR));
-app.get('/', (_req, res) => res.redirect('/dashboard/'));
 
-// --- ダッシュボード用 API ---
+// --- 管理画面（/admin） ---
 
-app.get('/api/status', (_req, res) => {
-  res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
+const sameToken = (t) => typeof t === 'string' && t.length === ADMIN_TOKEN.length && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(ADMIN_TOKEN));
+const admin = express.Router();
+admin.use((req, res, next) => (sameToken(req.get('x-admin-token')) ? next() : res.status(401).json({ error: '合言葉が違います' })));
+
+const origin = (req) => `${req.protocol}://${req.get('host')}`;
+function tenantView(req, t) {
+  const rt = tenants.runtimes.get(t.id);
+  return {
+    id: t.id,
+    name: t.name,
+    enabled: t.enabled,
+    widgets: t.widgets,
+    createdAt: t.createdAt,
+    premium: tenants.premiumState(t.id),
+    urls: { dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
+    status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
+  };
+}
+admin.get('/tenants', (req, res) => {
+  const now = Date.now();
+  const global = Object.fromEntries(
+    Object.keys(PREMIUM).map((f) => {
+      const g = tenants.data.global.premium?.[f];
+      const on = Boolean(g) && (g.until == null || g.until > now);
+      return [f, { active: on, until: on ? g.until : null }];
+    }),
+  );
+  res.json({
+    tenants: tenants.list().map((t) => tenantView(req, t)),
+    global,
+    premiumLabels: Object.fromEntries(Object.entries(PREMIUM).map(([k, v]) => [k, v.label])),
+    sections: Object.fromEntries(SECTIONS.filter((s) => s !== 'theme').map((s) => [s, SCHEMA[s].title])),
+  });
 });
-
-// --- 配信の履歴 ---
-
-app.get('/api/history', (_req, res) => res.json(history.list()));
-app.get('/api/history/:id', (req, res) => {
-  const s = history.get(req.params.id);
-  if (!s) return res.status(404).json({ error: '見つかりません' });
-  res.json(s);
+admin.post('/tenants', (req, res) => {
+  const t = tenants.create({ name: req.body?.name });
+  res.json({ ok: true, tenant: tenantView(req, t) });
 });
-app.delete('/api/history/:id', (req, res) => res.json({ ok: history.remove(req.params.id) }));
-
-// --- Minecraft 連携 ---
-
-app.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
-app.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
-app.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
-// Stream Deck やブラウザのブックマークから押せるように GET でも受ける
-// 例: /api/wins/default/win（+1）・/api/wins/default/add?value=-1・/api/wins/default/undo・/api/wins/all/reset
-app.all('/api/wins/:id/:action', (req, res) => {
+admin.patch('/tenants/:id', (req, res) => {
   try {
-    const id = req.params.id === 'all' ? null : req.params.id;
-    res.json({ ok: true, wins: wins.apply(id, req.params.action, req.query.value ?? req.body?.value) });
+    res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/rekey', (req, res) => {
+  try {
+    const t = tenants.rekey(req.params.id, req.body?.which);
+    tenants.close(t.id);
+    res.json({ ok: true, tenant: tenantView(req, t) });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+admin.delete('/tenants/:id', async (req, res) => {
+  await tenants.remove(req.params.id);
+  res.json({ ok: true });
+});
+// 豪華な演出: { target: 配信者の id | 'global' | 'everyone', feature: 名前 | 'all', mode: 'on' | 'for' | 'off', hours }
+admin.put('/premium', (req, res) => {
+  const { target, feature, mode, hours } = req.body ?? {};
+  try {
+    tenants.setPremium(target, feature, mode, hours);
+    res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
-// SuperStream のプロフィールに設定済みの演出（読むだけ）
-app.get('/api/superstream', (_req, res) => {
-  const mc = hub.config?.minecraft ?? {};
-  res.json({ ...readProfile(mc.superstreamFile, [...hub.seenGifts.values()]), configuredProfile: mc.superstreamProfile, actions: SUPERSTREAM_ACTIONS });
-});
-app.post('/api/minecraft/check', async (_req, res) => res.json(await minecraft.check()));
-app.post('/api/minecraft/command', async (req, res) => {
-  const command = String(req.body?.command ?? '').trim();
-  if (!command) return res.status(400).json({ error: 'コマンドを入力してください' });
-  try {
-    res.json({ ok: true, response: await minecraft.test(command) });
-  } catch (err) {
-    res.status(502).json({ error: err.message });
+app.use('/admin/api', admin);
+
+// --- 配信者ごとの URL（/t/<鍵>/...） ---
+
+const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
+const tenantStatic = express.static(PUBLIC);
+app.use('/t/:key', (req, res, next) => {
+  const found = tenants.byKey(req.params.key);
+  if (!found) return res.status(404).type('text/plain; charset=utf-8').send('この URL は使えません（管理者に確認してください）');
+  const { tenant, role } = found;
+  if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
+  req.role = role;
+  req.tenant = tenant;
+  const p = req.path;
+  // OBS 用の鍵で開けるのはウィジェットと画像と、ウィジェットが読む API だけ
+  if (role === 'obs' && !(p.startsWith('/widgets/') || p.startsWith('/media/') || p.startsWith('/api/'))) {
+    return res.status(403).type('text/plain; charset=utf-8').send('これは OBS 用の URL です。ダッシュボードはダッシュボードの URL で開いてください');
   }
+  if (p === '/' || p === '') return res.redirect(`${req.baseUrl}/${role === 'obs' ? 'widgets/' : 'dashboard/'}`);
+  // 管理者がオンにしていない豪華な演出は、何も出さないページにする
+  const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
+  const feature = page && premiumOfPage(page);
+  if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
+  const rt = tenants.runtime(tenant.id);
+  tenantStatic(req, res, () => rt.router(req, res, next));
 });
 
-// テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
-app.get('/api/gifts', (_req, res) => {
-  const seen = [...hub.seenGifts.values()].map((g) => ({ ...g, seen: true }));
-  res.json([...DEMO_GIFTS, ...seen.filter((g) => !DEMO_GIFTS.some((d) => d.name === g.name))]);
-});
+// --- 1人で使うときの URL（/dashboard/ など） ---
 
-// --- 設定（config.yaml） ---
-
-const baseUrl = (req) => `${req.protocol}://${req.get('host')}`;
-let lastIssues = { errors: [], warnings: [] };
-
-function configPayload(req) {
-  const defaults = Object.fromEntries(SECTIONS.map((s) => [s, defaultsFor(s)]));
-  return {
-    path: cfg.CONFIG_PATH,
-    yaml: cfg.readText(),
-    config: hub.config,
-    defaults,
-    errors: lastIssues.errors,
-    warnings: lastIssues.warnings,
-    widgets: hub.config ? cfg.widgetList(hub.config, baseUrl(req)) : [],
-  };
+if (local) {
+  app.get('/', (_req, res) => res.redirect('/dashboard/'));
+  app.use(express.static(PUBLIC));
+  app.use(local.router);
+} else {
+  app.get('/', (_req, res) => res.redirect('/admin/'));
+  app.use('/admin', express.static(path.join(PUBLIC, 'admin')));
+  app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'))); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
+  app.use('/widgets', express.static(path.join(PUBLIC, 'widgets')));
 }
-
-app.get('/api/config', (req, res) => res.json(configPayload(req)));
-app.get('/api/config/reference', (_req, res) => res.type('text/markdown').send(cfg.reference()));
-// フォームを作るための定義（関数は JSON にすると落ちる）
-app.get('/api/config/schema', (_req, res) => res.json({ sections: SCHEMA, colorTokens: COLOR_TOKENS }));
-
-// AI から使うための案内
-app.get('/api/ai', (_req, res) => {
-  const mcp = path.join(root, 'mcp', 'server.js');
-  res.json({
-    claudeCode: `claude mcp add tiktok-widget -- node ${mcp}`,
-    desktop: JSON.stringify({ mcpServers: { 'tiktok-widget': { command: 'node', args: [mcp] } } }, null, 2),
-    cli: 'npm run tw -- help',
-    configPath: cfg.CONFIG_PATH,
-  });
-});
-
-// YAML 全体を置き換える
-app.put('/api/config', (req, res) => {
-  const result = cfg.replaceText(String(req.body?.yaml ?? ''));
-  applyConfigResult(result);
-  res.status(result.ok ? 200 : 422).json({ ...result, ...configPayload(req) });
-});
-
-// 一部だけ変える: { path: "roulettes.main.items", value: [...] } / { path, merge: true, value } / { path, delete: true }
-app.patch('/api/config', (req, res) => {
-  const { path: p, merge, delete: del, yaml } = req.body ?? {};
-  if (p == null || p === '') return res.status(400).json({ error: 'path が必要です' });
-  let value = req.body?.value;
-  // 値を YAML の文字で受け取ることもできる（ダッシュボードの rules の欄など）
-  if (typeof yaml === 'string') {
-    try {
-      value = YAML.parse(yaml);
-    } catch (err) {
-      return res.status(422).json({ ok: false, errors: [`YAML の書き方: ${err.message}`], warnings: [], ...configPayload(req) });
-    }
-  }
-  const result = del ? cfg.deleteValue(p) : merge ? cfg.mergeValue(p, value) : cfg.setValue(p, value);
-  applyConfigResult(result);
-  res.status(result.ok ? 200 : 422).json({ ...result, ...configPayload(req) });
-});
-
-app.get('/api/media', (_req, res) => {
-  const out = [];
-  const walk = (dir, prefix) => {
-    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (ent.isDirectory()) walk(path.join(dir, ent.name), `${prefix}${ent.name}/`);
-      else if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(ent.name)) out.push(`media/${prefix}${ent.name}`);
-    }
-  };
-  if (fs.existsSync(cfg.MEDIA_DIR)) walk(cfg.MEDIA_DIR, '');
-  res.json(out);
-});
-
-app.post('/api/connect', async (req, res) => {
-  const username = String(req.body?.username ?? '').trim();
-  if (!username) return res.status(400).json({ error: 'ユーザー名を入力してください' });
-  demo.stop();
-  try {
-    await tiktok.connect(username, { signApiKey: req.body?.signApiKey });
-    res.json({ ok: true, status: hub.status });
-  } catch (err) {
-    res.status(502).json({ error: err.message, status: hub.status });
-  }
-});
-
-app.post('/api/disconnect', async (_req, res) => {
-  await tiktok.disconnect();
-  demo.stop();
-  hub.setStatus({ mode: 'idle', username: null, message: '切断しました' });
-  res.json({ ok: true });
-});
-
-app.post('/api/demo', async (req, res) => {
-  if (req.body?.on) {
-    await tiktok.disconnect();
-    demo.start();
-    hub.setStatus({ mode: 'demo', username: null, message: 'デモモードでイベントを流しています' });
-  } else {
-    demo.stop();
-    hub.setStatus({ mode: 'idle', message: 'デモモードを止めました' });
-  }
-  res.json({ ok: true, demo: demo.running });
-});
-
-app.post('/api/simulate', (req, res) => {
-  const event = makeEvent(req.body?.kind, req.body ?? {});
-  if (!event) return res.status(400).json({ error: '不明なイベント種類です' });
-  hub.publish(event);
-  res.json({ ok: true });
-});
-
-app.post('/api/control', (req, res) => {
-  const { target, action, data } = req.body ?? {};
-  if (!target || !action) return res.status(400).json({ error: 'target と action が必要です' });
-  // ルーレットは何が当たるかをサーバーで決める
-  if (target === 'roulette' && action === 'spin') {
-    const spin = roulette.spin(data?.id ?? null);
-    return spin ? res.json({ ok: true, spin }) : res.status(404).json({ error: 'ルーレットの設定がありません' });
-  }
-  if (target === 'roulette' && action === 'reset') roulette.clear();
-  // RUSH はサーバーで状態を持つ
-  if (target === 'rush') {
-    const r = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
-    return res.json({ ok: true, rush: r ?? rush.snapshot() });
-  }
-  // WIN 数もサーバーで持つ（data/wins.json に残す）
-  if (target === 'wins') {
-    try {
-      return res.json({ ok: true, wins: wins.apply(data?.id || null, String(action), data?.value) });
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
-    }
-  }
-  hub.control(String(target), String(action), data ?? {});
-  res.json({ ok: true });
-});
-
-app.post('/api/reset', (_req, res) => {
-  hub.reset();
-  res.json({ ok: true });
-});
 
 // --- WebSocket（ウィジェットへの配信） ---
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
-wss.on('connection', (ws) => hub.addClient(ws));
+const wss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://x');
+  let rt = null;
+  let role = 'owner';
+  const m = pathname.match(/^\/t\/([^/]+)\/ws$/);
+  if (m) {
+    const found = tenants.byKey(m[1]);
+    if (found?.tenant.enabled) {
+      rt = tenants.runtime(found.tenant.id);
+      role = found.role;
+    }
+  } else if (pathname === '/ws') {
+    rt = local;
+  }
+  if (!rt) {
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    ws.role = role;
+    ws.isAlive = true;
+    ws.on('pong', () => (ws.isAlive = true));
+    rt.hub.addClient(ws);
+  });
+});
 
 // 切れた接続を掃除する
 setInterval(() => {
@@ -265,42 +204,18 @@ setInterval(() => {
     ws.ping();
   }
 }, 30_000).unref();
-wss.on('connection', (ws) => {
-  ws.isAlive = true;
-  ws.on('pong', () => (ws.isAlive = true));
-});
-
-// --- 設定ファイルを読み、変わったら反映する ---
-
-function applyConfigResult(result) {
-  if (!result.ok && result.errors?.length) return;
-  if (result.config) {
-    lastIssues = { errors: [], warnings: result.warnings ?? [] };
-    hub.setConfig(result.config);
-  }
-}
-
-if (cfg.ensureConfigFile()) console.log(`  設定ファイルを作りました: ${cfg.CONFIG_PATH}`);
-cfg.watch((result) => {
-  if (result.errors.length) {
-    // 壊れた設定は使わず、前の設定のまま動かす
-    lastIssues = { errors: result.errors, warnings: result.warnings };
-    hub.broadcast({ type: 'configError', errors: result.errors });
-    console.warn(`[config] 設定ファイルにエラーがあるため反映していません:\n  ${result.errors.join('\n  ')}`);
-    return;
-  }
-  lastIssues = { errors: [], warnings: result.warnings };
-  if (JSON.stringify(result.config) !== JSON.stringify(hub.config)) hub.setConfig(result.config);
-});
 
 server.listen(PORT, HOST, () => {
   const base = `http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`;
-  console.log(`\n  TikTok LIVE ウィジェット  ${base}/dashboard/\n`);
+  console.log(`\n  TikTok LIVE ウィジェット`);
+  if (local) console.log(`  ダッシュボード  ${base}/dashboard/`);
+  console.log(`  管理画面        ${base}/admin/  （合言葉: ${process.env.TW_ADMIN_TOKEN ? '環境変数 TW_ADMIN_TOKEN' : ADMIN_TOKEN_FILE}）\n`);
 
+  if (!local) return;
   if (process.argv.includes('--demo')) {
-    demo.start();
-    hub.setStatus({ mode: 'demo', message: 'デモモードでイベントを流しています' });
+    local.demo.start();
+    local.hub.setStatus({ mode: 'demo', message: 'デモモードでイベントを流しています' });
   } else if (process.env.TIKTOK_USERNAME) {
-    tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => console.warn(`[tiktok] ${err.message}`));
+    local.tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => console.warn(`[tiktok] ${err.message}`));
   }
 });

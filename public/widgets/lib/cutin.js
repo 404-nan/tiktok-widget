@@ -1,5 +1,5 @@
 import { brushImage as bandImage } from './brush.js';
-import { setupWidget, loadConfig, list, connect, giftNode, avatarNode, giftNamed, fmt, createQueue, sleep } from './overlay.js';
+import { setupWidget, mediaUrl, loadConfig, list, connect, giftNode, avatarNode, giftNamed, fmt, createQueue, sleep } from './overlay.js';
 
 const STAGE = `
 <div class="stage" id="stage">
@@ -109,7 +109,7 @@ export async function startCutin(section) {
     if (src) {
       const img = new Image();
       img.className = 'photo-img';
-      img.src = /^(https?:|data:|\/)/.test(src) ? src : `/${src}`;
+      img.src = mediaUrl(src);
       photo.append(img);
       parts.push(img);
     } else {
@@ -372,7 +372,7 @@ export async function startCutin(section) {
     if (p.style !== 'photo') {
       if (p.image === 'photo' && p.photo) {
         const img = new Image();
-        img.src = /^(https?:|data:|\/)/.test(p.photo) ? p.photo : `/${p.photo}`;
+        img.src = mediaUrl(p.photo);
         visual.replaceChildren(img);
         wait.push(img);
       } else if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));

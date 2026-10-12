@@ -1,7 +1,7 @@
 // ダッシュボードの設定エディタ。config.yaml をフォームと YAML の両方から編集する。
 // フォームの変更は1項目ずつ PATCH /api/config で保存する（ファイルのコメントは残る）。
 
-import { icon } from '/widgets/lib/overlay.js';
+import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
 const TABS = ['alerts', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'rush', 'minecraft', 'theme'];
@@ -78,6 +78,7 @@ export function createEditor({ api, setMessage }) {
   let media = [];
   let gifts = [];
   let tab = TABS[0];
+  let me = { mode: 'local' }; // 配信者ごとの URL のときは、使うウィジェットと豪華な演出の状態（/api/me）
   let id = null;
   let yamlDirty = false;
   let superstream = { gifts: [] };
@@ -154,10 +155,82 @@ export function createEditor({ api, setMessage }) {
     return Object.keys(payload?.config?.[section] ?? {});
   }
 
+  // --- 使うウィジェット（配信者ごとの URL のとき） ---
+
+  const PREMIUM_TABS = ['cutins', 'imageCutins', 'rush'];
+  const isTenant = () => me.mode === 'tenant';
+  const unlocked = (section) => !PREMIUM_TABS.includes(section) || !isTenant() || me.premium?.[section]?.active;
+  /** タブに出すもの: 1人で使うときは全部、配信者ごとのときは選んだものとテーマ */
+  const visibleTabs = () => (isTenant() ? TABS.filter((s) => s === 'theme' || (me.widgets.includes(s) && unlocked(s))) : TABS);
+
+  const untilText = (st) => {
+    if (!st?.active) return '';
+    if (st.until == null) return '';
+    const h = Math.max(0, (st.until - Date.now()) / 3600_000);
+    return h < 1 ? `あと${Math.max(1, Math.round(h * 60))}分` : `あと${Math.round(h)}時間`;
+  };
+
+  function renderPicker() {
+    const box = $('picker');
+    if (!box) return;
+    box.hidden = !isTenant();
+    if (!isTenant()) return;
+    box.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'picker-head';
+    head.textContent = '使うウィジェット';
+    box.append(head);
+    const chips = document.createElement('div');
+    chips.className = 'picker-chips';
+    for (const section of TABS.filter((s) => s !== 'theme')) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pick pressable';
+      const on = me.widgets.includes(section);
+      const open = unlocked(section);
+      b.setAttribute('aria-pressed', String(on && open));
+      if (!open) {
+        b.disabled = true;
+        b.classList.add('locked');
+        b.title = '管理者がオンにすると使えます';
+        b.append(icon('lock'));
+      } else if (on) {
+        b.append(icon('check'));
+      }
+      b.append(schema.sections[section].title);
+      const left = PREMIUM_TABS.includes(section) ? untilText(me.premium?.[section]) : '';
+      if (left) b.append(Object.assign(document.createElement('small'), { textContent: left }));
+      b.addEventListener('click', async () => {
+        const next = on ? me.widgets.filter((w) => w !== section) : [...me.widgets, section];
+        try {
+          me = await api('/api/me/widgets', { widgets: next }, 'PUT');
+          renderPicker();
+          select(visibleTabs().includes(tab) ? tab : on ? visibleTabs()[0] : section);
+        } catch (err) {
+          setMessage(err.message, true);
+        }
+      });
+      chips.append(b);
+    }
+    // WIN数の全画面演出（ウィジェットの選択ではなく、使えるかどうかだけ）
+    const fx = me.premium?.winsFx;
+    const info = document.createElement('span');
+    info.className = `pick info${fx?.active ? '' : ' locked'}`;
+    info.append(icon(fx?.active ? 'sparkles' : 'lock'), 'WIN数の全画面演出');
+    if (fx?.active && untilText(fx)) info.append(Object.assign(document.createElement('small'), { textContent: untilText(fx) }));
+    if (!fx?.active) info.title = '管理者がオンにすると使えます';
+    chips.append(info);
+    box.append(chips);
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = '🔒 の付いた豪華な演出は、管理者がオンにすると選べます。';
+    box.append(note);
+  }
+
   function renderTabs() {
     const tabs = $('tabs');
     tabs.replaceChildren();
-    for (const section of TABS) {
+    for (const section of visibleTabs()) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'pressable';
@@ -170,6 +243,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   function select(section, nextId) {
+    if (!visibleTabs().includes(section)) section = visibleTabs()[0];
     tab = section;
     store.set('tab', tab);
     const ids = entriesOf(section);
@@ -497,7 +571,7 @@ export function createEditor({ api, setMessage }) {
         thumb.replaceChildren();
         if (r.image) {
           const img = new Image();
-          img.src = /^(https?:|data:|\/)/.test(r.image) ? r.image : `/${r.image}`;
+          img.src = mediaUrl(r.image);
           thumb.append(img);
         }
       };
@@ -640,9 +714,11 @@ export function createEditor({ api, setMessage }) {
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
     if (tab === 'wins') {
-      const base = new URL(w.url).origin;
+      // ボタン用の URL は、このダッシュボードの URL の下（配信者ごとの URL なら /t/<鍵>/）
+      const base = `${location.origin}${BASE}`;
       const fx = payload.widgets.find((x) => x.section === 'wins' && x.id === id && x.extra);
-      if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
+      if (fx && isTenant() && !me.premium?.winsFx?.active) $('sizeHint').textContent += ' 全画面の演出（大妨害・目標達成など）は、管理者がオンにすると使えます。';
+      else if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
       $('sizeHint').textContent +=
         ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
     }
@@ -940,6 +1016,13 @@ export function createEditor({ api, setMessage }) {
     });
 
     const ai = await api('/api/ai');
+    // 配信者ごとの URL では、AI の案内（サーバーの場所など）は出さない
+    if (ai.tenant) {
+      document.querySelector('.config-body .ai').hidden = true;
+      document.querySelector('.config-body').classList.add('single');
+      document.querySelector('.config-panel h2').textContent = '設定（YAML）';
+      return;
+    }
     $('aiPath').textContent = ai.configPath;
     $('aiClaude').textContent = ai.claudeCode;
     $('aiDesktop').textContent = ai.desktop;
@@ -958,14 +1041,17 @@ export function createEditor({ api, setMessage }) {
 
   return {
     async start() {
-      [schema, payload, media, gifts, superstream, mcStatus] = await Promise.all([
+      [schema, payload, media, gifts, superstream, mcStatus, me] = await Promise.all([
         api('/api/config/schema'),
         api('/api/config'),
         api('/api/media').catch(() => []),
         api('/api/gifts').catch(() => []),
         api('/api/superstream').catch(() => ({ gifts: [] })),
         api('/api/minecraft').catch(() => null),
+        api('/api/me').catch(() => ({ mode: 'local' })),
       ]);
+      if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のウィジェット`;
+      renderPicker();
       $('yamlText').value = payload.yaml;
       renderYamlIssues(payload.errors, payload.warnings);
       await setupYaml();
@@ -982,6 +1068,12 @@ export function createEditor({ api, setMessage }) {
         setTimeout(() => (label.textContent = 'コピー'), 1500);
       });
       select(TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0]);
+    },
+    /** 管理者が豪華な演出をオン/オフしたとき */
+    async onEntitlements() {
+      me = await api('/api/me').catch(() => me);
+      renderPicker();
+      select(tab);
     },
     /** ほかのツール（AI・エディタ）で設定が変わったとき */
     async onConfigChanged() {

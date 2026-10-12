@@ -1,5 +1,16 @@
 // ウィジェット共通: 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
 
+// --- 配信者ごとの URL（/t/<鍵>/...） ---
+// 配信者ごとの URL で開いたときは、API・画像・接続をその下に向ける（1人で使うときは BASE は空）
+export const BASE = location.pathname.match(/^\/t\/[^/]+/)?.[0] ?? '';
+if (BASE && !window.__twBase) {
+  window.__twBase = BASE;
+  const original = window.fetch.bind(window);
+  window.fetch = (input, init) => original(typeof input === 'string' && /^\/(api|media)\//.test(input) ? BASE + input : input, init);
+}
+/** 設定に書いた画像（media/... や URL）を、表示できる URL にする */
+export const mediaUrl = (src) => (/^(https?:|data:|blob:)/.test(src) ? src : src.startsWith('/') ? BASE + src : `${BASE}/${src.replace(/^\.?\//, '')}`);
+
 // --- 設定（config.yaml） ---
 
 let configSelector = null; // 設定のどこが変わったら読み込み直すか
@@ -162,7 +173,7 @@ export const list = (s) =>
  * handlers: { hello(status, state), event(e, state), state(state), status(status), control(msg) }
  */
 export function connect(handlers) {
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws`;
   let ws;
   const open = () => {
     ws = new WebSocket(url);
@@ -181,6 +192,8 @@ export function connect(handlers) {
       else if (msg.type === 'control') handlers.control?.(msg);
       else if (msg.type === 'config') handlers.config?.(msg.config);
       else if (msg.type === 'configError') handlers.configError?.(msg.errors);
+      // 豪華な演出のオン/オフが変わった: ウィジェットは読み込み直す（使えなくなったら何も出さないページになる）
+      else if (msg.type === 'entitlements' && !handlers.entitlements) location.reload();
       else handlers[msg.type]?.(msg); // roulette / rouletteResult / minecraft など
     };
     ws.onclose = () => setTimeout(open, 2000);

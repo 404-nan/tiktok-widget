@@ -299,18 +299,7 @@ export function normalize(raw) {
 }
 
 // --- ファイル ---
-
-export function ensureConfigFile() {
-  if (fs.existsSync(CONFIG_PATH)) return false;
-  fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-  fs.copyFileSync(EXAMPLE_PATH, CONFIG_PATH);
-  return true;
-}
-
-export function readText() {
-  ensureConfigFile();
-  return fs.readFileSync(CONFIG_PATH, 'utf8');
-}
+// 設定ファイル1つ分の読み書き。ふだんは config.yaml、配信者ごとの設定は data/tenants/<id>/config.yaml
 
 /** YAML の文字列を読み、構文エラーも含めて検証結果を返す */
 export function parseText(text) {
@@ -319,25 +308,6 @@ export function parseText(text) {
     return { doc, config: null, errors: doc.errors.map((e) => `YAML の書き方: ${e.message}`), warnings: [] };
   }
   return { doc, ...normalize(doc.toJS()) };
-}
-
-export function load() {
-  const text = readText();
-  return { text, ...parseText(text) };
-}
-
-function writeText(text) {
-  const tmp = `${CONFIG_PATH}.tmp-${process.pid}`;
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, CONFIG_PATH);
-}
-
-/** YAML 全体を置き換える。エラーがあれば書き込まない */
-export function replaceText(text) {
-  const result = parseText(text);
-  if (result.errors.length) return { ok: false, errors: result.errors, warnings: result.warnings };
-  writeText(text.endsWith('\n') ? text : `${text}\n`);
-  return { ok: true, errors: [], warnings: result.warnings, config: result.config };
 }
 
 /** "roulettes.main.items.0.color" や ['roulettes', 'main'] を配列のパスにする */
@@ -376,55 +346,108 @@ function toNode(doc, value) {
   return node;
 }
 
-function edit(mutate) {
-  const { doc } = parseText(readText());
-  if (doc.errors.length) return { ok: false, errors: doc.errors.map((e) => `今の設定ファイルが壊れています: ${e.message}`), warnings: [] };
-  mutate(doc);
-  return replaceText(doc.toString(TO_STRING));
-}
-
-/** 指定した場所に値を入れる（コメントや並びは残る） */
-export function setValue(p, value) {
-  const keys = toPath(p);
-  if (keys.length === 0) return { ok: false, errors: ['パスを指定してください'], warnings: [] };
-  return edit((doc) => doc.setIn(keys, toNode(doc, value)));
-}
-
-/** オブジェクトの中身を混ぜる（指定しなかった項目はそのまま） */
-export function mergeValue(p, value) {
-  const keys = toPath(p);
-  return edit((doc) => {
-    if (!doc.hasIn(keys) || value == null || typeof value !== 'object' || Array.isArray(value)) {
-      doc.setIn(keys, toNode(doc, value));
-      return;
-    }
-    for (const [k, v] of Object.entries(value)) doc.setIn([...keys, k], toNode(doc, v));
-  });
-}
-
-export function deleteValue(p) {
-  const keys = toPath(p);
-  return edit((doc) => doc.deleteIn(keys));
-}
-
-/** 設定ファイルの変更を見張る（他のツールやエディタで書き換えたときも反映する） */
-export function watch(onChange) {
-  let timer = null;
-  let last = null;
-  const check = () => {
-    try {
-      const text = fs.readFileSync(CONFIG_PATH, 'utf8');
-      if (text === last) return;
-      last = text;
-      onChange(parseText(text));
-    } catch {}
+/** 設定ファイル1つ分の読み書きと見張り */
+export function createStore(file) {
+  const ensure = () => {
+    if (fs.existsSync(file)) return false;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.copyFileSync(EXAMPLE_PATH, file);
+    return true;
   };
-  check();
-  fs.watch(path.dirname(CONFIG_PATH), (_type, name) => {
-    if (name && name !== path.basename(CONFIG_PATH)) return;
-    clearTimeout(timer);
-    timer = setTimeout(check, 120);
-  });
+  const readText = () => {
+    ensure();
+    return fs.readFileSync(file, 'utf8');
+  };
+  const load = () => {
+    const text = readText();
+    return { text, ...parseText(text) };
+  };
+  const writeText = (text) => {
+    const tmp = `${file}.tmp-${process.pid}`;
+    fs.writeFileSync(tmp, text);
+    fs.renameSync(tmp, file);
+  };
+  /** YAML 全体を置き換える。エラーがあれば書き込まない */
+  const replaceText = (text) => {
+    const result = parseText(text);
+    if (result.errors.length) return { ok: false, errors: result.errors, warnings: result.warnings };
+    writeText(text.endsWith('\n') ? text : `${text}\n`);
+    return { ok: true, errors: [], warnings: result.warnings, config: result.config };
+  };
+  const edit = (mutate) => {
+    const { doc } = parseText(readText());
+    if (doc.errors.length) return { ok: false, errors: doc.errors.map((e) => `今の設定ファイルが壊れています: ${e.message}`), warnings: [] };
+    mutate(doc);
+    return replaceText(doc.toString(TO_STRING));
+  };
+  /** 指定した場所に値を入れる（コメントや並びは残る） */
+  const setValue = (p, value) => {
+    const keys = toPath(p);
+    if (keys.length === 0) return { ok: false, errors: ['パスを指定してください'], warnings: [] };
+    return edit((doc) => doc.setIn(keys, toNode(doc, value)));
+  };
+  /** オブジェクトの中身を混ぜる（指定しなかった項目はそのまま） */
+  const mergeValue = (p, value) => {
+    const keys = toPath(p);
+    return edit((doc) => {
+      if (!doc.hasIn(keys) || value == null || typeof value !== 'object' || Array.isArray(value)) {
+        doc.setIn(keys, toNode(doc, value));
+        return;
+      }
+      for (const [k, v] of Object.entries(value)) doc.setIn([...keys, k], toNode(doc, v));
+    });
+  };
+  const deleteValue = (p) => edit((doc) => doc.deleteIn(toPath(p)));
+  /** 設定ファイルの変更を見張る（他のツールやエディタで書き換えたときも反映する）。止める関数を返す */
+  const watch = (onChange) => {
+    let timer = null;
+    let last = null;
+    const check = () => {
+      try {
+        const text = fs.readFileSync(file, 'utf8');
+        if (text === last) return;
+        last = text;
+        onChange(parseText(text));
+      } catch {}
+    };
+    check();
+    const watcher = fs.watch(path.dirname(file), (_type, name) => {
+      if (name && name !== path.basename(file)) return;
+      clearTimeout(timer);
+      timer = setTimeout(check, 120);
+    });
+    return () => {
+      clearTimeout(timer);
+      watcher.close();
+    };
+  };
+  return { path: file, ensure, readText, load, replaceText, setValue, mergeValue, deleteValue, watch };
+}
+
+// ふだん（1人で使うとき）の設定ファイル。CLI・MCP・ローカルのダッシュボードが使う
+export const localStore = createStore(CONFIG_PATH);
+const local = localStore;
+export const ensureConfigFile = local.ensure;
+export const readText = local.readText;
+export const load = local.load;
+export const replaceText = local.replaceText;
+export const setValue = local.setValue;
+export const mergeValue = local.mergeValue;
+export const deleteValue = local.deleteValue;
+export const watch = local.watch;
+
+/** ウィジェットに配ってよい設定（パスワードなど secret の項目を抜く） */
+export function publicConfig(config) {
+  if (!config) return config;
+  const out = { ...config };
+  for (const section of SECTIONS) {
+    const def = SCHEMA[section];
+    const secrets = Object.entries(def.fields ?? {}).filter(([, f]) => f.secret).map(([k]) => k);
+    if (!secrets.length || !out[section]) continue;
+    const strip = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !secrets.includes(k)));
+    out[section] = def.kind === 'map' ? Object.fromEntries(Object.entries(out[section]).map(([id, e]) => [id, strip(e)])) : strip(out[section]);
+  }
+  return out;
 }
 
 // --- ウィジェットの URL と説明 ---

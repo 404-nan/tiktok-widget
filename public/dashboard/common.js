@@ -1,5 +1,5 @@
 // 管理画面（設定・モニター・統計）の共通部品。
-import { icon } from '/widgets/lib/overlay.js';
+import { icon, BASE } from '/widgets/lib/overlay.js';
 
 export const $ = (id) => document.getElementById(id);
 
@@ -109,7 +109,7 @@ function renderNav(active) {
   nav.replaceChildren(
     ...PAGES.map((p) => {
       const a = document.createElement('a');
-      a.href = p.href;
+      a.href = BASE + p.href;
       a.className = 'pressable';
       if (p.id === active) a.setAttribute('aria-current', 'page');
       a.append(icon(p.icon), p.label);

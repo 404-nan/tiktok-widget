@@ -182,4 +182,6 @@ connect({
   config: () => editor.onConfigChanged(),
   configError: (errors) => editor.onConfigError(errors),
   minecraft: (msg) => editor.onMinecraft(msg),
+  // 管理者が豪華な演出をオン/オフしたとき
+  entitlements: () => editor.onEntitlements(),
 });

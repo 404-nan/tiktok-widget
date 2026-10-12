@@ -472,3 +472,16 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 /* ウィジェットのタブは数が多いので、折り返して全部見せる */
 #tabs { flex-wrap: wrap; border-radius: 18px; }
 .widgets { min-width: 0; }
+
+/* 使うウィジェットを選ぶ（配信者ごとの URL のとき） */
+.picker { display: grid; gap: 8px; margin: 4px 0 12px; }
+.picker-head { font-size: 13px; color: var(--text-secondary); }
+.picker-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--r-pill); background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); color: var(--text-secondary); font-size: 13px; }
+.pick[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); box-shadow: var(--bevel); }
+.pick .icon { --size: 14px; }
+.pick small { font-size: 11px; color: var(--attention); }
+.pick.locked { opacity: .45; cursor: not-allowed; }
+.pick.info { cursor: default; }
+
+.config-body.single { grid-template-columns: minmax(0, 1fr); }

@@ -190,6 +190,7 @@ function renderWins() {
 let rush = { active: false };
 let rushOffset = 0;
 
+let me = { mode: 'local' }; // 配信者ごとの URL のときは、豪華な演出を使えるか
 function renderRushButtons() {
   const box = $('rushButtons');
   const btn = (label, iconName, action) => {
@@ -201,7 +202,7 @@ function renderRushButtons() {
     return b;
   };
   box.replaceChildren(rush.active ? btn('RUSH を終わらせる', 'square', 'stop') : btn('RUSH 突入', 'zap', 'start'));
-  $('rushSection').hidden = config?.rush?.enabled === false;
+  $('rushSection').hidden = config?.rush?.enabled === false || (me.mode === 'tenant' && !me.premium?.rush?.active);
 }
 
 function renderRush() {
@@ -351,6 +352,7 @@ setupKpis();
 setupFeedFilter();
 renderResults();
 ({ config } = await api('/api/config'));
+me = await api('/api/me').catch(() => me);
 renderRoulettes();
 await syncSession();
 const { recent } = await api('/api/status');
@@ -409,6 +411,10 @@ connect({
   wins(msg) {
     winCounts[msg.id] = msg.counter;
     renderWins();
+  },
+  // 管理者が豪華な演出をオン/オフしたとき
+  entitlements() {
+    location.reload();
   },
   roulette({ spin }) {
     spins.unshift({ spin, revealed: false });

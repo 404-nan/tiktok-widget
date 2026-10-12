@@ -1,0 +1,39 @@
+/* 管理画面: ダッシュボードと同じガラスの見た目に、配信者のカードを並べる */
+.admin { display: grid; gap: 16px; max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+.section-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.section-head h2 { margin: 0; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row input { flex: 1; min-width: 200px; }
+.row input[type=checkbox] { flex: none; min-width: 0; }
+.tenants { display: grid; gap: 16px; }
+
+/* 豪華な演出の行: 名前 / 今の状態 / ボタン */
+.grants { display: grid; gap: 8px; }
+.grant { display: grid; grid-template-columns: 170px 150px 1fr; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-md); background: var(--fill-tertiary); }
+.grant .name { font-weight: 700; font-size: 14px; }
+.grant .state { font-size: 13px; color: var(--text-tertiary); }
+.grant .state.on { color: var(--success); font-weight: 700; }
+.grant .state.temp { color: var(--warning); font-weight: 700; }
+.grant .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.grant .chip { min-height: 30px; padding: 0 11px; font-size: 12px; }
+.grant .hours { width: 64px; min-height: 30px; padding: 0 8px; font-size: 12px; }
+@media (max-width: 760px) { .grant { grid-template-columns: 1fr; } }
+
+/* 配信者のカード */
+.card { padding: 20px; display: grid; gap: 14px; }
+.card-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-head .name-input { flex: 1; min-width: 160px; font-size: 16px; font-weight: 900; background: transparent; box-shadow: none; padding-left: 0; }
+.card-head .name-input:focus { background: var(--hover-wash); padding-left: 8px; }
+.live { font-size: 12px; padding: 3px 10px; border-radius: var(--r-pill); background: var(--fill-tertiary); color: var(--text-secondary); }
+.live.on { background: var(--attention); color: #fff; font-weight: 700; }
+.urls { display: grid; gap: 6px; }
+.url { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 8px; }
+.url span { font-size: 12px; color: var(--text-secondary); }
+.url input { font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-secondary); }
+.url .chip { min-height: 32px; }
+.sub { font-size: 12px; color: var(--text-secondary); margin: 4px 0 0; }
+.picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 0; border-radius: var(--r-pill); background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); color: var(--text-secondary); font-size: 12px; }
+.pick[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); box-shadow: var(--bevel); }
+.danger-zone { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--stroke-secondary); }
+.card.off { opacity: .55; }
