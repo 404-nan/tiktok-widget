@@ -944,3 +944,6 @@ body:not(.ai-on) #aiView { display: none; }
   [data-mode=simple] .side-footer .side-more { margin-top: 0; }
   [data-mode=simple] .side-footer #themeBtn { width: 40px; height: 40px; }
 }
+
+/* ギフトの一覧は、下の文字が透けないように塗りつぶす */
+.gift-picker-panel { background: var(--page); box-shadow: 0 12px 40px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--stroke-primary); }
