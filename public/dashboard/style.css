@@ -966,3 +966,9 @@ body:not(.ai-on) #aiView { display: none; }
 }
 .preview-col > .row.wrap > :not(button) { grid-column: 1 / -1; }
 #actions::before { grid-column: 1 / -1; }
+
+/* 右クリック・長押しのメニュー */
+.ctx-menu { position: fixed; z-index: 1000; display: grid; min-width: 180px; padding: 6px; border-radius: 12px; background: var(--surface-2, #26262a); box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,.4)), inset 0 0 0 1px var(--stroke-secondary, rgba(255,255,255,.08)); }
+.ctx-menu button { all: unset; cursor: pointer; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--text, #fff); }
+.ctx-menu button:hover, .ctx-menu button:focus-visible { background: rgba(255,255,255,.08); }
+.item-row .thumb { -webkit-touch-callout: none; user-select: none; }

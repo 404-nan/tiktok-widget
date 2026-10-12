@@ -1031,7 +1031,7 @@ export function createEditor({ api, setMessage }) {
       const thumb = document.createElement('button');
       thumb.type = 'button';
       thumb.className = 'thumb pressable';
-      thumb.title = '押して画像を選ぶ（ここに画像を落としても入ります）';
+      thumb.title = '押して画像を選ぶ（右クリック・長押しで差し替え／外す。画像を落としても入ります）';
       thumb.setAttribute('aria-label', `${r.label ?? '項目'}の画像を選ぶ`);
       const file = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp,image/avif', hidden: true });
       const takeFile = async (f) => {
@@ -1054,6 +1054,35 @@ export function createEditor({ api, setMessage }) {
       };
       thumb.addEventListener('click', () => file.click());
       file.addEventListener('change', () => takeFile(file.files[0]));
+      // 右クリック・長押しで「画像を差し替える / 外す」を出す
+      const openMenu = (x, y) => {
+        document.querySelector('.ctx-menu')?.remove();
+        const menu = Object.assign(document.createElement('div'), { className: 'ctx-menu' });
+        menu.setAttribute('role', 'menu');
+        const opt = (text, fn) => {
+          const b = Object.assign(document.createElement('button'), { type: 'button', className: 'pressable', textContent: text });
+          b.setAttribute('role', 'menuitem');
+          b.addEventListener('click', () => (menu.remove(), fn()));
+          menu.append(b);
+        };
+        opt(r.image ? '画像を差し替える' : '画像を入れる', () => file.click());
+        if (r.image) opt('画像を外す', () => { r.image = undefined; paint(); commit(0); draw(); });
+        document.body.append(menu);
+        const w = menu.offsetWidth, h = menu.offsetHeight;
+        menu.style.left = `${Math.min(x, innerWidth - w - 8)}px`;
+        menu.style.top = `${Math.min(y, innerHeight - h - 8)}px`;
+        setTimeout(() => document.addEventListener('pointerdown', (e) => { if (!menu.contains(e.target)) menu.remove(); }, { once: true }));
+      };
+      row.addEventListener('contextmenu', (e) => { if (e.target.closest('input')) return; e.preventDefault(); openMenu(e.clientX, e.clientY); });
+      let press = null;
+      thumb.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') return;
+        press = setTimeout(() => { press = 'done'; openMenu(e.clientX, e.clientY); }, 500);
+      });
+      const cancel = () => { if (press && press !== 'done') clearTimeout(press); };
+      thumb.addEventListener('pointerup', cancel);
+      thumb.addEventListener('pointerleave', cancel);
+      thumb.addEventListener('click', (e) => { if (press === 'done') { e.stopImmediatePropagation(); press = null; } }, true);
       thumb.addEventListener('dragover', (e) => (e.preventDefault(), thumb.classList.add('drop')));
       thumb.addEventListener('dragleave', () => thumb.classList.remove('drop'));
       thumb.addEventListener('drop', (e) => {
