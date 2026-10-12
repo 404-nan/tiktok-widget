@@ -272,7 +272,7 @@ function renderRows() {
         { className: t.enabled ? '' : 'off' },
         el('label', { className: 'check' }, check),
         el('span', { className: 'name', textContent: t.name }),
-        el('span', { className: `status ${cls}` }, el('i'), text),
+        el('span', { className: `status ${cls}` }, el('i'), text, t.rental?.now ? el('small', { className: 'rental-badge', textContent: 'マイクラの枠' }) : null),
         dots,
       );
       li.setAttribute('aria-selected', String(t.id === selected));
@@ -327,6 +327,12 @@ function tenantDetail(t) {
       { className: 'detail-head' },
       name,
       el('div', { className: 'row' }, el('span', { className: `status ${cls}` }, el('i'), text), el('label', { className: 'row' }, enabled, '使える')),
+    ),
+    el('div', { className: 'group' },
+      el('label', { className: 'field' },
+        el('span', { className: 'field-label', textContent: 'TikTok の ID' }),
+        (() => { const input = el('input', { value: t.tiktokId ?? '', placeholder: '例: username' }); input.addEventListener('change', act(() => api(`/tenants/${t.id}`, { tiktokId: input.value }, 'PATCH'), 'TikTok の ID を保存しました')); return input; })(),
+      ),
     ),
     el(
       'div',

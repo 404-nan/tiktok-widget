@@ -23,8 +23,9 @@ function setMessage(text, isError = false) {
   $('message').classList.toggle('error', isError);
 }
 
-function setupConnect() {
-  $('username').value = store.get('username', '');
+async function setupConnect() {
+  const me = await api('/api/me').catch(() => null);
+  $('username').value = me?.tiktokId || store.get('username', '');
   $('signApiKey').value = store.get('signApiKey', '');
 
   $('connectForm').addEventListener('submit', async (ev) => {
@@ -152,7 +153,7 @@ function clearLog() {
 
 setupChrome('settings');
 setupKpis();
-setupConnect();
+await setupConnect();
 setupSimulate();
 clearLog();
 

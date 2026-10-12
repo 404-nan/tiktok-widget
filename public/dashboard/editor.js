@@ -1362,7 +1362,17 @@ export function createEditor({ api, setMessage }) {
     if (isTenant()) {
       const line = document.createElement('p');
       line.className = 'desc';
-      line.textContent = mcStatus?.state === 'ok' ? 'マイクラのサーバー: つながっています' : 'マイクラのサーバー: まだ割り当てられていません（管理者が割り当てると、自動でつながります）';
+      const clock = (iso) => new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+      const day = (iso) => {
+        const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const target = fmt.format(new Date(iso));
+        const today = fmt.format(new Date());
+        const tomorrow = fmt.format(new Date(Date.now() + 24 * 3600_000));
+        return target === today ? '今日' : target === tomorrow ? '明日' : target.slice(5).replace('-', '/');
+      };
+      if (me.rental?.now) line.textContent = `いまあなたの枠です（${clock(me.rental.now.until)} まで）。マイクラのサーバーは用意されています`;
+      else if (me.rental?.next) line.textContent = `次の枠: ${day(me.rental.next.start)} ${clock(me.rental.next.start)}〜${clock(me.rental.next.end)}`;
+      else line.textContent = '予約はありません';
       panel.append(line);
       return;
     }

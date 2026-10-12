@@ -81,10 +81,12 @@ function tenantView(req, t) {
   return {
     id: t.id,
     name: t.name,
+    tiktokId: t.tiktokId ?? '',
     enabled: t.enabled,
     widgets: t.widgets,
     createdAt: t.createdAt,
     access: tenants.accessState(t.id),
+    rental: tenants.info(t.id).rental,
     urls: { dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
   };

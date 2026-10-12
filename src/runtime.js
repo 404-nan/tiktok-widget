@@ -20,6 +20,7 @@ import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
+import { shouldAutoConnect } from './rental.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -57,7 +58,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, widgetBase, ai = null }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, widgetBase, ai = null }) {
   const hub = new Hub();
   const tiktok = new TikTokSource(hub);
   const demo = new DemoSource(hub);
@@ -69,6 +70,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   let lastIssues = { errors: [], warnings: [] };
+  const auto = new Map();
+  let currentAutoId = null;
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
   const applyEngines = (config) => {
@@ -353,12 +356,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     demo.stop();
     try {
       await tiktok.connect(username, { signApiKey: req.body?.signApiKey });
+      rememberTiktokId?.(tiktok.username);
       res.json({ ok: true, status: hub.status });
     } catch (err) {
       res.status(502).json({ error: err.message, status: hub.status });
     }
   });
   r.post('/api/disconnect', async (_req, res) => {
+    if (currentAutoId && auto.has(currentAutoId)) auto.get(currentAutoId).manuallyStopped = true;
     await tiktok.disconnect();
     demo.stop();
     hub.setStatus({ mode: 'idle', username: null, message: '切断しました' });
@@ -434,6 +439,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     hub,
     tiktok,
     demo,
+    autoConnect({ handle, slot, now = Date.now() }) {
+      const state = auto.get(slot.id) ?? { attempts: 0, lastAttempt: 0, manuallyStopped: false };
+      auto.set(slot.id, state);
+      if (!shouldAutoConnect({ now, slot, status: hub.status, ...state })) return false;
+      state.attempts += 1;
+      state.lastAttempt = now;
+      currentAutoId = slot.id;
+      console.log(`[rental] ${id}: TikTok @${handle} への自動接続を試します（${state.attempts}/40）`);
+      tiktok.connect(handle).catch((err) => console.warn(`[rental] ${id}: 自動接続に失敗: ${err.message}`));
+      return true;
+    },
     router: r,
     /** 豪華な演出のオン/オフが変わったとき: 仕組みに反映し、開いている画面に読み込み直してもらう */
     entitlementsChanged() {

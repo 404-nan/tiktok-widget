@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createStore } from './config.js';
 import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
+import { RentalState, rentalForHandle } from './rental.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'));
@@ -40,11 +41,15 @@ export class Tenants {
     this.onChange = onChange;
     this.data = { tenants: [], global: { access: {} } };
     this.runtimes = new Map(); // id → runtime
+    this.rental = new RentalState();
     this.#load();
     // 期限が切れたら、その配信者の画面を読み込み直す（使えなくなったものは止まり、使えるようになったものは出る）
     this.lastState = new Map();
     this.timer = setInterval(() => this.#checkExpiry(), 15_000);
     this.timer.unref();
+    this.rentalTimer = setInterval(() => this.#autoConnectRentals(), 30_000);
+    this.rentalTimer.unref();
+    this.#autoConnectRentals();
   }
 
   // --- 読み書き ---
@@ -169,6 +174,7 @@ export class Tenants {
     const t = {
       id: newId(),
       name: String(name ?? '').trim() || '名前なし',
+      tiktokId: '',
       key: newKey(),
       obsKey: newKey(),
       enabled: true,
@@ -189,6 +195,7 @@ export class Tenants {
     if (patch.name != null) t.name = String(patch.name).trim() || t.name;
     if (patch.enabled != null) t.enabled = Boolean(patch.enabled);
     if (Array.isArray(patch.widgets)) t.widgets = patch.widgets.filter((w) => SECTIONS.includes(w));
+    if (patch.tiktokId != null) t.tiktokId = String(patch.tiktokId).trim().replace(/^@/, '');
     this.#save();
     if (patch.enabled === false) this.close(id);
     else this.#notify(id);
@@ -220,11 +227,16 @@ export class Tenants {
   /** 配信者の情報（ダッシュボードの /api/me） */
   info(id) {
     const t = this.get(id);
+    const rental = rentalForHandle(this.rental.snapshot, t?.tiktokId);
+    const widgets = [...(t?.widgets ?? [])];
+    if (rental.now && this.entitled(id, 'minecraft') && !widgets.includes('minecraft')) widgets.push('minecraft');
     return {
       mode: 'tenant',
       id,
       name: t?.name ?? '',
-      widgets: t?.widgets ?? [],
+      widgets,
+      tiktokId: t?.tiktokId ?? '',
+      rental: { now: rental.now ? { until: new Date(rental.now.end).toISOString() } : null, next: rental.next ? { start: new Date(rental.next.start).toISOString(), end: new Date(rental.next.end).toISOString() } : null },
       access: this.accessState(id),
       template: t?.template ?? null,
       guideDone: Boolean(t?.guideDone),
@@ -263,6 +275,7 @@ export class Tenants {
       setWidgets: (list) => this.update(id, { widgets: list }),
       setTemplate: (template) => this.setTemplate(id, template),
       setGuideDone: (done) => this.setGuideDone(id, done),
+      rememberTiktokId: (handle) => { if (!this.get(id)?.tiktokId) this.update(id, { tiktokId: handle }); },
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,
       ai: this.ai,
     });
@@ -275,6 +288,18 @@ export class Tenants {
     if (!rt) return;
     this.runtimes.delete(id);
     await rt.close();
+  }
+
+  #autoConnectRentals() {
+    if (process.env.TW_RENTAL_AUTOCONNECT === '0') return;
+    const now = Date.now();
+    for (const t of this.data.tenants) {
+      if (!t.enabled || !t.tiktokId) continue;
+      const rental = rentalForHandle(this.rental.snapshot, t.tiktokId, now);
+      if (!rental.now) continue;
+      const rt = this.runtime(t.id);
+      rt.autoConnect({ handle: t.tiktokId, slot: rental.now, now });
+    }
   }
 
   // 配信者の画面に「変わったよ」と知らせる（id を省くと全員）
