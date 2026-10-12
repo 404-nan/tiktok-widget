@@ -425,6 +425,47 @@ function signKeyGroup() {
   );
 }
 
+// --- 右: 「AI にたのむ」の設定（キー・モデル・1日の回数） ---
+
+const AI_MODEL_LABELS = { 'claude-opus-5-5': 'Claude Opus 5.5（いちばん賢い・初めの設定）', 'claude-sonnet-5-5': 'Claude Sonnet 5.5（料金は半分くらい）', 'claude-haiku-4-5': 'Claude Haiku 4.5（いちばん安い）' };
+
+function aiGroup() {
+  const st = data.ai ?? { set: false, models: [] };
+  const from = st.source === 'env' ? 'サーバーの環境変数' : 'ここで入れたもの';
+  const state = st.set ? `キーが入っています（${from}${st.tail ? `・末尾 ${st.tail}` : ''}）` : 'キーが入っていません（入れるまで、だれも使えません）';
+  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'Claude API のキー（sk-ant-…）' });
+  input.setAttribute('aria-label', 'Claude API のキー');
+  const save = () => {
+    const key = input.value.trim();
+    if (!key) return message('キーを入れてください', true);
+    input.value = '';
+    act(() => api('/ai', { key }, 'PUT'), 'AI のキーを保存しました')();
+  };
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && save());
+  const model = el('select');
+  model.setAttribute('aria-label', 'AI のモデル');
+  for (const m of st.models ?? []) model.append(new Option(AI_MODEL_LABELS[m] ?? m, m, false, m === st.model));
+  model.addEventListener('change', act(() => api('/ai', { model: model.value }, 'PUT'), 'モデルを変えました'));
+  const limit = el('input', { type: 'number', min: '0', max: '1000', step: '1', value: String(st.dailyLimit ?? 20), className: 'ai-limit' });
+  limit.setAttribute('aria-label', '配信者1人が1日にたのめる回数');
+  limit.addEventListener('change', act(() => api('/ai', { dailyLimit: Number(limit.value) }, 'PUT'), '1日の回数を変えました'));
+  const remove = button('キーを消す', () => {
+    if (!confirm('ここで入れた AI のキーを消しますか？（だれも AI を使えなくなります）')) return;
+    act(() => api('/ai', { key: '' }, 'PUT'), 'AI のキーを消しました')();
+  });
+  return el(
+    'div',
+    { className: 'group' },
+    el('p', { className: 'sub', textContent: '「AI にたのむ」（配信者が文章でたのむと、設定の案を作る）' }),
+    el('p', { className: `sub hint${st.set ? ' key-on' : ''}`, textContent: `${state}。` }),
+    el('p', { className: 'sub hint', textContent: '1回たのむごとに Claude API の料金がかかります（目安: Opus 5.5 で 1回 10〜25 円）。使える配信者は、下の「AI にたのむ」のスイッチで決めます（初めは全員使えません）。' }),
+    el('div', { className: 'url' }, input, button('保存', save, { iconName: 'key-round' })),
+    el('label', { className: 'group-item' }, el('span', { className: 'url-label', textContent: 'モデル' }), model),
+    el('label', { className: 'group-item' }, el('span', { className: 'url-label', textContent: '配信者1人が1日にたのめる回数' }), limit),
+    st.source === 'admin' ? el('div', { className: 'danger' }, remove) : null,
+  );
+}
+
 // --- 右: 全員まとめて（何も選んでいないとき） ---
 
 function globalDetail() {
@@ -436,6 +477,7 @@ function globalDetail() {
       el('p', { className: 'sub', textContent: 'ここで決めた ON / OFF は全員に付きます（配信者ごとに決めた設定のほうが先）。配信者を選ぶと、その人の設定が開きます。' }),
     ),
     signKeyGroup(),
+    aiGroup(),
     ...accessGroups(
       (k) => accessRow(k, data.global[k], setter('global', k), { where: 'global' }),
       accessRow('premium', null, setter('global', 'premium')),

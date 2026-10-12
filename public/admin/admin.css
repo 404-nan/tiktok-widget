@@ -109,3 +109,5 @@
   .access .dur { grid-column: 1; grid-row: 2; width: 100%; }
   .access .switch, .access .onoff { grid-column: 2; grid-row: 2; }
 }
+
+.ai-limit { max-width: 120px; font-variant-numeric: tabular-nums; }

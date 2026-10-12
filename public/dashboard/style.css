@@ -485,3 +485,121 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 .pick.info { cursor: default; }
 
 .config-body.single { grid-template-columns: minmax(0, 1fr); }
+
+/* --- かんたん / くわしく --- */
+[data-mode=simple] [data-adv], [data-mode=advanced] [data-simple] { display: none !important; }
+.segmented.mode { flex: none; }
+[data-mode=simple] .layout { grid-template-columns: 1fr; max-width: 1080px; }
+[data-mode=simple] .topbar { max-width: 1080px; }
+[data-mode=simple] #connectForm { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+[data-mode=simple] #connectForm .message { grid-column: 1 / -1; }
+@media (max-width: 600px) { [data-mode=simple] #connectForm { grid-template-columns: 1fr; } }
+
+.detail { display: grid; gap: 12px; min-width: 0; }
+.detail-head { display: flex; align-items: center; gap: 12px; }
+.detail-head h3 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+[data-mode=simple] .widget-body { grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); }
+[data-mode=simple] .item-bottom { display: none; }
+.text-btn { display: inline-flex; align-items: center; gap: 4px; }
+.text-btn .icon { --size: 14px; }
+
+/* 使うものを選ぶカード */
+.cards { display: grid; gap: 20px; }
+.card-group { display: grid; gap: 8px; }
+.card-group-title { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 116px;
+  padding: 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--fill-tertiary);
+  box-shadow: inset 0 0 0 1px var(--stroke-secondary);
+  text-align: left;
+}
+.card.used { background: var(--accent-fill); box-shadow: var(--bevel); }
+.card-head { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.card-head .icon { --size: 18px; }
+.card-desc { font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
+.card-state { display: inline-flex; align-items: center; gap: 4px; margin-top: auto; padding-top: 4px; font-size: 12px; color: var(--text-tertiary); }
+.card-state .icon { --size: 13px; }
+.card.used .card-state { color: var(--success); }
+.card.locked { opacity: .45; cursor: not-allowed; }
+@media (max-width: 600px) {
+  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card { min-height: 0; padding: 12px; }
+  .card-desc { font-size: 12px; }
+}
+
+/* 押すとまとめて決まる「型」 */
+.preset-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--fill-tertiary);
+  box-shadow: inset 0 0 0 1px var(--stroke-secondary);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.preset[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); box-shadow: var(--bevel); }
+
+/* ギフトごとのルール（行で作る） */
+.rules, .rule-list { display: grid; gap: 8px; }
+.rules > .chip { justify-self: start; }
+.rule-row { display: grid; gap: 6px; padding: 8px; border-radius: var(--r-md); background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
+.rule-when, .rule-then { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rule-row select, .rule-row input:not([type=checkbox]) { min-height: 36px; font-size: 13px; }
+.rule-cond { flex: 0 0 124px; padding-right: 26px; }
+.rule-gifts { flex: 1 1 80px; }
+.rule-pick { flex: 0 0 78px; padding-right: 24px; }
+.rule-num { flex: 0 0 64px; font-variant-numeric: tabular-nums; }
+.rule-op { flex: 1 1 120px; }
+.rule-unit { flex: 0 0 58px; padding-right: 24px; }
+.rule-text { flex: 1 1 120px; }
+.rule-then > .icon { --size: 14px; color: var(--text-tertiary); }
+.rule-check { min-height: 36px; font-size: 13px; }
+.rule-then .icon-btn { margin-left: auto; }
+
+/* スマホ: プレビューを上に貼り付けて、変えた結果を見ながら決められるようにする */
+@media (max-width: 760px) {
+  body[data-mode] .topbar { position: static; }
+  [data-mode=simple] .widget-body { grid-template-columns: 1fr; }
+  .preview-col { display: contents; }
+  .preview-col > .preview { order: -3; position: sticky; top: 8px; z-index: 5; box-shadow: var(--shadow), inset 0 0 0 1px var(--stroke-secondary); }
+  .preview-col > #actions { order: -2; }
+  .preview-col > .form-message { order: -1; }
+}
+
+/* かんたん: 試すボタンは見出しを付けて、多いときは畳む */
+[data-mode=simple] #actions::before { content: "ためす"; flex: 0 0 100%; font-size: 12px; color: var(--text-secondary); }
+#actions .chip.extra { display: none; }
+#actions.open .chip.extra { display: inline-flex; }
+/* スマホ: ルールは 条件 / ギフト名と選ぶ / すること の3段にして、消すボタンは右上に置く */
+@media (max-width: 600px) {
+  .rule-row { position: relative; }
+  .rule-when { display: grid; grid-template-columns: minmax(0, 1fr) 78px; }
+  .rule-when .rule-cond, .rule-when .rule-num { grid-column: 1 / -1; max-width: 170px; }
+  .rule-then .icon-btn { position: absolute; top: 8px; right: 6px; }
+  .rule-op { flex: 1 1 60px; min-width: 0; }
+}
+
+/* --- AI にたのむ --- */
+.ai-box { display: grid; gap: 10px; padding: 14px; border-radius: var(--r-md); background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
+.ai-head { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+.ai-head .hint { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ai-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.ai-form textarea { min-height: 56px; }
+.ai-examples { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-examples .mini-chip { min-height: 30px; text-align: left; }
+.ai-result { display: grid; gap: 8px; padding-top: 10px; box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+.ai-reply { margin: 0; font-size: 14px; }
+.ai-reply.error { color: var(--error); }
+.ai-reply.thinking { color: var(--text-secondary); animation: blink 1.6s ease-in-out infinite; }
+.ai-changes { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: var(--text-secondary); }
+@media (max-width: 600px) { .ai-form { grid-template-columns: 1fr; } .ai-form .btn { justify-self: start; } }
+@media (prefers-reduced-motion: reduce) { .ai-reply.thinking { animation: none; } }

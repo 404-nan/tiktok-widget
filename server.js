@@ -11,6 +11,7 @@ import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
+import { createAi } from './src/ai.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -23,13 +24,16 @@ const HOSTED = process.env.TW_HOSTED === '1';
 const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
 if (vault) await vault.restore();
 
+// 「AI にたのむ」（キーは管理画面で入れたものが data/ai.json、または環境変数 TW_AI_KEY）
+const ai = createAi({ dir: DATA_DIR });
+
 // --- 1人で使うとき（今までどおり config.yaml と data/ を使う） ---
 const local = HOSTED
   ? null
-  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR] });
+  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai });
 
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants();
+const tenants = new Tenants({ ai });
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
@@ -91,6 +95,7 @@ admin.get('/tenants', (req, res) => {
     global: tenants.globalState(),
     features: FEATURES,
     signKey: signKey.state(),
+    ai: ai.state(),
   });
 });
 admin.post('/tenants', (req, res) => {
@@ -131,6 +136,14 @@ admin.put('/access', (req, res) => {
 admin.put('/sign-key', (req, res) => {
   try {
     res.json({ ok: true, signKey: signKey.set(req.body?.key) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+// 「AI にたのむ」の設定: { key?（空なら消す）, model?, dailyLimit?（配信者1人の1日の回数） }
+admin.put('/ai', (req, res) => {
+  try {
+    res.json({ ok: true, ai: ai.update(req.body ?? {}) });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

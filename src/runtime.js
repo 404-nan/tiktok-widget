@@ -19,6 +19,7 @@ import { RushEngine } from './rush.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
+import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -31,11 +32,13 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
     if (key === 'winsFx') return [key, { label: 'WIN数の全画面演出', pages: ['wins-fx.html'], premium: true }];
+    // 文章でたのむと設定の案を作る（1回ごとに AI の料金がかかるので、初めは使えない）
+    if (key === 'ai') return [key, { label: 'AI にたのむ', pages: [], premium: true }];
     const def = SCHEMA[key];
     const pages = def.page ? [`${def.page}.html`] : [];
     if (key === 'roulettes') pages.push('roulette-strip.html');
@@ -54,7 +57,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, widgetBase }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, widgetBase, ai = null }) {
   const hub = new Hub();
   const tiktok = new TikTokSource(hub);
   const demo = new DemoSource(hub);
@@ -249,6 +252,71 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const result = del ? store.deleteValue(p) : merge ? store.mergeValue(p, value) : store.setValue(p, value);
     applyConfigResult(result);
     res.status(result.ok ? 200 : 422).json({ ...result, ...configPayload(req) });
+  });
+
+  // --- AI にたのむ ---
+  // たのむ → 案を見る → 反映する → 気に入らなければ元に戻す。1日の回数は管理者が決める
+  const aiUse = { day: '', count: 0, busy: false };
+  let aiUndo = null; // 反映する前の設定ファイルの文字
+  const aiLeft = () => {
+    const day = new Date().toDateString();
+    if (aiUse.day !== day) Object.assign(aiUse, { day, count: 0 });
+    return Math.max(0, (ai?.dailyLimit ?? 0) - aiUse.count);
+  };
+  const aiState = () => {
+    if (!ai?.ready) return { available: false, reason: id === 'local' ? '環境変数 TW_AI_KEY に Claude API のキーを入れると使えます' : '管理者が AI のキーを入れると使えます' };
+    if (!entitled('ai')) return { available: false, reason: '管理者が使えるようにすると使えます' };
+    return { available: true, left: aiLeft(), limit: ai.dailyLimit, canUndo: aiUndo != null, maxChars: MAX_REQUEST_CHARS };
+  };
+  const knownGifts = () => {
+    const seen = [...hub.seenGifts.values()];
+    return [...DEMO_GIFTS, ...seen.filter((g) => !DEMO_GIFTS.some((d) => d.name === g.name))].slice(0, 60).map((g) => ({ name: g.name, diamonds: g.diamonds }));
+  };
+  r.get('/api/ai/state', (_req, res) => res.json(aiState()));
+  r.post('/api/ai/ask', async (req, res) => {
+    const st = aiState();
+    if (!st.available) return res.status(403).json({ error: st.reason });
+    const text = String(req.body?.text ?? '').trim();
+    if (!text) return res.status(400).json({ error: 'たのみたいことを書いてください' });
+    if (text.length > MAX_REQUEST_CHARS) return res.status(400).json({ error: `たのみは ${MAX_REQUEST_CHARS} 文字までにしてください` });
+    if (st.left <= 0) return res.status(429).json({ error: `今日はもう ${st.limit} 回たのみました。明日また使えます` });
+    if (aiUse.busy) return res.status(429).json({ error: '前のたのみを考えているところです。少し待ってください' });
+    aiUse.busy = true;
+    aiUse.count++;
+    try {
+      const focus = { section: SECTIONS.includes(req.body?.focus?.section) ? req.body.focus.section : null, id: typeof req.body?.focus?.id === 'string' ? req.body.focus.id.slice(0, 64) : null };
+      const out = await ai.ask({ text, config: hub.config, focus, gifts: knownGifts() });
+      // そのまま当てたらどうなるかを確かめる（ファイルには書かない）
+      const dry = out.changes.length && !out.errors.length ? cfg.applyChanges(store.readText(), out.changes) : { ok: true, errors: [], warnings: [] };
+      res.json({ ok: true, reply: out.reply, changes: out.changes, errors: [...out.errors, ...dry.errors], warnings: dry.warnings ?? [], state: aiState() });
+    } catch (err) {
+      // AI を呼べなかったときは、回数に数えない
+      aiUse.count = Math.max(0, aiUse.count - 1);
+      res.status(502).json({ error: err.message, state: aiState() });
+    } finally {
+      aiUse.busy = false;
+    }
+  });
+  r.post('/api/ai/apply', (req, res) => {
+    if (!aiState().available) return res.status(403).json({ error: aiState().reason });
+    const { changes, errors } = checkChanges(req.body?.changes);
+    if (errors.length || !changes.length) return res.status(400).json({ error: errors[0] ?? '変えるところがありません' });
+    const before = store.readText();
+    const next = cfg.applyChanges(before, changes);
+    if (!next.ok) return res.status(422).json({ ok: false, error: `反映できませんでした: ${next.errors.join(' / ')}`, errors: next.errors });
+    const result = store.replaceText(next.text);
+    if (!result.ok) return res.status(422).json({ ok: false, error: `反映できませんでした: ${result.errors.join(' / ')}`, errors: result.errors });
+    aiUndo = before;
+    applyConfigResult(result);
+    res.json({ ok: true, warnings: result.warnings, state: aiState(), ...configPayload(req) });
+  });
+  r.post('/api/ai/undo', (req, res) => {
+    if (aiUndo == null) return res.status(400).json({ error: '元に戻せるものがありません' });
+    const result = store.replaceText(aiUndo);
+    if (!result.ok) return res.status(422).json({ ok: false, error: `元に戻せませんでした: ${result.errors.join(' / ')}` });
+    aiUndo = null;
+    applyConfigResult(result);
+    res.json({ ok: true, state: aiState(), ...configPayload(req) });
   });
 
   // 画像（配信者の media/ と、見本の media/）

@@ -1,5 +1,6 @@
 import { connect, fmt, icon } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
+import { setupAi } from './ai.js';
 import { $, store, api, setupChrome, statusText } from './common.js';
 
 // --- 接続状態 ---
@@ -156,7 +157,11 @@ setupSimulate();
 clearLog();
 
 const editor = createEditor({ api, setMessage });
-editor.start().catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
+let ai = null;
+editor
+  .start()
+  .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
+  .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
 
 api('/api/status')
   .then(({ recent }) => {
@@ -183,5 +188,8 @@ connect({
   configError: (errors) => editor.onConfigError(errors),
   minecraft: (msg) => editor.onMinecraft(msg),
   // 管理者が豪華な演出をオン/オフしたとき
-  entitlements: () => editor.onEntitlements(),
+  entitlements: () => {
+    editor.onEntitlements();
+    ai?.refresh();
+  },
 });

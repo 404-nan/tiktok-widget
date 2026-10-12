@@ -2,6 +2,8 @@
 // フォームの変更は1項目ずつ PATCH /api/config で保存する（ファイルのコメントは残る）。
 
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
+import { GROUPS, INFO, SIMPLE, presetActive } from './simple.js';
+import { rulesEditor, hasRulesEditor } from './rules.js';
 
 const $ = (id) => document.getElementById(id);
 const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'minecraft', 'theme'];
@@ -101,6 +103,10 @@ export function createEditor({ api, setMessage }) {
   let id = null;
   let yamlDirty = false;
   let superstream = { gifts: [] };
+  // 「かんたん」は、カードの一覧（cards）から1つ選んで設定（detail）する。「くわしく」は今までのタブとフォーム
+  let mode = 'simple';
+  let view = 'cards';
+  const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
 
   const store = {
@@ -272,6 +278,110 @@ export function createEditor({ api, setMessage }) {
     render();
   }
 
+  // --- かんたん / くわしく ---
+
+  function setMode(next, { keepView = false } = {}) {
+    mode = next === 'advanced' ? 'advanced' : 'simple';
+    store.set('mode', mode);
+    document.body.dataset.mode = mode;
+    for (const b of $('modeSeg').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
+    if (!keepView) view = 'cards';
+    if (payload) select(tab);
+  }
+
+  /** カードを押した: 使っていなければ使うものに足して、設定を開く */
+  async function openCard(section) {
+    if (isTenant() && section !== 'theme' && !me.widgets.includes(section)) {
+      try {
+        me = await api('/api/me/widgets', { widgets: [...me.widgets, section] }, 'PUT');
+        renderPicker();
+      } catch (err) {
+        return setMessage(err.message, true);
+      }
+    }
+    view = 'detail';
+    select(section);
+    $('widgetsPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  /** 使うのをやめる（配信者ごとの URL のとき） */
+  async function dropCard(section) {
+    try {
+      me = await api('/api/me/widgets', { widgets: me.widgets.filter((w) => w !== section) }, 'PUT');
+      renderPicker();
+      view = 'cards';
+      select(visibleTabs()[0]);
+    } catch (err) {
+      setMessage(err.message, true);
+    }
+  }
+
+  function renderCards() {
+    const box = $('cards');
+    box.replaceChildren();
+    for (const [title, sections] of GROUPS) {
+      const group = document.createElement('div');
+      group.className = 'card-group';
+      group.append(Object.assign(document.createElement('p'), { className: 'card-group-title', textContent: title }));
+      const grid = document.createElement('div');
+      grid.className = 'card-grid';
+      for (const section of sections) {
+        const open = section === 'theme' || unlocked(section);
+        const used = section === 'theme' || !isTenant() || me.widgets.includes(section);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `card pressable${used && open ? ' used' : ''}${open ? '' : ' locked'}`;
+        b.disabled = !open;
+        const head = document.createElement('span');
+        head.className = 'card-head';
+        head.append(icon(INFO[section].icon), Object.assign(document.createElement('span'), { className: 'card-title', textContent: schema.sections[section].title }));
+        const state = document.createElement('span');
+        state.className = 'card-state';
+        if (!open) state.append(icon('lock'), '管理者に頼むと使えます');
+        else if (section === 'theme') state.append('色を変える');
+        else if (used) state.append(icon('check'), `使っています${untilText(me.access?.[section]) ? `・${untilText(me.access?.[section])}` : ''}`);
+        else state.append(icon('plus'), '使う');
+        b.append(head, Object.assign(document.createElement('span'), { className: 'card-desc', textContent: INFO[section].desc }), state);
+        b.addEventListener('click', () => openCard(section));
+        grid.append(b);
+      }
+      group.append(grid);
+      box.append(group);
+    }
+  }
+
+  /** 押すとまとめて値が入る「型」 */
+  function presetRow(preset, values) {
+    const wrap = document.createElement('div');
+    wrap.className = 'field presets';
+    wrap.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: preset.title }));
+    const chips = document.createElement('div');
+    chips.className = 'preset-chips';
+    for (const opt of preset.options) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'preset pressable';
+      b.textContent = opt.label;
+      b.setAttribute('aria-pressed', String(presetActive(values, opt.value)));
+      b.addEventListener('click', async () => {
+        if (preset.confirm && !confirm(preset.confirm)) return;
+        const res = await fetch('/api/config', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ path: isObj(tab) ? [tab] : [tab, id], merge: true, value: opt.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.config) payload = data;
+        if (!yamlDirty && data.yaml) $('yamlText').value = data.yaml;
+        render();
+        showIssues(data.errors, data.warnings, data.ok ? '変えました' : null);
+      });
+      chips.append(b);
+    }
+    wrap.append(chips);
+    return wrap;
+  }
+
   function renderEntries() {
     const box = $('entries');
     box.replaceChildren();
@@ -279,31 +389,49 @@ export function createEditor({ api, setMessage }) {
       box.hidden = true;
       return;
     }
-    box.hidden = false;
-    for (const name of entriesOf(tab)) {
+    const names = entriesOf(tab);
+    box.hidden = simple() && names.length < 2 && tab !== 'roulettes';
+    for (const name of names) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'entry pressable';
       b.setAttribute('aria-pressed', String(name === id));
       const title = payload.config[tab][name].name;
-      b.textContent = title ? `${title}（${name}）` : name;
+      // かんたんでは URL 用の名前（英数字）は見せない
+      if (simple()) b.textContent = title || (names.length > 1 ? `${schema.sections[tab].title} ${names.indexOf(name) + 1}` : schema.sections[tab].title);
+      else b.textContent = title ? `${title}（${name}）` : name;
       b.addEventListener('click', () => select(tab, name));
       box.append(b);
     }
     const add = document.createElement('button');
     add.type = 'button';
     add.className = 'entry add pressable';
-    add.append(icon('plus'), '追加');
+    add.append(icon('plus'), simple() ? 'もう1つ作る' : '追加');
     add.addEventListener('click', addEntry);
     box.append(add);
   }
 
   async function addEntry() {
-    const name = prompt('新しい設定の名前（英数字と - _。URL に使います）', tab === 'roulettes' ? 'new-roulette' : 'new');
-    if (!name) return;
-    if (!/^[A-Za-z0-9_-]+$/.test(name)) return alert('名前は英数字と - _ だけにしてください');
-    if (entriesOf(tab).includes(name)) return alert('同じ名前がもうあります');
-    const value = tab === 'roulettes' ? { name, gifts: [], items: ['当たり', 'ハズレ*2'] } : {};
+    let name;
+    let value = {};
+    if (simple()) {
+      // かんたんでは URL 用の名前は自動で付ける（default → roulette-2 → roulette-3 …）
+      const used = entriesOf(tab);
+      const base = tab.replace(/s$/, '').replace(/([A-Z])/g, '-$1').toLowerCase();
+      name = used.includes('default') || used.length ? null : 'default';
+      for (let n = 2; !name; n++) if (!used.includes(`${base}-${n}`)) name = `${base}-${n}`;
+      if (tab === 'roulettes') {
+        const title = prompt('ルーレットの名前（例: 罰ゲーム）', '');
+        if (title == null) return;
+        value = { name: title.trim() || 'ルーレット', gifts: [], items: ['当たり', 'ハズレ*2'] };
+      }
+    } else {
+      name = prompt('新しい設定の名前（英数字と - _。URL に使います）', tab === 'roulettes' ? 'new-roulette' : 'new');
+      if (!name) return;
+      if (!/^[A-Za-z0-9_-]+$/.test(name)) return alert('名前は英数字と - _ だけにしてください');
+      if (entriesOf(tab).includes(name)) return alert('同じ名前がもうあります');
+      if (tab === 'roulettes') value = { name, gifts: [], items: ['当たり', 'ハズレ*2'] };
+    }
     await fetch('/api/config', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -332,9 +460,19 @@ export function createEditor({ api, setMessage }) {
     for (const t of ['accent', 'gold', 'ink', 'paper']) {
       if (/^#/.test(theme[t] ?? '')) document.documentElement.style.setProperty(`--tok-${t}`, theme[t]);
     }
+    // かんたんの一覧: カードだけ出す
+    const cardsView = simple() && view === 'cards';
+    $('cards').hidden = !cardsView;
+    $('detail').hidden = cardsView;
+    $('detailHead').hidden = !simple() || cardsView;
+    if (cardsView) {
+      renderCards();
+      return;
+    }
     renderEntries();
     const def = schema.sections[tab];
-    $('widgetDesc').textContent = def.desc;
+    $('widgetDesc').textContent = simple() ? INFO[tab].desc : def.desc;
+    $('detailTitle').textContent = def.title;
     const form = $('settings');
     form.replaceChildren();
     showIssues();
@@ -343,17 +481,47 @@ export function createEditor({ api, setMessage }) {
     if (!isObj(tab) && !values) {
       const empty = document.createElement('p');
       empty.className = 'hint';
-      empty.textContent = 'まだ設定がありません。「追加」で作ってください。';
+      empty.textContent = simple() ? 'まだ作っていません。' : 'まだ設定がありません。「追加」で作ってください。';
       form.append(empty);
+      if (simple()) {
+        const make = document.createElement('button');
+        make.type = 'button';
+        make.className = 'btn primary pressable';
+        make.textContent = `${def.title}を作る`;
+        make.addEventListener('click', addEntry);
+        form.append(make);
+      }
       $('previewCol').hidden = true;
       return;
     }
     $('previewCol').hidden = false;
     renderSide();
+    // かんたん: 型と、よく使う項目だけ。細かいものは「くわしく」へ
+    const easy = simple() ? SIMPLE[tab] : null;
+    if (easy) {
+      if (easy.note) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
+      for (const preset of easy.presets ?? []) form.append(presetRow(preset, values));
+    }
     // よく使う設定を上に、それ以外は「詳しい設定」に畳む
-    const basic = BASIC[tab] ?? Object.keys(def.fields);
+    const basic = easy ? easy.fields : BASIC[tab] ?? Object.keys(def.fields);
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
-    const rest = Object.keys(def.fields).filter((k) => !basic.includes(k));
+    const rest = easy ? [] : Object.keys(def.fields).filter((k) => !basic.includes(k));
+    if (easy) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'text-btn pressable';
+      more.append(icon('sliders-horizontal'), ' もっと細かく決める（くわしく）');
+      more.addEventListener('click', () => setMode('advanced'));
+      form.append(more);
+      if (isTenant() && tab !== 'theme') {
+        const drop = document.createElement('button');
+        drop.type = 'button';
+        drop.className = 'text-btn pressable';
+        drop.textContent = `${def.title}を使うのをやめる（設定は残ります）`;
+        drop.addEventListener('click', () => dropCard(tab));
+        form.append(drop);
+      }
+    }
     if (rest.length) {
       const more = document.createElement('details');
       more.className = 'more';
@@ -367,7 +535,7 @@ export function createEditor({ api, setMessage }) {
       more.append(summary, inner);
       form.append(more);
     }
-    if (!isObj(tab)) {
+    if (!isObj(tab) && (!simple() || entriesOf(tab).length > 1)) {
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'text-btn danger pressable';
@@ -386,7 +554,7 @@ export function createEditor({ api, setMessage }) {
     label.className = 'field-label';
     label.textContent = LABELS[`${tab}.${key}`] ?? LABELS[key] ?? key;
     wrap.append(label);
-    if (field.desc && field.desc !== LABELS[key]) {
+    if (field.desc && field.desc !== LABELS[key] && !(simple() && /[a-z]{3,}/.test(field.desc))) {
       const hint = document.createElement('span');
       hint.className = 'hint';
       hint.textContent = field.desc;
@@ -475,6 +643,10 @@ export function createEditor({ api, setMessage }) {
       for (const m of media) dl.append(new Option(m, m));
       wrap.append(dl);
       control.addEventListener('input', () => save(key, control.value.trim(), 500));
+    } else if (simple() && hasRulesEditor(field.type)) {
+      wrap.querySelector('.field-label').textContent = { rules: 'このギフトのときだけ特別にする', winRules: 'ギフトで WIN 数を変える', timerRules: 'このギフトで決まった時間だけ延ばす' }[field.type];
+      wrap.hint = null;
+      control = rulesEditor({ type: field.type, value, gifts, onChange: (rules, delay) => save(key, rules, delay) });
     } else if (field.type === 'rules' || field.type === 'mcRules' || field.type === 'winRules' || field.type === 'timerRules') {
       control = document.createElement('textarea');
       control.rows = 6;
@@ -537,8 +709,9 @@ export function createEditor({ api, setMessage }) {
     box.className = 'color-control';
     const sel = document.createElement('select');
     const isToken = schema.colorTokens.includes(value);
-    for (const t of schema.colorTokens) sel.append(new Option(TOKEN_LABELS[t] ?? t, t, false, t === value));
-    sel.append(new Option('指定する', 'custom', false, !isToken && !!value));
+    const tokenLabel = (t) => (simple() ? (TOKEN_LABELS[t] ?? t).replace(/（.*）/, '') : TOKEN_LABELS[t] ?? t);
+    for (const t of schema.colorTokens) sel.append(new Option(tokenLabel(t), t, false, t === value));
+    sel.append(new Option(simple() ? '自分で選ぶ' : '指定する', 'custom', false, !isToken && !!value));
     const picker = document.createElement('input');
     picker.type = 'color';
     picker.value = !isToken && /^#[0-9a-f]{6}$/i.test(value ?? '') ? value : '#3fa9f5';
@@ -750,8 +923,11 @@ export function createEditor({ api, setMessage }) {
       tab === 'roulettes'
         ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
+    if (simple()) $('sizeHint').textContent = `この URL を OBS / TikTok LIVE Studio の「ブラウザ」ソースに入れます（幅 ${w.size[0]}・高さ ${w.size[1]}）。`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
-    if (tab === 'wins') {
+    if (simple()) {
+      // ボタン用の URL などは「くわしく」で出す
+    } else if (tab === 'wins') {
       // ボタン用の URL は、このダッシュボードの URL の下（配信者ごとの URL なら /t/<鍵>/）
       const base = `${location.origin}${BASE}`;
       const fx = payload.widgets.find((x) => x.section === 'wins' && x.id === id && x.extra);
@@ -761,13 +937,13 @@ export function createEditor({ api, setMessage }) {
         ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
     }
     // 延長タイマーも、Stream Deck などから押せる URL を出す
-    if (tab === 'timers') {
+    if (!simple() && tab === 'timers') {
       const base = `${location.origin}${BASE}/api/timer/${id}`;
       $('sizeHint').textContent +=
         ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: スタート ${base}/start ／ 一時停止 ${base}/pause ／ 止める・動かすを1つで ${base}/toggle ／ +1分 ${base}/add?seconds=60 ／ -1分 ${base}/add?seconds=-60 ／ リセット ${base}/reset`;
     }
     // ボス討伐も、Stream Deck などから押せる URL を出す
-    if (tab === 'bosses') {
+    if (!simple() && tab === 'bosses') {
       const base = `${location.origin}${BASE}`;
       $('sizeHint').textContent +=
         ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: HP を戻す ${base}/api/boss/${id}/heal ／ ダメージ 100 ${base}/api/boss/${id}/damage?value=100 ／ 討伐 ${base}/api/boss/${id}/defeat ／ 次のボス ${base}/api/boss/${id}/next ／ 1体目から ${base}/api/boss/${id}/reset`;
@@ -794,11 +970,14 @@ export function createEditor({ api, setMessage }) {
     if (!size) return;
     const [w, h] = size;
     const box = $('preview');
-    const scale = Math.min(1, box.clientWidth / w);
+    // スマホでは画面の上に貼り付くので、低めにする
+    const maxH = matchMedia('(max-width: 760px)').matches ? innerHeight * 0.34 : Math.min(560, innerHeight * 0.6);
+    const scale = Math.min(1, box.clientWidth / w, maxH / h);
     const frame = $('frame');
     frame.style.width = `${w}px`;
     frame.style.height = `${h}px`;
     frame.style.transform = `scale(${scale})`;
+    frame.style.left = `${Math.max(0, (box.clientWidth - w * scale) / 2)}px`;
     box.style.height = `${h * scale}px`;
   }
 
@@ -822,6 +1001,21 @@ export function createEditor({ api, setMessage }) {
   }
 
   function renderActions() {
+    fillActions();
+    // かんたんでは、試すボタンが多いときは初めの4つだけ出す
+    const box = $('actions');
+    box.classList.remove('open');
+    const chips = [...box.children];
+    if (!simple() || chips.length <= 5) return;
+    chips.slice(4).forEach((c) => c.classList.add('extra'));
+    const more = chip('ほかも試す', 'plus', () => {
+      box.classList.add('open');
+      more.remove();
+    });
+    box.append(more);
+  }
+
+  function fillActions() {
     const box = $('actions');
     box.replaceChildren(chip('条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
     const control = (target, action, data) => () => api('/api/control', { target, action, data });
@@ -1174,8 +1368,23 @@ export function createEditor({ api, setMessage }) {
         label.textContent = 'コピーしました';
         setTimeout(() => (label.textContent = 'コピー'), 1500);
       });
-      select(TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0]);
+      for (const b of $('modeSeg').querySelectorAll('button')) b.addEventListener('click', () => setMode(b.dataset.mode, { keepView: b.dataset.mode === mode }));
+      $('backBtn').addEventListener('click', () => {
+        view = 'cards';
+        render();
+      });
+      tab = TABS.includes(store.get('tab')) ? store.get('tab') : TABS[0];
+      setMode(store.get('mode', 'simple'));
     },
+    /** AI などがまとめて設定を変えたあと: 読み直して、そのウィジェットを開く */
+    async refresh(section, entry) {
+      await reload();
+      if (section && TABS.includes(section)) {
+        view = 'detail';
+        select(section, entry && entriesOf(section).includes(entry) ? entry : undefined);
+      } else render();
+    },
+    current: () => ({ section: tab, id: isObj(tab) ? null : id, view: simple() ? view : 'detail' }),
     /** 管理者が豪華な演出をオン/オフしたとき */
     async onEntitlements() {
       me = await api('/api/me').catch(() => me);

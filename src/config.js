@@ -403,6 +403,29 @@ function toNode(doc, value) {
   return node;
 }
 
+/**
+ * YAML の文字に、いくつかの変更をまとめて当てた結果を返す（ファイルには書かない）。
+ * changes: [{ op: 'set' | 'merge' | 'delete', path, value }]。コメントや並びは残る
+ */
+export function applyChanges(text, changes) {
+  const { doc } = parseText(text);
+  if (doc.errors.length) return { ok: false, errors: doc.errors.map((e) => `今の設定ファイルが壊れています: ${e.message}`), warnings: [] };
+  for (const c of changes) {
+    const keys = toPath(c.path);
+    try {
+      if (c.op === 'delete') doc.deleteIn(keys);
+      else if (c.op === 'merge' && doc.hasIn(keys) && c.value != null && typeof c.value === 'object' && !Array.isArray(c.value)) {
+        for (const [k, v] of Object.entries(c.value)) doc.setIn([...keys, k], toNode(doc, v));
+      } else doc.setIn(keys, toNode(doc, c.value));
+    } catch (err) {
+      return { ok: false, errors: [`${keys.join('.')}: 変えられませんでした（${err.message}）`], warnings: [] };
+    }
+  }
+  const out = doc.toString(TO_STRING);
+  const result = parseText(out);
+  return { ok: !result.errors.length, text: out, errors: result.errors, warnings: result.warnings, config: result.config };
+}
+
 /** 設定ファイル1つ分の読み書きと見張り */
 export function createStore(file) {
   const ensure = () => {
