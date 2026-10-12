@@ -13,6 +13,10 @@ import {
 
 const RETRY_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000];
 
+export function connectionOptions(signApiKey) {
+  return { signApiKey, processInitialData: false };
+}
+
 export class TikTokSource {
   constructor(hub, gifts = null) {
     this.hub = hub;
@@ -48,21 +52,16 @@ export class TikTokSource {
     const username = this.username;
     this.hub.setStatus({ mode: 'connecting', username, message: `@${username} に接続中…` });
 
-    const conn = new TikTokLiveConnection(username, {
-      signApiKey: this.signApiKey,
-      processInitialData: false,
-      webConfigOverrides: {
-        DEFAULT_HTTP_CLIENT_PARAMS: { app_language: 'ja', browser_language: 'ja-JP', webcast_language: 'ja', region: 'JP', priority_region: 'JP' },
-        DEFAULT_WS_CLIENT_PARAMS: { app_language: 'ja', browser_language: 'ja-JP', webcast_language: 'ja', region: 'JP', priority_region: 'JP' },
-      },
-    });
+    const conn = new TikTokLiveConnection(username, connectionOptions(this.signApiKey));
     this.connection = conn;
     this.#wire(conn);
 
     try {
       const state = await conn.connect();
       if (this.connection !== conn) return; // 接続中に切断・再接続された
-      const giftResult = await this.gifts?.refresh(conn);
+      const giftResult = await this.gifts?.refresh({
+        fetchGifts: (language) => fetchGifts(username, state.roomId, this.signApiKey, language),
+      });
       if (giftResult?.error) console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message);
       this.retry = 0;
       this.hub.setStatus({ mode: 'live', username, message: `@${username} の LIVE に接続しました`, roomId: state.roomId });
@@ -116,6 +115,21 @@ export class TikTokSource {
       this.#open().catch(() => this.#scheduleRetry());
     }, delay);
   }
+}
+
+async function fetchGifts(username, roomId, signApiKey, language) {
+  const conn = new TikTokLiveConnection(username, connectionOptions(signApiKey));
+  conn.webClient.roomId = roomId;
+  if (language === 'ja') {
+    Object.assign(conn.webClient.clientParams, {
+      app_language: 'ja',
+      browser_language: 'ja-JP',
+      webcast_language: 'ja',
+      region: 'JP',
+      priority_region: 'JP',
+    });
+  }
+  return conn.fetchAvailableGifts();
 }
 
 function describeError(err) {

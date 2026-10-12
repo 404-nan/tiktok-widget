@@ -34,6 +34,7 @@ export class GiftCatalog {
     this.file = file;
     this.records = new Map();
     this.updatedAt = 0;
+    this.loggedPairs = false;
     this.load();
   }
 
@@ -80,14 +81,36 @@ export class GiftCatalog {
     return known ? { ...gift, nameJa: known.nameJa } : { ...gift, nameJa: null };
   }
 
-  async refresh(connection) {
+  async refresh({ fetchGifts, timeoutMs = 10_000 }) {
     if (!this.stale()) return { refreshed: false, gifts: this.list() };
+    let timeoutTimer;
     try {
-      const result = await connection.fetchAvailableGifts();
-      const imported = this.import(result, Date.now());
+      const deadline = Date.now() + timeoutMs;
+      const [english, japanese] = await Promise.race([
+        Promise.all([fetchGifts('en'), fetchGifts('ja')]),
+        new Promise((_, reject) => {
+          timeoutTimer = setTimeout(() => reject(new Error('ギフト一覧の取得が10秒で終わりませんでした')), timeoutMs);
+        }),
+      ]);
+      if (Date.now() > deadline) throw new Error('ギフト一覧の取得が10秒で終わりませんでした');
+      const japaneseById = new Map((japanese ?? []).map((gift) => [text(gift?.id ?? gift?.giftId), gift]));
+      const paired = (english ?? []).map((gift) => {
+        const japaneseGift = japaneseById.get(text(gift?.id ?? gift?.giftId));
+        const japaneseName = text(japaneseGift?.name ?? japaneseGift?.giftName);
+        return { ...gift, nameJa: japaneseName && japaneseName !== text(gift?.name ?? gift?.giftName) ? japaneseName : null };
+      });
+      const imported = this.import(paired, Date.now());
+      if (imported.count && !this.loggedPairs) {
+        this.loggedPairs = true;
+        for (const gift of paired.slice(0, 8)) {
+          console.info(`[gifts] ${gift.id ?? gift.giftId} ${gift.name ?? gift.giftName} → ${text(gift.nameJa) || text(gift.name ?? gift.giftName)}`);
+        }
+      }
       return { refreshed: true, ...imported };
     } catch (error) {
       return { refreshed: false, gifts: this.list(), error };
+    } finally {
+      clearTimeout(timeoutTimer);
     }
   }
 }

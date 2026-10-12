@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { GiftCatalog, giftMatches, giftDisplayName } from '../src/gifts.js';
+import { normalizeGift } from '../src/normalize.js';
 
 test('ギフト一覧を取り込み、保存して、読み直せる', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
@@ -22,4 +23,33 @@ test('条件は英語名・日本語名・ID のどれでも同じギフトに�
   assert.equal(giftMatches(gift, ['ローズ']), true);
   assert.equal(giftMatches(gift, ['1']), true);
   assert.equal(giftDisplayName(gift), 'ローズ');
+});
+
+test('ギフト一覧は ID で英語名と日本語名を対にする', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  await catalog.refresh({
+    fetchGifts: async (language) => language === 'en'
+      ? [{ id: 5655, name: 'Rose', diamond_count: 1 }]
+      : [{ id: 5655, name: 'ローズ', diamond_count: 1 }],
+  });
+  assert.deepEqual(catalog.find('5655'), { id: '5655', name: 'Rose', nameJa: 'ローズ', diamonds: 1, image: null });
+});
+
+test('日本語名が英語名と同じなら nameJa は null', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  await catalog.refresh({
+    fetchGifts: async (language) => language === 'en'
+      ? [{ id: 1, name: 'Galaxy' }]
+      : [{ id: 1, name: 'Galaxy' }],
+  });
+  assert.equal(catalog.find('1').nameJa, null);
+});
+
+test('日本語名がないギフトの表示は今までの英語名のまま', () => {
+  const event = normalizeGift({ giftId: 1, gift: { id: 1, name: 'Rose', diamondCount: 1 }, repeatCount: 1 });
+  assert.equal(event.gift.name, 'Rose');
+  assert.equal(event.gift.nameJa, null);
+  assert.equal(giftDisplayName(event.gift), 'Rose');
 });
