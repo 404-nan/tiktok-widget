@@ -18,7 +18,13 @@ set PORT=3939
 
 rem 自分のドメインの Tunnel を使うなら、先に set TUNNEL_TOKEN=... してから開く
 start "TikTok ウィジェット（サーバー）" cmd /k node server.js
-timeout /t 3 >nul
+echo サーバー起動を待っています...
+:wait_healthz
+curl -sf http://127.0.0.1:%PORT%/healthz >nul 2>nul
+if not errorlevel 1 goto healthz_ok
+timeout /t 1 >nul
+goto wait_healthz
+:healthz_ok
 if defined TUNNEL_TOKEN (
   start "Cloudflare Tunnel" cmd /k cloudflared tunnel run --token %TUNNEL_TOKEN%
 ) else (

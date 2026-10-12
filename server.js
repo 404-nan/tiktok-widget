@@ -150,10 +150,14 @@ app.use('/t/:key', (req, res, next) => {
   req.tenant = tenant;
   const p = req.path;
   // OBS 用の鍵で開けるのはウィジェットと画像と、ウィジェットが読む API だけ
-  if (role === 'obs' && !(p.startsWith('/widgets/') || p.startsWith('/media/') || p.startsWith('/api/'))) {
+  if (role === 'obs' && !(p === '/widgets' || p.startsWith('/widgets/') || p.startsWith('/media/') || p.startsWith('/api/'))) {
     return res.status(403).type('text/plain; charset=utf-8').send('これは OBS 用の URL です。ダッシュボードはダッシュボードの URL で開いてください');
   }
   if (p === '/' || p === '') return res.redirect(`${req.baseUrl}/${role === 'obs' ? 'widgets/' : 'dashboard/'}`);
+  // OBS の土台 URL（/widgets/）には index が無いので、API に落ちて JSON 403 になるのを防ぐ
+  if (role === 'obs' && (p === '/widgets' || p === '/widgets/')) {
+    return res.type('text/plain; charset=utf-8').send('OBS 用の土台 URL です。ダッシュボードで各ウィジェットの URL をコピーして OBS に貼ってください');
+  }
   // 管理者が使えなくしているウィジェットは、何も出さないページにする
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
   const feature = page && featureOfPage(page);
