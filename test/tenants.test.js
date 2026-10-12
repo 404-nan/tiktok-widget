@@ -56,6 +56,8 @@ test('豪華な演出は最初は使えず、ほかのウィジェットは最�
   assert.equal(t.entitled(a.id, 'wins'), true);
   assert.equal(t.entitled(a.id, 'chats'), true);
   assert.equal(t.access(a.id, 'wins').source, 'default');
+  assert.equal('cutins' in t.info(a.id).access, false);
+  assert.equal(t.info(a.id).widgets.includes('cutins'), false);
 });
 
 test('どのウィジェットも ON / OFF でき、時間つきなら期限が過ぎると初めの状態に戻る', () => {

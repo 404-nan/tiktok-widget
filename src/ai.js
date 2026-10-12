@@ -53,9 +53,10 @@ async function loadSdk() {
  * AI が返した変更・画面から戻ってきた変更を確かめて、設定に当てられる形にする。
  * だめなものがあれば errors に理由を入れる。
  */
-export function checkChanges(raw) {
+export function checkChanges(raw, { allowedSections = null } = {}) {
   const errors = [];
   const changes = [];
+  let ignored = 0;
   if (!Array.isArray(raw)) return { changes, errors: ['変更の一覧がありません'] };
   if (raw.length > MAX_CHANGES) return { changes, errors: [`一度に変えられるのは ${MAX_CHANGES} か所までです`] };
   for (const c of raw) {
@@ -68,6 +69,10 @@ export function checkChanges(raw) {
     }
     if (!SECTIONS.includes(keys[0])) {
       errors.push(`${p}: そのセクションはありません`);
+      continue;
+    }
+    if (allowedSections && !allowedSections.includes(keys[0])) {
+      ignored++;
       continue;
     }
     if (keys[0] === 'minecraft' && keys[1] !== 'rules') {
@@ -94,12 +99,13 @@ export function checkChanges(raw) {
     }
     changes.push({ op, path: keys.join('.'), ...(op === 'delete' ? {} : { value }), label: String(c.label ?? '').trim().slice(0, 120) || `${SCHEMA[keys[0]].title}の設定を変える` });
   }
-  return { changes, errors };
+  return { changes, errors, ignored };
 }
 
 /** たのみの文と今の設定から、AI に送る文を作る（パスワードなどは抜く） */
-export function buildRequest({ text, config, focus, gifts = [] }) {
+export function buildRequest({ text, config, focus, gifts = [], availableWidgets = [] }) {
   const lines = ['今の設定（JSON。パスワードなどは抜いてあります）:', '<config>', JSON.stringify(cfg.publicConfig(config)), '</config>'];
+  if (availableWidgets.length) lines.push(`この配信者が使えるウィジェット: ${availableWidgets.join('、')}`);
   if (focus?.section) lines.push(`配信者がいま開いているウィジェット: ${[focus.section, focus.id].filter(Boolean).join('.')}`);
   if (gifts.length) lines.push(`配信者が知っているギフト（名前と1個のコイン）: ${gifts.map((g) => `${g.name}(${g.diamonds})`).join(', ')}`);
   lines.push('配信者のたのみ:', '<request>', text, '</request>');
@@ -304,7 +310,7 @@ export function createAi({ dir, makeClient = (apiKey, Anthropic) => new Anthropi
      * check(changes): その案を設定に当てて確かめる関数（{ errors, warnings } を返す）。
      * 問題があれば、それを AI に伝えて1回だけ直してもらう。
      */
-    async ask({ text, config, focus, gifts, check = () => ({ errors: [], warnings: [] }) }) {
+    async ask({ text, config, focus, gifts, availableWidgets = [], allowedSections = null, check = () => ({ errors: [], warnings: [] }) }) {
       if (!usable()) throw new Error('AI はまだ使えません（管理者がキーを入れると使えます）');
       const kind = AI_PROVIDERS[provider()].kind;
       const system = buildSystem({ reference: cfg.reference(), extra: extra(), valueAsText: kind === 'claude' });
@@ -313,11 +319,11 @@ export function createAi({ dir, makeClient = (apiKey, Anthropic) => new Anthropi
           ? askClaude({ key: key(), model: model(), system, messages, makeClient })
           : askOpenAi({ key: key(), model: model(), baseUrl: baseUrl(), system, messages, fetchImpl });
       const judge = (out) => {
-        const { changes, errors } = checkChanges(out.changes ?? []);
+        const { changes, errors, ignored } = checkChanges(out.changes ?? [], { allowedSections });
         const dry = changes.length && !errors.length ? check(changes) : { errors: [], warnings: [] };
-        return { reply: String(out.reply ?? ''), changes, errors: [...errors, ...(dry.errors ?? [])], warnings: dry.warnings ?? [] };
+        return { reply: String(out.reply ?? ''), changes, ignored, errors: [...errors, ...(dry.errors ?? [])], warnings: dry.warnings ?? [] };
       };
-      const messages = [{ role: 'user', content: buildRequest({ text, config, focus, gifts }) }];
+      const messages = [{ role: 'user', content: buildRequest({ text, config, focus, gifts, availableWidgets }) }];
       const raw = await call(messages);
       const first = judge(raw);
       const issues = [...first.errors, ...first.warnings];

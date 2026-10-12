@@ -140,10 +140,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
   });
 
-  r.get('/api/me', (req, res) => res.json({ ...info(), role: req.role ?? 'owner', features: FEATURES }));
+  r.get('/api/me', (req, res) => {
+    const me = info();
+    const tenant = me.mode === 'tenant';
+    const features = tenant ? Object.fromEntries(Object.entries(FEATURES).filter(([key]) => entitled(key))) : FEATURES;
+    const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
+    res.json({ ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) });
+  });
   r.put('/api/me/widgets', (req, res) => {
     if (!setWidgets) return res.status(400).json({ error: '1人で使うときは選べません（全部使えます）' });
-    const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w)) : null;
+    const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w) && entitled(w)) : null;
     if (!list) return res.status(400).json({ error: 'widgets を一覧で送ってください' });
     setWidgets(list);
     res.json({ ok: true, ...info() });
@@ -315,7 +321,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       const focus = { section: SECTIONS.includes(req.body?.focus?.section) ? req.body.focus.section : null, id: typeof req.body?.focus?.id === 'string' ? req.body.focus.id.slice(0, 64) : null };
       // そのまま当てたらどうなるかを確かめながら、案を作ってもらう（ファイルには書かない）
-      const out = await ai.ask({ text, config: hub.config, focus, gifts: knownGifts(), check: (changes) => cfg.applyChanges(store.readText(), changes) });
+      const availableWidgets = Object.entries(FEATURES).filter(([key]) => entitled(key)).map(([, feature]) => feature.label);
+      const allowedSections = SECTIONS.filter((section) => section === 'theme' || entitled(section));
+      const out = await ai.ask({ text, config: hub.config, focus, gifts: knownGifts(), availableWidgets, allowedSections, check: (changes) => cfg.applyChanges(store.readText(), changes) });
+      if (!out.changes.length && out.ignored) out.reply = 'それはこのツールではできません。';
       res.json({ ok: true, reply: out.reply, changes: out.changes, errors: out.errors, warnings: out.warnings, state: aiState() });
     } catch (err) {
       // AI を呼べなかったときは、回数に数えない
@@ -327,7 +336,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.post('/api/ai/apply', (req, res) => {
     if (!aiState().available) return res.status(403).json({ error: aiState().reason });
-    const { changes, errors } = checkChanges(req.body?.changes);
+    const { changes, errors, ignored } = checkChanges(req.body?.changes, { allowedSections: SECTIONS.filter((section) => section === 'theme' || entitled(section)) });
+    if (!changes.length && ignored) return res.status(400).json({ error: 'それはこのツールではできません。' });
     if (errors.length || !changes.length) return res.status(400).json({ error: errors[0] ?? '変えるところがありません' });
     const before = store.readText();
     const next = cfg.applyChanges(before, changes);

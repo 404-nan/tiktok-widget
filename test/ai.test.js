@@ -92,7 +92,16 @@ test('AI に送る文: パスワードは入れない。項目の一覧は先頭
   const sent = JSON.stringify(body);
   assert.equal(sent.includes('himitsu-pass'), false);
   assert.match(body.messages[0].content, /色を青にして/);
+  assert.match(buildRequest({ text: 'a', config, availableWidgets: ['WIN数', '目標バー'] }), /この配信者が使えるウィジェット: WIN数、目標バー/);
   assert.match(buildRequest({ text: 'a', config, focus: { section: 'wins', id: 'default' } }), /wins\.default/);
+
+  const filtered = checkChanges([
+    { op: 'set', path: 'wins.default.goal', value: 10 },
+    { op: 'set', path: 'cutins.default.minCoins', value: 100 },
+  ], { allowedSections: ['wins', 'theme'] });
+  assert.deepEqual(filtered.errors, []);
+  assert.equal(filtered.changes.length, 1);
+  assert.equal(filtered.ignored, 1);
 
   // 起動し直しても残る。キーを消すと使えなくなる
   assert.equal(createAi({ dir }).state().tail, 'abcd');
@@ -106,7 +115,7 @@ test('たのむ → 反映 → 元に戻す。1日の回数を超えたら断り
   const ai = createAi({ dir, makeClient: () => fakeClient(proposal) });
   ai.update({ key: 'sk-ant-test-0000000000abcd', dailyLimit: 2 });
   let allowed = true;
-  const rt = createRuntime({ id: 't1', store: cfg.createStore(file), dataDir: dir, mediaDirs: [], ai, entitled: (f) => (f === 'ai' ? allowed : true) });
+  const rt = createRuntime({ id: 't1', store: cfg.createStore(file), dataDir: dir, mediaDirs: [], ai, entitled: (f) => (f === 'ai' ? allowed : f !== 'cutins') });
   const app = express();
   app.use(express.json());
   app.use(rt.router);
@@ -131,6 +140,9 @@ test('たのむ → 反映 → 元に戻す。1日の回数を超えたら断り
     assert.equal(applied.config.theme.accent, '#3FA9F5');
     assert.equal(applied.state.canUndo, true);
     assert.equal((await call('/api/ai/apply', { changes: [{ op: 'set', path: 'minecraft.host', value: 'evil' }] })).status, 400);
+    const unavailable = await call('/api/ai/apply', { changes: [{ op: 'set', path: 'cutins.default.minCoins', value: 100 }] });
+    assert.equal(unavailable.status, 400);
+    assert.equal(unavailable.error, 'それはこのツールではできません。');
 
     const undone = await call('/api/ai/undo', {});
     assert.equal(undone.status, 200);

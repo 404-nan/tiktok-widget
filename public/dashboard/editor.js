@@ -194,7 +194,7 @@ export function createEditor({ api, setMessage }) {
     (section === 'bosses' && ['commands', 'superstreamGift', 'superstreamAction'].includes(key)) ||
     (section === 'minecraft' && ['host', 'port', 'password', 'superstreamProfile', 'superstreamFile'].includes(key));
   // 管理者が使えなくしているものは選べない（1人で使うときは全部使える）
-  const unlocked = (section) => !isTenant() || me.access?.[section]?.on !== false;
+  const unlocked = (section) => !isTenant() || me.features?.[section] != null;
   /** タブに出すもの: 1人で使うときは全部、配信者ごとのときは選んだものとテーマ */
   const visibleTabs = () => (isTenant() ? TABS.filter((s) => s === 'theme' || (me.widgets.includes(s) && unlocked(s))) : TABS);
 
@@ -217,19 +217,14 @@ export function createEditor({ api, setMessage }) {
     box.append(head);
     const chips = document.createElement('div');
     chips.className = 'picker-chips';
-    for (const section of TABS.filter((s) => s !== 'theme')) {
+    for (const section of TABS.filter((s) => s !== 'theme' && unlocked(s))) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'pick pressable';
       const on = me.widgets.includes(section);
-      const open = unlocked(section);
+      const open = true;
       b.setAttribute('aria-pressed', String(on && open));
-      if (!open) {
-        b.disabled = true;
-        b.classList.add('locked');
-        b.title = '管理者が使えるようにすると選べます';
-        b.append(icon('lock'));
-      } else if (on) {
+      if (on) {
         b.append(icon('check'));
       }
       b.append(schema.sections[section].title);
@@ -249,17 +244,14 @@ export function createEditor({ api, setMessage }) {
     }
     // WIN数の全画面演出（ウィジェットの選択ではなく、使えるかどうかだけ）
     const fx = me.access?.winsFx;
-    const info = document.createElement('span');
-    info.className = `pick info${fx?.on ? '' : ' locked'}`;
-    info.append(icon(fx?.on ? 'sparkles' : 'lock'), 'WIN数の全画面演出');
-    if (untilText(fx)) info.append(Object.assign(document.createElement('small'), { textContent: untilText(fx) }));
-    if (!fx?.on) info.title = '管理者が使えるようにすると使えます';
-    chips.append(info);
+    if (fx?.on) {
+      const info = document.createElement('span');
+      info.className = 'pick info';
+      info.append(icon('sparkles'), 'WIN数の全画面演出');
+      if (untilText(fx)) info.append(Object.assign(document.createElement('small'), { textContent: untilText(fx) }));
+      chips.append(info);
+    }
     box.append(chips);
-    const note = document.createElement('p');
-    note.className = 'hint';
-    note.textContent = '🔒 の付いたものは、管理者が使えるようにすると選べます。';
-    box.append(note);
   }
 
   function renderTabs() {
@@ -414,7 +406,7 @@ export function createEditor({ api, setMessage }) {
     menu.className = 'side-menu';
     menu.append(
       item('monitor-up', '配信ソフトに入れる', view === 'obs', goTo('obs'), 'side-stage'),
-      item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai'),
+      ...(me.features?.ai ? [item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai')] : []),
       label('配信画面に出すもの'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
       item('plus', '出すものを足す', view === 'catalog', goTo('catalog')),
@@ -466,17 +458,16 @@ export function createEditor({ api, setMessage }) {
       grid.className = 'card-grid';
       for (const section of rest) {
         const open = unlocked(section);
+        if (!open) continue;
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = `card pressable${open ? '' : ' locked'}`;
-        b.disabled = !open;
+        b.className = 'card pressable';
         const head = document.createElement('span');
         head.className = 'card-head';
         head.append(icon(INFO[section].icon), Object.assign(document.createElement('span'), { className: 'card-title', textContent: schema.sections[section].title }));
         const state = document.createElement('span');
         state.className = 'card-state';
-        if (open) state.append(icon('plus'), '使う');
-        else state.append(icon('lock'), '管理者に頼むと使えます');
+        state.append(icon('plus'), '使う');
         b.append(head, Object.assign(document.createElement('span'), { className: 'card-desc', textContent: INFO[section].desc }), state);
         b.addEventListener('click', () => openCard(section));
         grid.append(b);
@@ -1118,8 +1109,7 @@ export function createEditor({ api, setMessage }) {
       // ボタン用の URL は、このダッシュボードの URL の下（配信者ごとの URL なら /t/<鍵>/）
       const base = `${location.origin}${BASE}`;
       const fx = payload.widgets.find((x) => x.section === 'wins' && x.id === id && x.extra);
-      if (fx && isTenant() && !me.access?.winsFx?.on) $('sizeHint').textContent += ' 全画面の演出（大妨害・目標達成など）は、管理者が使えるようにすると使えます。';
-      else if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
+      if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
       $('sizeHint').textContent +=
         ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
     }

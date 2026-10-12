@@ -19,7 +19,14 @@ const TEMPLATES = [
   { id: 'custom', name: '自分で選ぶ', desc: '出すものを自分で足す', sections: [] },
 ];
 
-export function createStage({ api, getPayload, getMe, onChanged, openWidget, onTemplate }) {
+export function createStage({ api, getPayload, getMe: rawGetMe, onChanged, openWidget, onTemplate }) {
+  const getMe = () => {
+    const me = rawGetMe() ?? {};
+    if (me.mode !== 'tenant') return me;
+    const widgets = [...(me.widgets ?? [])];
+    for (const section of Object.keys(me.features ?? {})) if (!widgets.includes(section)) widgets.push(section);
+    return { ...me, widgets, access: Object.fromEntries(Object.keys(me.features ?? {}).map((section) => [section, { on: true }])) };
+  };
   const root = document.querySelector('#stageView'); let preview = null, frame = null, viewScale = 1, selected = null;
   const copy = async (text) => { try { await navigator.clipboard.writeText(text); } catch { prompt('この URL をコピーしてください', text); } };
   const fit = () => { if (!frame || !preview) return; viewScale = Math.min(1, preview.clientWidth / SIZE[0]); frame.style.width = `${SIZE[0]}px`; frame.style.height = `${SIZE[1]}px`; frame.style.transform = `scale(${viewScale})`; frame.style.left = '0px'; const b = preview.querySelector('.stage-boxes'); if (b) { b.style.transform = `scale(${viewScale})`; b.style.left = '0px'; } preview.style.height = `${SIZE[1] * viewScale}px`; };

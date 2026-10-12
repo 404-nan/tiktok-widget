@@ -3,23 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>使えない演出</title>
+<title></title>
 <link rel="stylesheet" href="lib/overlay.css">
 <style>
-  /* 管理者がオンにしていない豪華な演出の代わりに出すページ。配信画面には何も出さない。
-     ダッシュボードのプレビュー（?preview=1）でだけ、使えない理由を出す */
-  body { display: grid; place-items: center; }
-  .note { display: none; padding: 18px 26px; background: rgba(17, 17, 19, .88); color: var(--paper); border-left: 6px solid var(--gold); font-weight: 900; font-size: 26px; line-height: 1.6; text-align: center; }
-  .note small { display: block; font-size: 18px; font-weight: 700; color: var(--paper-dim); }
-  body.preview .note { display: block; }
+  html, body { background: transparent; }
 </style>
 </head>
 <body>
-<div class="note">🔒 これは、管理者が使えるようにすると表示されます<small>使えるようになると自動で表示されます</small></div>
 <script type="module">
   import { setupPage, connect } from './lib/overlay.js';
   setupPage();
-  // 管理者がオンにしたら、読み込み直して本物の演出になる
   connect({});
 </script>
 </body>

@@ -228,7 +228,7 @@ export class Tenants {
   info(id) {
     const t = this.get(id);
     const rental = rentalForHandle(this.rental.snapshot, t?.tiktokId);
-    const widgets = [...(t?.widgets ?? [])];
+    const widgets = [...(t?.widgets ?? [])].filter((section) => this.entitled(id, section));
     if (rental.now && this.entitled(id, 'minecraft') && !widgets.includes('minecraft')) widgets.push('minecraft');
     return {
       mode: 'tenant',
@@ -237,7 +237,7 @@ export class Tenants {
       widgets,
       tiktokId: t?.tiktokId ?? '',
       rental: { now: rental.now ? { until: new Date(rental.now.end).toISOString() } : null, next: rental.next ? { start: new Date(rental.next.start).toISOString(), end: new Date(rental.next.end).toISOString() } : null },
-      access: this.accessState(id),
+      access: Object.fromEntries(Object.entries(this.accessState(id)).filter(([, state]) => state.on)),
       template: t?.template ?? null,
       guideDone: Boolean(t?.guideDone),
     };
