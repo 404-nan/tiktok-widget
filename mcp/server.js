@@ -207,6 +207,23 @@ server.registerTool(
 );
 
 server.registerTool(
+  'timer',
+  {
+    title: '延長タイマー',
+    description:
+      '延長タイマー（配信の残り時間・サブアソン）を動かす・見る（サーバー起動中のみ）。start でスタート（止まっていれば再開）、pause で一時停止、toggle で切り替え、' +
+      'add で seconds 秒を足す（マイナスで引く）、set で残りを seconds 秒にする、reset で初めの時間に戻してスタート前に、status で今の残り。id は timers の名前（省くと全部）。' +
+      'ギフトで延びる量は set_config で timers.<名前> の coinSeconds / followSeconds / likeEvery / rules（例 [{gifts: [Galaxy], minutes: 10}]）を書く。',
+    inputSchema: {
+      action: z.enum(['status', 'start', 'pause', 'resume', 'toggle', 'add', 'set', 'reset']).default('status'),
+      id: z.string().optional().describe('timers の名前'),
+      seconds: z.number().optional().describe('add / set のときの秒数'),
+    },
+  },
+  wrap(async ({ action, id, seconds }) => text(await admin.timer(action, id ?? null, seconds))),
+);
+
+server.registerTool(
   'rush',
   {
     title: 'RUSH',

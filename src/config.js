@@ -63,6 +63,8 @@ function checkValue(field, value, where, issues) {
       return checkMcRules(value, where, issues);
     case 'winRules':
       return checkWinRules(value, where, issues);
+    case 'timerRules':
+      return checkTimerRules(value, where, issues);
     default:
       return value;
   }
@@ -241,6 +243,46 @@ function checkWinRules(value, where, issues) {
     if (raw.text != null) rule.text = String(raw.text);
     if (!rule.gifts && !rule.users && rule.minCoins == null) {
       issues.warnings.push(`${at}: 条件（gifts / minCoins / users）がないので、ギフトのたびに変わります`);
+    }
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return rule;
+  });
+}
+
+// 延長タイマーのギフトのルール（{ gifts: [Galaxy], minutes: 10 } / { gifts: [Rose], seconds: 30 }）
+function checkTimerRules(value, where, issues) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    issues.errors.push(`${where}: 一覧で書いてください`);
+    return [];
+  }
+  const known = ['gifts', 'users', 'minCoins', 'seconds', 'minutes', 'perCount', 'text'];
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    const rule = {};
+    if (!raw || typeof raw !== 'object') {
+      issues.errors.push(`${at}: { gifts: [Galaxy], minutes: 10 } のように書いてください`);
+      return { seconds: 0 };
+    }
+    for (const key of ['gifts', 'users']) {
+      if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${at}.${key}`, issues);
+    }
+    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    if (raw.seconds != null && raw.minutes != null) issues.errors.push(`${at}: seconds と minutes はどちらか1つにしてください`);
+    const amount = raw.seconds ?? raw.minutes;
+    rule.seconds = 0;
+    if (amount == null) {
+      issues.errors.push(`${at}: seconds（延ばす秒数）か minutes（延ばす分数）を書いてください`);
+    } else if (!Number.isFinite(Number(amount))) {
+      issues.errors.push(`${at}.${raw.seconds != null ? 'seconds' : 'minutes'}: 数で書いてください（今: ${JSON.stringify(amount)}）`);
+    } else {
+      rule.seconds = Math.round(Number(amount) * (raw.seconds != null ? 1 : 60));
+      if (rule.seconds === 0) issues.warnings.push(`${at}: 0 なので延びません`);
+    }
+    if (raw.perCount != null) rule.perCount = checkValue({ type: 'boolean', default: true }, raw.perCount, `${at}.perCount`, issues);
+    if (raw.text != null) rule.text = String(raw.text);
+    if (!rule.gifts && !rule.users && rule.minCoins == null) {
+      issues.warnings.push(`${at}: 条件（gifts / minCoins / users）がないので、ギフトのたびに使われます`);
     }
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return rule;

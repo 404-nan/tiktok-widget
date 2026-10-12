@@ -42,6 +42,10 @@ Minecraft / SuperStream
   wins add <数> [名前]      足す（-1 で減らす）
   wins set <数> [名前]      その数にする
   wins undo|reset [名前]    1つ戻す・0 に戻す
+  timer [名前]              延長タイマーの残りを見る
+  timer start|pause|toggle|reset [名前]   スタート・一時停止・切り替え・初めの時間に戻す
+  timer add <秒> [名前]     足す（-60 で 1 分引く）
+  timer set <秒> [名前]     残りをその秒にする
   status
 
 AI と使う
@@ -139,6 +143,13 @@ try {
       if (action === 'add' || action === 'set') print(await admin.wins(action, rest[1], Number(rest[0])));
       else if (action === 'undo' || action === 'reset') print(await admin.wins(action, rest[0]));
       else print(await admin.wins('status', action));
+      break;
+    }
+    case 'timer': {
+      const [action, ...rest] = args;
+      if (action === 'add' || action === 'set') print(await admin.timer(action, rest[1], Number(rest[0])));
+      else if (['start', 'pause', 'resume', 'toggle', 'reset'].includes(action)) print(await admin.timer(action, rest[0]));
+      else print(await admin.timer('status', action));
       break;
     }
     case 'rush':

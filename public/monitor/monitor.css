@@ -106,3 +106,4 @@
 .win-label .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .win-row .chip { min-height: 40px; }
 .win-row .win-btn { background: var(--attention); color: #fff; }
+.timer-num.stopped { color: var(--text-secondary); }

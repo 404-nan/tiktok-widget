@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>延長タイマー</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/barlow-condensed/700-italic.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  /* 延長タイマー（サブアソン）。スコアボードの板に、見出しと大きな時計。
+     延びたら「+30秒」が延ばした人のアイコンと一緒に飛び、時計が金に光る。
+     残りが少なくなると朱 → 板が赤く脈打つ → 残り 10 秒はカウントの音と点滅。0 で「終了」を叩きつける */
+  body { display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; }
+  .wrap { position: relative; width: 100%; }
+
+  .plate {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    height: 148px;
+    background: var(--surface);
+    color: var(--on-surface);
+    border-radius: var(--r) var(--r) 0 0;
+    box-shadow: var(--lift);
+    overflow: hidden;
+  }
+  .wrap.no-sub .plate { border-radius: var(--r); }
+
+  /* 見出し: 斜めに切った色の帯 */
+  .head {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    min-width: 132px;
+    padding: 0 44px 0 24px;
+    background: var(--signal);
+    color: var(--on-signal, #fff);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 0 100%);
+    transition: background-color .3s linear, color .3s linear;
+  }
+  .title { font-size: 34px; font-weight: 900; line-height: 1; white-space: nowrap; }
+  .state { display: none; align-items: center; gap: 6px; font-size: 17px; font-weight: 900; line-height: 1; white-space: nowrap; }
+  .state .icon { --size: 18px; }
+
+  .main { position: relative; display: flex; align-items: center; padding: 0 28px 0 16px; min-width: 0; }
+  .clock {
+    font-family: var(--font-num);
+    font-weight: 700;
+    font-size: 128px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.005em;
+    transform-origin: 30% 60%;
+    transition: color .35s linear;
+  }
+  .clock .odo-char { width: .26em; text-align: center; margin-top: -.06em; }
+  .clock .odo-strip { transition-duration: var(--roll, .45s); }
+
+  /* 下の帯: 延ばし方の案内と、延びた合計 */
+  .sub {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 40px;
+    padding: 0 20px 0 24px;
+    background: var(--surface-2);
+    color: var(--on-surface-dim);
+    border-radius: 0 0 var(--r) var(--r);
+    box-shadow: var(--lift);
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .hint { flex: 1; min-width: 0; overflow: hidden; }
+  .hint .run { display: inline-block; }
+  /* 入りきらないときは、テロップのように左へ流す */
+  .hint.ticker .run { padding-right: 48px; animation: ticker var(--tick-s, 12s) linear infinite; }
+  .hint.ticker { -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 24px), transparent); }
+  @keyframes ticker { to { transform: translateX(-100%); } }
+  .hint b { font-family: var(--font-num); font-weight: 700; font-size: 1.2em; color: var(--gold); margin: 0 .1em 0 .2em; }
+  [data-theme=light] .hint b { color: #A86A00; }
+  .hint i { font-style: normal; display: inline-block; width: 1px; height: .9em; margin: 0 12px; vertical-align: -.1em; background: var(--rule); }
+  .total { flex: none; display: flex; align-items: baseline; gap: 6px; }
+  .total b { font-family: var(--font-num); font-weight: 700; font-size: 22px; color: var(--on-surface); }
+  .total .cap { padding: 1px 8px 2px; background: var(--gold); color: var(--ink); font-size: 13px; font-weight: 900; border-radius: 2px; }
+  .total:empty { display: none; }
+
+  /* --- 状態 --- */
+  /* 始める前: 時計は止まったまま少し暗く */
+  .idle .clock { color: var(--on-surface-dim); }
+  .idle .state, .paused .state, .ended .state { display: flex; }
+
+  /* 一時停止: 見出しが白（ライトなら墨）に反転し、時計は暗く。止まっているのがひと目で分かる */
+  .paused .head { background: var(--on-surface); color: var(--surface); }
+  .paused .head .title { font-size: 22px; opacity: .55; }
+  .paused .state { font-size: 26px; }
+  .paused .state .icon { --size: 26px; animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .25; } }
+  .paused .clock { color: var(--on-surface-dim); }
+
+  /* 残り warnMinutes 分: 時計が朱に */
+  .warn .clock { color: #FF4F1F; }
+  /* 残り dangerMinutes 分: 見出しが危険の縞になって流れ、板の縁が赤く脈打つ */
+  .danger:not(.paused) .head {
+    background: repeating-linear-gradient(-45deg, #FF2A2A 0 14px, #8C0A0A 14px 28px);
+    background-size: 40px 40px;
+    color: #fff;
+    animation: hazard 1s linear infinite;
+  }
+  @keyframes hazard { to { background-position: 40px 0; } }
+  .danger:not(.paused) .plate { animation: alarm 1s ease-in-out infinite; }
+  @keyframes alarm { 0%, 100% { box-shadow: var(--lift), inset 0 0 0 2px rgba(255, 42, 42, .25); } 50% { box-shadow: var(--lift), inset 0 0 0 4px rgba(255, 42, 42, .95); } }
+  /* 残り 10 秒: 1 秒ごとに跳ねて、半分の間だけ暗くなる（点滅は 1 秒に 1 回） */
+  .final .main.tick { animation: tick 1s linear; }
+  .final .main { transform-origin: 16px 55%; }
+  @keyframes tick {
+    0% { transform: scale(1.14); }
+    12% { transform: scale(1); }
+    50% { opacity: 1; }
+    52%, 96% { opacity: .28; }
+    100% { opacity: 1; }
+  }
+
+  /* 終わった: 時計は朱のまま暗く、見出しは墨に */
+  .ended .head { background: var(--ink-3); color: var(--paper); }
+  [data-theme=light] .ended .head { background: var(--ink); }
+  .ended .clock { color: var(--on-surface-dim); }
+
+  /* --- 延びたとき --- */
+  /* 時計が金に光る（閃光と、さっと走る光） */
+  .gain .clock { color: var(--gold) !important; transition: none; }
+  .gain .clock.pop { animation: pop .5s cubic-bezier(.2, 1.6, .4, 1); }
+  @keyframes pop { 0% { transform: scale(1.12); } 100% { transform: none; } }
+  .goldflash { position: absolute; inset: 0; background: var(--gold); opacity: 0; pointer-events: none; }
+  .goldflash.go { animation: goldflash .6s ease-out; }
+  @keyframes goldflash { 0% { opacity: .5; } 100% { opacity: 0; } }
+  .glint { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 236, 170, .55) 50%, transparent 65%); transform: translateX(-100%); }
+  .glint.go { animation: glint .7s var(--ease-out); }
+  @keyframes glint { to { transform: translateX(100%); } }
+  .head.flash { animation: flashHead .5s ease-out; }
+  @keyframes flashHead { 0% { filter: brightness(1.8); } 100% { filter: none; } }
+  /* 減ったとき: 赤い閃光 */
+  .lose .clock { color: #FF2A2A !important; transition: none; }
+  .redflash { position: absolute; inset: 0; background: #FF2A2A; opacity: 0; pointer-events: none; }
+  .redflash.go { animation: goldflash .45s ease-out; }
+  .shake { animation: shake .45s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes shake { 0% { transform: translateY(10px) rotate(-1deg); } 35% { transform: translateY(-3px); } 100% { transform: none; } }
+
+  /* 「+30秒」と延ばした人のアイコン: 時計の上に飛ぶ */
+  .flies { position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 0; pointer-events: none; }
+  .fly {
+    position: absolute;
+    left: var(--x, 50%);
+    bottom: -24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    color: var(--gold);
+    animation: fly 1.9s var(--ease-out) forwards;
+  }
+  .fly .amt { font-family: var(--font-num); font-weight: 700; font-style: italic; font-size: 64px; line-height: 1; text-shadow: 0 3px 0 rgba(0, 0, 0, .55); }
+  .fly .amt small { font-family: var(--font); font-style: normal; font-weight: 900; font-size: .5em; margin-left: .04em; }
+  .fly .avatar { box-shadow: 0 0 0 3px var(--gold), 0 4px 10px rgba(0, 0, 0, .4); }
+  .fly .word { padding: 3px 10px 4px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 900; border-radius: 2px; }
+  .fly.big .amt { font-size: 88px; }
+  .fly.minus { color: #FF2A2A; }
+  .fly.minus .avatar { box-shadow: 0 0 0 3px #FF2A2A, 0 4px 10px rgba(0, 0, 0, .4); }
+  .fly.plain { color: var(--paper); }
+  .fly.plain .amt { font-size: 52px; }
+  .fly.cap .amt { font-size: 40px; color: var(--paper); font-style: normal; font-family: var(--font); font-weight: 900; }
+  @keyframes fly {
+    0% { opacity: 0; transform: translate(-50%, 30px) scale(.6); }
+    12% { opacity: 1; transform: translate(-50%, -6px) scale(1.12); }
+    22% { transform: translate(-50%, 0) scale(1); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -64px); }
+  }
+
+  /* ハンコ: 開始・終了 */
+  .stamp {
+    position: absolute;
+    left: 50%;
+    top: 74px;
+    padding: 8px 30px 12px;
+    background: #FF4F1F;
+    color: #fff;
+    border: 4px solid currentColor;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+    font-family: "Dela Gothic One", var(--font);
+    font-size: 84px;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translate(-50%, -50%) rotate(-6deg) scale(2.2);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .stamp.start { background: var(--paper); color: var(--ink); font-size: 44px; padding: 6px 22px 9px; border-width: 3px; }
+  .stamp.go { opacity: 1; transform: translate(-50%, -50%) rotate(-6deg); transition: transform .16s cubic-bezier(.5, 0, .9, .6), opacity .05s linear; }
+  .stamp.out { opacity: 0; transform: translate(-50%, -50%) rotate(-6deg) scale(1.08); transition: opacity .3s linear, transform .3s ease-out; }
+  /* 終わったあとは、少し小さく右に残す */
+  .stamp.rest { opacity: 1; left: 76%; transform: translate(-50%, -50%) rotate(-6deg) scale(.62); transition: left .5s var(--ease-out), transform .5s var(--ease-out); }
+  .whiteflash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .whiteflash.go { animation: goldflash .7s ease-out; }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="flies" id="flies"></div>
+  <div class="plate" id="plate">
+    <div class="head" id="head">
+      <div class="title" id="title"></div>
+      <div class="state" id="state"></div>
+    </div>
+    <div class="main"><div class="clock" id="clock"></div></div>
+    <div class="glint" id="glint"></div>
+    <div class="goldflash" id="goldflash"></div>
+    <div class="redflash" id="redflash"></div>
+    <div class="whiteflash" id="whiteflash"></div>
+  </div>
+  <div class="sub" id="sub"><span class="hint" id="hint"></span><span class="total" id="total"></span></div>
+  <div class="stamp" id="stamp"></div>
+</div>
+<script type="module">
+  import { setupWidget, connect, icon, avatarNode, resolveColor, readableOn, sleep } from './lib/overlay.js';
+
+  // 設定は config.yaml の timers.<id>（?id= がなければ default）。残り時間はサーバー（/api/timer）が持つ
+  const p = await setupWidget('timers', {
+    title: '残り', startMinutes: 60, coinSeconds: 10, minCoins: 1, rules: [], followSeconds: 0, shareSeconds: 0, likeEvery: 0, likeSeconds: 10,
+    hint: '', showHint: true, avatars: true, warnMinutes: 10, dangerMinutes: 1, endText: '終了', color: 'accent', sound: true, volume: 0.4,
+  });
+  const id = new URLSearchParams(location.search).get('id') || 'default';
+  const $ = (x) => document.getElementById(x);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  document.body.style.setProperty('--signal', resolveColor(p.color));
+  document.body.style.setProperty('--on-signal', readableOn(p.color));
+  $('title').textContent = p.title;
+
+  let t = { status: 'idle', remaining: p.startMinutes * 60_000, endsAt: null, extended: 0 };
+  let offset = 0; // サーバーの時計 - この画面の時計
+  const serverNow = () => Date.now() + offset;
+  const leftMs = () => (t.status === 'running' ? Math.max(0, t.endsAt - serverNow()) : t.remaining ?? 0);
+
+  // --- 書式 ---
+  const pad = (n) => String(n).padStart(2, '0');
+  /** 時計: 1時間以上は 1:23:45、それより下は 9:59 */
+  function clockText(ms) {
+    const s = Math.ceil(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+  }
+  /** 「+30秒」「+1分30秒」「+2時間」の数字と単位 */
+  function amount(sec) {
+    const a = Math.abs(sec);
+    const parts = [];
+    const h = Math.floor(a / 3600), m = Math.floor((a % 3600) / 60), s = a % 60;
+    if (h) parts.push([h, '時間']);
+    if (m) parts.push([m, '分']);
+    if (s || !parts.length) parts.push([s, '秒']);
+    return parts.slice(0, 2);
+  }
+  const amountHtml = (sec, sign = true) => `${sign ? (sec < 0 ? '-' : '+') : ''}${amount(sec).map(([n, u]) => `${n}<small>${u}</small>`).join('')}`;
+  const amountText = (sec) => amount(sec).map(([n, u]) => `${n}${u}`).join('');
+
+  // --- 桁ごとに回る時計（odometer の時刻版。桁の並びが変わったら作り直す） ---
+  function setClock(text, roll = 0.45) {
+    const el = $('clock');
+    const prev = el.dataset.text;
+    if (prev === text) return;
+    el.dataset.text = text;
+    el.style.setProperty('--roll', `${roll}s`);
+    const shape = (s) => s.replace(/\d/g, '0');
+    const strips = el.querySelectorAll('.odo-strip');
+    if (prev != null && shape(prev) === shape(text) && strips.length) {
+      let k = 0;
+      for (const ch of text) if (/\d/.test(ch)) strips[k++].style.transform = `translateY(-${ch}em)`;
+      return;
+    }
+    el.classList.add('odo');
+    el.replaceChildren(
+      ...[...text].map((ch) => {
+        if (!/\d/.test(ch)) return Object.assign(document.createElement('span'), { className: 'odo-char', textContent: ch });
+        const d = document.createElement('span');
+        d.className = 'odo-digit';
+        const strip = document.createElement('span');
+        strip.className = 'odo-strip';
+        for (let i = 0; i < 10; i++) strip.append(Object.assign(document.createElement('span'), { textContent: String(i) }));
+        strip.style.transition = 'none';
+        strip.style.transform = `translateY(-${ch}em)`;
+        d.append(strip);
+        return d;
+      }),
+    );
+    requestAnimationFrame(() => el.querySelectorAll('.odo-strip').forEach((s) => (s.style.transition = '')));
+  }
+
+  // --- 下の帯 ---
+  function autoHint() {
+    const parts = [];
+    if (p.coinSeconds > 0) parts.push(`${p.minCoins > 1 ? `${p.minCoins}コイン以上 1コイン` : '1コイン'}<b>+${esc(amountText(p.coinSeconds))}</b>`);
+    for (const r of (p.rules ?? []).filter((r) => r.gifts?.length && r.seconds > 0).slice(0, 2)) parts.push(`${esc(r.gifts[0])}<b>+${esc(amountText(r.seconds))}</b>`);
+    if (p.followSeconds > 0) parts.push(`フォロー<b>+${esc(amountText(p.followSeconds))}</b>`);
+    if (p.shareSeconds > 0) parts.push(`シェア<b>+${esc(amountText(p.shareSeconds))}</b>`);
+    if (p.likeEvery > 0 && p.likeSeconds > 0) parts.push(`いいね${p.likeEvery}回<b>+${esc(amountText(p.likeSeconds))}</b>`);
+    return parts.join('<i></i>');
+  }
+  const hintHtml = p.hint ? esc(p.hint) : autoHint();
+  $('sub').hidden = !p.showHint;
+  $('wrap').classList.toggle('no-sub', !p.showHint);
+  // 案内文が入りきらないときは、2つ並べて流し続ける
+  function layoutHint() {
+    const el = $('hint');
+    el.classList.remove('ticker');
+    el.innerHTML = `<span class="run">${hintHtml}</span>`;
+    const run = el.firstElementChild;
+    if (run.offsetWidth <= el.clientWidth) return;
+    el.classList.add('ticker');
+    el.innerHTML = `<span class="run">${hintHtml}</span><span class="run">${hintHtml}</span>`;
+    el.style.setProperty('--tick-s', `${Math.max(6, el.firstElementChild.offsetWidth / 60)}s`);
+  }
+
+  function renderTotal() {
+    const ext = t.extended ?? 0;
+    const capped = t.max > 0 && t.base + ext >= t.max;
+    const parts = [];
+    if (ext) parts.push(`<span>延長</span><b>${ext < 0 ? '-' : '+'}${clockText(Math.abs(ext) * 1000)}</b>`);
+    if (capped) parts.push('<span class="cap">上限</span>');
+    $('total').innerHTML = parts.join('');
+  }
+
+  // --- 状態 ---
+  const STATE = { idle: ['開始前', 'timer'], paused: ['一時停止', 'pause'], ended: [null, 'flag'] };
+  function renderState() {
+    for (const s of ['idle', 'running', 'paused', 'ended']) document.body.classList.toggle(s, t.status === s);
+    const st = STATE[t.status];
+    const el = $('state');
+    el.replaceChildren();
+    if (st) el.append(icon(st[1]), st[0] ?? p.endText);
+    renderTotal();
+  }
+
+  let lastSec = null;
+  function tick() {
+    const ms = leftMs();
+    const sec = Math.ceil(ms / 1000);
+    if (sec !== lastSec) {
+      // 時計が1秒ずつ減るときは短く、延びたとき（apply）は長く回す
+      setClock(clockText(ms), rolling ? 0.9 : 0.45);
+      const live = t.status === 'running';
+      document.body.classList.toggle('warn', live && p.warnMinutes > 0 && ms <= p.warnMinutes * 60_000);
+      document.body.classList.toggle('danger', live && p.dangerMinutes > 0 && ms <= p.dangerMinutes * 60_000);
+      const final = live && sec <= 10 && sec > 0;
+      document.body.classList.toggle('final', final);
+      if (final && lastSec != null && sec < lastSec) {
+        const c = $('clock').parentElement;
+        c.classList.remove('tick');
+        void c.offsetWidth;
+        c.classList.add('tick');
+        sfx('tick', sec <= 3);
+      }
+      lastSec = sec;
+    }
+  }
+  let rolling = false;
+  setInterval(tick, 100);
+
+  // --- 効果音（音源なしで合成） ---
+  let ac;
+  const audio = () => (ac ??= new AudioContext());
+  function tone(type, f0, f1, at, len, peak) {
+    const a = audio();
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, at);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, at + len * 0.7);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(peak * p.volume, at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    o.connect(g).connect(a.destination);
+    o.start(at);
+    o.stop(at + len + 0.05);
+  }
+  const SFX = {
+    // 延びた: チャリン（大きいほど駆け上がる）
+    extend(big) {
+      const t0 = audio().currentTime;
+      tone('sine', 2093, 2093, t0, 0.3, 0.3);
+      tone('sine', 3136, 3136, t0 + 0.06, 0.45, 0.22);
+      if (big) [784, 1047, 1319, 1568, 2093].forEach((f, i) => tone('triangle', f, f, t0 + 0.1 + i * 0.05, 0.35, 0.18));
+    },
+    // 減った: ズン
+    lose() {
+      const t0 = audio().currentTime;
+      tone('sine', 140, 40, t0, 0.45, 0.9);
+      tone('sawtooth', 220, 110, t0, 0.3, 0.12);
+    },
+    // 手で足し引き: ピッ
+    adjust(up) {
+      const t0 = audio().currentTime;
+      tone('square', up ? 1320 : 660, up ? 1760 : 440, t0, 0.12, 0.08);
+    },
+    // 残り 10 秒のカウント
+    tick(strong) {
+      const t0 = audio().currentTime;
+      tone('square', strong ? 1600 : 1200, strong ? 1600 : 1200, t0, 0.06, strong ? 0.2 : 0.1);
+    },
+    // スタート: ピッ・ピッ・ピーン
+    start() {
+      const t0 = audio().currentTime;
+      tone('square', 880, 880, t0, 0.12, 0.12);
+      tone('square', 880, 880, t0 + 0.3, 0.12, 0.12);
+      tone('square', 1760, 1760, t0 + 0.6, 0.5, 0.14);
+    },
+    // 一時停止・再開
+    pause() {
+      const t0 = audio().currentTime;
+      tone('triangle', 880, 440, t0, 0.25, 0.3);
+    },
+    resume() {
+      const t0 = audio().currentTime;
+      tone('triangle', 440, 880, t0, 0.25, 0.3);
+    },
+    // 終了: 試合終了のブザーとドン
+    end() {
+      const t0 = audio().currentTime;
+      tone('sine', 150, 40, t0, 0.6, 1);
+      for (const f of [220, 223, 330]) tone('sawtooth', f, f, t0, 1.4, 0.09);
+    },
+  };
+  const sfx = (name, ...args) => {
+    if (!p.sound) return;
+    try {
+      SFX[name](...args);
+    } catch {}
+  };
+
+  // --- 演出 ---
+  const restart = (el, cls) => {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  };
+
+  let gainTimer = null;
+  function glow(cls, ms = 1400) {
+    document.body.classList.remove('gain', 'lose');
+    void document.body.offsetWidth;
+    document.body.classList.add(cls);
+    clearTimeout(gainTimer);
+    gainTimer = setTimeout(() => document.body.classList.remove('gain', 'lose'), ms);
+  }
+
+  // 飛ぶ数字。続けて来ても重ならないよう、少しずつ横にずらす
+  let flySlot = 0;
+  function fly(html, cls = '', user = null, word = '') {
+    const el = document.createElement('div');
+    el.className = `fly ${cls}`;
+    const clock = $('clock').getBoundingClientRect();
+    const wrap = $('wrap').getBoundingClientRect();
+    const center = clock.left + clock.width / 2 - wrap.left;
+    flySlot = (flySlot + 1) % 3;
+    el.style.setProperty('--x', `${center + [0, -70, 70][flySlot]}px`);
+    if (user && p.avatars) el.append(avatarNode(user, cls.includes('big') ? 64 : 52));
+    const amt = document.createElement('span');
+    amt.className = 'amt';
+    amt.innerHTML = html;
+    el.append(amt);
+    if (word) el.append(Object.assign(document.createElement('span'), { className: 'word', textContent: word }));
+    $('flies').append(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+
+  let stampTimer = null;
+  async function stamp(text, cls, { hold = 1300, rest = false } = {}) {
+    const el = $('stamp');
+    clearTimeout(stampTimer);
+    el.className = `stamp ${cls}`;
+    el.textContent = text;
+    void el.offsetWidth;
+    el.classList.add('go');
+    await sleep(160);
+    restart($('plate'), 'shake');
+    await sleep(hold);
+    if (rest) {
+      el.classList.add('rest');
+      return;
+    }
+    el.classList.add('out');
+    stampTimer = setTimeout(() => (el.className = 'stamp'), 320);
+  }
+
+  function onExtend(ev) {
+    if (ev.capped && !ev.seconds) {
+      fly('上限', 'cap');
+      return;
+    }
+    const s = ev.seconds;
+    if (s < 0) {
+      glow('lose', 900);
+      restart($('redflash'), 'go');
+      restart($('plate'), 'shake');
+      fly(amountHtml(s), 'minus', ev.user, ev.text);
+      sfx('lose');
+      return;
+    }
+    const big = s >= 600;
+    glow('gain', big ? 2200 : 1400);
+    restart($('goldflash'), 'go');
+    restart($('glint'), 'go');
+    restart($('head'), 'flash');
+    restart($('clock'), 'pop');
+    if (big) restart($('plate'), 'shake');
+    fly(amountHtml(s), big ? 'big' : '', ev.user, ev.capped ? '上限' : ev.text);
+    sfx('extend', big || s >= 60);
+  }
+
+  function apply(msg, { quiet = false } = {}) {
+    offset = msg.timer.now - Date.now();
+    t = msg.timer;
+    renderState();
+    const ev = msg.event;
+    if (!ev || quiet) return tick();
+    // 延びた・減ったときは時計をゆっくり回して、増えたのが見えるように
+    rolling = ev.kind === 'extend' || ev.kind === 'adjust';
+    lastSec = null;
+    tick();
+    rolling = false;
+    if (ev.kind === 'extend') onExtend(ev);
+    else if (ev.kind === 'adjust') {
+      const s = ev.seconds;
+      if (s) {
+        fly(amountHtml(s), 'plain');
+        glow(s > 0 ? 'gain' : 'lose', 900);
+        sfx('adjust', s > 0);
+      }
+    } else if (ev.kind === 'start') {
+      $('stamp').className = 'stamp';
+      sfx('start');
+      stamp('スタート', 'start', { hold: 900 });
+    } else if (ev.kind === 'pause') sfx('pause');
+    else if (ev.kind === 'resume') sfx('resume');
+    else if (ev.kind === 'reset') $('stamp').className = 'stamp';
+    else if (ev.kind === 'end') {
+      setClock(clockText(0), 0.3);
+      restart($('whiteflash'), 'go');
+      sfx('end');
+      stamp(p.endText, 'end', { hold: 2200, rest: true });
+    }
+  }
+
+  // 読み込み直したとき・つなぎ直したときは、今の状態から続きを出す（演出や音は出さない）
+  async function sync() {
+    try {
+      const all = await (await fetch('/api/timer')).json();
+      if (!all[id]) return;
+      apply({ timer: all[id] }, { quiet: true });
+      if (t.status === 'ended') {
+        const el = $('stamp');
+        el.textContent = p.endText;
+        el.className = 'stamp end rest';
+      } else {
+        $('stamp').className = 'stamp';
+      }
+    } catch {}
+  }
+
+  renderState();
+  tick();
+  await document.fonts.ready.catch(() => {});
+  layoutHint();
+  addEventListener('resize', layoutHint);
+  connect({
+    hello: sync,
+    timer(msg) {
+      if (msg.id === id) apply(msg);
+    },
+  });
+</script>
+</body>
+</html>

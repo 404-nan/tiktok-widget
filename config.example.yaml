@@ -71,6 +71,24 @@ wins:
       - {gifts: [Universe], reset: true} # ユニバースで 0 にリセット
       - {gifts: [GG], add: 1, text: 応援} # GG で WIN +1
 
+# 延長タイマー（サブアソン）… /widgets/timer.html（default 以外は ?id=名前）
+# 配信の残り時間。ギフト・フォロー・いいねで時間が延びる。ダッシュボード・モニターのボタンか URL でスタート:
+# http://127.0.0.1:3939/api/timer/default/start ／ 一時停止 …/pause ／ 止める・動かすを1つで …/toggle
+# 足す …/add?seconds=60（-60 で引く。?minutes=5 でも可）／ 初めの時間に戻す …/reset
+# 状態は data/timers.json に残るので、OBS やサーバーを再起動しても続きから。
+timers:
+  default:
+    startMinutes: 60 # 初めの時間（分）
+    maxHours: 12 # 延びても合計 12 時間まで（0 で上限なし）
+    coinSeconds: 10 # 1 コインで 10 秒
+    followSeconds: 30 # フォローで 30 秒
+    likeEvery: 100 # いいね 100 回ごとに
+    likeSeconds: 10 # 10 秒
+    # 指定のギフトで延ばす（上から順に最初に合ったもの。合ったら coinSeconds の計算はしない）
+    rules:
+      - {gifts: [Galaxy], minutes: 10} # ギャラクシーで 10 分
+      - {gifts: [Finger Heart], minutes: 1} # フィンガーハートは 1 個 1 分（マイナスにすると減る）
+
 # 通常カットイン … /widgets/cutin.html（配信画面いっぱいに重ねる。default 以外は ?id=名前）
 # 筆の帯と文字だけ。ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
 cutins:

@@ -185,6 +185,65 @@ function renderWins() {
   );
 }
 
+// --- 延長タイマー ---
+
+let timers = {};
+let timerOffset = 0;
+const clock = (ms) => {
+  const s = Math.ceil(Math.max(0, ms) / 1000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(s / 3600);
+  return h ? `${h}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}` : `${Math.floor(s / 60)}:${pad(s % 60)}`;
+};
+const timerLeft = (t) => (t.status === 'running' ? t.endsAt - (Date.now() + timerOffset) : t.remaining);
+const TIMER_STATE = { idle: 'スタート前', running: '', paused: '一時停止中', ended: '終了' };
+
+function renderTimers() {
+  const entries = Object.entries(config?.timers ?? {});
+  $('timersSection').hidden = !entries.length;
+  $('timersList').replaceChildren(
+    ...entries.map(([id, c]) => {
+      const t = timers[id] ?? { status: 'idle', remaining: (c.startMinutes ?? 60) * 60_000 };
+      const row = document.createElement('div');
+      row.className = 'win-row';
+      const label = document.createElement('div');
+      label.className = 'win-label';
+      const big = Object.assign(document.createElement('span'), { className: 'win-num timer-num', textContent: clock(timerLeft(t)) });
+      big.dataset.timer = id;
+      if (t.status !== 'running') big.classList.add('stopped');
+      const extended = t.extended ? `　延長 +${clock(t.extended * 1000)}` : '';
+      const text = Object.assign(document.createElement('span'), {
+        className: 'hint',
+        textContent: `${[TIMER_STATE[t.status], entries.length > 1 ? c.title || id : ''].filter(Boolean).join(' · ')}${extended}`,
+      });
+      label.append(big, text);
+      const btn = (name, iconName, action, seconds, cls = '') => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `chip pressable ${cls}`;
+        b.append(icon(iconName), name);
+        b.addEventListener('click', () => api('/api/control', { target: 'timer', action, data: { id, seconds } }));
+        return b;
+      };
+      // 大きいボタン1つで、止める・動かすを切り替える
+      const main = { idle: ['スタート', 'play'], running: ['一時停止', 'pause'], paused: ['再開', 'play'], ended: ['もう一度スタート', 'play'] }[t.status] ?? ['スタート', 'play'];
+      const buttons = document.createElement('div');
+      buttons.className = 'roulette-buttons';
+      buttons.append(btn(main[0], main[1], 'toggle', undefined, 'win-btn'), btn('+1分', 'plus', 'add', 60), btn('-1分', 'minus', 'add', -60));
+      row.append(label, buttons);
+      return row;
+    }),
+  );
+}
+
+// 走っているタイマーの数字だけ書き換える
+function tickTimers() {
+  for (const el of document.querySelectorAll('[data-timer]')) {
+    const t = timers[el.dataset.timer];
+    if (t?.status === 'running') el.textContent = clock(timerLeft(t));
+  }
+}
+
 // --- RUSH ---
 
 let rush = { active: false };
@@ -360,6 +419,13 @@ for (const e of [...recent].reverse()) addFeed(e);
 
 setInterval(renderElapsed, 1000);
 setInterval(renderRush, 1000);
+setInterval(tickTimers, 250);
+api('/api/timer').then((all) => {
+  timers = all;
+  const any = Object.values(all)[0];
+  if (any) timerOffset = any.now - Date.now();
+  renderTimers();
+}).catch(() => {});
 api('/api/wins').then((w) => {
   winCounts = w;
   renderWins();
@@ -404,6 +470,7 @@ connect({
     renderGoals();
     renderRushButtons();
     renderWins();
+    renderTimers();
   },
   rush(msg) {
     setRush(msg.rush);
@@ -411,6 +478,11 @@ connect({
   wins(msg) {
     winCounts[msg.id] = msg.counter;
     renderWins();
+  },
+  timer(msg) {
+    timerOffset = msg.timer.now - Date.now();
+    timers[msg.id] = msg.timer;
+    renderTimers();
   },
   // 管理者が豪華な演出をオン/オフしたとき
   entitlements() {
