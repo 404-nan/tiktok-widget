@@ -34,12 +34,25 @@
   </section>
 
   <div id="main" hidden>
-    <!-- 人数 -->
-    <section class="panel kpis" id="kpis" aria-label="人数"></section>
+    <div class="admin-shell">
+      <aside class="admin-side" aria-label="管理画面の項目">
+        <p class="side-label">管理するもの</p>
+        <button class="side-item pressable" type="button" data-page="tenants">配信者</button>
+        <button class="side-item pressable" type="button" data-page="global">全員の ON / OFF</button>
+        <button class="side-item pressable" type="button" data-page="ai">AI にたのむ の設定</button>
+        <button class="side-item pressable" type="button" data-page="sign">TikTok の接続キー</button>
+        <div class="side-spacer"></div>
+        <button class="side-item pressable" type="button" id="sideThemeBtn">テーマを切り替える</button>
+        <button class="side-item pressable" type="button" id="sideLogoutBtn">合言葉を入れ直す</button>
+      </aside>
 
-    <div class="split">
-      <!-- 配信者の一覧（1人1行） -->
-      <section class="panel list-panel solid">
+      <div class="admin-content">
+        <!-- 人数 -->
+        <section class="panel kpis" id="kpis" aria-label="人数"></section>
+
+        <div class="split">
+          <!-- 配信者の一覧（1人1行） -->
+          <section class="panel list-panel solid" id="tenantListPanel">
         <div class="toolbar">
           <input id="search" type="search" placeholder="名前で探す" autocomplete="off">
           <div class="segmented" id="filters" role="tablist"></div>
@@ -58,10 +71,12 @@
         </div>
         <ol class="rows" id="rows"></ol>
         <p class="hint empty" id="empty" hidden></p>
-      </section>
+          </section>
 
-      <!-- 右: 選んだ配信者 / まとめて / 全員まとめて -->
-      <aside class="panel detail" id="detail"></aside>
+          <!-- 右: 選んだ配信者 / まとめて / 全員まとめて -->
+          <aside class="panel detail" id="detail"></aside>
+        </div>
+      </div>
     </div>
     <p class="toast" id="message" role="status"></p>
   </div>

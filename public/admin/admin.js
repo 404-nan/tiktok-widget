@@ -14,6 +14,7 @@ let selected = null; // 右に開いている配信者の id
 const checked = new Set(); // 一覧でチェックした配信者の id
 let filter = store.get('adminFilter', 'all');
 let search = '';
+let page = store.get('adminPage', 'tenants');
 
 // 右のパネルは中身だけ入れ替える（なめらかな角の塗りを残すため）
 const detailBody = document.createElement('div');
@@ -75,6 +76,19 @@ $('logoutBtn').addEventListener('click', () => {
   token = '';
   showLogin();
 });
+
+$('sideLogoutBtn').addEventListener('click', () => $('logoutBtn').click());
+$('sideThemeBtn').addEventListener('click', () => $('themeBtn').click());
+document.querySelectorAll('.admin-side .side-item[data-page]').forEach((b) => b.addEventListener('click', () => {
+  page = b.dataset.page;
+  store.set('adminPage', page);
+  if (page !== 'tenants') {
+    selected = null;
+    checked.clear();
+  }
+  renderShell();
+  renderDetail(true);
+}));
 
 // --- 部品 ---
 
@@ -243,6 +257,18 @@ function statusOf(t) {
   return ['', '配信していません'];
 }
 
+const TEMPLATE_NAMES = {
+  talk: 'おしゃべり・歌', roulette: 'ルーレット企画', endurance: '耐久・カウントダウン',
+  clear: 'クリア数', boss: 'ボス討伐', custom: '自分で選ぶ',
+};
+
+function tenantNote(t) {
+  const notes = [];
+  if (t.template) notes.push(TEMPLATE_NAMES[t.template] ?? t.template);
+  if (t.rental?.now) notes.push('いまマイクラの枠');
+  return notes.join('・') || '遊び方は未選択';
+}
+
 function renderRows() {
   const list = visible();
   const box = $('rows');
@@ -272,7 +298,7 @@ function renderRows() {
         { className: t.enabled ? '' : 'off' },
         el('label', { className: 'check' }, check),
         el('span', { className: 'name', textContent: t.name }),
-        el('span', { className: `status ${cls}` }, el('i'), text, t.rental?.now ? el('small', { className: 'rental-badge', textContent: 'マイクラの枠' }) : null),
+        el('span', { className: `status ${cls}` }, el('i'), text, el('small', { className: 'tenant-note', textContent: tenantNote(t) })),
         dots,
       );
       li.setAttribute('aria-selected', String(t.id === selected));
@@ -322,6 +348,11 @@ function tenantDetail(t) {
   enabled.addEventListener('change', act(() => api(`/tenants/${t.id}`, { enabled: enabled.checked }, 'PATCH'), enabled.checked ? '使えるようにしました' : '利用を止めました'));
 
   return [
+    button('← 配信者の一覧', () => {
+      selected = null;
+      renderRows();
+      renderDetail();
+    }, { cls: 'back-button' }),
     el(
       'div',
       { className: 'detail-head' },
@@ -337,9 +368,9 @@ function tenantDetail(t) {
     el(
       'div',
       { className: 'group' },
-      el('p', { className: 'sub', textContent: 'URL（ダッシュボードは配信者だけに渡す。OBS の URL は配信者のダッシュボードに出ます）' }),
+      el('p', { className: 'sub', textContent: '配信者に渡す URL' }),
       copyField('ダッシュボード', t.urls.dashboard),
-      copyField('モニター', t.urls.monitor),
+      el('div', { className: 'monitor-url' }, copyField('モニター', t.urls.monitor)),
     ),
     el('p', { className: 'sub hint', textContent: 'ON / OFF はこの配信者だけに付きます。長さを選んでからスイッチを押すと、その時間が過ぎたら初めの状態に戻ります。↺ で全員の設定か初めの状態に戻します。' }),
     ...accessGroups((k) => accessRow(k, t.access[k], setter(t.id, k), { note: t.widgets.includes(k) ? '選んでいる' : '' })),
@@ -358,11 +389,6 @@ function tenantDetail(t) {
           selected = null;
           act(() => api(`/tenants/${t.id}`, undefined, 'DELETE'), '削除しました')();
         }, { iconName: 'trash-2' }),
-        button('閉じる', () => {
-          selected = null;
-          renderRows();
-          renderDetail();
-        }),
       ),
     ),
   ];
@@ -507,11 +533,9 @@ function globalDetail() {
     el(
       'div',
       { className: 'detail-head' },
-      el('h2', { textContent: '全員まとめて' }),
+      el('h2', { textContent: '全員の ON / OFF' }),
       el('p', { className: 'sub', textContent: 'ここで決めた ON / OFF は全員に付きます（配信者ごとに決めた設定のほうが先）。配信者を選ぶと、その人の設定が開きます。' }),
     ),
-    signKeyGroup(),
-    aiGroup(),
     ...accessGroups(
       (k) => accessRow(k, data.global[k], setter('global', k), { where: 'global' }),
       accessRow('premium', null, setter('global', 'premium')),
@@ -527,9 +551,34 @@ function globalDetail() {
   ];
 }
 
-function renderDetail() {
+function singlePage(title, body) {
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: title })), body];
+}
+
+function renderShell() {
+  const tenants = page === 'tenants';
+  $('tenantListPanel').hidden = !tenants;
+  $('kpis').hidden = !tenants;
+  $('detail').classList.toggle('page-detail', !tenants || Boolean(selected));
+  document.querySelectorAll('.admin-side .side-item[data-page]').forEach((b) => b.setAttribute('aria-current', String(b.dataset.page === page)));
+}
+
+function renderDetail(force = false) {
   // 名前などを打っている最中は作り直さない
-  if (detailBody.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox]), textarea, select')) return;
+  if (!force && detailBody.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox]), textarea, select')) return;
+  renderShell();
+  if (page === 'global') {
+    detailBody.replaceChildren(...globalDetail());
+    return;
+  }
+  if (page === 'ai') {
+    detailBody.replaceChildren(...singlePage('AI にたのむ の設定', aiGroup()));
+    return;
+  }
+  if (page === 'sign') {
+    detailBody.replaceChildren(...singlePage('TikTok の接続キー', signKeyGroup()));
+    return;
+  }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));
   const t = data.tenants.find((x) => x.id === selected);
   if (ids.length >= 2) detailBody.replaceChildren(...bulkDetail(ids));
@@ -538,6 +587,7 @@ function renderDetail() {
     selected = null;
     detailBody.replaceChildren(...globalDetail());
   }
+  renderShell();
 }
 
 // --- 読み込み ---
@@ -555,6 +605,7 @@ async function load() {
   renderKpis();
   renderFilters();
   renderRows();
+  renderShell();
   renderDetail();
 }
 

@@ -255,13 +255,10 @@ const canUse = (section) => me.mode !== 'tenant' || ((me.widgets ?? []).includes
 function renderMonitorIdentity() {
   const name = me.mode === 'tenant' ? (me.name || me.tiktokId || '配信者') : (me.tiktokId || '配信者');
   $('brandTitle').textContent = `${name} のモニター`;
-  $('monitorTitle').textContent = `${name} のモニター`;
   $('monitorUsername').value ||= me.tiktokId || '';
 }
 function renderMonitorConnection(status) {
   const active = ['live', 'connecting', 'demo'].includes(status.mode);
-  $('monitorLiveStatus').dataset.mode = status.mode;
-  $('monitorLiveStatus').querySelector('span:last-child').textContent = status.mode === 'live' && status.username ? `LIVE · @${status.username}` : statusText(status);
   $('monitorUsername').closest('label').hidden = active;
   $('monitorDisconnectBtn').hidden = !active;
   $('monitorConnectBtn').hidden = active;
@@ -447,7 +444,6 @@ function renderStatus(status) {
   if (status.mode === 'live' && status.username) {
     const name = me.mode === 'tenant' ? (me.name || status.username) : status.username;
     $('brandTitle').textContent = `${name} のモニター`;
-    $('monitorTitle').textContent = `${name} のモニター`;
   }
 }
 

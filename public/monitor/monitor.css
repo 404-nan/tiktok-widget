@@ -16,6 +16,7 @@
 .monitor-connect-form .input-wrap { flex: 1 1 220px; }
 .monitor-connect-form input { width: 100%; }
 .monitor-connect-form .message { flex: 1 1 100%; margin: 0; color: var(--attention); }
+.monitor-connect-form .message:empty { display: none; }
 .feed-panel { grid-area: feed; }
 .side { grid-area: side; display: grid; gap: 16px; min-width: 0; }
 
