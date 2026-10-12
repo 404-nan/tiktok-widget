@@ -10,6 +10,9 @@ async function giftList() {
 const sortGifts = (gifts) => [...new Map(gifts.filter((g) => g?.name).map((g) => [g.name, g])).values()]
   .sort((a, b) => Number(Boolean(b.seen)) - Number(Boolean(a.seen)) || (a.diamonds ?? 0) - (b.diamonds ?? 0) || a.name.localeCompare(b.name));
 
+// 検索用にそろえる: 小文字・全角英数を半角・カタカナをひらがな（「ばら」でも「バラ」でも「rose」でも当たる）
+export const norm = (v) => String(v ?? '').normalize('NFKC').toLocaleLowerCase().replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+
 export function giftPicker({ value = [], gifts = [], onChange }) {
   const root = document.createElement('div');
   root.className = 'gift-picker';
@@ -33,7 +36,7 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
   const search = document.createElement('input');
   search.type = 'search';
   search.className = 'gift-picker-search';
-  search.placeholder = 'ギフト名で絞り込む';
+  search.placeholder = 'ギフト名で探す（日本語・英語）';
   search.setAttribute('aria-label', 'ギフト名で絞り込む');
   const list = document.createElement('div');
   list.className = 'gift-picker-list';
@@ -69,9 +72,9 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
     notify();
   };
   const drawList = () => {
-    const query = search.value.trim().toLocaleLowerCase();
+    const query = norm(search.value.trim());
     list.replaceChildren();
-    const filtered = all.filter((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => v.toLocaleLowerCase().includes(query)));
+    const filtered = all.filter((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => norm(v).includes(query)));
     const seen = filtered.filter((g) => g.seen);
     const normal = filtered.filter((g) => !g.seen);
     const group = (title, rows) => {
@@ -89,7 +92,7 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
     };
     group('この配信で届いたギフト', seen);
     group('ギフト一覧', normal);
-    if (query && !all.some((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => v.toLocaleLowerCase() === query))) {
+    if (query && !all.some((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => norm(v) === query))) {
       const custom = document.createElement('button');
       custom.type = 'button';
       custom.className = 'gift-picker-custom pressable';

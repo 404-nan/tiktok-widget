@@ -814,7 +814,7 @@ export function createEditor({ api, setMessage }) {
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
-    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'photo' || key === 'image' ? 'wide' : 'inline');
+    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'gifts' || key === 'photo' || key === 'image' ? 'wide' : 'inline');
     return el;
   }
 

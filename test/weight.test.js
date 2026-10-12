@@ -20,3 +20,11 @@ test('当たりやすさは 0 以下や空では保存しない。小数は手�
   assert.equal(parseWeight('-1'), null);
   assert.equal(parseWeight('abc'), null);
 });
+
+test('ギフトの検索は、ひらがな・カタカナ・英語の大文字小文字・数字の ID でも当たる', async () => {
+  const { norm } = await import('../public/dashboard/gift-picker.js');
+  assert.equal(norm('バラ'), norm('ばら'));
+  assert.equal(norm('Rose'), 'rose');
+  assert.equal(norm('ＲＯＳＥ'), 'rose');
+  assert.equal(norm(5655), '5655');
+});
