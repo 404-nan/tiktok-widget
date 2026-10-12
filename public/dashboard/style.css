@@ -955,3 +955,14 @@ body:not(.ai-on) #aiView { display: none; }
 
 /* ギフトの一覧は、下の文字が透けないように塗りつぶす */
 .gift-picker-panel { background: var(--page); box-shadow: 0 12px 40px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--stroke-primary); }
+
+/* ボタン幅をそろえる: ためす・型のボタンは同じ幅で並べる */
+.preview-col > .row.wrap,
+.preset-chips { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.preview-col > .row.wrap > .chip,
+.preset-chips > .preset { width: 100%; justify-content: center; text-align: center; }
+@media (max-width: 520px) {
+  .preview-col > .row.wrap, .preset-chips { grid-template-columns: 1fr 1fr; }
+}
+.preview-col > .row.wrap > :not(button) { grid-column: 1 / -1; }
+#actions::before { grid-column: 1 / -1; }
