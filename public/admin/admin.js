@@ -396,6 +396,35 @@ function bulkDetail(ids) {
   ];
 }
 
+// --- 右: TikTok につなぐための API キー（全員の接続で共通） ---
+
+function signKeyGroup() {
+  const st = data.signKey ?? { set: false };
+  const from = st.source === 'env' ? 'サーバーの環境変数' : 'ここで入れたもの';
+  const state = st.set ? `入っています（${from}${st.tail ? `・末尾 ${st.tail}` : ''}）` : '入っていません';
+  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'Euler Stream の API キー' });
+  input.setAttribute('aria-label', 'TikTok につなぐための API キー');
+  const save = () => {
+    const key = input.value.trim();
+    if (!key) return message('API キーを入れてください', true);
+    input.value = '';
+    act(() => api('/sign-key', { key }, 'PUT'), 'API キーを保存しました。次に接続するときから使います')();
+  };
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && save());
+  const remove = button('消す', () => {
+    if (!confirm('ここで入れた API キーを消しますか？')) return;
+    act(() => api('/sign-key', { key: '' }, 'PUT'), 'API キーを消しました')();
+  });
+  return el(
+    'div',
+    { className: 'group' },
+    el('p', { className: 'sub', textContent: 'TikTok につなぐための API キー（署名サーバー Euler Stream）' }),
+    el('p', { className: `sub hint${st.set ? ' key-on' : ''}`, textContent: `${state}。全員の接続で共通に使います。つながりにくいときに入れてください。` }),
+    el('div', { className: 'url' }, input, button('保存', save, { iconName: 'key-round' })),
+    st.source === 'admin' ? el('div', { className: 'danger' }, remove) : null,
+  );
+}
+
 // --- 右: 全員まとめて（何も選んでいないとき） ---
 
 function globalDetail() {
@@ -406,6 +435,7 @@ function globalDetail() {
       el('h2', { textContent: '全員まとめて' }),
       el('p', { className: 'sub', textContent: 'ここで決めた ON / OFF は全員に付きます（配信者ごとに決めた設定のほうが先）。配信者を選ぶと、その人の設定が開きます。' }),
     ),
+    signKeyGroup(),
     ...accessGroups(
       (k) => accessRow(k, data.global[k], setter('global', k), { where: 'global' }),
       accessRow('premium', null, setter('global', 'premium')),

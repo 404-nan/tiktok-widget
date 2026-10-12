@@ -81,6 +81,7 @@
 .access .reset { width: 30px; min-height: 30px; padding: 0; justify-content: center; font-size: 15px; }
 .access .reset:disabled { opacity: .3; pointer-events: none; }
 .detail .sub.hint { color: var(--text-tertiary); line-height: 1.6; }
+.detail .sub.hint.key-on { color: var(--success); }
 
 .danger { display: flex; gap: 8px; flex-wrap: wrap; }
 

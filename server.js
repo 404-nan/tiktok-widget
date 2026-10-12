@@ -10,6 +10,7 @@ import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
 import { createVault } from './src/vault.js';
+import { createSignKey } from './src/signkey.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -29,6 +30,9 @@ const local = HOSTED
 
 // --- 契約している配信者（data/tenants.json） ---
 const tenants = new Tenants();
+
+// TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
+const signKey = createSignKey({ dir: DATA_DIR });
 
 // 管理画面の合言葉。TW_ADMIN_TOKEN がなければ作って data/admin-token.txt に残す
 const ADMIN_TOKEN_FILE = path.join(DATA_DIR, 'admin-token.txt');
@@ -86,6 +90,7 @@ admin.get('/tenants', (req, res) => {
     tenants: tenants.list().map((t) => tenantView(req, t)),
     global: tenants.globalState(),
     features: FEATURES,
+    signKey: signKey.state(),
   });
 });
 admin.post('/tenants', (req, res) => {
@@ -118,6 +123,14 @@ admin.put('/access', (req, res) => {
   try {
     tenants.setAccess(target, feature, on, hours);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+// TikTok につなぐための API キー: { key: 文字 }（空なら消す）。次に接続するときから使う
+admin.put('/sign-key', (req, res) => {
+  try {
+    res.json({ ok: true, signKey: signKey.set(req.body?.key) });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
