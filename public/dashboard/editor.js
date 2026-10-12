@@ -700,6 +700,11 @@ export function createEditor({ api, setMessage }) {
     renderSide();
     // かんたん: まとまりごとに、型とよく使う項目だけ。細かいものは「くわしく」へ
     const easy = simple() ? SIMPLE[tab] : null;
+    // 今の設定では効かない項目は、かんたん表示では出さない（値は消さずに残す）
+    const unusable = (key) =>
+      ['posX', 'posY', 'posScale'].includes(key) || // 位置と大きさは「1つにまとめる」で動かす
+      (key === 'volume' && values.sound === false) ||
+      (key === 'maxCoins' && !Number(values.minCoins));
     if (easy) {
       if (easy.note && (section !== 'minecraft' || isTenant())) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
       for (const g of easy.groups) {
@@ -708,7 +713,7 @@ export function createEditor({ api, setMessage }) {
       }
       // まとまりに入っていない項目は、ここに畳んでおく（押したときだけ開く）
       const shown = new Set(easy.groups.flatMap((g) => g.fields));
-      const others = Object.keys(def.fields).filter((k) => !shown.has(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
+      const others = Object.keys(def.fields).filter((k) => !shown.has(k) && !unusable(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
       if (others.length || streamDeckUrls().length) {
         const more = document.createElement('details');
         more.className = 'more others';
