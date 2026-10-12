@@ -82,6 +82,7 @@ export class Hub extends EventEmitter {
     // - つなぐ前に試した分は数えるが、つながったときに 0 に戻す（setStatus）
     if (e.test && this.status.mode === 'live') {
       this.broadcast({ type: 'event', event: e, state: this.state });
+      this.emit('testEvent', e); // ルーレットだけは画面で回す（結果は記録・Minecraft に渡さない）
       return;
     }
     if (e.test) this.testDirty = true;

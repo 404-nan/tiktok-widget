@@ -28,3 +28,16 @@ test('ギフトの検索は、ひらがな・カタカナ・英語の大文字�
   assert.equal(norm('ＲＯＳＥ'), 'rose');
   assert.equal(norm(5655), '5655');
 });
+
+test('配信中のテストギフトでもルーレットは回るが、結果は記録へ渡さない', async () => {
+  const { EventEmitter } = await import('node:events');
+  const { RouletteEngine } = await import('../src/roulette.js');
+  const hub = new EventEmitter(); const sent = []; hub.broadcast = (m) => sent.push(m);
+  const eng = new RouletteEngine(hub);
+  eng.setConfig({ roulettes: { r: { trigger: 'gift', gifts: [], duration: 0, hold: 0, items: [{ label: 'A', weight: 1 }] } } });
+  let emitted = 0; hub.on('roulette', () => emitted++);
+  eng.spin('r', null, { dry: true });
+  assert.ok(sent.some((m) => m.type === 'roulette'));
+  await new Promise((r) => setTimeout(r, 700));
+  assert.equal(emitted, 0); eng.clear?.();
+});

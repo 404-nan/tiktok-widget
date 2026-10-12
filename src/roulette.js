@@ -51,6 +51,7 @@ export class RouletteEngine {
     this.seq = 0;
     this.timers = new Set();
     hub.on('event', (e) => this.onEvent(e));
+    hub.on('testEvent', (e) => this.onEvent(e, { dry: true }));
     hub.on('reset', () => this.clear());
   }
 
@@ -59,15 +60,15 @@ export class RouletteEngine {
     if (!this.roulettes.some((r) => r.id === this.active)) this.active = this.roulettes[0]?.id ?? null;
   }
 
-  onEvent(e) {
+  onEvent(e, opts = {}) {
     const r = rouletteFor(this.roulettes, e);
     if (!r) return;
     const times = r.perCount && e.kind === 'gift' ? Math.min(20, e.gift.count) : 1;
-    for (let i = 0; i < times; i++) this.spin(r, e);
+    for (let i = 0; i < times; i++) this.spin(r, e, opts);
   }
 
   /** 回す。id を省くと表示中のルーレット */
-  spin(target, trigger = null) {
+  spin(target, trigger = null, { dry = false } = {}) {
     const r = typeof target === 'object' && target ? target : this.roulettes.find((x) => x.id === target) ?? this.roulettes.find((x) => x.id === this.active) ?? this.roulettes[0];
     if (!r) return null;
     const winner = pickWeighted(r.items);
@@ -87,7 +88,7 @@ export class RouletteEngine {
     const timer = setTimeout(() => {
       this.timers.delete(timer);
       this.hub.broadcast({ type: 'rouletteResult', spin });
-      this.hub.emit('roulette', { roulette: r, item: winner, trigger, spin });
+      if (!dry) this.hub.emit('roulette', { roulette: r, item: winner, trigger, spin });
     }, reveal - now);
     this.timers.add(timer);
     return spin;
