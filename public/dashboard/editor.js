@@ -416,7 +416,7 @@ export function createEditor({ api, setMessage }) {
     const menu = document.createElement('div');
     menu.className = 'side-menu';
     menu.append(
-      item('monitor-up', '配信ソフトに入れる', view === 'obs', goTo('obs'), 'side-stage'),
+      item('monitor-up', 'OBSに入れるURL', view === 'obs', goTo('obs'), 'side-stage'),
       item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai'),
       label('配信画面に出すもの'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
@@ -530,8 +530,8 @@ export function createEditor({ api, setMessage }) {
       row.append(icon(INFO[w.section].icon), main, copy, setting);
       return row;
     });
-    box.replaceChildren(viewHead('配信ソフトに入れる', '使うものを1つずつ、OBS / TikTok LIVE Studio の「ブラウザ」ソースとして入れます'), sample);
-    if (rows.length) box.append(listGroup('URL（1つずつ、別のソースとして入れます）', rows));
+    box.replaceChildren(viewHead('OBSに入れるURL', 'コピーしたURLを、OBS や TikTok LIVE Studio の「ブラウザ」ソースに貼ると配信画面に出ます'), sample);
+    if (rows.length) box.append(listGroup('コピーして貼るURL（1つにつき1ソース）', rows));
     else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを選ぶ」から選んでください。' }));
     const all = obsList().find((w) => w.section === 'all');
     if (all) { const link = Object.assign(document.createElement('button'), { className: 'text-btn pressable', type: 'button', textContent: '1つにまとめて入れたいときは「1つにまとめる」へ' }); link.onclick = goTo('stage'); box.append(link); }
