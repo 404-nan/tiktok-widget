@@ -16,6 +16,7 @@ import { History } from './src/history.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './src/superstream.js';
 import { RushEngine } from './src/rush.js';
 import { WinsEngine } from './src/wins.js';
+import * as presets from './src/presets.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3939;
@@ -86,6 +87,22 @@ app.all('/api/wins/:id/:action', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+// --- 配信のひな形（presets/）。切り替えると config.yaml が書き換わり、監視で全画面に反映される ---
+
+app.get('/api/presets', (_req, res) => res.json({ current: presets.currentPreset(), presets: presets.listPresets().map(presets.summary) }));
+app.get('/api/presets/:id', (req, res) => {
+  const p = presets.readPreset(req.params.id);
+  if (!p) return res.status(404).json({ error: 'ひな形がありません' });
+  res.json(presets.summary(p));
+});
+app.post('/api/presets/:id/apply', (req, res) => {
+  const goal = req.body?.goal ?? req.query.goal;
+  const result = presets.applyPreset(req.params.id, { goal: goal != null && goal !== '' ? Number(goal) : undefined });
+  applyConfigResult(result);
+  if (result.ok) hub.broadcast({ type: 'preset', current: presets.currentPreset() });
+  res.status(result.ok ? 200 : 422).json({ ok: result.ok, errors: result.errors, warnings: result.warnings, backup: result.backup, current: presets.currentPreset() });
+});
+
 // SuperStream のプロフィールに設定済みの演出（読むだけ）
 app.get('/api/superstream', (_req, res) => {
   const mc = hub.config?.minecraft ?? {};

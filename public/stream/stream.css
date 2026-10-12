@@ -1,0 +1,108 @@
+/* 配信の準備: ひな形を選ぶ・目標を決める・OBS に入れる URL。配信中はスマホで WIN のボタンを押す */
+
+.stream {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  grid-template-areas: "now now" "main side";
+  gap: 16px;
+  max-width: 1280px;
+  margin: 16px auto 48px;
+  padding: 0 16px;
+  align-items: start;
+}
+.col-main { grid-area: main; display: grid; gap: 16px; min-width: 0; }
+.col-side { grid-area: side; display: grid; gap: 16px; min-width: 0; }
+
+/* --- 今の配信 --- */
+.now { grid-area: now; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, auto); }
+.now > * { padding: 20px 24px; min-width: 0; }
+.now > * + * { box-shadow: inset 1px 0 0 var(--stroke-secondary); }
+.now-main { display: grid; gap: 6px; align-content: center; }
+.now-count { display: flex; align-items: baseline; gap: 10px; line-height: 1; }
+.now-value { font-family: "Barlow Condensed", sans-serif; font-size: 88px; font-weight: 600; font-variant-numeric: tabular-nums; transition: color var(--press); }
+.now-value.minus { color: var(--attention); }
+.now-goal { font-family: "Barlow Condensed", sans-serif; font-size: 32px; font-weight: 500; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.now-main .hint { font-size: 13px; color: var(--text-secondary); }
+
+.now-side { display: grid; gap: 16px; align-content: center; }
+.win-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.win-buttons .chip { min-height: 48px; padding: 0 18px; font-size: 15px; }
+.win-buttons .chip.win-btn { background: var(--attention); color: #fff; box-shadow: none; font-weight: 600; }
+.win-buttons .chip.sub { color: var(--text-secondary); }
+
+.goal-edit { display: grid; gap: 6px; }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper input { width: 88px; text-align: center; font-family: "Barlow Condensed", sans-serif; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; min-height: 44px; }
+.stepper input::-webkit-inner-spin-button { appearance: none; }
+.stepper .icon-btn { width: 44px; height: 44px; background: var(--fill-tertiary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); color: var(--text-primary); }
+
+/* --- ひな形の一覧 --- */
+.presets { display: grid; margin: 4px -20px 0; }
+.preset {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  align-items: center;
+  padding: 14px 20px;
+}
+.preset + .preset { box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+.preset .mark { width: 8px; height: 8px; border-radius: var(--r-pill); background: transparent; box-shadow: inset 0 0 0 1px var(--stroke-primary); }
+.preset.current .mark { background: var(--attention); box-shadow: none; }
+.preset .name { font-size: 15px; font-weight: 600; }
+.preset .sum { grid-column: 2; font-size: 13px; color: var(--text-secondary); }
+.preset .game { grid-column: 2; font-size: 12px; color: var(--text-tertiary); }
+.preset .btn { grid-row: 1 / span 3; grid-column: 3; }
+.preset.current .btn { color: var(--text-secondary); }
+
+/* --- ギフトの早見表 --- */
+.gift-table { width: calc(100% + 40px); margin: 4px -20px -12px; border-collapse: collapse; font-size: 14px; }
+.gift-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--text-secondary); padding: 8px 20px; }
+.gift-table td { padding: 0 20px; height: 44px; box-shadow: inset 0 1px 0 var(--stroke-secondary); vertical-align: middle; }
+.gift-table .num { text-align: right; font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gift-table th.num { font-family: inherit; font-size: 12px; font-weight: 500; }
+.gift-table .gift { font-weight: 600; white-space: nowrap; }
+.gift-table .coins { display: block; font-size: 12px; font-weight: 400; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.gift-table .loss { color: var(--attention); }
+.gift-table .gain { color: var(--success); }
+.gift-table .what { color: var(--text-secondary); }
+.gift-table .tag { color: var(--text-primary); margin-right: 8px; }
+.gift-table .empty { color: var(--text-tertiary); }
+@media (hover: hover) { .gift-table tbody tr:hover td { background: var(--hover-wash); } }
+
+/* --- 配信画面に出す --- */
+.stage-preview {
+  position: relative;
+  width: min(100%, 240px);
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--stroke-secondary);
+  background: #2a2a2e;
+}
+.stage-preview iframe { color-scheme: normal; position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; border: 0; transform-origin: 0 0; pointer-events: none; }
+.widget-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.widget-links li { display: grid; gap: 6px; }
+.widget-links .w-title { display: flex; gap: 8px; align-items: baseline; font-size: 13px; font-weight: 600; }
+.widget-links .w-size { font-size: 12px; font-weight: 400; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* --- 配信の前に --- */
+.setup { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
+.setup li + li { box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+.setup label { display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start; padding: 10px 0; font-size: 14px; line-height: 1.45; cursor: pointer; }
+.setup input { margin-top: 3px; }
+.setup input:checked + span { color: var(--text-tertiary); text-decoration: line-through; }
+.mc-line { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.mc-line .dot { width: 7px; height: 7px; border-radius: var(--r-pill); background: var(--text-tertiary); }
+.mc-line[data-state=ok] .dot { background: var(--success); }
+.mc-line[data-state=error] .dot { background: var(--error); }
+
+@media (max-width: 1024px) {
+  .stream { grid-template-columns: 1fr; grid-template-areas: "now" "main" "side"; }
+}
+@media (max-width: 600px) {
+  .now { grid-template-columns: 1fr; }
+  .now > * + * { box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+  .now-value { font-size: 72px; }
+  .preset { grid-template-columns: 10px minmax(0, 1fr); }
+  .preset .btn { grid-row: 4; grid-column: 2; justify-self: start; margin-top: 6px; }
+}

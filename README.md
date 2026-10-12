@@ -14,16 +14,18 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 目標バー `goal` | フォロー数などの目標までの進み具合。達成後に目標を自動で上げられる | 640 × 180 |
 | WIN数 `wins` | 妨害マイクラなどのゲームクリア回数。クリアしたらボタンや Stream Deck で +1、「このギフトで WIN -1」「このギフトで 0 に戻す」のようにギフトで増減（マイナスまで行く）。減ると板にひびが走り、ダメージの数字が飛んで、送った人のアイコン付きのハンコ。15 秒以内に続くと「連続妨害 ×N」でだんだん派手に、0 を割ると「マイナス突入」のサイレンと危険の縞、最低記録を更新すると「最低記録更新」、0 に戻ると「マイナス脱出!」。一度に大きく減ると 大妨害（-10〜）→ 超妨害（-100〜）→ 壊滅（-1000〜）と段階が上がり、数字がドゥルルルと減っていく。5 WIN ごとと目標達成は金で祝う。数は配信をまたいで残る | 横長 600 × 200 / 大きい数字 380 × 400 |
 | WIN数の全画面演出 `wins-fx` | WIN数で大きく減ったとき・連続妨害が途切れたとき・目標達成やマイナス脱出のときに、配信画面いっぱいに出す演出。大妨害は画面にガラスのひび、超妨害は全面のひび・サイレン・赤い警報、壊滅は暗転して止まってからガラスが割れて破片が落ちる。0 を割ると上下に「マイナス突入」の危険の帯。送った人の名前も大きく出す | 配信画面と同じ大きさ |
+| まとめ表示 `stage` | 配信のひな形（[presets/](presets/README.md)）に書いたウィジェットを1枚に重ねて出す。OBS にはこれ1つを入れればよい。ルーレットは回っている間だけ出す。ひな形を切り替えると自動で並べ直す | 配信画面と同じ大きさ |
 | ランキング `ranking` | この配信のトップギフター・いいねランキング。順位が入れ替わるとなめらかに動く | 420 × 416（5人） |
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
-管理用の画面は3つです。
+管理用の画面は4つです。
 
 | 画面 | URL | 内容 |
 | --- | --- | --- |
 | モニター | `/monitor/` | 配信中に手元（別画面・スマホ）で見る。コイン・視聴者などの数字、ライブのコメントとギフト、WIN 数のボタン（クリア +1 / -1 / 戻す / リセット）、RUSH の残り時間と突入・終了のボタン、ルーレットの待ちと結果、目標、トップギフター、Minecraft に送ったコマンド |
 | 統計 | `/history/` | 配信ごとの記録。1分ごとのコイン・視聴者・いいねのグラフ、前回との比較、トップギフター、ギフトの内訳、ルーレットの結果 |
+| 配信の準備 | `/stream/` | 配信の種類（ひな形）を選ぶ、目標の WIN 数を決める、WIN のボタン（クリア・ボーナス・戻す）、ギフトで起きることの一覧、OBS に入れる URL、配信の前にやること |
 | 設定 | `/dashboard/` | 接続、テスト送信、各ウィジェットと Minecraft 連携の設定、YAML の編集 |
 
 ## 使い方
@@ -95,6 +97,17 @@ roulettes:
 
 書ける項目の一覧は `npm run tw -- reference`（ダッシュボードのフォームにも説明が出ます）。
 
+## 配信のひな形（presets）
+
+「妨害マイクラ（エンドラ討伐）」のような配信ごとの設定を `presets/` にまとめてあり、配信の前に切り替えて使います。
+今あるのは 妨害マイクラの **エンドラ討伐**・**ダイヤ集め**・**アスレ**（Parkour Paradise 3）の3つです。
+
+- 配信の準備（`/stream/`）で「この配信にする」を押すか、`npm run tw -- preset apply bougai-endra 3`（最後の数は目標の WIN 数）
+- `wins`・`roulettes` は丸ごと、`rush`・`minecraft` は書いた項目だけ入れ替わります（RCON の接続設定は残る）。前の `config.yaml` は `data/backups/` に残ります
+- OBS には `/widgets/stage.html` を 1080 × 1920 で1つ入れるだけで、そのひな形のウィジェットがまとめて出ます
+
+くわしくは [presets/README.md](presets/README.md)（WIN の増え方と減り方、SuperStream について、アスレのマップ、ひな形の作り方）。
+
 ## Minecraft / SuperStream 連携
 
 Minecraft サーバーの RCON にコマンドを送れます（`config.yaml` の `minecraft`）。
@@ -145,6 +158,7 @@ Claude Desktop などは設定ファイルの `mcpServers` に追加します（
 | `set_config` / `merge_config` / `delete_config` / `replace_config` | 設定を変える（コメントは残る。エラーなら保存しない） |
 | `list_widget_urls` / `list_gifts` / `list_media` / `add_media_from_url` | URL・ギフト名・画像を調べる、画像を取り込む |
 | `test_event` / `spin_roulette` / `get_status` | 動きを確かめる（サーバー起動中） |
+| `presets` | 配信のひな形の一覧・切り替え・確認 |
 | `list_superstream_actions` / `minecraft_command` | SuperStream の設定済みの演出を見る、Minecraft にコマンドを送る |
 | `get_history` | 過去の配信の記録（「前回の配信を分析して」など） |
 
@@ -202,6 +216,7 @@ src/minecraft.js       Minecraft 連携（ルール・ルーレットの結果 �
 src/rcon.js            RCON クライアント
 src/superstream.js     SuperStream のプロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）
+src/presets.js         配信のひな形（presets/*.yaml）の一覧・切り替え（前の設定は data/backups/ に残す）
 mcp/server.js          MCP サーバー
 bin/tw.js              CLI
 src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は自動で再接続）
@@ -210,6 +225,8 @@ src/hub.js             集計（いいね・視聴者・コイン・トップギ
 src/demo.js            デモ・テスト用のイベント
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
 public/monitor/        配信中モニター
+public/stream/         配信の準備（ひな形を選ぶ・目標・WIN のボタン・OBS の URL）
+presets/               配信のひな形（妨害マイクラ: エンドラ討伐・ダイヤ集め・アスレ）
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト

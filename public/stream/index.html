@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>配信の準備</title>
+<link rel="stylesheet" href="/dashboard/style.css">
+<link rel="stylesheet" href="/monitor/monitor.css">
+<link rel="stylesheet" href="stream.css">
+</head>
+<body>
+
+<header class="topbar panel">
+  <div class="brand">
+    <div class="brand-title">配信の準備</div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">未接続</span></div>
+  </div>
+  <nav class="nav" id="nav" aria-label="画面"></nav>
+  <button class="icon-btn pressable" id="themeBtn" type="button" aria-label="テーマを切り替え"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button>
+</header>
+
+<main class="stream">
+  <!-- 今の配信: WIN 数・目標・ボタン（配信中にスマホで押せるよう大きく） -->
+  <section class="panel now" aria-label="今の配信">
+    <div class="now-main">
+      <div class="kpi-label" id="nowName">ひな形を選んでください</div>
+      <div class="now-count"><span class="now-value" id="winValue">0</span><span class="now-goal" id="winGoal"></span></div>
+      <p class="hint" id="nowClear"></p>
+    </div>
+    <div class="now-side">
+      <div class="win-buttons" id="winButtons"></div>
+      <div class="goal-edit">
+        <span class="field-label">目標の WIN 数</span>
+        <div class="stepper">
+          <button type="button" class="icon-btn pressable" id="goalDown" aria-label="目標を 1 減らす"><span data-icon="minus"></span></button>
+          <input id="goalInput" type="number" min="0" step="1" inputmode="numeric" aria-label="目標の WIN 数">
+          <button type="button" class="icon-btn pressable" id="goalUp" aria-label="目標を 1 増やす"><span data-icon="plus"></span></button>
+        </div>
+        <p class="message" id="goalMsg"></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="col-main">
+    <!-- 配信の種類（ひな形）を選ぶ -->
+    <section class="panel section">
+      <div class="section-head">
+        <h2>配信の種類</h2>
+        <span class="hint">選ぶと WIN・ルーレット・Minecraft の設定が入れ替わります（前の設定は残ります）</span>
+      </div>
+      <div class="presets" id="presets"></div>
+      <p class="message" id="presetMsg"></p>
+    </section>
+
+    <!-- ギフトで起きること -->
+    <section class="panel section solid">
+      <div class="section-head"><h2>ギフトで起きること</h2></div>
+      <table class="gift-table">
+        <thead><tr><th>ギフト</th><th class="num">WIN</th><th>Minecraft で起きること</th></tr></thead>
+        <tbody id="giftRows"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="col-side">
+    <!-- 配信画面に出す -->
+    <section class="panel section">
+      <div class="section-head"><h2>配信画面に出す</h2></div>
+      <div class="stack">
+        <div class="field">
+          <span class="field-label">まとめて1枚（OBS のブラウザソースに 1080 × 1920 で入れる）</span>
+          <div class="url-row">
+            <input id="stageUrl" readonly>
+            <button type="button" class="btn primary pressable" data-copy="stageUrl"><span data-icon="copy"></span>コピー</button>
+          </div>
+        </div>
+        <div class="stage-preview" id="stagePreview" aria-label="まとめ表示の見本"></div>
+        <details class="more">
+          <summary>1つずつ入れるとき</summary>
+          <ol class="widget-links" id="widgetLinks"></ol>
+        </details>
+      </div>
+    </section>
+
+    <!-- 配信の前に -->
+    <section class="panel section">
+      <div class="section-head">
+        <h2>配信の前に</h2>
+        <span class="mc-line" id="mcLine"><span class="dot"></span><span id="mcText">Minecraft 連携</span></span>
+      </div>
+      <ul class="setup" id="setup"></ul>
+    </section>
+  </div>
+</main>
+
+<script type="module" src="stream.js"></script>
+</body>
+</html>

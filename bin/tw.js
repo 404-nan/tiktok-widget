@@ -25,6 +25,12 @@ const HELP = `使い方: tw <コマンド>
   media                     media/ の画像一覧
   media add <url> [name]    画像を media/ に取り込む
 
+配信のひな形（presets/）
+  preset                    ひな形の一覧と、今使っているもの
+  preset apply <名前> [目標] ひな形に切り替える（前の設定は data/backups/ に残る）
+                              例: tw preset apply bougai-endra 3
+  preset check [名前]       ひな形に間違いがないか調べる
+
 Minecraft / SuperStream
   superstream               SuperStream のプロフィールに設定済みの演出
   mc <command>              Minecraft にコマンドを送る（例: tw mc "ss status"）
@@ -120,6 +126,28 @@ try {
       else print(`プロフィール: ${r.profile}（${r.file}）`);
       for (const g of r.gifts) print(`  ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join(', ')}`);
       print(`組み込みの演出: ${r.actions.join(', ')}`);
+      break;
+    }
+    case 'preset':
+    case 'presets': {
+      const [action, id, goal] = args;
+      if (action === 'apply') {
+        if (!id) throw new Error('ひな形の名前を指定してください（tw preset で一覧）');
+        const r = admin.applyPreset(id, { goal: goal != null ? Number(goal) : undefined });
+        report(r);
+        if (r.ok) print(`ひな形「${id}」に切り替えました。前の設定: ${r.backup}`);
+      } else if (action === 'check') {
+        for (const r of admin.checkPresets(id)) {
+          print(`${r.id}（${r.name}）: ${r.errors.length ? 'エラーあり' : r.warnings.length ? '注意あり' : '問題ありません'}`);
+          for (const e of r.errors) print(`  エラー: ${e}`);
+          for (const w of r.warnings) print(`  注意: ${w}`);
+          if (r.errors.length) process.exitCode = 1;
+        }
+      } else {
+        const { current, presets } = admin.presetList();
+        for (const p of presets) print(`${p.id === current?.id ? '● ' : '  '}${p.id}\t${p.name}\n    ${p.summary ?? ''}`);
+        if (!presets.length) print('presets/ にひな形がありません');
+      }
       break;
     }
     case 'mc':

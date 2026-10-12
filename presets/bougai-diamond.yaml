@@ -1,0 +1,128 @@
+# 妨害マイクラ（ダイヤ集め）
+#
+# サバイバルの世界を1からはじめて、ダイヤを決めた数（初めは 10 個）集めたら 1 WIN。
+# 妨害はダイヤ集めのじゃまに寄せている（採掘が遅くなる・ダイヤが消える・夜になる）。
+#
+# 切り替え: 配信ページ（/stream/）で選ぶか、npm run tw -- preset apply bougai-diamond
+# config.yaml の wins・roulettes は丸ごと入れ替わり、rush と minecraft は下に書いた項目だけ入れ替わる。
+# 切り替える前の config.yaml は data/backups/ に残る。
+#
+# Minecraft のコマンドの対象は @a（サーバーにいる全員）。配信者のほかに人がいるときは、
+# @a を配信者の名前に置き換える。
+
+name: 妨害マイクラ（ダイヤ集め）
+summary: サバイバルでダイヤを 10 個集めたら 1 WIN。ギフトでダイヤが消える
+game: サバイバル（ふつうの世界を1から）
+clear: ダイヤを 10 個持ったら +1（持ち物のダイヤは消してから次へ）。15 分以内なら「早クリア」でさらに +1
+goal: 5 # 目標の WIN 数の初めの値（配信ページで配信ごとに変えられる）
+
+buttons:
+  - {label: クリア, action: win}
+  - {label: 早クリア ボーナス, value: 1}
+
+setup:
+  - server.properties で enable-rcon=true・rcon.port・rcon.password を決めて、サーバーを起動し直す
+  - 設定画面の「Minecraft 連携」で接続を確かめ、minecraft.enabled を true にする
+  - SuperStream のプロフィールは /ss profile start しない（このひな形がギフトを受けて演出を送るので、両方動くと二重になる）
+  - 難易度はノーマル以上（/difficulty normal）
+  - 1 WIN ごとに持ち物のダイヤを消す（/clear @a diamond）と、数え直しが分かりやすい
+
+layout:
+  - {widget: wins, x: 240, y: 60, w: 600, h: 200}
+  - {widget: roulette, query: ids=bougai, show: spin, hold: 3, x: 240, y: 1180, w: 600, h: 680}
+  - {widget: cutin, x: 0, y: 0, w: 1080, h: 1920}
+  - {widget: rush, x: 0, y: 0, w: 1080, h: 1920}
+  - {widget: wins-fx, x: 0, y: 0, w: 1080, h: 1920}
+
+config:
+  # WIN 数。ギフトで減るのは -1・-10・-100 の3段階（-100 より大きくは減らさない）
+  wins:
+    default:
+      title: WIN
+      goal: 5
+      negative: true
+      lossPreset: custom # -10 で大妨害、-50 で超妨害、-100 で壊滅
+      bigLoss: 10
+      hugeLoss: 50
+      ruinLoss: 100
+      gainPreset: custom # +5 で大、+10 で超、+30 で最大
+      bigGain: 5
+      hugeGain: 10
+      topGain: 30
+      milestone: 0
+      rules:
+        - {gifts: [Universe, Lion], add: -100, perCount: false, text: 壊滅}
+        - {gifts: [Galaxy], add: -10, text: 大妨害}
+        - {gifts: [Doughnut], add: -1, text: 妨害成功}
+        - {gifts: [Money Gun], add: 5, perCount: false, text: 救済}
+        - {gifts: [Hand Hearts], add: 1, text: 救済}
+
+  roulettes:
+    bougai:
+      name: 妨害ルーレット
+      style: wheel
+      gifts: [Corgi]
+      duration: 5
+      hold: 3
+      items:
+        - {label: ダイヤ -1, color: accent, weight: 2, commands: ["clear @a diamond 1"]}
+        - {label: 落とし穴, weight: 2, commands: ["execute at @a run fill ~-1 ~-1 ~-1 ~1 ~-6 ~1 air"]}
+        - {label: 夜, commands: ["time set midnight"]}
+        - {label: クリーパー ×3, commands: ["execute at @a run summon creeper ~3 ~ ~3", "execute at @a run summon creeper ~-3 ~ ~3", "execute at @a run summon creeper ~3 ~ ~-3"]}
+        - {label: 採掘が遅い, weight: 2, commands: ["effect give @a mining_fatigue 30 2"]}
+        - {label: 松明, color: gold, commands: ["give @a torch 32"]}
+        - {label: ハズレ, color: ink-2, weight: 2}
+        - {label: RUSH, color: gold, weight: 0.5, rush: true}
+
+  rush:
+    enabled: true
+    gifts: [Lion]
+    enterCoins: 20000
+    duration: 60
+    extendMinCoins: 100
+    extendSeconds: 5
+    maxSeconds: 300
+
+  # Minecraft で起きること（合ったルールは全部動く）。RCON の接続設定は変えない
+  minecraft:
+    forwardGifts: false
+    rules:
+      - name: フォローで雷
+        events: [follow]
+        commands: ["execute at @a run summon lightning_bolt ~6 ~ ~6"]
+      - name: Rose でゾンビ（送った人の名前つき）
+        gifts: [Rose]
+        perCount: true
+        commands: ["execute at @a run summon zombie ~3 ~ ~3 {CustomName:\"{user}\",CustomNameVisible:1b}"]
+      - name: TikTok でシルバーフィッシュ
+        gifts: [TikTok]
+        perCount: true
+        commands: ["execute at @a run summon silverfish ~2 ~ ~2"]
+      - name: GG で応援の文字
+        gifts: [GG]
+        commands: ["title @a actionbar {\"text\":\"{user} GG!\",\"color\":\"gold\"}"]
+      - name: Finger Heart で目つぶし
+        gifts: [Finger Heart]
+        commands: ["effect give @a blindness 4 0"]
+      - name: Perfume で採掘が遅くなる
+        gifts: [Perfume]
+        commands: ["effect give @a mining_fatigue 15 2"]
+      - name: Doughnut でクリーパー（WIN -1）
+        gifts: [Doughnut]
+        perCount: true
+        commands: ["execute at @a run summon creeper ~3 ~ ~3 {CustomName:\"{user}\",CustomNameVisible:1b}"]
+      - name: Hand Hearts で救済（WIN +1）
+        gifts: [Hand Hearts]
+        commands: ["effect give @a regeneration 10 1", "give @a torch 16", "title @a actionbar {\"text\":\"救済 {user}\",\"color\":\"gold\"}"]
+      - name: Money Gun で大救済（WIN +5）
+        gifts: [Money Gun]
+        commands: ["effect give @a haste 60 1", "effect give @a night_vision 120 0", "give @a golden_apple 2", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"救済\",\"color\":\"gold\"}"]
+      - name: Galaxy でダイヤ -3（WIN -10）
+        gifts: [Galaxy]
+        commands: ["clear @a diamond 3", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -10\",\"color\":\"red\"}"]
+      - name: Lion でウォーデン（WIN -100・RUSH 突入）
+        gifts: [Lion]
+        commands: ["execute at @a run summon warden ~8 ~ ~8", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"WIN -100\",\"color\":\"dark_red\"}"]
+      - name: Universe でダイヤとツルハシが全部消える（WIN -100）
+        gifts: [Universe]
+        commands: ["clear @a diamond", "clear @a #minecraft:pickaxes", "title @a subtitle {\"text\":\"{user}\"}", "title @a title {\"text\":\"壊滅\",\"color\":\"dark_red\"}"]

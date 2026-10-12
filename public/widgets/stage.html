@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>まとめ表示</title>
+<style>
+  /* 配信のひな形（presets/*.yaml の layout）に書いたウィジェットを、1枚にまとめて重ねる。
+     OBS には配信画面と同じ大きさ（1080 × 1920）のブラウザソースを1つ入れるだけでよい。
+     ?preset=名前 で決まったひな形、省くと今使っているひな形（切り替えるとこの画面も切り替わる） */
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  .stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 0 0; }
+  .stage iframe { position: absolute; border: 0; background: transparent; color-scheme: normal; }
+  /* show: spin のウィジェット（ルーレット）は、回っている間だけ下からワイプで出す */
+  .stage iframe.on-spin { clip-path: inset(100% 0 0 0); transition: clip-path .32s cubic-bezier(.2, .8, .2, 1); }
+  .stage iframe.on-spin.open { clip-path: inset(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+<script type="module">
+  import { connect } from './lib/overlay.js';
+
+  const W = 1080;
+  const H = 1920;
+  const qs = new URLSearchParams(location.search);
+  const pinned = qs.get('preset');
+  const stage = document.getElementById('stage');
+  let shown = null;
+  let closeAt = 0;
+  let closeTimer = null;
+
+  // 画面の大きさに合わせて 1080 × 1920 を縮める・広げる
+  const fit = () => {
+    const s = Math.min(innerWidth / W, innerHeight / H);
+    stage.style.transform = `scale(${s})`;
+  };
+  addEventListener('resize', fit);
+  fit();
+
+  // ひな形の layout から iframe を並べる。URL の theme / scale などはそれぞれのウィジェットにも渡す
+  function build(preset) {
+    shown = preset?.id ?? null;
+    const pass = new URLSearchParams(qs);
+    pass.delete('preset');
+    stage.replaceChildren(
+      ...(preset?.layout ?? []).map((l) => {
+        const f = document.createElement('iframe');
+        const q = new URLSearchParams(l.query ?? '');
+        for (const [k, v] of pass) if (!q.has(k)) q.set(k, v);
+        f.src = `/widgets/${l.widget}.html${q.size ? `?${q}` : ''}`;
+        f.title = l.widget;
+        f.allow = 'autoplay';
+        f.setAttribute('allowtransparency', 'true');
+        if (l.show === 'spin') {
+          f.classList.add('on-spin');
+          f.dataset.hold = String((Number(l.hold) || 4) * 1000);
+        }
+        Object.assign(f.style, { left: `${l.x}px`, top: `${l.y}px`, width: `${l.w}px`, height: `${l.h}px` });
+        return f;
+      }),
+    );
+  }
+
+  async function load(id) {
+    try {
+      if (!id) id = (await (await fetch('/api/presets')).json()).current?.id;
+      if (!id) return build(null);
+      if (id === shown) return;
+      const res = await fetch(`/api/presets/${encodeURIComponent(id)}`);
+      build(res.ok ? await res.json() : null);
+    } catch {
+      setTimeout(() => load(id), 3000);
+    }
+  }
+
+  // ルーレットが回り始めたら出し、当たりを見せ終わったら（revealAt + hold）しまう。続けて回れば延びる
+  function onSpin(spin) {
+    const frames = [...stage.querySelectorAll('iframe.on-spin')];
+    if (!frames.length) return;
+    const hold = Math.max(...frames.map((f) => Number(f.dataset.hold)));
+    closeAt = Math.max(closeAt, spin.revealAt + hold + 600);
+    for (const f of frames) f.classList.add('open');
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      for (const f of frames) f.classList.remove('open');
+      closeAt = 0;
+    }, Math.max(0, closeAt - Date.now()));
+  }
+
+  load(pinned);
+  connect({
+    // 配信ページでひな形を切り替えたら、決め打ちでなければ並べ直す
+    preset: (msg) => !pinned && load(msg.current?.id),
+    roulette: (msg) => onSpin(msg.spin),
+  });
+</script>
+</body>
+</html>

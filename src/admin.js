@@ -6,6 +6,7 @@ import path from 'node:path';
 import * as cfg from './config.js';
 import { DEMO_GIFTS } from './demo.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
+import * as presets from './presets.js';
 
 export const SERVER = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
 
@@ -167,4 +168,21 @@ export async function minecraftStatus() {
 /** 配信の履歴（一覧、または id を指定して1回分） */
 export async function history(id) {
   return callServer(id ? `/api/history/${encodeURIComponent(id)}` : '/api/history');
+}
+
+// --- 配信のひな形（presets/） ---
+
+/** ひな形の一覧と、今使っているもの */
+export function presetList() {
+  return { current: presets.currentPreset(), presets: presets.listPresets().map(presets.summary) };
+}
+
+/** ひな形を config.yaml に入れる（前の config.yaml は data/backups/ に残る）。goal で目標の WIN 数も決められる */
+export const applyPreset = (id, opts) => presets.applyPreset(id, opts);
+
+/** ひな形に間違いがないか調べる（id を省くと全部） */
+export function checkPresets(id) {
+  const list = id ? [presets.readPreset(id)].filter(Boolean) : presets.listPresets();
+  if (id && !list.length) throw new Error(`ひな形「${id}」がありません`);
+  return list.map((p) => ({ id: p.id, name: p.name, ...presets.checkPreset(p) }));
 }

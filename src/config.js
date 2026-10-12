@@ -350,7 +350,7 @@ export function toPath(p) {
 const TO_STRING = { flowCollectionPadding: false, lineWidth: 0 };
 
 /** 値を YAML のノードにする。短い一覧や小さな項目は [a, b] / {label: x} の1行で書く */
-function toNode(doc, value) {
+export function toNode(doc, value) {
   const node = doc.createNode(value);
   const style = (n) => {
     if (YAML.isSeq(n)) {

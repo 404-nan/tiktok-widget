@@ -217,6 +217,35 @@ server.registerTool(
 );
 
 server.registerTool(
+  'presets',
+  {
+    title: '配信のひな形',
+    description:
+      '配信ごとの設定のひな形（presets/*.yaml。例: 妨害マイクラのエンドラ討伐・ダイヤ集め・アスレ）を見る・切り替える・調べる。' +
+      'apply すると wins・roulettes は丸ごと、rush・minecraft は書かれた項目だけ入れ替わる（RCON の接続設定は残る）。前の config.yaml は data/backups/ に残る。',
+    inputSchema: {
+      action: z.enum(['list', 'apply', 'check']).default('list').describe('list 一覧 / apply 切り替え / check 間違いを調べる'),
+      id: z.string().optional().describe('ひな形の名前（例 bougai-endra）'),
+      goal: z.number().int().min(0).optional().describe('apply のときの目標の WIN 数（省くとひな形の値）'),
+    },
+  },
+  wrap(async ({ action, id, goal }) => {
+    if (action === 'apply') {
+      if (!id) throw new Error('id を指定してください');
+      const r = admin.applyPreset(id, { goal });
+      return { ...text([admin.describeResult(r), r.ok ? `前の設定: ${r.backup}` : ''].filter(Boolean).join('\n')), isError: r.ok === false };
+    }
+    if (action === 'check') {
+      const lines = admin.checkPresets(id).flatMap((r) => [`${r.id}: ${r.errors.length ? 'エラーあり' : '問題ありません'}`, ...r.errors.map((e) => `  エラー: ${e}`), ...r.warnings.map((w) => `  注意: ${w}`)]);
+      return text(lines.join('\n'));
+    }
+    const { current, presets } = admin.presetList();
+    const lines = presets.map((p) => `${p.id === current?.id ? '● ' : '- '}${p.id}: ${p.name}\n  ${p.summary ?? ''}\n  クリア: ${p.clear ?? ''}`);
+    return text(lines.join('\n') || 'presets/ にひな形がありません');
+  }),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',
