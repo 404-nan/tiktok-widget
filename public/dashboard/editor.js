@@ -488,16 +488,18 @@ export function createEditor({ api, setMessage }) {
   // OBS に入れる URL をまとめて見る
   function renderObs() {
     const box = $('cards');
-    const all = obsList().find((w) => w.section === 'all');
     const steps = document.createElement('ol');
     steps.className = 'steps';
     for (const t of ['「見本を出す」を ON にする', 'URL を1つずつ配信ソフトに入れて、場所を決める', '配信を始めたら「接続」']) steps.append(Object.assign(document.createElement('li'), { textContent: t }));
     const sample = document.createElement('div'); sample.className = 'sample-control';
-    const sampleBtn = document.createElement('button'); sampleBtn.type = 'button'; sampleBtn.className = 'btn primary pressable'; sampleBtn.textContent = '見本を出す';
+    const sampleRow = document.createElement('label'); sampleRow.className = 'check';
+    const sampleBtn = document.createElement('input'); sampleBtn.type = 'checkbox'; sampleBtn.setAttribute('aria-label', '見本を出す');
+    const sampleLabel = document.createElement('span'); sampleLabel.textContent = '見本を出す';
+    sampleRow.append(sampleLabel, sampleBtn);
     const sampleText = document.createElement('p'); sampleText.className = 'hint';
-    const updateSample = (s) => { sampleBtn.textContent = s.on ? '見本を消す' : '見本を出す'; sampleBtn.setAttribute('aria-pressed', String(s.on)); sampleText.textContent = s.on && s.until ? `見本を出しています（あと${Math.max(1, Math.ceil((s.until - Date.now()) / 60000))}分）` : 'ON の間、どのウィジェットも見本と名前の枠が出ます。配信中は出ません。'; };
-    sampleBtn.onclick = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.getAttribute('aria-pressed') !== 'true' }, 'POST')); } catch (e) { setMessage(e.message, true); } };
-    api('/api/sample').then(updateSample).catch(() => {}); sample.append(viewHead('見本を出す', '場所と大きさを決めるときに使います。15分で自動で消えます。'), sampleBtn, sampleText);
+    const updateSample = (s) => { sampleBtn.checked = Boolean(s.on); sampleText.textContent = s.on && s.until ? `あと ${Math.max(1, Math.ceil((s.until - Date.now()) / 60000))} 分` : '場所と大きさを決めるときに使います。15分で自動で消えます（配信中は出ません）'; };
+    sampleBtn.onchange = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.checked }, 'POST')); } catch (e) { sampleBtn.checked = false; setMessage(e.message, true); } };
+    api('/api/sample').then(updateSample).catch(() => {}); sample.append(viewHead('見本を出す'), sampleRow, sampleText);
     const rows = obsList().filter((w) => w.section !== 'all').map((w) => {
       const row = document.createElement('div');
       row.className = 'srow url-item';
@@ -517,23 +519,17 @@ export function createEditor({ api, setMessage }) {
           prompt('この URL をコピーしてください', w.url);
         }
       });
-      const setting = chip('設定', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
+      const setting = chip('', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
+      setting.setAttribute('aria-label', `${obsTitle(w)}の設定`);
       row.append(icon(INFO[w.section].icon), main, copy, setting);
       return row;
     });
     box.replaceChildren(viewHead('配信ソフトに入れる', '使うものを1つずつ、OBS / TikTok LIVE Studio の「ブラウザ」ソースとして入れます'), steps);
     steps.after(sample);
-    if (all) {
-      const recommend = document.createElement('div');
-      recommend.className = 'recommended-url';
-      recommend.append(viewHead('おすすめ: 全部まとめて（1つ入れるだけ）', '配信画面の大きさで、この URL を1つだけ入れます。'));
-      const row = document.createElement('div'); row.className = 'url-row';
-      const input = Object.assign(document.createElement('input'), { readOnly: true, value: all.url });
-      const copy = chip('コピー', 'copy', async () => { try { await navigator.clipboard.writeText(all.url); } catch { prompt('この URL をコピーしてください', all.url); } });
-      row.append(input, copy); recommend.append(row, Object.assign(document.createElement('p'), { className: 'hint', textContent: '幅 1080・高さ 1920' })); box.append(recommend);
-    }
-    if (rows.length) box.append(listGroup('1つずつ入れる（上級者向け）', rows));
+    if (rows.length) box.append(listGroup('URL（1つずつ、別のソースとして入れます）', rows));
     else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを足す」から選んでください。' }));
+    const all = obsList().find((w) => w.section === 'all');
+    if (all) { const link = Object.assign(document.createElement('button'), { className: 'text-btn pressable', type: 'button', textContent: '1つにまとめて入れたいときは「1つにまとめる」へ' }); link.onclick = goTo('stage'); box.append(link); }
   }
 
   /** 押すとまとめて値が入る「型」 */

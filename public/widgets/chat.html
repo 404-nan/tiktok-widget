@@ -133,7 +133,7 @@
 <body>
 <div id="list"></div>
 <script type="module">
-  import { setupWidget, connect, isFor, avatarNode, fmt, sleep, resolveColor } from './lib/overlay.js';
+  import { setupWidget, connect, isFor, avatarNode, fmt, sleep, resolveColor, setSampleRenderer } from './lib/overlay.js';
   import { chatFilter, gifterTier, speechText } from './lib/chat.js';
 
   // 設定は config.yaml の chats.<id>（?id= がなければ default）。URL パラメータでも上書きできる
@@ -202,7 +202,7 @@
   }
 
   /** コメントを1件足す。instant は読み込み直したときの復元（動きなし） */
-  function add(e, { instant = false } = {}) {
+  function add(e, { instant = false, sample = false } = {}) {
     // いま並んでいるものの位置を覚えておき、押し上げられる動きをなめらかにする
     const before = new Map(live().map((n) => [n, n.getBoundingClientRect().top]));
 
@@ -238,11 +238,19 @@
       requestAnimationFrame(() => c.classList.remove('instant'));
     }
 
-    if (p.lifetime > 0) {
+    if (p.lifetime > 0 && !sample) {
       const age = Math.max(0, Date.now() - (e.ts ?? Date.now()));
       c.timer = setTimeout(() => dismiss(c), Math.max(0, p.lifetime * 1000 - age));
     }
   }
+
+  setSampleRenderer((on) => {
+    for (const n of live()) n.remove();
+    if (!on) return;
+    add({ user: { name: 'はる' }, text: 'こんにちは！', giftCoins: 0 }, { instant: true, sample: true });
+    add({ user: { name: 'みお' }, text: 'Rose ありがとう！', giftCoins: 5 }, { instant: true, sample: true });
+    add({ user: { name: 'たけし' }, text: '今日も楽しい配信ですね、最後まで応援しています！', giftCoins: 0 }, { instant: true, sample: true });
+  });
 
   // --- 読み上げ ---
   const tts = p.tts && !muted && 'speechSynthesis' in window;

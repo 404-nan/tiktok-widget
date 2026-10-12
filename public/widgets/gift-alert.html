@@ -95,7 +95,7 @@
 <body>
 <div id="stage"></div>
 <script type="module">
-  import { setupWidget, list, connect, isFor, giftNode, giftNamed, avatarNode, icon, fmt, chime, createQueue, sleep, resolveColor } from './lib/overlay.js';
+  import { setupWidget, list, connect, isFor, giftNode, giftNamed, avatarNode, icon, fmt, chime, createQueue, sleep, resolveColor, setSampleRenderer } from './lib/overlay.js';
 
   // 設定は config.yaml の alerts.<id>（?id= がなければ default）。URL パラメータでも上書きできる
   const p = await setupWidget('alerts', {
@@ -186,13 +186,16 @@
     return lt;
   }
 
-  async function show(e) {
+  let sampleEl = null;
+  async function show(e, { sample = false } = {}) {
     const rule = ruleFor(e);
     const lt = build(e, rule);
     stage.replaceChildren(lt);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     lt.classList.add('in');
-    if (rule.sound ?? p.sound) chime(e.kind === 'gift' ? 'gift' : 'follow', p.volume);
+    if (!sample && (rule.sound ?? p.sound)) chime(e.kind === 'gift' ? 'gift' : 'follow', p.volume);
+
+    if (sample) { sampleEl = lt; return; }
 
     // 列が詰まっているときは表示時間を短くする
     await sleep((rule.duration ?? p.duration) * 1000 * (queue.size > 5 ? 0.5 : 1));
@@ -200,6 +203,10 @@
     await sleep(420);
     lt.remove();
   }
+  setSampleRenderer((on) => {
+    if (on) show({ kind: 'gift', user: { name: 'みお' }, gift: { name: 'Rose', count: 5, icon: 'gift' }, totalDiamonds: 5 }, { sample: true });
+    else { sampleEl?.remove(); sampleEl = null; stage.replaceChildren(); }
+  });
 </script>
 </body>
 </html>

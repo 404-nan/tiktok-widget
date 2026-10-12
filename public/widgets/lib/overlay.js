@@ -45,7 +45,11 @@ export async function setupWidget(section, fallback = {}) {
 }
 
 const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', theme: 'ウィジェット' };
-const SAMPLE_TEXT = { alerts: '見本のギフト通知', chats: '見本のコメント\n見本のコメント\n見本のコメント', cutins: 'カットイン（画面いっぱいに出ます）', imageCutins: '画像付きカットイン（画面いっぱいに出ます）', wins: 'WIN数の見本', rush: 'RUSH の見本', roulettes: 'ルーレットの見本' };
+/** 各ウィジェットの本物の描画関数を、見本モードにも使う。 */
+export function setSampleRenderer(renderer) {
+  window.__twSampleRenderer = renderer;
+  renderer(Boolean(window.__twSampleOn));
+}
 
 /** 見本モードの枠と札。見本は画面の中だけで作り、サーバーへイベントを送らない。 */
 export function setupSample(section, id = 'default') {
@@ -53,14 +57,13 @@ export function setupSample(section, id = 'default') {
   if (!document.getElementById('tw-sample-style')) {
     const style = document.createElement('style');
     style.id = 'tw-sample-style';
-    style.textContent = `.tw-sample-frame{position:fixed;inset:4px;z-index:9998;border:1px dashed rgba(255,255,255,.78);box-shadow:inset 0 0 0 1px rgba(0,0,0,.5);pointer-events:none}.tw-sample-label{position:fixed;z-index:9999;top:10px;left:10px;padding:3px 8px;border:1px solid rgba(0,0,0,.55);background:rgba(255,255,255,.82);color:#111;font:600 12px/1.4 sans-serif;pointer-events:none}.tw-sample-card{position:fixed;z-index:9997;left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(80vw,520px);padding:14px 22px;border:1px solid rgba(255,255,255,.78);background:rgba(17,17,19,.88);color:#f6f5f1;text-align:center;white-space:pre-line;font:600 20px/1.5 sans-serif;pointer-events:none}`;
+    style.textContent = `.tw-sample-frame{position:fixed;inset:4px;z-index:9998;border:1px dashed rgba(255,255,255,.78);box-shadow:inset 0 0 0 1px rgba(0,0,0,.5);pointer-events:none}.tw-sample-label{position:fixed;z-index:9999;top:8px;left:8px;padding:2px 6px;background:rgba(17,17,19,.72);color:#f6f5f1;font:600 11px/1.35 sans-serif;pointer-events:none}`;
     document.head.append(style);
   }
   const frame = document.createElement('div'); frame.id = 'tw-sample-frame'; frame.className = 'tw-sample-frame'; frame.hidden = true;
   const label = document.createElement('div'); label.id = 'tw-sample-label'; label.className = 'tw-sample-label'; label.textContent = SAMPLE_NAMES[section] ?? section; label.hidden = true;
-  const card = document.createElement('div'); card.id = 'tw-sample-card'; card.className = 'tw-sample-card'; card.textContent = SAMPLE_TEXT[section] ?? `${SAMPLE_NAMES[section] ?? section}の見本`; card.hidden = true;
-  document.body.append(frame, label, card);
-  const show = (on) => { frame.hidden = !on; label.hidden = !on; card.hidden = !on || !SAMPLE_TEXT[section]; };
+  document.body.append(frame, label);
+  const show = (on) => { window.__twSampleOn = on; frame.hidden = !on; label.hidden = !on; window.__twSampleRenderer?.(on); };
   window.__twSampleShow = show;
   fetch('/api/sample').then((r) => r.ok ? r.json() : null).then((s) => show(Boolean(s?.on))).catch(() => {});
   return show;
