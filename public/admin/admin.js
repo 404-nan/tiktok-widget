@@ -393,8 +393,8 @@ function tenantDetail(t) {
         'div',
         { className: 'danger' },
         button('URL を作り直す', () => {
-          if (!confirm(`${t.name} の URL を作り直しますか？ 今の URL（ダッシュボードと OBS）は使えなくなります。`)) return;
-          act(() => api(`/tenants/${t.id}/rekey`, { which: 'both' }), '作り直しました。新しい URL を渡してください')();
+          if (!confirm(`${t.name} の URL を作り直しますか？ 鍵の入った今の URL（ダッシュボードと OBS）は使えなくなります。短い URL と 4桁の数字はそのまま使えます（OBS の URL は貼り直しです）。`)) return;
+          act(() => api(`/tenants/${t.id}/rekey`, { which: 'both' }), '作り直しました。OBS の URL を貼り直してもらってください')();
         }, { iconName: 'key-round' }),
         button('削除', () => {
           if (!confirm(`${t.name} を削除しますか？（設定と記録のファイルは data/tenants/${t.id}/ に残ります）`)) return;
@@ -640,7 +640,7 @@ $('createForm').addEventListener('submit', async (e) => {
     selected = tenant.id;
     checked.clear();
     await load();
-    message(`${tenant.name} を追加しました。ダッシュボードの URL を渡してください`);
+    message(`${tenant.name} を追加しました。短い URL と 4桁の数字を渡してください`);
   } catch (err) {
     message(err.message, true);
   }
