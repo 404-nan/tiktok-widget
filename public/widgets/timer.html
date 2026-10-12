@@ -11,7 +11,7 @@
   /* 延長タイマー（サブアソン）。スコアボードの板に、見出しと大きな時計。
      延びたら「+30秒」が延ばした人のアイコンと一緒に飛び、時計が金に光る。
      減ったら「-30秒」がやわらかいピンクで、小さなハートがふわっと舞って、板がぽよんと弾む。
-     残りが少なくなると朱 → 板が赤く脈打つ → 残り 10 秒はカウントの音と点滅。0 で「終了」を叩きつける */
+     残りが少なくなると朱 → 板が赤く脈打つ → 残り 10 秒はカウントの音と点滅、画面の真ん中に 10 から 1。0 で「終了」を叩きつける */
   body { display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; }
   .wrap { position: relative; width: 100%; }
 
@@ -239,6 +239,49 @@
   .stamp.rest { opacity: 1; left: 76%; transform: translate(-50%, -50%) rotate(-6deg) scale(.62); transition: left .5s var(--ease-out), transform .5s var(--ease-out); }
   .whiteflash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
   .whiteflash.go { animation: goldflash .7s ease-out; }
+
+  /* 残り 10 秒: 画面の真ん中に 10, 9, … 1。ポンと拡大してから、その1秒のあいだにフェード */
+  .counting .clock { opacity: 0; }
+  .countpop {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+  .countpop[hidden] { display: none; }
+  .countpop b {
+    display: block;
+    font-family: var(--font-num);
+    font-weight: 700;
+    font-style: italic;
+    font-size: 150px;
+    line-height: .8;
+    color: #FF4F1F;
+    text-shadow: 0 5px 0 rgba(0, 0, 0, .55);
+    animation: countScale .26s cubic-bezier(.15, 1.7, .35, 1), countFade .92s linear forwards;
+  }
+  /* 大きいギフトの差し込み: 金の帯がワイプで入り、送った人と「+10分」を叩きつける */
+  .cutin { position: absolute; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; gap: 18px; background: var(--gold); color: #111113; clip-path: inset(0 100% 0 0); pointer-events: none; }
+  .cutin[hidden] { display: none; }
+  .cutin.go { animation: cutWipe 2.2s cubic-bezier(.2, .9, .25, 1) forwards; }
+  .cutin .amt { font-family: "Dela Gothic One", var(--font-num); font-size: 92px; line-height: 1; letter-spacing: -.02em; animation: cutSlam .32s .18s cubic-bezier(.15, 1.6, .35, 1) both; }
+  .cutin .who { display: grid; justify-items: center; gap: 4px; font-weight: 700; font-size: 18px; max-width: 30%; }
+  .cutin .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  @keyframes cutWipe { 0% { clip-path: inset(0 100% 0 0); } 12% { clip-path: inset(0 0 0 0); } 85% { clip-path: inset(0 0 0 0); } 100% { clip-path: inset(0 0 0 100%); } }
+  @keyframes cutSlam { 0% { transform: scale(2.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .cutin.go { animation-duration: 2.2s; } .cutin .amt { animation: none; } }
+  @keyframes countScale {
+    0% { transform: scale(.42); }
+    100% { transform: scale(1); }
+  }
+  @keyframes countFade {
+    0% { opacity: 0; }
+    12% { opacity: 1; }
+    58% { opacity: 1; }
+    100% { opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -250,7 +293,8 @@
       <div class="title" id="title"></div>
       <div class="state" id="state"></div>
     </div>
-    <div class="main"><div class="clock" id="clock"></div></div>
+    <div class="main"><div class="clock" id="clock"></div><div class="countpop" id="countpop" hidden></div></div>
+    <div class="cutin" id="cutin" hidden></div>
     <div class="glint" id="glint"></div>
     <div class="goldflash" id="goldflash"></div>
     <div class="pinkflash" id="pinkflash"></div>
@@ -404,6 +448,31 @@
   let rolling = false;
   setInterval(tick, 100);
 
+  // 残り 10 秒以下: 画面の真ん中に 10, 9, … 1 を1秒ずつ出す。0 になったら消す（時計の表示はそのまま）
+  let countShown = null;
+  function updateCountPop() {
+    const sec = Math.ceil(leftMs() / 1000);
+    const show = t.status === 'running' && sec >= 1 && sec <= 10;
+    const el = $('countpop');
+    document.body.classList.toggle('counting', show);
+    if (!show) {
+      if (countShown != null) {
+        countShown = null;
+        el.replaceChildren();
+        el.hidden = true;
+      }
+      return;
+    }
+    if (sec === countShown) return;
+    countShown = sec;
+    el.hidden = false;
+    el.replaceChildren(Object.assign(document.createElement('b'), { textContent: String(sec) }));
+  }
+  (function watchCount() {
+    updateCountPop();
+    requestAnimationFrame(watchCount);
+  })();
+
   // --- 効果音（音源なしで合成） ---
   let ac;
   const audio = () => (ac ??= new AudioContext());
@@ -548,6 +617,25 @@
     setTimeout(() => el.remove(), 2000);
   }
 
+  // 大きいギフトの差し込み（残り10秒のカウント中でも上にかぶせる）
+  function cutin(html, user) {
+    const el = $('cutin');
+    el.replaceChildren();
+    if (user) {
+      const who = Object.assign(document.createElement('div'), { className: 'who' });
+      if (p.avatars) who.append(avatarNode(user, 72));
+      who.append(Object.assign(document.createElement('span'), { textContent: user.nickname || user.uniqueId || '' }));
+      el.append(who);
+    }
+    el.append(Object.assign(document.createElement('span'), { className: 'amt', innerHTML: html }));
+    el.hidden = false;
+    el.classList.remove('go');
+    void el.offsetWidth;
+    el.classList.add('go');
+    clearTimeout(cutin.timer);
+    cutin.timer = setTimeout(() => (el.hidden = true), 2300);
+  }
+
   let stampTimer = null;
   async function stamp(text, cls, { hold = 1300, rest = false } = {}) {
     const el = $('stamp');
@@ -589,6 +677,7 @@
     restart($('head'), 'flash');
     restart($('clock'), 'pop');
     if (big) bouncePlate('shake');
+    if (s >= (p.cutinSeconds ?? 300)) cutin(amountHtml(s), ev.user);
     fly(amountHtml(s), big ? 'big' : '', ev.user, ev.capped ? '上限' : ev.text);
     sfx('extend', big || s >= 60);
   }
