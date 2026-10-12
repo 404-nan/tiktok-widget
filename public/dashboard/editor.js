@@ -4,7 +4,7 @@
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'rush', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -44,6 +44,11 @@ const LABELS = {
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
   image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  'bosses.name': 'ボスの名前', hp: '最大 HP', hpScale: '次のボスの HP の倍率', 'bosses.image': 'ボスの画像', damageFrom: 'ダメージにするもの',
+  coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
+  bigHit: '大ダメージになるダメージ', lowHp: '赤く点滅する残り HP（%）', nextNames: '2体目からの名前（カンマ区切り）', autoNext: '倒したら次のボスを出す',
+  nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
+  'bosses.superstreamGift': '討伐で起こす SuperStream の演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こす SuperStream の演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
@@ -70,6 +75,7 @@ const BASIC = {
   imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
+  bosses: ['name', 'hp', 'hpScale', 'image', 'damageFrom', 'coinDamage', 'likeDamage', 'gifts', 'nextNames', 'roulette', 'commands'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -128,8 +134,8 @@ export function createEditor({ api, setMessage }) {
         });
         const data = await res.json().catch(() => ({}));
         if (data.config) payload = data;
-        // WIN数・延長タイマーの「試す」ボタンは設定で変わる
-        if (data.config && (tab === 'wins' || tab === 'timers')) renderActions();
+        // WIN数・延長タイマー・ボス討伐の「試す」ボタンは設定で変わる
+        if (data.config && (tab === 'wins' || tab === 'timers' || tab === 'bosses')) renderActions();
         showIssues(data.errors, data.warnings, data.ok ? '保存しました' : null);
         updateUrl();
         if (!yamlDirty && data.yaml) $('yamlText').value = data.yaml;
@@ -440,7 +446,24 @@ export function createEditor({ api, setMessage }) {
         wrap.append(control, giftChips(control, key));
         control = null;
       }
-    } else if (key === 'photo') {
+    } else if (tab === 'bosses' && key === 'roulette') {
+      // 討伐で回すルーレット: 設定にあるルーレットから選ぶ
+      control = document.createElement('select');
+      const names = Object.entries(payload.config.roulettes ?? {});
+      control.append(new Option('回さない', '', false, !value));
+      for (const [rid, r] of names) control.append(new Option(r.name ? `${r.name}（${rid}）` : rid, rid, false, rid === value));
+      if (value && !names.some(([rid]) => rid === value)) control.append(new Option(`${value}（見つかりません）`, value, false, true));
+      control.addEventListener('change', () => save(key, control.value));
+    } else if (field.type === 'commands') {
+      // コマンドの一覧: 1行に1つ
+      control = document.createElement('textarea');
+      control.rows = 3;
+      control.className = 'mono';
+      control.spellcheck = false;
+      control.value = (value ?? []).join('\n');
+      control.placeholder = 'say {user} が {boss} を討伐！\ngive {user} diamond 3';
+      control.addEventListener('input', () => save(key, control.value.split('\n').map((c) => c.trim()).filter(Boolean), 700));
+    } else if (key === 'photo' || (tab === 'bosses' && key === 'image')) {
       // media/ の画像を候補に出す（URL も書ける）
       control = document.createElement('input');
       control.value = value ?? '';
@@ -743,6 +766,12 @@ export function createEditor({ api, setMessage }) {
       $('sizeHint').textContent +=
         ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: スタート ${base}/start ／ 一時停止 ${base}/pause ／ 止める・動かすを1つで ${base}/toggle ／ +1分 ${base}/add?seconds=60 ／ -1分 ${base}/add?seconds=-60 ／ リセット ${base}/reset`;
     }
+    // ボス討伐も、Stream Deck などから押せる URL を出す
+    if (tab === 'bosses') {
+      const base = `${location.origin}${BASE}`;
+      $('sizeHint').textContent +=
+        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: HP を戻す ${base}/api/boss/${id}/heal ／ ダメージ 100 ${base}/api/boss/${id}/damage?value=100 ／ 討伐 ${base}/api/boss/${id}/defeat ／ 次のボス ${base}/api/boss/${id}/next ／ 1体目から ${base}/api/boss/${id}/reset`;
+    }
     const url = new URL(w.url, location.origin);
     url.searchParams.set('preview', '1');
     url.searchParams.set('sound', '0');
@@ -850,6 +879,19 @@ export function createEditor({ api, setMessage }) {
         chip('-1分', 'minus', tm('add', -60)),
         chip('リセット（初めの時間に戻す）', 'rotate-ccw', () => confirm('タイマーを初めの時間に戻して、スタート前にしますか？') && tm('reset')()),
         ...extra,
+      );
+    } else if (tab === 'bosses') {
+      const b = (action, value) => control('boss', action, { id, value });
+      const e = payload.config.bosses?.[id] ?? {};
+      box.replaceChildren(
+        chip('ダメージ 100 を与える', 'swords', b('damage', 100)),
+        chip(`大ダメージ（${e.bigHit ?? 1000}）`, 'zap', b('damage', e.bigHit ?? 1000)),
+        chip('討伐する', 'skull', b('defeat')),
+        chip('HP を戻す', 'heart-pulse', b('heal')),
+        chip('次のボス', 'skip-forward', b('next')),
+        chip('1体目からやり直す', 'rotate-ccw', () => confirm('1体目のボスからやり直しますか？') && b('reset')()),
+        chip('テストギフト（Rose ×10）', 'gift', () => api('/api/simulate', { kind: 'gift', giftName: e.gifts?.[0] ?? 'Rose', count: 10, diamonds: 1 })),
+        ...(e.damageFrom?.includes('likes') ? [chip('いいね ×50', 'heart', () => api('/api/simulate', { kind: 'like', count: 50 }))] : []),
       );
     } else if (tab === 'rush') {
       const r = payload.config.rush ?? {};

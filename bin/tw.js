@@ -46,6 +46,10 @@ Minecraft / SuperStream
   timer start|pause|toggle|reset [名前]   スタート・一時停止・切り替え・初めの時間に戻す
   timer add <秒> [名前]     足す（-60 で 1 分引く）
   timer set <秒> [名前]     残りをその秒にする
+  boss [名前]               ボス討伐の HP を見る
+  boss damage <数> [名前]   ダメージを与える
+  boss set <数> [名前]      HP をその数にする
+  boss defeat|heal|next|reset [名前]  討伐・HP を戻す・次のボス・1体目から
   status
 
 AI と使う
@@ -150,6 +154,13 @@ try {
       if (action === 'add' || action === 'set') print(await admin.timer(action, rest[1], Number(rest[0])));
       else if (['start', 'pause', 'resume', 'toggle', 'reset'].includes(action)) print(await admin.timer(action, rest[0]));
       else print(await admin.timer('status', action));
+      break;
+    }
+    case 'boss': {
+      const [action, ...rest] = args;
+      if (action === 'damage' || action === 'set') print(await admin.boss(action, rest[1], Number(rest[0])));
+      else if (['defeat', 'heal', 'next', 'reset'].includes(action)) print(await admin.boss(action, rest[0]));
+      else print(await admin.boss('status', action));
       break;
     }
     case 'rush':

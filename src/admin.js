@@ -145,6 +145,18 @@ export async function timer(action = 'status', id = null, seconds) {
   return Object.entries(out).map(([k, t]) => line(k, t)).join('\n');
 }
 
+/** ボス討伐の HP を変える・見る（サーバーが必要）。action: damage / defeat / heal / next / set / reset / status。id を省くと全部 */
+export async function boss(action = 'status', id = null, value) {
+  const line = (k, b) => `${k}: ${b.round}体目 ${b.name} HP ${b.hp} / ${b.maxHp}${b.defeated ? '（討伐済み）' : ''}`;
+  if (action === 'status') {
+    const all = await callServer('/api/boss');
+    const rows = Object.entries(all).filter(([k]) => !id || k === id);
+    return rows.length ? rows.map(([k, b]) => line(k, b)).join('\n') : 'ボス討伐の設定がありません';
+  }
+  const { boss: out } = await callServer('/api/control', { method: 'POST', body: { target: 'boss', action, data: { id, value } } });
+  return Object.entries(out).map(([k, b]) => line(k, b)).join('\n');
+}
+
 /** RUSH に入る・終わらせる・今の状態（サーバーが必要） */
 export async function rush(action = 'status') {
   if (action === 'start' || action === 'stop') {

@@ -1,4 +1,4 @@
-// 配信者1人分の仕組み: TikTok の接続、集計、ルーレット、RUSH、WIN数、延長タイマー、Minecraft 連携、配信の記録、設定ファイル。
+// 配信者1人分の仕組み: TikTok の接続、集計、ルーレット、RUSH、WIN数、延長タイマー、ボス討伐、Minecraft 連携、配信の記録、設定ファイル。
 // 1人で使うときは1つだけ、配信者ごとに分けるときは配信者の数だけ作る（src/tenants.js）。
 
 import fs from 'node:fs';
@@ -18,6 +18,7 @@ import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
+import { BossEngine } from './boss.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -39,7 +40,7 @@ export const PREMIUM = {
 export const premiumOfPage = (page) => Object.entries(PREMIUM).find(([, p]) => p.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/me$/];
+const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/];
 
 /**
  * 配信者1人分を作る。
@@ -56,6 +57,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const rush = new RushEngine(hub);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
+  const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   let lastIssues = { errors: [], warnings: [] };
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
@@ -65,10 +67,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     rush.setConfig(entitled('rush') ? config.rush : { ...config.rush, enabled: false });
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
+    boss.setConfig(config.bosses);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
   hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
+  // ボスを討伐したら、設定にあるルーレットを回し、Minecraft にコマンドを送る
+  hub.on('bossDefeated', ({ config: c, boss: b, by, trigger }) => {
+    if (c.roulette && hub.config?.roulettes?.[c.roulette]) roulette.spin(c.roulette, trigger ?? (by?.user ? { kind: 'boss', user: by.user } : null));
+    minecraft.onBossDefeated(c, b, by, trigger);
+  });
 
   const applyConfigResult = (result) => {
     if (!result.ok && result.errors?.length) return;
@@ -159,6 +167,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       const tid = req.params.id === 'all' ? null : req.params.id;
       res.json({ ok: true, timers: timer.apply(tid, req.params.action, timerSeconds({ ...req.body, ...req.query })) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  // ボス討伐。例: /api/boss/default/damage?value=100・/api/boss/default/heal（HP を戻す）・/api/boss/default/defeat・/api/boss/all/reset
+  r.get('/api/boss', (_req, res) => res.json(boss.snapshot()));
+  r.all('/api/boss/:id/:action', (req, res) => {
+    try {
+      const bid = req.params.id === 'all' ? null : req.params.id;
+      res.json({ ok: true, boss: boss.apply(bid, req.params.action, req.query.value ?? req.body?.value) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -305,6 +323,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return res.status(400).json({ error: err.message });
       }
     }
+    // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
+    if (target === 'boss') {
+      try {
+        return res.json({ ok: true, boss: boss.apply(data?.id || null, String(action), data?.value) });
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+    }
     hub.control(String(target), String(action), data ?? {});
     res.json({ ok: true });
   });
@@ -331,6 +357,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       history.end();
       clearInterval(history.timer);
       timer.close();
+      boss.flush();
     },
   };
 }
