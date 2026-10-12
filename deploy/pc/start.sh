@@ -12,7 +12,12 @@ export TW_HOSTED=1 HOST=127.0.0.1 PORT=3939
 node server.js &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null' EXIT
-sleep 3
+for i in $(seq 1 30); do
+  if curl -sf "http://127.0.0.1:${PORT}/healthz" >/dev/null; then
+    break
+  fi
+  sleep 0.5
+done
 
 if [ -n "${TUNNEL_TOKEN:-}" ]; then
   cloudflared tunnel run --token "$TUNNEL_TOKEN"
