@@ -849,3 +849,14 @@ body:not(.ai-on) #aiView { display: none; }
   .side-item { width: auto; min-height: 36px; padding: 0 12px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--stroke-secondary); white-space: nowrap; }
   .preview-col > .preview { top: 62px; }
 }
+
+/* サイドバーのいちばん下: ほかのページへのリンクは、上のメニューと同じ見た目の行にする */
+@media (min-width: 900px) {
+  [data-mode=simple] .side-footer { padding-top: 10px; box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+  [data-mode=simple] .side-footer .nav { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+  [data-mode=simple] .side-footer .nav a { min-height: 40px; padding: 0 10px; border-radius: var(--r-md); font-size: 14px; gap: 10px; }
+  [data-mode=simple] .side-footer .nav a .icon { --size: 17px; }
+  [data-mode=simple] .side-footer .nav a[aria-current=page] { display: none; }
+  [data-mode=simple] .side-footer .side-more { margin-top: 0; }
+  [data-mode=simple] .side-footer #themeBtn { width: 40px; height: 40px; }
+}
