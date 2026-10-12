@@ -27,14 +27,12 @@ function setMessage(text, isError = false) {
 async function setupConnect() {
   const me = await api('/api/me').catch(() => null);
   $('username').value = me?.tiktokId || store.get('username', '');
-  $('signApiKey').value = store.get('signApiKey', '');
 
   $('connectForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const username = $('username').value.trim().replace(/^@/, '');
-    const signApiKey = $('signApiKey').value.trim();
+    const signApiKey = store.get('signApiKey', '').trim(); // 前に入れた分だけ使う（入れる欄は管理画面へ）
     store.set('username', username);
-    store.set('signApiKey', signApiKey);
     $('connectBtn').disabled = true;
     try {
       await api('/api/connect', { username, signApiKey: signApiKey || undefined });

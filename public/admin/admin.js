@@ -441,7 +441,7 @@ function signKeyGroup() {
   const st = data.signKey ?? { set: false };
   const from = st.source === 'env' ? 'サーバーの環境変数' : 'ここで入れたもの';
   const state = st.set ? `入っています（${from}${st.tail ? `・末尾 ${st.tail}` : ''}）` : '入っていません';
-  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'Euler Stream の API キー' });
+  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'API キー' });
   input.setAttribute('aria-label', 'TikTok につなぐための API キー');
   const save = () => {
     const key = input.value.trim();
@@ -457,7 +457,7 @@ function signKeyGroup() {
   return el(
     'div',
     { className: 'group' },
-    el('p', { className: 'sub', textContent: 'TikTok につなぐための API キー（署名サーバー Euler Stream）' }),
+    el('p', { className: 'sub', textContent: 'TikTok につなぐための API キー' }),
     el('p', { className: `sub hint${st.set ? ' key-on' : ''}`, textContent: `${state}。全員の接続で共通に使います。つながりにくいときに入れてください。` }),
     el('div', { className: 'url' }, input, button('保存', save, { iconName: 'key-round' })),
     st.source === 'admin' ? el('div', { className: 'danger' }, remove) : null,
