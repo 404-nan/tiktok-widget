@@ -603,3 +603,5 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 .ai-changes { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: var(--text-secondary); }
 @media (max-width: 600px) { .ai-form { grid-template-columns: 1fr; } .ai-form .btn { justify-self: start; } }
 @media (prefers-reduced-motion: reduce) { .ai-reply.thinking { animation: none; } }
+/* スマホで設定を開いているときは、AI の例は畳む（プレビューと項目を上に寄せる） */
+@media (max-width: 600px) { .ai-box:has(~ #detail:not([hidden])) .ai-examples { display: none; } }

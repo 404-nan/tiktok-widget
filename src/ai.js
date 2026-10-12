@@ -4,9 +4,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import Anthropic from '@anthropic-ai/sdk';
-import { z } from 'zod';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import * as cfg from './config.js';
 import { SCHEMA, SECTIONS } from './schema.js';
 
@@ -16,18 +13,32 @@ const DEFAULT_LIMIT = 20;
 export const MAX_REQUEST_CHARS = 600;
 const MAX_CHANGES = 30;
 
-// AI に返してもらう形。value は何でも入るので、JSON の文字で受け取る
-const Proposal = z.object({
-  reply: z.string().describe('配信者に見せる短い説明（やさしい日本語。何をどう変えるか。できないときはその理由や聞きたいこと）'),
-  changes: z.array(
-    z.object({
-      op: z.enum(['set', 'merge', 'delete']).describe('set: その場所の値を入れ替える / merge: 書いた項目だけ変える / delete: 消す'),
-      path: z.string().describe('変える場所。ドット区切り（例: roulettes.batsu / wins.default.rules / theme.accent）'),
-      value_json: z.string().describe('入れる値を JSON の文字で（例: "[\\"歌う*2\\",\\"変顔\\"]" や "{\\"goal\\":10}"）。delete のときは空の文字'),
-      label: z.string().describe('この変更のひと言の説明（やさしい日本語。例: ルーレット「罰ゲーム」を作る）'),
-    }),
-  ),
-});
+// Claude の SDK は、AI を初めて使うときに読み込む。
+// （更新したあと npm ci をし忘れて部品がなくても、サーバーは起動でき、AI だけが使えない状態になる）
+let sdk = null;
+async function loadSdk() {
+  if (sdk) return sdk;
+  let Anthropic, z, zodOutputFormat;
+  try {
+    [{ default: Anthropic }, { z }, { zodOutputFormat }] = await Promise.all([import('@anthropic-ai/sdk'), import('zod'), import('@anthropic-ai/sdk/helpers/zod')]);
+  } catch {
+    throw new Error('AI の部品が入っていません（管理者に伝えてください。サーバーのフォルダで npm ci を実行すると入ります）');
+  }
+  // AI に返してもらう形。value は何でも入るので、JSON の文字で受け取る
+  const Proposal = z.object({
+    reply: z.string().describe('配信者に見せる短い説明（やさしい日本語。何をどう変えるか。できないときはその理由や聞きたいこと）'),
+    changes: z.array(
+      z.object({
+        op: z.enum(['set', 'merge', 'delete']).describe('set: その場所の値を入れ替える / merge: 書いた項目だけ変える / delete: 消す'),
+        path: z.string().describe('変える場所。ドット区切り（例: roulettes.batsu / wins.default.rules / theme.accent）'),
+        value_json: z.string().describe('入れる値を JSON の文字で（例: "[\\"歌う*2\\",\\"変顔\\"]" や "{\\"goal\\":10}"）。delete のときは空の文字'),
+        label: z.string().describe('この変更のひと言の説明（やさしい日本語。例: ルーレット「罰ゲーム」を作る）'),
+      }),
+    ),
+  });
+  sdk = { Anthropic, format: zodOutputFormat(Proposal) };
+  return sdk;
+}
 
 const INSTRUCTIONS = `あなたは、TikTok LIVE の配信者が使う「配信画面のウィジェット」の設定を手伝うアシスタントです。
 配信者は設定ファイルや専門用語を知りません。配信者のたのみを読み、設定をどう変えればよいかを changes に入れて返してください。
@@ -108,7 +119,7 @@ export function buildRequest({ text, config, focus, gifts = [] }) {
 }
 
 // API のエラーを、配信者に見せる文にする
-function describeError(err) {
+function describeError(err, Anthropic) {
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) return 'AI のキーが正しくないようです（管理者に伝えてください）';
   if (err instanceof Anthropic.RateLimitError) return 'AI が混み合っています。少し待ってから、もう一度たのんでください';
   if (err instanceof Anthropic.BadRequestError || err instanceof Anthropic.NotFoundError) return `AI への頼み方に問題がありました（管理者に伝えてください）: ${err.message}`;
@@ -120,7 +131,7 @@ function describeError(err) {
 /**
  * dir: data/ の場所。makeClient はテスト用（にせの AI を入れる）。
  */
-export function createAi({ dir, makeClient = (apiKey) => new Anthropic({ apiKey, maxRetries: 1 }) }) {
+export function createAi({ dir, makeClient = (apiKey, Anthropic) => new Anthropic({ apiKey, maxRetries: 1 }) }) {
   const file = path.join(dir, 'ai.json');
   const env = { key: (process.env.TW_AI_KEY || '').trim(), model: (process.env.TW_AI_MODEL || '').trim() };
   let saved = {};
@@ -181,8 +192,9 @@ export function createAi({ dir, makeClient = (apiKey) => new Anthropic({ apiKey,
     async ask({ text, config, focus, gifts }) {
       const k = key();
       if (!k) throw new Error('AI はまだ使えません（管理者がキーを入れると使えます）');
+      const { Anthropic, format } = await loadSdk();
       if (!client || clientKey !== k) {
-        client = makeClient(k);
+        client = makeClient(k, Anthropic);
         clientKey = k;
       }
       const m = model();
@@ -194,11 +206,11 @@ export function createAi({ dir, makeClient = (apiKey) => new Anthropic({ apiKey,
           system: systemBlocks(),
           messages: [{ role: 'user', content: buildRequest({ text, config, focus, gifts }) }],
           // Haiku 4.5 は effort を受け付けない
-          output_config: { ...(m === 'claude-haiku-4-5' ? {} : { effort: 'medium' }), format: zodOutputFormat(Proposal) },
+          output_config: { ...(m === 'claude-haiku-4-5' ? {} : { effort: 'medium' }), format },
         });
       } catch (err) {
         console.warn(`[ai] ${err?.status ?? ''} ${err?.message ?? err}`);
-        throw new Error(describeError(err));
+        throw new Error(describeError(err, Anthropic));
       }
       if (response.stop_reason === 'refusal') throw new Error('AI がこのたのみには答えられませんでした。言い方を変えて、もう一度たのんでください');
       if (response.stop_reason === 'max_tokens' || !response.parsed_output) throw new Error('AI の返事を最後まで受け取れませんでした。たのみを短く分けて、もう一度たのんでください');
