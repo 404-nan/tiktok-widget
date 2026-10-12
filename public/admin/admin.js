@@ -1,4 +1,4 @@
-// 管理画面: 契約している配信者の追加・URL の発行・豪華な演出のオン/オフ（ずっと・時間指定・全員まとめて・選んだ人にまとめて）。
+// 管理画面: 契約している配信者の追加・URL の発行・ウィジェットごとの ON / OFF（ずっと・時間指定・全員まとめて・選んだ人にまとめて）。
 // 配信者が増えても伸びないよう、左に1人1行の一覧、右に「選んだ1人 / 選んだ何人か / 全員まとめて」の設定を出す。
 // API は /admin/api/...（合言葉を x-admin-token で送る）
 
@@ -92,51 +92,80 @@ const button = (text, onClick, { cls = 'chip', iconName = null } = {}) => {
 const left = (until) => {
   const h = (until - Date.now()) / 3600_000;
   if (h <= 0) return 'まもなく終わり';
-  if (h < 1) return `あと${Math.max(1, Math.round(h * 60))}分`;
+  if (h * 60 < 59.5) return `あと${Math.max(1, Math.round(h * 60))}分`;
   if (h < 48) return `あと${Math.round(h)}時間`;
   return `あと${Math.round(h / 24)}日`;
 };
-const stateText = (st) => (!st?.active ? 'オフ' : st.until == null ? 'ずっとオン' : `オン（${left(st.until)}）`);
-const stateClass = (st) => (!st?.active ? '' : st.until == null ? 'on' : 'temp');
+// 4つの点（豪華な演出）: 緑 = ずっと使える、黄 = 時間つきで使える、輪 = 使えない
+const dotClass = (st) => (!st?.on ? '' : st.until == null ? 'on' : 'temp');
+const onText = (st) => (st?.on ? '使える' : '使えない');
+
+// 時間のプルダウン（0 はずっと）
+const DURATIONS = [[0, 'ずっと'], [1, '1時間'], [3, '3時間'], [6, '6時間'], [12, '12時間'], [24, '24時間'], [72, '3日'], [168, '7日']];
+
+// その画面で決めた設定か（配信者の画面ならその人の、全員の画面なら全員の）
+const own = (st, where) => (where === 'tenant' ? st.source === 'own' : st.source === 'everyone');
 
 /**
- * 豪華な演出1つ分の行。set(mode, hours) で変える。st は今の状態（null なら状態を出さない）
+ * ウィジェット1つ分の行: 名前と今の状態 / ON・OFF のスイッチ / 時間のプルダウン / 初めに戻す。
+ * st: 今の状態 { on, until, source }（null なら「まとめて」用に ON・OFF のボタンを出す）
+ * apply(on, hours): on は true / false / null（初めに戻す）
+ * where: 'tenant' | 'global'（状態の書き方が変わる）
  */
-function grantRow(label, st, set, note = '') {
-  // 好きな時間: 数を入れて Enter
-  const hours = el('input', { type: 'number', min: '1', step: '1', placeholder: '○時間', className: 'hours', title: '時間を入れて Enter で、その時間だけオン' });
-  hours.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    if (Number(hours.value) > 0) set('for', Number(hours.value))();
-    else message('何時間か入れてください', true);
-  });
-  const chip = (text, mode, h, on) => {
-    const b = button(text, set(mode, h));
-    if (on) b.classList.add('on');
-    return b;
-  };
-  return el(
+function accessRow(key, st, apply, { where = 'tenant', note = '' } = {}) {
+  const f = data.features[key] ?? (key === 'premium' ? { label: '豪華な演出をまとめて', premium: true } : { label: key });
+  const select = el('select', { className: 'dur', title: 'ON / OFF にする長さ（過ぎたら初めの状態に戻る）' });
+  if (st?.until) select.append(new Option(left(st.until), 'keep'));
+  for (const [h, text] of DURATIONS) select.append(new Option(text, String(h)));
+  const hours = () => (select.value === 'keep' ? Math.max(0.02, (st.until - Date.now()) / 3600_000) : Number(select.value));
+
+  // 状態の文: 「使える・この人だけ」「使えない・あと3時間で戻る」「使える・全員の設定」「使えない・初め」
+  let detail = '';
+  if (st) {
+    if (own(st, where)) detail = st.until ? `${left(st.until)}で戻る` : where === 'tenant' ? 'この人だけ' : '全員';
+    else detail = st.source === 'everyone' ? '全員の設定' : '初め';
+  }
+  const label = el(
     'div',
-    { className: 'grant' },
-    el(
-      'div',
-      { className: 'grant-top' },
-      el('span', { className: 'gname', textContent: label }),
-      st !== null ? el('span', { className: `state ${stateClass(st)}`, textContent: stateText(st) + note }) : null,
-    ),
-    el(
-      'div',
-      { className: 'btns' },
-      chip('オフ', 'off', 0, st && !st.active),
-      chip('1時間', 'for', 1),
-      chip('3時間', 'for', 3),
-      chip('24時間', 'for', 24),
-      chip('ずっと', 'on', 0, st?.active && st.until == null),
-      hours,
-    ),
+    { className: 'a-name' },
+    el('span', { className: 'gname', textContent: f.label }),
+    note ? el('span', { className: 'tag soft', textContent: note }) : null,
+    st ? el('span', { className: `state ${st.on ? (st.until ? 'temp' : 'on') : ''}`, textContent: `${onText(st)}・${detail}` }) : null,
   );
+
+  let control;
+  if (st) {
+    control = el('button', { type: 'button', className: 'switch pressable' });
+    control.setAttribute('role', 'switch');
+    control.setAttribute('aria-checked', String(st.on));
+    control.setAttribute('aria-label', `${f.label}を${st.on ? '使えなく' : '使えるように'}する`);
+    control.addEventListener('click', apply(!st.on, () => hours()));
+    // 時間だけ変えたとき: 自分で決めた ON / OFF があれば、その長さで付け直す（なければ次にスイッチを押すときの長さ）
+    if (own(st, where)) select.addEventListener('change', apply(st.on, () => hours()));
+  } else {
+    control = el('div', { className: 'onoff' }, button('ON', apply(true, () => hours())), button('OFF', apply(false, () => hours())));
+  }
+  const canReset = !st || own(st, where);
+  const reset = button('↺', apply(null, () => 0));
+  reset.title = where === 'tenant' ? 'この人の設定を消す（全員の設定か初めの状態に戻す）' : '全員の設定を消す（初めの状態に戻す）';
+  reset.classList.add('reset');
+  reset.disabled = !canReset;
+  return el('div', { className: 'access' }, label, control, select, reset);
 }
+
+/** ウィジェットの行を「ウィジェット」と「豪華な演出」に分けて並べる */
+function accessGroups(rowOf, extraPremium = null) {
+  const keys = Object.keys(data.features);
+  const normal = keys.filter((k) => !data.features[k].premium);
+  const premium = keys.filter((k) => data.features[k].premium);
+  return [
+    el('div', { className: 'group' }, el('p', { className: 'sub', textContent: '豪華な演出（初めは使えない）' }), ...premium.map(rowOf), extraPremium),
+    el('div', { className: 'group' }, el('p', { className: 'sub', textContent: 'ウィジェット（初めから使える）' }), ...normal.map(rowOf)),
+  ];
+}
+
+// apply(on, hours) を、API を呼ぶ関数にする
+const setter = (target, feature, done) => (on, hours) => act(() => api('/access', { target, feature, on, hours: hours() }, 'PUT'), done);
 
 function copyField(label, url) {
   const input = el('input', { value: url, readOnly: true });
@@ -154,6 +183,9 @@ function copyField(label, url) {
 
 // --- 人数 ---
 
+const premiumKeys = () => Object.keys(data.features).filter((k) => data.features[k].premium);
+const premiumOn = (t) => premiumKeys().some((k) => t.access[k]?.on);
+
 function renderKpis() {
   const box = $('kpis');
   box.querySelectorAll('.kpi').forEach((n) => n.remove());
@@ -161,7 +193,7 @@ function renderKpis() {
   const items = [
     ['配信者', ts.length, 'users'],
     ['配信中', ts.filter((t) => t.status.mode === 'live').length, 'radio'],
-    ['豪華な演出オン', ts.filter((t) => Object.values(t.premium).some((p) => p.active)).length, 'sparkles'],
+    ['豪華な演出オン', ts.filter(premiumOn).length, 'sparkles'],
     ['止めている', ts.filter((t) => !t.enabled).length, 'circle-pause'],
   ];
   for (const [label, value, iconName] of items) {
@@ -174,7 +206,7 @@ function renderKpis() {
 const FILTERS = [
   ['all', 'すべて', () => true],
   ['live', '配信中', (t) => t.status.mode === 'live'],
-  ['premium', '豪華オン', (t) => Object.values(t.premium).some((p) => p.active)],
+  ['premium', '豪華オン', (t) => premiumOn(t)],
   ['off', '止めている', (t) => !t.enabled],
 ];
 
@@ -214,7 +246,7 @@ function statusOf(t) {
 function renderRows() {
   const list = visible();
   const box = $('rows');
-  $('legend').replaceChildren(...Object.values(data.premiumLabels).map((label) => el('span', { title: label, textContent: label.slice(0, 1) })));
+  $('legend').replaceChildren(...premiumKeys().map((k) => el('span', { title: data.features[k].label, textContent: data.features[k].label.slice(0, 1) })));
   box.replaceChildren(
     ...list.map((t) => {
       const [cls, text] = statusOf(t);
@@ -230,9 +262,9 @@ function renderRows() {
       const dots = el(
         'span',
         { className: 'dots' },
-        ...Object.entries(data.premiumLabels).map(([f, label]) => {
-          const st = t.premium[f];
-          return el('i', { className: stateClass(st), title: `${label}: ${stateText(st)}` });
+        ...premiumKeys().map((k) => {
+          const st = t.access[k];
+          return el('i', { className: dotClass(st), title: `${data.features[k].label}: ${onText(st)}${st?.until ? `（${left(st.until)}）` : ''}` });
         }),
       );
       const li = el(
@@ -289,15 +321,6 @@ function tenantDetail(t) {
   const enabled = el('input', { type: 'checkbox', checked: t.enabled });
   enabled.addEventListener('change', act(() => api(`/tenants/${t.id}`, { enabled: enabled.checked }, 'PATCH'), enabled.checked ? '使えるようにしました' : '利用を止めました'));
 
-  const picks = el('div', { className: 'picks' });
-  for (const [s, title] of Object.entries(data.sections)) {
-    const on = t.widgets.includes(s);
-    const b = el('button', { type: 'button', className: 'pick pressable' }, on ? icon('check') : null, title);
-    b.setAttribute('aria-pressed', String(on));
-    b.addEventListener('click', act(() => api(`/tenants/${t.id}`, { widgets: on ? t.widgets.filter((w) => w !== s) : [...t.widgets, s] }, 'PATCH')));
-    picks.append(b);
-  }
-
   return [
     el(
       'div',
@@ -312,18 +335,8 @@ function tenantDetail(t) {
       copyField('ダッシュボード', t.urls.dashboard),
       copyField('モニター', t.urls.monitor),
     ),
-    el(
-      'div',
-      { className: 'group' },
-      el('p', { className: 'sub', textContent: '豪華な演出（この配信者だけ）' }),
-      ...Object.entries(data.premiumLabels).map(([f, label]) => {
-        const st = t.premium[f];
-        const own = st.own ? { active: true, until: st.own.until } : { active: false };
-        const note = st.everyone && !st.own ? '・全員のオンで使えています' : '';
-        return grantRow(label, own, (mode, hours) => act(() => api('/premium', { target: t.id, feature: f, mode, hours }, 'PUT')), note);
-      }),
-    ),
-    el('div', { className: 'group' }, el('p', { className: 'sub', textContent: '使うウィジェット（配信者もダッシュボードで選べます）' }), picks),
+    el('p', { className: 'sub hint', textContent: 'ON / OFF はこの配信者だけに付きます。長さを選んでからスイッチを押すと、その時間が過ぎたら初めの状態に戻ります。↺ で全員の設定か初めの状態に戻します。' }),
+    ...accessGroups((k) => accessRow(k, t.access[k], setter(t.id, k), { note: t.widgets.includes(k) ? '選んでいる' : '' })),
     el(
       'div',
       { className: 'group' },
@@ -354,15 +367,13 @@ function tenantDetail(t) {
 function bulkDetail(ids) {
   const names = data.tenants.filter((t) => ids.includes(t.id)).map((t) => t.name);
   const forEach = (fn) => Promise.all(ids.map(fn));
+  const many = (feature) => (on, hours) => act(() => forEach((id) => api('/access', { target: id, feature, on, hours: hours() }, 'PUT')), `${ids.length} 人に反映しました`);
   return [
     el('div', { className: 'detail-head' }, el('h2', { textContent: `選んだ ${ids.length} 人にまとめて` }), el('p', { className: 'sub', textContent: names.join('・') })),
-    el(
-      'div',
-      { className: 'group' },
-      el('p', { className: 'sub', textContent: '豪華な演出（選んだ人それぞれに付けます）' }),
-      ...[...Object.entries(data.premiumLabels), ['all', '全部まとめて']].map(([f, label]) =>
-        grantRow(label, null, (mode, hours) => act(() => forEach((id) => api('/premium', { target: id, feature: f, mode, hours }, 'PUT')), `${ids.length} 人に反映しました`)),
-      ),
+    el('p', { className: 'sub hint', textContent: '選んだ人それぞれに付けます。長さを選んでから ON か OFF を押してください。↺ でその人たちの設定を消します。' }),
+    ...accessGroups(
+      (k) => accessRow(k, null, many(k)),
+      accessRow('premium', null, many('premium')),
     ),
     el(
       'div',
@@ -393,22 +404,18 @@ function globalDetail() {
       'div',
       { className: 'detail-head' },
       el('h2', { textContent: '全員まとめて' }),
-      el('p', { className: 'sub', textContent: 'ここでオンにすると、配信者ごとの設定に関係なく全員が使えます。配信者を選ぶと、その人の設定が開きます。' }),
+      el('p', { className: 'sub', textContent: 'ここで決めた ON / OFF は全員に付きます（配信者ごとに決めた設定のほうが先）。配信者を選ぶと、その人の設定が開きます。' }),
+    ),
+    ...accessGroups(
+      (k) => accessRow(k, data.global[k], setter('global', k), { where: 'global' }),
+      accessRow('premium', null, setter('global', 'premium')),
     ),
     el(
       'div',
       { className: 'group' },
-      ...Object.entries(data.premiumLabels).map(([f, label]) =>
-        grantRow(label, data.global[f], (mode, hours) => act(() => api('/premium', { target: 'global', feature: f, mode, hours }, 'PUT'))),
-      ),
-      grantRow('全部まとめて', null, (mode, hours) => act(() => api('/premium', { target: 'global', feature: 'all', mode, hours }, 'PUT'))),
-    ),
-    el(
-      'div',
-      { className: 'group' },
-      button('全員の個別のオンを消す', () => {
-        if (!confirm('全員の「配信者ごとのオン」を消しますか？（全員まとめてのオンはそのまま）')) return;
-        act(() => api('/premium', { target: 'everyone', feature: 'all', mode: 'off' }, 'PUT'), '全員の個別のオンを消しました')();
+      button('配信者ごとの設定を全部消す', () => {
+        if (!confirm('全員の「配信者ごとの ON / OFF」を消しますか？（全員まとめての設定はそのまま）')) return;
+        act(() => api('/access', { target: 'everyone', feature: 'all', on: null }, 'PUT'), '配信者ごとの設定を全部消しました')();
       }),
     ),
   ];

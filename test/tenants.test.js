@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Tenants } from '../src/tenants.js';
-import { premiumOfPage } from '../src/runtime.js';
+import { featureOfPage } from '../src/runtime.js';
 
 const setup = () => new Tenants({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-')) });
 
@@ -24,31 +24,61 @@ test('配信者を追加すると、ダッシュボード用と OBS 用の鍵が
   assert.equal(again.get(a.id).name, 'りん');
 });
 
-test('豪華な演出は最初は使えず、配信者ごと・全員まとめて・時間つきでオンにできる', () => {
+test('豪華な演出は最初は使えず、ほかのウィジェットは最初から使える', () => {
+  const t = setup();
+  const a = t.create({ name: 'A' });
+  assert.equal(t.entitled(a.id, 'cutins'), false);
+  assert.equal(t.entitled(a.id, 'winsFx'), false);
+  assert.equal(t.entitled(a.id, 'wins'), true);
+  assert.equal(t.entitled(a.id, 'chats'), true);
+  assert.equal(t.access(a.id, 'wins').source, 'default');
+});
+
+test('どのウィジェットも ON / OFF でき、時間つきなら期限が過ぎると初めの状態に戻る', () => {
+  const t = setup();
+  const a = t.create({ name: 'A' });
+  t.setAccess(a.id, 'cutins', true, 3);
+  assert.equal(t.entitled(a.id, 'cutins'), true);
+  assert.equal(t.access(a.id, 'cutins').source, 'own');
+  t.get(a.id).access.cutins.until = Date.now() - 1;
+  assert.equal(t.entitled(a.id, 'cutins'), false); // 期限切れ → 使えない（初めの状態）
+  // ふつうのウィジェットも止められる。時間が過ぎたら使えるに戻る
+  t.setAccess(a.id, 'chats', false, 1);
+  assert.equal(t.entitled(a.id, 'chats'), false);
+  t.get(a.id).access.chats.until = Date.now() - 1;
+  assert.equal(t.entitled(a.id, 'chats'), true);
+  // null で決めたのを消す
+  t.setAccess(a.id, 'wins', false);
+  assert.equal(t.entitled(a.id, 'wins'), false);
+  t.setAccess(a.id, 'wins', null);
+  assert.equal(t.entitled(a.id, 'wins'), true);
+});
+
+test('配信者ごとの設定 → 全員の設定 → 初めの状態 の順に見る', () => {
   const t = setup();
   const a = t.create({ name: 'A' });
   const b = t.create({ name: 'B' });
-  assert.equal(t.entitled(a.id, 'cutins'), false);
-  assert.equal(t.entitled(a.id, 'wins'), true); // 豪華な演出でないものはいつでも使える
-  t.setPremium(a.id, 'cutins', 'on');
-  assert.equal(t.entitled(a.id, 'cutins'), true);
-  assert.equal(t.entitled(b.id, 'cutins'), false);
-  // 時間つき: 期限が過ぎたら使えない
-  t.setPremium(b.id, 'rush', 'for', 2);
-  assert.equal(t.entitled(b.id, 'rush'), true);
-  t.get(b.id).premium.rush.until = Date.now() - 1;
+  t.setAccess('global', 'premium', true);
+  assert.equal(t.entitled(a.id, 'rush'), true);
+  assert.equal(t.access(b.id, 'rush').source, 'everyone');
+  t.setAccess(b.id, 'rush', false); // 全員オンでも、この人だけオフ
   assert.equal(t.entitled(b.id, 'rush'), false);
-  // 全員まとめて
-  t.setPremium('global', 'all', 'for', 1);
-  assert.equal(t.entitled(b.id, 'winsFx'), true);
-  assert.equal(t.premiumState(b.id).winsFx.everyone != null, true);
-  t.setPremium('global', 'all', 'off');
-  assert.equal(t.entitled(b.id, 'winsFx'), false);
-  // 全員の個別のオンを消す
-  t.setPremium('everyone', 'all', 'off');
-  assert.equal(t.entitled(a.id, 'cutins'), false);
-  assert.throws(() => t.setPremium(a.id, 'nope', 'on'));
-  assert.throws(() => t.setPremium(a.id, 'cutins', 'for', 0));
+  assert.equal(t.entitled(a.id, 'rush'), true);
+  t.setAccess('everyone', 'all', null); // 全員の個別の設定を消す
+  assert.equal(t.entitled(b.id, 'rush'), true);
+  t.setAccess('global', 'all', null);
+  assert.equal(t.entitled(b.id, 'rush'), false);
+  assert.throws(() => t.setAccess(a.id, 'nope', true));
+  assert.throws(() => t.setAccess(a.id, 'rush', 'yes'));
+});
+
+test('前の形（premium の until）で保存された設定も読める', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-'));
+  fs.writeFileSync(path.join(dir, 'tenants.json'), JSON.stringify({ tenants: [{ id: 'x', name: 'X', key: 'k'.repeat(24), obsKey: 'o'.repeat(24), enabled: true, widgets: [], premium: { rush: { until: null } } }], global: { premium: { cutins: { until: null } } } }));
+  const t = new Tenants({ dir });
+  assert.equal(t.entitled('x', 'rush'), true);
+  assert.equal(t.entitled('x', 'cutins'), true);
+  assert.equal(t.entitled('x', 'imageCutins'), false);
 });
 
 test('使うウィジェットを選べる（知らない名前は捨てる）', () => {
@@ -58,8 +88,10 @@ test('使うウィジェットを選べる（知らない名前は捨てる）',
   assert.deepEqual(t.get(a.id).widgets, ['wins', 'alerts']);
 });
 
-test('豪華な演出のページ', () => {
-  assert.equal(premiumOfPage('cutin.html'), 'cutins');
-  assert.equal(premiumOfPage('wins-fx.html'), 'winsFx');
-  assert.equal(premiumOfPage('wins.html'), null);
+test('ページから、どのウィジェットかがわかる', () => {
+  assert.equal(featureOfPage('cutin.html'), 'cutins');
+  assert.equal(featureOfPage('wins-fx.html'), 'winsFx');
+  assert.equal(featureOfPage('wins.html'), 'wins');
+  assert.equal(featureOfPage('roulette-strip.html'), 'roulettes');
+  assert.equal(featureOfPage('locked.html'), null);
 });

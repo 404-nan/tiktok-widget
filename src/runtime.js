@@ -29,15 +29,22 @@ const timerSeconds = (o) => {
   return pick(o.seconds) ?? (m != null ? m * 60 : pick(o.value));
 };
 
-// 管理者がオンにしないと使えない豪華な演出（設定のセクション名・ウィジェットのページ）
-export const PREMIUM = {
-  cutins: { label: 'カットイン', pages: ['cutin.html'] },
-  imageCutins: { label: '画像付きカットイン', pages: ['image-cutin.html'] },
-  rush: { label: 'RUSH', pages: ['rush.html'] },
-  winsFx: { label: 'WIN数の全画面演出', pages: ['wins-fx.html'] },
-};
-/** ページ名 → 豪華な演出の名前（なければ null） */
-export const premiumOfPage = (page) => Object.entries(PREMIUM).find(([, p]) => p.pages.includes(page))?.[0] ?? null;
+// 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
+// premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'minecraft'];
+const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
+export const FEATURES = Object.fromEntries(
+  FEATURE_ORDER.map((key) => {
+    if (key === 'winsFx') return [key, { label: 'WIN数の全画面演出', pages: ['wins-fx.html'], premium: true }];
+    const def = SCHEMA[key];
+    const pages = def.page ? [`${def.page}.html`] : [];
+    if (key === 'roulettes') pages.push('roulette-strip.html');
+    return [key, { label: def.title, pages, premium: PREMIUM_KEYS.includes(key) }];
+  }),
+);
+export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]) => f.premium));
+/** ページ名 → 使える/使えないを決めているもの（なければ null） */
+export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
 const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/];
@@ -45,7 +52,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
 /**
  * 配信者1人分を作る。
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
- * entitled(feature): 豪華な演出を使えるか、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
+ * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, widgetBase }) {
   const hub = new Hub();
@@ -63,7 +70,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
   const applyEngines = (config) => {
     roulette.setConfig(config);
-    minecraft.setConfig(config.minecraft);
+    // 管理者が使えなくしたものは止める
+    minecraft.setConfig(entitled('minecraft') ? config.minecraft : { ...config.minecraft, enabled: false });
     rush.setConfig(entitled('rush') ? config.rush : { ...config.rush, enabled: false });
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
@@ -124,7 +132,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
   });
 
-  r.get('/api/me', (req, res) => res.json({ ...info(), role: req.role ?? 'owner', premiumLabels: Object.fromEntries(Object.entries(PREMIUM).map(([k, v]) => [k, v.label])) }));
+  r.get('/api/me', (req, res) => res.json({ ...info(), role: req.role ?? 'owner', features: FEATURES }));
   r.put('/api/me/widgets', (req, res) => {
     if (!setWidgets) return res.status(400).json({ error: '1人で使うときは選べません（全部使えます）' });
     const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w)) : null;
@@ -303,7 +311,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (target === 'roulette' && action === 'reset') roulette.clear();
     // RUSH はサーバーで状態を持つ
     if (target === 'rush') {
-      if (!entitled('rush')) return res.status(403).json({ error: 'RUSH は管理者がオンにすると使えます' });
+      if (!entitled('rush')) return res.status(403).json({ error: 'RUSH は管理者が使えるようにすると使えます' });
       const out = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
       return res.json({ ok: true, rush: out ?? rush.snapshot() });
     }

@@ -7,7 +7,7 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
-import { createRuntime, premiumOfPage, PREMIUM } from './src/runtime.js';
+import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -68,25 +68,16 @@ function tenantView(req, t) {
     enabled: t.enabled,
     widgets: t.widgets,
     createdAt: t.createdAt,
-    premium: tenants.premiumState(t.id),
+    access: tenants.accessState(t.id),
     urls: { dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
   };
 }
 admin.get('/tenants', (req, res) => {
-  const now = Date.now();
-  const global = Object.fromEntries(
-    Object.keys(PREMIUM).map((f) => {
-      const g = tenants.data.global.premium?.[f];
-      const on = Boolean(g) && (g.until == null || g.until > now);
-      return [f, { active: on, until: on ? g.until : null }];
-    }),
-  );
   res.json({
     tenants: tenants.list().map((t) => tenantView(req, t)),
-    global,
-    premiumLabels: Object.fromEntries(Object.entries(PREMIUM).map(([k, v]) => [k, v.label])),
-    sections: Object.fromEntries(SECTIONS.filter((s) => s !== 'theme').map((s) => [s, SCHEMA[s].title])),
+    global: tenants.globalState(),
+    features: FEATURES,
   });
 });
 admin.post('/tenants', (req, res) => {
@@ -113,11 +104,11 @@ admin.delete('/tenants/:id', async (req, res) => {
   await tenants.remove(req.params.id);
   res.json({ ok: true });
 });
-// 豪華な演出: { target: 配信者の id | 'global' | 'everyone', feature: 名前 | 'all', mode: 'on' | 'for' | 'off', hours }
-admin.put('/premium', (req, res) => {
-  const { target, feature, mode, hours } = req.body ?? {};
+// 使える / 使えない: { target: 配信者の id | 'global' | 'everyone', feature: 名前 | 'all' | 'premium', on: true | false | null（初めに戻す）, hours: 0（ずっと）| 時間 }
+admin.put('/access', (req, res) => {
+  const { target, feature, on, hours } = req.body ?? {};
   try {
-    tenants.setPremium(target, feature, mode, hours);
+    tenants.setAccess(target, feature, on, hours);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -142,9 +133,9 @@ app.use('/t/:key', (req, res, next) => {
     return res.status(403).type('text/plain; charset=utf-8').send('これは OBS 用の URL です。ダッシュボードはダッシュボードの URL で開いてください');
   }
   if (p === '/' || p === '') return res.redirect(`${req.baseUrl}/${role === 'obs' ? 'widgets/' : 'dashboard/'}`);
-  // 管理者がオンにしていない豪華な演出は、何も出さないページにする
+  // 管理者が使えなくしているウィジェットは、何も出さないページにする
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
-  const feature = page && premiumOfPage(page);
+  const feature = page && featureOfPage(page);
   if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
   const rt = tenants.runtime(tenant.id);
   tenantStatic(req, res, () => rt.router(req, res, next));

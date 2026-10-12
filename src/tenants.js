@@ -1,6 +1,7 @@
-// 契約している配信者の一覧（data/tenants.json）と、豪華な演出のオン/オフ。
+// 契約している配信者の一覧（data/tenants.json）と、ウィジェットごとの「使える / 使えない」。
 // 配信者ごとに、ダッシュボード用の鍵（key）と OBS 用の鍵（obsKey）を持つ。URL は /t/<鍵>/...
-// 豪華な演出は、配信者ごと・全員まとめて、ずっとオン／期限つきでオン にできる（管理画面 /admin）。
+// ウィジェットは、配信者ごと・全員まとめて、ON / OFF を「ずっと」か「○時間だけ」で決められる（管理画面 /admin）。
+// 期限が切れたら、初めの状態（豪華な演出は使えない、ほかは使える）に戻る。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './config.js';
 import { SECTIONS } from './schema.js';
-import { createRuntime, PREMIUM } from './runtime.js';
+import { createRuntime, FEATURES } from './runtime.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'));
@@ -20,18 +21,26 @@ const newId = () => `t${crypto.randomBytes(5).toString('hex')}`;
 // 配信者が最初に使えるウィジェット（豪華な演出は管理者がオンにしてから選べる）
 export const DEFAULT_WIDGETS = ['alerts', 'chats', 'counters', 'goals', 'rankings', 'roulettes', 'jars', 'wins', 'minecraft', 'timers', 'bosses'];
 
-/** 期限つきのオン: { until: null }（ずっと）/ { until: 時刻 } / なし（オフ） */
-const active = (grant, now = Date.now()) => Boolean(grant) && (grant.until == null || grant.until > now);
+/** 管理者が決めた ON / OFF: { on, until }（until が null ならずっと）。期限が切れたら無いのと同じ */
+const live = (o, now = Date.now()) => Boolean(o) && typeof o.on === 'boolean' && (o.until == null || o.until > now);
+
+// 前の形（premium: { 名前: { until } } = オン）を、新しい形（access: { 名前: { on, until } }）に直す
+function migrate(holder) {
+  if (!holder) return;
+  holder.access ??= {};
+  for (const [f, g] of Object.entries(holder.premium ?? {})) holder.access[f] ??= { on: true, until: g?.until ?? null, at: g?.at };
+  delete holder.premium;
+}
 
 export class Tenants {
   constructor({ dir = DATA_DIR, onChange = () => {} } = {}) {
     this.dir = dir;
     this.file = path.join(dir, 'tenants.json');
     this.onChange = onChange;
-    this.data = { tenants: [], global: { premium: {} } };
+    this.data = { tenants: [], global: { access: {} } };
     this.runtimes = new Map(); // id → runtime
     this.#load();
-    // 期限が切れたら、その配信者の画面を読み込み直す（豪華な演出が止まる）
+    // 期限が切れたら、その配信者の画面を読み込み直す（使えなくなったものは止まり、使えるようになったものは出る）
     this.lastState = new Map();
     this.timer = setInterval(() => this.#checkExpiry(), 15_000);
     this.timer.unref();
@@ -42,7 +51,9 @@ export class Tenants {
   #load() {
     try {
       const d = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      this.data = { tenants: d.tenants ?? [], global: { premium: {}, ...d.global } };
+      this.data = { tenants: d.tenants ?? [], global: { access: {}, ...d.global } };
+      for (const t of this.data.tenants) migrate(t);
+      migrate(this.data.global);
     } catch {}
   }
 
@@ -70,58 +81,79 @@ export class Tenants {
     return null;
   }
 
-  // --- 豪華な演出 ---
+  // --- 使える / 使えない ---
 
-  /** その配信者が豪華な演出を使えるか（配信者ごとのオン か 全員のオン） */
-  entitled(id, feature) {
-    const t = this.get(id);
-    if (!t || !PREMIUM[feature]) return Boolean(t) && !PREMIUM[feature];
-    return active(t.premium?.[feature]) || active(this.data.global.premium?.[feature]);
+  /**
+   * そのウィジェット・演出の今の状態。配信者ごとの設定 → 全員の設定 → 初めの状態 の順に見る。
+   * { on, until（いつまでか。null はずっと）, source: 'own' | 'everyone' | 'default' }
+   */
+  access(id, feature, now = Date.now()) {
+    const def = FEATURES[feature];
+    const own = this.get(id)?.access?.[feature];
+    const all = this.data.global.access?.[feature];
+    if (live(own, now)) return { on: own.on, until: own.until ?? null, source: 'own' };
+    if (live(all, now)) return { on: all.on, until: all.until ?? null, source: 'everyone' };
+    return { on: def ? !def.premium : true, until: null, source: 'default' };
   }
 
-  /** 豪華な演出ごとの状態（いつまでか、全員の設定から来ているか） */
-  premiumState(id) {
-    const t = this.get(id);
-    const now = Date.now();
-    const out = {};
-    for (const f of Object.keys(PREMIUM)) {
-      const own = t?.premium?.[f];
-      const all = this.data.global.premium?.[f];
-      const ownOn = active(own, now);
-      const allOn = active(all, now);
-      // 長いほうの期限を見せる
-      const until = ownOn && own.until == null ? null : allOn && all.until == null ? null : Math.max(ownOn ? own.until : 0, allOn ? all.until : 0) || null;
-      out[f] = { active: ownOn || allOn, until: ownOn || allOn ? until : null, own: ownOn ? own : null, everyone: allOn ? all : null };
-    }
-    return out;
+  /** 使えるか（知らない名前は使える） */
+  entitled(id, feature) {
+    if (!this.get(id)) return false;
+    return this.access(id, feature).on;
+  }
+
+  /** 全部のウィジェット・演出の状態 */
+  accessState(id) {
+    return Object.fromEntries(Object.keys(FEATURES).map((f) => [f, this.access(id, f)]));
+  }
+
+  /** 全員まとめての設定（なければ初めの状態） */
+  globalState() {
+    return Object.fromEntries(
+      Object.entries(FEATURES).map(([f, def]) => {
+        const g = this.data.global.access?.[f];
+        return [f, live(g) ? { on: g.on, until: g.until ?? null, source: 'everyone' } : { on: !def.premium, until: null, source: 'default' }];
+      }),
+    );
   }
 
   /**
-   * 豪華な演出をオン/オフする。
-   * target: 配信者の id / 'global'（全員のオン。配信者ごとの設定はそのまま）/ 'everyone'（全員の配信者ごとの設定を書き換える）
-   * feature: PREMIUM の名前か 'all'、mode: 'on'（ずっと）/ 'for'（hours 時間）/ 'off'
+   * 使える / 使えないを決める。
+   * target: 配信者の id / 'global'（全員まとめて）/ 'everyone'（全員の配信者ごとの設定を書き換える）
+   * feature: 名前 / 'all'（全部）/ 'premium'（豪華な演出だけ）
+   * on: true（使える）/ false（使えない）/ null（決めたのを消して、全員の設定か初めの状態に戻す）
+   * hours: 0 か省略でずっと、数ならその時間だけ（過ぎたら戻る）
    */
-  setPremium(target, feature, mode, hours = 0) {
-    const features = feature === 'all' ? Object.keys(PREMIUM) : [feature];
-    if (!features.every((f) => PREMIUM[f])) throw new Error(`演出の名前は ${Object.keys(PREMIUM).join(' / ')} か all です`);
-    if (!['on', 'for', 'off'].includes(mode)) throw new Error('mode は on / for / off のどれかです');
-    if (mode === 'for' && !(Number(hours) > 0)) throw new Error('何時間オンにするか（hours）を入れてください');
-    const grant = mode === 'off' ? null : { until: mode === 'on' ? null : Date.now() + Number(hours) * 3600_000, at: Date.now() };
-    const apply = (premium) => {
+  setAccess(target, feature, on, hours = 0) {
+    const features = feature === 'all' ? Object.keys(FEATURES) : feature === 'premium' ? Object.keys(FEATURES).filter((f) => FEATURES[f].premium) : [feature];
+    if (!features.every((f) => FEATURES[f])) throw new Error(`名前は ${Object.keys(FEATURES).join(' / ')} か all / premium です`);
+    if (on !== true && on !== false && on !== null) throw new Error('on は true / false / null のどれかです');
+    const h = Number(hours) || 0;
+    if (h < 0) throw new Error('時間は 0（ずっと）か、それより大きい数にしてください');
+    const value = on === null ? null : { on, until: h > 0 ? Date.now() + h * 3600_000 : null, at: Date.now() };
+    const apply = (holder) => {
+      holder.access ??= {};
       for (const f of features) {
-        if (grant) premium[f] = grant;
-        else delete premium[f];
+        if (value) holder.access[f] = value;
+        else delete holder.access[f];
       }
     };
-    if (target === 'global') apply((this.data.global.premium ??= {}));
-    else if (target === 'everyone') for (const t of this.data.tenants) apply((t.premium ??= {}));
+    if (target === 'global') apply(this.data.global);
+    else if (target === 'everyone') for (const t of this.data.tenants) apply(t);
     else {
       const t = this.get(target);
       if (!t) throw new Error('その配信者は見つかりません');
-      apply((t.premium ??= {}));
+      apply(t);
     }
     this.#save();
     this.#notify(target === 'global' || target === 'everyone' ? null : target);
+  }
+
+  /** 前の形の呼び方（mode: 'on' ずっと / 'for' hours 時間 / 'off'） */
+  setPremium(target, feature, mode, hours = 0) {
+    if (!['on', 'for', 'off'].includes(mode)) throw new Error('mode は on / for / off のどれかです');
+    if (mode === 'for' && !(Number(hours) > 0)) throw new Error('何時間オンにするか（hours）を入れてください');
+    this.setAccess(target, feature === 'all' ? 'premium' : feature, mode === 'off' ? false : true, mode === 'for' ? hours : 0);
   }
 
   // --- 配信者の追加・変更 ---
@@ -134,7 +166,7 @@ export class Tenants {
       obsKey: newKey(),
       enabled: true,
       widgets: [...DEFAULT_WIDGETS],
-      premium: {},
+      access: {},
       createdAt: Date.now(),
     };
     this.data.tenants.push(t);
@@ -184,7 +216,7 @@ export class Tenants {
       id,
       name: t?.name ?? '',
       widgets: t?.widgets ?? [],
-      premium: this.premiumState(id),
+      access: this.accessState(id),
     };
   }
 
@@ -217,19 +249,19 @@ export class Tenants {
   #notify(id) {
     for (const t of this.data.tenants) {
       if (id && t.id !== id) continue;
-      this.lastState.set(t.id, JSON.stringify(this.premiumActiveMap(t.id)));
+      this.lastState.set(t.id, JSON.stringify(this.onMap(t.id)));
       this.runtimes.get(t.id)?.entitlementsChanged();
     }
     this.onChange(id);
   }
 
-  premiumActiveMap(id) {
-    return Object.fromEntries(Object.keys(PREMIUM).map((f) => [f, this.entitled(id, f)]));
+  onMap(id) {
+    return Object.fromEntries(Object.keys(FEATURES).map((f) => [f, this.entitled(id, f)]));
   }
 
   #checkExpiry() {
     for (const t of this.data.tenants) {
-      const now = JSON.stringify(this.premiumActiveMap(t.id));
+      const now = JSON.stringify(this.onMap(t.id));
       const before = this.lastState.get(t.id);
       this.lastState.set(t.id, now);
       if (before != null && before !== now) this.runtimes.get(t.id)?.entitlementsChanged();

@@ -145,7 +145,7 @@ let winCounts = {};
 function renderWins() {
   const box = $('winsList');
   const entries = Object.entries(config?.wins ?? {});
-  $('winsSection').hidden = !entries.length;
+  $('winsSection').hidden = !entries.length || (me.mode === 'tenant' && me.access?.wins?.on === false);
   box.replaceChildren(
     ...entries.map(([id, w]) => {
       const n = winCounts[id]?.wins ?? 0;
@@ -200,7 +200,7 @@ const TIMER_STATE = { idle: 'スタート前', running: '', paused: '一時停�
 
 function renderTimers() {
   const entries = Object.entries(config?.timers ?? {});
-  $('timersSection').hidden = !entries.length;
+  $('timersSection').hidden = !entries.length || (me.mode === 'tenant' && me.access?.timers?.on === false);
   $('timersList').replaceChildren(
     ...entries.map(([id, c]) => {
       const t = timers[id] ?? { status: 'idle', remaining: (c.startMinutes ?? 60) * 60_000 };
@@ -249,7 +249,7 @@ function tickTimers() {
 let rush = { active: false };
 let rushOffset = 0;
 
-let me = { mode: 'local' }; // 配信者ごとの URL のときは、豪華な演出を使えるか
+let me = { mode: 'local' }; // 配信者ごとの URL のときは、どのウィジェットを使えるか（管理者が決める）
 function renderRushButtons() {
   const box = $('rushButtons');
   const btn = (label, iconName, action) => {
@@ -261,7 +261,7 @@ function renderRushButtons() {
     return b;
   };
   box.replaceChildren(rush.active ? btn('RUSH を終わらせる', 'square', 'stop') : btn('RUSH 突入', 'zap', 'start'));
-  $('rushSection').hidden = config?.rush?.enabled === false || (me.mode === 'tenant' && !me.premium?.rush?.active);
+  $('rushSection').hidden = config?.rush?.enabled === false || (me.mode === 'tenant' && me.access?.rush?.on === false);
 }
 
 function renderRush() {

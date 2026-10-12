@@ -176,14 +176,14 @@ export function createEditor({ api, setMessage }) {
 
   // --- 使うウィジェット（配信者ごとの URL のとき） ---
 
-  const PREMIUM_TABS = ['cutins', 'imageCutins', 'rush'];
   const isTenant = () => me.mode === 'tenant';
-  const unlocked = (section) => !PREMIUM_TABS.includes(section) || !isTenant() || me.premium?.[section]?.active;
+  // 管理者が使えなくしているものは選べない（1人で使うときは全部使える）
+  const unlocked = (section) => !isTenant() || me.access?.[section]?.on !== false;
   /** タブに出すもの: 1人で使うときは全部、配信者ごとのときは選んだものとテーマ */
   const visibleTabs = () => (isTenant() ? TABS.filter((s) => s === 'theme' || (me.widgets.includes(s) && unlocked(s))) : TABS);
 
   const untilText = (st) => {
-    if (!st?.active) return '';
+    if (!st?.on) return '';
     if (st.until == null) return '';
     const h = Math.max(0, (st.until - Date.now()) / 3600_000);
     return h < 1 ? `あと${Math.max(1, Math.round(h * 60))}分` : `あと${Math.round(h)}時間`;
@@ -211,13 +211,13 @@ export function createEditor({ api, setMessage }) {
       if (!open) {
         b.disabled = true;
         b.classList.add('locked');
-        b.title = '管理者がオンにすると使えます';
+        b.title = '管理者が使えるようにすると選べます';
         b.append(icon('lock'));
       } else if (on) {
         b.append(icon('check'));
       }
       b.append(schema.sections[section].title);
-      const left = PREMIUM_TABS.includes(section) ? untilText(me.premium?.[section]) : '';
+      const left = untilText(me.access?.[section]);
       if (left) b.append(Object.assign(document.createElement('small'), { textContent: left }));
       b.addEventListener('click', async () => {
         const next = on ? me.widgets.filter((w) => w !== section) : [...me.widgets, section];
@@ -232,17 +232,17 @@ export function createEditor({ api, setMessage }) {
       chips.append(b);
     }
     // WIN数の全画面演出（ウィジェットの選択ではなく、使えるかどうかだけ）
-    const fx = me.premium?.winsFx;
+    const fx = me.access?.winsFx;
     const info = document.createElement('span');
-    info.className = `pick info${fx?.active ? '' : ' locked'}`;
-    info.append(icon(fx?.active ? 'sparkles' : 'lock'), 'WIN数の全画面演出');
-    if (fx?.active && untilText(fx)) info.append(Object.assign(document.createElement('small'), { textContent: untilText(fx) }));
-    if (!fx?.active) info.title = '管理者がオンにすると使えます';
+    info.className = `pick info${fx?.on ? '' : ' locked'}`;
+    info.append(icon(fx?.on ? 'sparkles' : 'lock'), 'WIN数の全画面演出');
+    if (untilText(fx)) info.append(Object.assign(document.createElement('small'), { textContent: untilText(fx) }));
+    if (!fx?.on) info.title = '管理者が使えるようにすると使えます';
     chips.append(info);
     box.append(chips);
     const note = document.createElement('p');
     note.className = 'hint';
-    note.textContent = '🔒 の付いた豪華な演出は、管理者がオンにすると選べます。';
+    note.textContent = '🔒 の付いたものは、管理者が使えるようにすると選べます。';
     box.append(note);
   }
 
@@ -755,7 +755,7 @@ export function createEditor({ api, setMessage }) {
       // ボタン用の URL は、このダッシュボードの URL の下（配信者ごとの URL なら /t/<鍵>/）
       const base = `${location.origin}${BASE}`;
       const fx = payload.widgets.find((x) => x.section === 'wins' && x.id === id && x.extra);
-      if (fx && isTenant() && !me.premium?.winsFx?.active) $('sizeHint').textContent += ' 全画面の演出（大妨害・目標達成など）は、管理者がオンにすると使えます。';
+      if (fx && isTenant() && !me.access?.winsFx?.on) $('sizeHint').textContent += ' 全画面の演出（大妨害・目標達成など）は、管理者が使えるようにすると使えます。';
       else if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
       $('sizeHint').textContent +=
         ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
