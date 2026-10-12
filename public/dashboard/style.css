@@ -150,8 +150,35 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 
 .section { padding: 20px; display: grid; gap: 16px; align-content: start; }
 
+/* 配信画面の見本 */
+.stage-view { display: grid; gap: 16px; min-width: 0; }
+.stage-head h3 { margin: 0; font-size: 24px; }
+.stage-head p { margin: 6px 0 0; color: var(--text-secondary); }
+.stage-url { display: flex; gap: 8px; align-items: center; }
+.stage-url input { flex: 1; min-width: 0; font-size: 13px; }
+.stage-size { margin: -8px 0 0; }
+.stage-preview { position: relative; width: 100%; max-width: 720px; margin: 0 auto; overflow: hidden; border: 1px solid var(--stroke-primary); background: #242428; border-radius: var(--r-md); }
+.stage-preview > iframe { position: absolute; top: 0; border: 0; transform-origin: top left; pointer-events: none; }
+.stage-boxes { position: absolute; inset: 0; width: 1080px; height: 1920px; transform-origin: top left; pointer-events: none; }
+.stage-box { position: absolute; display: block; padding: 0; border: 1px dashed rgba(255, 197, 61, .85); background: rgba(255, 197, 61, .10); color: var(--text-primary); pointer-events: auto; touch-action: none; cursor: grab; text-align: left; }
+.stage-box:active { cursor: grabbing; }
+.stage-box-label { position: absolute; left: 6px; top: 4px; padding: 1px 5px; color: #111113; background: #FFC53D; font-size: 12px; line-height: 1.4; white-space: nowrap; }
+.stage-box-handle { position: absolute; right: -1px; bottom: -1px; width: 18px; height: 18px; background: linear-gradient(135deg, transparent 45%, #FFC53D 46%, #FFC53D 60%, transparent 61%); cursor: nwse-resize; }
+.stage-actions { justify-content: center; }
+.stage-list { display: grid; gap: 1px; }
+.stage-list h4 { margin: 0 0 6px; font-size: 14px; }
+.stage-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--stroke-secondary); }
+.stage-row input { width: 20px; height: 20px; accent-color: var(--attention); }
+.recommended-url { padding: 16px; border: 1px solid var(--attention); border-radius: var(--r-md); background: var(--fill-tertiary); }
+.recommended-url .view-title { margin-bottom: 10px; }
+
 @media (max-width: 1024px) {
   .layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .stage-url { display: grid; grid-template-columns: 1fr auto; }
+  .stage-url input { grid-column: 1 / -1; }
+  .stage-preview { position: sticky; top: 8px; z-index: 3; }
 }
 
 /* --- KPI --- */

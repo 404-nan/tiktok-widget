@@ -8,6 +8,7 @@ import path from 'node:path';
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-config-'));
 process.env.TW_CONFIG = path.join(dir, 'config.yaml');
 const cfg = await import('../src/config.js');
+const { SCHEMA } = await import('../src/schema.js');
 
 before(() => fs.copyFileSync(cfg.EXAMPLE_PATH, cfg.CONFIG_PATH));
 
@@ -69,9 +70,25 @@ test('merge は指定したキーだけ変え、削除もできる', () => {
 
 test('ウィジェットの URL と推奨サイズ', () => {
   const list = cfg.widgetList(cfg.load().config, 'http://x');
+  assert.deepEqual(list[0], { section: 'all', id: null, title: '全部まとめて', url: 'http://x/widgets/all.html', size: [1080, 1920] });
   const reward = list.find((w) => w.section === 'roulettes' && w.id === 'reward');
   assert.equal(reward.url, 'http://x/widgets/roulette.html?ids=reward');
   assert.deepEqual(reward.size, [820, 330]);
   const elixir = list.find((w) => w.section === 'jars' && w.id === 'elixir');
   assert.equal(elixir.url, 'http://x/widgets/gift-jar.html?id=elixir');
+});
+
+test('置き場所は範囲内の初期値で、重ねない', () => {
+  const sections = ['alerts', 'chats', 'jars', 'goals', 'wins', 'timers', 'bosses', 'counters', 'rankings', 'roulettes'];
+  const points = [];
+  for (const section of sections) {
+    const f = SCHEMA[section].fields;
+    assert.equal(f.inAll.default, true);
+    assert.equal(f.posScale.default, 1);
+    assert.ok(f.posX.default >= 0 && f.posX.default <= 100);
+    assert.ok(f.posY.default >= 0 && f.posY.default <= 100);
+    const point = `${f.posX.default},${f.posY.default}`;
+    assert.ok(!points.includes(point), `${section} の初期位置が重なっています`);
+    points.push(point);
+  }
 });

@@ -13,6 +13,14 @@ const oneOf = (values, def, desc) => ({ type: 'enum', values, default: def, desc
 const color = (def, desc) => ({ type: 'color', default: def, desc });
 const list = (def, desc, values) => ({ type: 'list', default: def, desc, values });
 
+// 縦の配信画面で置き場所を決める項目。YAML に書かなくても初期値で使える。
+const placementFields = (x = 12, y = 12) => ({
+  posX: num(x, '配信画面の左端（幅に対する %）', { min: 0, max: 100 }),
+  posY: num(y, '配信画面の上端（高さに対する %）', { min: 0, max: 100 }),
+  posScale: num(1, '配信画面での大きさの倍率', { min: 0.2, max: 3 }),
+  inAll: bool(true, '「全部まとめて」に出す'),
+});
+
 export const SCHEMA = {
   theme: {
     kind: 'object',
@@ -35,6 +43,7 @@ export const SCHEMA = {
     desc: 'ギフト・フォロー・シェアを中継テロップのように出す。URL は /widgets/gift-alert.html?id=<名前>',
     size: () => [760, 200],
     fields: {
+      ...placementFields(4, 62),
       events: list(['gift', 'follow'], '通知するイベント', GIFT_EVENTS),
       gifts: list([], 'このギフト名（または ID）だけ通知する。空なら全部'),
       minCoins: num(1, 'この合計コイン未満のギフトは通知しない', { min: 0 }),
@@ -68,6 +77,7 @@ export const SCHEMA = {
       'URL は /widgets/chat.html?id=<名前>',
     size: () => [460, 640],
     fields: {
+      ...placementFields(70, 10),
       style: oneOf(['telop', 'bubble'], 'telop', 'telop テロップ風（下から積み上がる一覧）/ bubble 吹き出し風'),
       maxItems: num(8, '一度に出しておく最大件数。超えたら古いものから消える', { min: 1, max: 30 }),
       lifetime: num(60, 'この秒数がたったコメントは消す（0 で消さない）', { min: 0, max: 3600 }),
@@ -97,6 +107,7 @@ export const SCHEMA = {
     desc: '届いたギフトが入れ物に落ちてたまる。URL は /widgets/gift-jar.html?id=<名前>',
     size: (e) => ({ jar: [500, 700], heart: [600, 600], potion: [520, 700] })[e.shape] ?? [500, 700],
     fields: {
+      ...placementFields(10, 22),
       shape: oneOf(['jar', 'heart', 'potion'], 'jar', '入れ物の形。jar 保存瓶 / heart ハート / potion エリクサーのフラスコ'),
       title: str('ギフト瓶', 'ラベルの文字'),
       label: bool(true, '合計コインのラベルを出す'),
@@ -120,6 +131,7 @@ export const SCHEMA = {
     desc: 'フォロー数などの目標までの進み具合。URL は /widgets/goal.html?id=<名前>',
     size: () => [640, 180],
     fields: {
+      ...placementFields(40, 18),
       title: str('フォロー目標', 'タイトル'),
       metric: oneOf(METRICS, 'follows', '数えるもの'),
       goal: num(100, '目標値', { min: 1 }),
@@ -145,6 +157,7 @@ export const SCHEMA = {
     // 大妨害・超妨害・壊滅を配信画面いっぱいに出すページ（板とは別に OBS に入れる）
     extraPages: [{ page: 'wins-fx', title: 'WIN数の全画面演出', size: () => [1080, 1920] }],
     fields: {
+      ...placementFields(4, 84),
       title: str('WIN', '大きく出す見出し'),
       goal: num(0, '目標（例 10 で「/ 10」と出し、達成で祝う。0 で出さない）', { min: 0 }),
       rules: {
@@ -200,6 +213,7 @@ export const SCHEMA = {
       '状態はサーバーの data/timers.json に残るので、OBS やサーバーを再起動しても続きから。URL は /widgets/timer.html?id=<名前>',
     size: () => [720, 280],
     fields: {
+      ...placementFields(4, 55),
       title: str('残り', '時計の左に出す見出し'),
       startMinutes: num(60, '初めの時間（分）', { min: 0, max: 43200 }),
       maxHours: num(0, '延びても合計（初めの時間 + 延びた時間）はこの時間まで（時間。0 で上限なし。ボタンでの足し引きは数えない）', { min: 0, max: 720 }),
@@ -243,6 +257,7 @@ export const SCHEMA = {
       'HP はサーバーの data/boss.json に残るので、OBS を読み込み直しても続きから。URL は /widgets/boss.html?id=<名前>',
     size: () => [720, 260],
     fields: {
+      ...placementFields(5, 39),
       name: str('魔王', 'ボスの名前（1体目）'),
       hp: num(10000, '1体目の最大 HP', { min: 1 }),
       hpScale: num(1.5, '倒すたびに次のボスの HP を何倍にするか（1 で同じ）', { min: 1, max: 10 }),
@@ -281,6 +296,7 @@ export const SCHEMA = {
     desc: 'いいね・視聴者などのスコアボード。URL は /widgets/counter.html?id=<名前>',
     size: () => [560, 220],
     fields: {
+      ...placementFields(5, 55),
       show: list(['likes', 'viewers'], '表示する数値（並べる順）', METRICS),
       layout: oneOf(['row', 'column'], 'row', '横に並べるか縦に並べるか'),
       align: oneOf(['left', 'center', 'right'], 'left', '寄せ'),
@@ -299,6 +315,7 @@ export const SCHEMA = {
       'URL は /widgets/roulette.html（全部）か ?ids=<名前>,<名前>（絞り込み）',
     size: (e) => (e.style === 'strip' ? [820, 330] : [600, 680]),
     fields: {
+      ...placementFields(40, 43),
       name: str('', '表示名（ダッシュボード用）'),
       style: oneOf(['wheel', 'strip'], 'wheel', 'wheel 丸いホイール / strip 横に流れるカード'),
       gifts: list([], 'このギフト名（または ID）で回す。ギフト名の指定は minCoins より優先される'),
@@ -423,6 +440,8 @@ SCHEMA.rankings = {
     hideEmpty: bool(false, 'まだ誰もいないときは隠す'),
   },
 };
+// ランキングは右側の空いた場所に置く。
+SCHEMA.rankings.fields = { ...placementFields(60, 48), ...SCHEMA.rankings.fields };
 
 SCHEMA.minecraft = {
   kind: 'object',

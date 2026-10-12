@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080, height=1920, initial-scale=1">
+<title>全部まとめて</title>
+<style>
+  html, body { width: 1080px; height: 1920px; margin: 0; overflow: hidden; background: transparent; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+  iframe { position: absolute; display: block; border: 0; background: transparent; transform-origin: top left; pointer-events: none; }
+</style>
+</head>
+<body>
+<main id="stage" aria-label="配信画面"></main>
+<script type="module">
+import { BASE, connect } from './lib/overlay.js';
+
+const stage = document.querySelector('#stage');
+const frameMap = new Map();
+const map = {
+  alerts: ['gift-alert', [760, 200]], chats: ['chat', [460, 640]], jars: ['gift-jar', [500, 700]],
+  goals: ['goal', [640, 180]], wins: ['wins', [600, 200]], timers: ['timer', [720, 260]],
+  bosses: ['boss', [720, 260]], counters: ['counter', [560, 220]], rankings: ['ranking', [420, 416]],
+  roulettes: ['roulette', [600, 680]],
+};
+const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx']);
+const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx' };
+const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット' };
+
+const pageUrl = (page, id, extra = '') => {
+  const q = new URLSearchParams(extra);
+  if (id && id !== '*') q.set(page === 'roulette' ? 'ids' : 'id', id);
+  q.set('all', '1');
+  return `${BASE}/widgets/${page}.html?${q}`;
+};
+const entitled = (section, me) => me?.mode !== 'tenant' || (section === 'winsFx' ? me.access?.winsFx?.on : me.access?.[section]?.on !== false);
+const active = (section, config, me) => {
+  if (!entitled(section, me)) return false;
+  if (me?.mode === 'tenant') return me.widgets?.includes(section);
+  if (section === 'rush') return config.rush?.enabled !== false;
+  return section === 'winsFx' ? true : Object.keys(config[section] ?? {}).length > 0 || config[section] != null;
+};
+const sizeFor = (section, entry) => {
+  if (section === 'jars') return { jar: [500, 700], heart: [600, 600], potion: [520, 700] }[entry.shape] ?? [500, 700];
+  if (section === 'wins') return entry.style === 'big' ? [380, 400] : [600, 200];
+  if (section === 'roulettes') return entry.style === 'strip' ? [820, 330] : [600, 680];
+  return map[section]?.[1] ?? [600, 200];
+};
+const place = (section, entry, index) => {
+  const defaults = { alerts: [4, 9], chats: [55, 4], jars: [10, 22], goals: [40, 18], wins: [4, 84], timers: [52, 70], bosses: [5, 39], counters: [4, 55], rankings: [60, 48], roulettes: [40, 43] }[section] ?? [8, 9];
+  const scale = Math.max(.2, Math.min(3, Number(entry.posScale) || 1));
+  const size = sizeFor(section, entry);
+  const maxX = Math.max(0, 100 - size[0] * scale / 1080 * 100);
+  const maxY = Math.max(0, 100 - size[1] * scale / 1920 * 100);
+  const x = Number.isFinite(entry.posX) ? entry.posX : defaults[0] + index * 3;
+  const y = Number.isFinite(entry.posY) ? entry.posY : defaults[1] + index * 4;
+  return [Math.max(0, Math.min(maxX, x)), Math.max(0, Math.min(maxY, y)), scale];
+};
+function setFrame(key, url, x, y, scale, size, z) {
+  let f = frameMap.get(key);
+  if (!f) {
+    f = document.createElement('iframe');
+    f.title = key;
+    f.dataset.key = key;
+    f.setAttribute('aria-hidden', 'true');
+    frameMap.set(key, f);
+    stage.append(f);
+  }
+  if (f.src !== new URL(url, location.href).href) f.src = url;
+  f.style.width = `${size[0]}px`;
+  f.style.height = `${size[1]}px`;
+  f.style.left = `${x}px`;
+  f.style.top = `${y}px`;
+  f.style.transform = `scale(${scale})`;
+  f.style.zIndex = z;
+  f.hidden = false;
+  return f;
+}
+function render(config, me = {}) {
+  const wanted = new Set();
+  for (const section of Object.keys(map)) {
+    if (!active(section, config, me)) continue;
+    const entries = Object.entries(config[section] ?? {});
+    const list = section === 'roulettes' ? (entries.length ? [['*', entries[0][1]] ] : []) : entries;
+    list.forEach(([id, entry], index) => {
+      if (entry.inAll === false) return;
+      const key = `${section}:${id}`;
+      wanted.add(key);
+      const [x, y, scale] = place(section, entry, index);
+      const size = sizeFor(section, entry);
+      setFrame(key, pageUrl(map[section][0], id), 1080 * x / 100, 1920 * y / 100, scale, size, 2);
+    });
+  }
+  for (const section of full) {
+    if (!active(section, config, me)) continue;
+    const entries = section === 'winsFx' ? Object.entries(config.wins ?? {}) : Object.entries(config[section] ?? {});
+    entries.forEach(([id, entry]) => {
+      if (section !== 'winsFx' && entry.enabled === false) return;
+      const key = `${section}:${id}`;
+      wanted.add(key);
+      setFrame(key, pageUrl(fullMap[section], id), 0, 0, 1, [1080, 1920], 10);
+    });
+  }
+  for (const [key, f] of frameMap) f.hidden = !wanted.has(key);
+}
+async function boot() {
+  const [data, me] = await Promise.all([fetch('/api/config').then((r) => r.json()), fetch('/api/me').then((r) => r.json()).catch(() => ({}))]);
+  let currentConfig = data.config ?? {};
+  let currentMe = me;
+  render(currentConfig, currentMe);
+  connect({ config: (config) => { currentConfig = config; render(currentConfig, currentMe); }, entitlements: (info) => { currentMe = info; render(currentConfig, currentMe); } });
+}
+boot().catch(() => {});
+</script>
+</body>
+</html>

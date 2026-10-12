@@ -3,6 +3,7 @@
 
 import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
 import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
+import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 
 const $ = (id) => document.getElementById(id);
@@ -103,11 +104,12 @@ export function createEditor({ api, setMessage }) {
   let id = null;
   let yamlDirty = false;
   let superstream = { gifts: [] };
+  let stage = null;
   // 「かんたん」は、左のサイドバーで選ぶと右が切り替わる:
   //   detail（ウィジェット1つの設定）/ catalog（出すものを足す）/ obs（OBS に入れる URL）/ ai（AI にたのむ）
   // 「くわしく」は今までのタブとフォーム
   let mode = 'simple';
-  let view = 'detail';
+  let view = 'stage';
   let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
   const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
@@ -293,7 +295,7 @@ export function createEditor({ api, setMessage }) {
     document.body.dataset.mode = mode;
     if (mode === 'advanced') restoreChrome();
     for (const b of $('modeSeg').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
-    if (!keepView) view = 'detail';
+    if (!keepView) view = mode === 'simple' ? 'stage' : 'detail';
     if (payload) select(tab);
   }
 
@@ -371,6 +373,7 @@ export function createEditor({ api, setMessage }) {
   function obsList() {
     const used = usedSections();
     return payload.widgets.filter((w) => {
+      if (w.section === 'all') return true;
       if (!used.includes(w.section)) return false;
       if (w.section === 'roulettes') return w.id === '*';
       if (w.extra) return !isTenant() || me.access?.winsFx?.on;
@@ -409,6 +412,7 @@ export function createEditor({ api, setMessage }) {
     const menu = document.createElement('div');
     menu.className = 'side-menu';
     menu.append(
+      item('monitor-up', '配信画面', view === 'stage', goTo('stage'), 'side-stage'),
       item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai'),
       label('配信画面に出すもの'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
@@ -483,10 +487,11 @@ export function createEditor({ api, setMessage }) {
   // OBS に入れる URL をまとめて見る
   function renderObs() {
     const box = $('cards');
+    const all = obsList().find((w) => w.section === 'all');
     const steps = document.createElement('ol');
     steps.className = 'steps';
     for (const t of ['OBS / TikTok LIVE Studio で「ブラウザ」のソースを足す', '下の URL を「コピー」して貼る', '幅と高さを、書いてある数字にする']) steps.append(Object.assign(document.createElement('li'), { textContent: t }));
-    const rows = obsList().map((w) => {
+    const rows = obsList().filter((w) => w.section !== 'all').map((w) => {
       const row = document.createElement('div');
       row.className = 'srow url-item';
       const main = document.createElement('span');
@@ -509,7 +514,16 @@ export function createEditor({ api, setMessage }) {
       return row;
     });
     box.replaceChildren(viewHead('OBS / TikTok LIVE Studio に入れる'), steps);
-    if (rows.length) box.append(listGroup('URL（1つずつ、別のソースとして入れます）', rows));
+    if (all) {
+      const recommend = document.createElement('div');
+      recommend.className = 'recommended-url';
+      recommend.append(viewHead('おすすめ: 全部まとめて（1つ入れるだけ）', '配信画面の大きさで、この URL を1つだけ入れます。'));
+      const row = document.createElement('div'); row.className = 'url-row';
+      const input = Object.assign(document.createElement('input'), { readOnly: true, value: all.url });
+      const copy = chip('コピー', 'copy', async () => { try { await navigator.clipboard.writeText(all.url); } catch { prompt('この URL をコピーしてください', all.url); } });
+      row.append(input, copy); recommend.append(row, Object.assign(document.createElement('p'), { className: 'hint', textContent: '幅 1080・高さ 1920' })); box.append(recommend);
+    }
+    if (rows.length) box.append(listGroup('1つずつ入れる（上級者向け）', rows));
     else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを足す」から選んでください。' }));
   }
 
@@ -628,11 +642,14 @@ export function createEditor({ api, setMessage }) {
     if (simple() && view === 'detail' && tab !== 'theme' && !usedSections().includes(tab)) view = usedSections().length ? view : 'catalog';
     const listView = simple() && (view === 'catalog' || view === 'obs');
     const aiView = simple() && view === 'ai';
+    const stageView = simple() && view === 'stage';
     $('cards').hidden = !listView;
+    $('stageView').hidden = !stageView;
     $('aiView').classList.toggle('show', aiView);
-    $('detail').hidden = listView || aiView;
+    $('detail').hidden = listView || aiView || stageView;
     $('detailHead').hidden = !simple();
     if (simple()) renderNav();
+    if (stageView) { stage?.render(); return; }
     if (listView) {
       if (view === 'catalog') renderCatalog();
       else renderObs();
@@ -1110,7 +1127,7 @@ export function createEditor({ api, setMessage }) {
       tab === 'roulettes'
         ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
-    if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]} の「ブラウザ」ソースとして入れます。`;
+    if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]} の「ブラウザ」ソースとして入れます。1つずつ入れるときに使う URL です。主役は「配信画面」の URL です。`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
     if (simple()) {
       // ボタン用の URL などは「くわしく」で出す
@@ -1548,6 +1565,13 @@ export function createEditor({ api, setMessage }) {
         api('/api/me').catch(() => ({ mode: 'local' })),
       ]);
       if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のウィジェット`;
+      stage = createStage({
+        api,
+        getPayload: () => payload,
+        getMe: () => me,
+        onChanged: (data) => { if (data.config) payload = data; render(); },
+        openWidget: (section, entry) => { view = 'detail'; select(section, entry); },
+      });
       renderPicker();
       $('yamlText').value = payload.yaml;
       renderYamlIssues(payload.errors, payload.warnings);

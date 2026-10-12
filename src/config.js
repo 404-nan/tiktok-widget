@@ -534,7 +534,7 @@ export function publicConfig(config) {
 
 /** 設定にあるウィジェットごとの URL と推奨サイズ */
 export function widgetList(config, base = 'http://127.0.0.1:3939') {
-  const out = [];
+  const out = [{ section: 'all', id: null, title: '全部まとめて', url: `${base}/widgets/all.html`, size: [1080, 1920] }];
   for (const section of SECTIONS) {
     const def = SCHEMA[section];
     if (def.kind !== 'map') {
