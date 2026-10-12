@@ -4,6 +4,20 @@ import path from 'node:path';
 
 const DAY = 24 * 60 * 60 * 1000;
 
+// TikTok の gift/list（webcast_language=ja-JP）で取った日本語名の控え。取得できないときに ID→英語名の順で引く
+let BUNDLED = { byId: new Map(), byName: new Map() };
+try {
+  const raw = JSON.parse(fs.readFileSync(new URL('./gift-names-ja.json', import.meta.url), 'utf8'));
+  for (const [id, [en, ja]] of Object.entries(raw.names ?? {})) {
+    BUNDLED.byId.set(String(id), ja);
+    if (!BUNDLED.byName.has(String(en).toLocaleLowerCase())) BUNDLED.byName.set(String(en).toLocaleLowerCase(), ja);
+  }
+} catch {}
+export function bundledNameJa(gift) {
+  return BUNDLED.byId.get(String(gift?.id ?? gift?.giftId ?? '').trim())
+    ?? BUNDLED.byName.get(String(gift?.name ?? gift?.giftName ?? '').trim().toLocaleLowerCase()) ?? null;
+}
+
 const text = (v) => (v == null ? '' : String(v).trim());
 
 export function giftDisplayName(gift) {
@@ -23,7 +37,7 @@ export function normalizeGiftRecord(gift) {
   return {
     id,
     name,
-    nameJa: text(gift?.nameJa) || null,
+    nameJa: text(gift?.nameJa) || bundledNameJa(gift) || null,
     diamonds: Number(gift?.diamonds ?? gift?.diamond_count ?? 0) || 0,
     image: gift?.image ?? gift?.icon ?? null,
   };
@@ -78,7 +92,7 @@ export class GiftCatalog {
 
   enrich(gift) {
     const known = this.records.get(text(gift?.id)) ?? this.find(gift?.name);
-    return known ? { ...gift, nameJa: known.nameJa } : { ...gift, nameJa: null };
+    return known ? { ...gift, nameJa: known.nameJa ?? bundledNameJa(gift) } : { ...gift, nameJa: bundledNameJa(gift) };
   }
 
   async refresh({ fetchGifts, timeoutMs = 10_000 }) {
@@ -97,7 +111,7 @@ export class GiftCatalog {
       const paired = (english ?? []).map((gift) => {
         const japaneseGift = japaneseById.get(text(gift?.id ?? gift?.giftId));
         const japaneseName = text(japaneseGift?.name ?? japaneseGift?.giftName);
-        return { ...gift, nameJa: japaneseName && japaneseName !== text(gift?.name ?? gift?.giftName) ? japaneseName : null };
+        return { ...gift, nameJa: japaneseName && japaneseName !== text(gift?.name ?? gift?.giftName) ? japaneseName : (bundledNameJa(gift) ?? null) };
       });
       const imported = this.import(paired, Date.now());
       if (imported.count && !this.loggedPairs) {

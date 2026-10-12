@@ -41,8 +41,8 @@ test('日本語名が英語名と同じなら nameJa は null', async () => {
   const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
   await catalog.refresh({
     fetchGifts: async (language) => language === 'en'
-      ? [{ id: 1, name: 'Galaxy' }]
-      : [{ id: 1, name: 'Galaxy' }],
+      ? [{ id: 1, name: 'Test Gift X' }]
+      : [{ id: 1, name: 'Test Gift X' }],
   });
   assert.equal(catalog.find('1').nameJa, null);
 });
@@ -52,4 +52,12 @@ test('日本語名がないギフトの表示は今までの英語名のまま',
   assert.equal(event.gift.name, 'Rose');
   assert.equal(event.gift.nameJa, null);
   assert.equal(giftDisplayName(event.gift), 'Rose');
+});
+
+test('TikTok から日本語名が取れないときは控えの対応表（ID→英語名）から日本語名を出す', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  assert.equal(catalog.enrich({ id: '7934', name: 'Heart Me' }).nameJa, 'ハートミー');
+  assert.equal(catalog.enrich({ id: '0', name: 'Meteor Shower' }).nameJa, '流星群');
+  assert.equal(catalog.enrich({ id: '0', name: 'Unknown Gift' }).nameJa, null);
 });

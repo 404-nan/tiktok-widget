@@ -122,9 +122,9 @@ async function fetchGifts(username, roomId, signApiKey, language) {
   conn.webClient.roomId = roomId;
   if (language === 'ja') {
     Object.assign(conn.webClient.clientParams, {
-      app_language: 'ja',
+      app_language: 'ja-JP',
       browser_language: 'ja-JP',
-      webcast_language: 'ja',
+      webcast_language: 'ja-JP', // 'ja' だと英語名のまま返る
       region: 'JP',
       priority_region: 'JP',
     });
