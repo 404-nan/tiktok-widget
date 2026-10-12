@@ -687,7 +687,7 @@ export function createEditor({ api, setMessage }) {
     // かんたん: まとまりごとに、型とよく使う項目だけ。細かいものは「くわしく」へ
     const easy = simple() ? SIMPLE[tab] : null;
     if (easy) {
-      if (easy.note) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
+      if (easy.note && (section !== 'minecraft' || isTenant())) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
       for (const g of easy.groups) {
         const fields = g.fields.filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
         form.append(listGroup(g.title, [...(g.presets ?? []).map((preset) => presetRow(preset, values)), ...fields.map((key) => fieldFor(key, def.fields[key], values[key]))]));

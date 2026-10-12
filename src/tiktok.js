@@ -115,7 +115,7 @@ function describeError(err) {
   const name = err?.constructor?.name ?? '';
   const msg = err?.message ?? String(err);
   if (name === 'UserOfflineError' || /offline|isn't online|not live/i.test(msg)) {
-    return 'このユーザーは今 LIVE 配信をしていません';
+    return 'まだ配信が始まっていません。TikTok で配信を始めてから、もう一度「接続」を押してください';
   }
   if (/sign|rate.?limit|429|api key/i.test(msg)) {
     return `署名サーバーでエラーになりました（API キーの設定を確認してください）: ${msg}`;

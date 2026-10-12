@@ -145,7 +145,7 @@ let winCounts = {};
 function renderWins() {
   const box = $('winsList');
   const entries = Object.entries(config?.wins ?? {});
-  $('winsSection').hidden = !entries.length || (me.mode === 'tenant' && me.access?.wins?.on === false);
+  $('winsSection').hidden = !entries.length || !canUse('wins');
   box.replaceChildren(
     ...entries.map(([id, w]) => {
       const n = winCounts[id]?.wins ?? 0;
@@ -200,7 +200,7 @@ const TIMER_STATE = { idle: 'スタート前', running: '', paused: '一時停�
 
 function renderTimers() {
   const entries = Object.entries(config?.timers ?? {});
-  $('timersSection').hidden = !entries.length || (me.mode === 'tenant' && me.access?.timers?.on === false);
+  $('timersSection').hidden = !entries.length || !canUse('timers');
   $('timersList').replaceChildren(
     ...entries.map(([id, c]) => {
       const t = timers[id] ?? { status: 'idle', remaining: (c.startMinutes ?? 60) * 60_000 };
@@ -250,6 +250,46 @@ let rush = { active: false };
 let rushOffset = 0;
 
 let me = { mode: 'local' }; // 配信者ごとの URL のときは、どのウィジェットを使えるか（管理者が決める）
+const canUse = (section) => me.mode !== 'tenant' || ((me.widgets ?? []).includes(section) && me.access?.[section]?.on !== false);
+
+function renderMonitorIdentity() {
+  const name = me.mode === 'tenant' ? (me.name || me.tiktokId || '配信者') : (me.tiktokId || '配信者');
+  $('brandTitle').textContent = `${name} のモニター`;
+  $('monitorTitle').textContent = `${name} のモニター`;
+  $('monitorUsername').value ||= me.tiktokId || '';
+}
+function renderMonitorConnection(status) {
+  const active = ['live', 'connecting', 'demo'].includes(status.mode);
+  $('monitorLiveStatus').dataset.mode = status.mode;
+  $('monitorLiveStatus').querySelector('span:last-child').textContent = status.mode === 'live' && status.username ? `LIVE · @${status.username}` : statusText(status);
+  $('monitorUsername').closest('label').hidden = active;
+  $('monitorDisconnectBtn').hidden = !active;
+  $('monitorConnectBtn').hidden = active;
+  if (status.message && status.mode === 'error') $('monitorMessage').textContent = status.message;
+}
+function setupMonitorConnection() {
+  $('monitorConnectForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const username = $('monitorUsername').value.trim().replace(/^@/, '');
+    if (!username) return;
+    $('monitorConnectBtn').disabled = true;
+    try { await api('/api/connect', { username }); } catch (err) { $('monitorMessage').textContent = err.message; }
+    finally { $('monitorConnectBtn').disabled = false; }
+  });
+  $('monitorDisconnectBtn').addEventListener('click', () => api('/api/disconnect', {}).catch((err) => { $('monitorMessage').textContent = err.message; }));
+}
+function renderMonitorVisibility() {
+  const show = (id, section) => { $(id).hidden = !canUse(section); };
+  show('rouletteSection', 'roulettes');
+  show('goalsSection', 'goals');
+  show('rankingSection', 'rankings');
+  $('feedPanel').hidden = !canUse('alerts') && !canUse('chats');
+  for (const button of $('feedFilter').querySelectorAll('[data-filter]')) {
+    const enabled = button.dataset.filter === 'gift' ? canUse('alerts') : button.dataset.filter === 'chat' ? canUse('chats') : true;
+    button.hidden = !enabled;
+  }
+  $('mcSection').hidden = !canUse('minecraft');
+}
 function renderRushButtons() {
   const box = $('rushButtons');
   const btn = (label, iconName, action) => {
@@ -261,7 +301,7 @@ function renderRushButtons() {
     return b;
   };
   box.replaceChildren(rush.active ? btn('RUSH を終わらせる', 'square', 'stop') : btn('RUSH 突入', 'zap', 'start'));
-  $('rushSection').hidden = config?.rush?.enabled === false || (me.mode === 'tenant' && me.access?.rush?.on === false);
+  $('rushSection').hidden = config?.rush?.enabled === false || !canUse('rush');
 }
 
 function renderRush() {
@@ -403,15 +443,24 @@ function renderMinecraftLog() {
 function renderStatus(status) {
   $('status').dataset.mode = status.mode;
   $('statusText').textContent = statusText(status);
+  renderMonitorConnection(status);
+  if (status.mode === 'live' && status.username) {
+    const name = me.mode === 'tenant' ? (me.name || status.username) : status.username;
+    $('brandTitle').textContent = `${name} のモニター`;
+    $('monitorTitle').textContent = `${name} のモニター`;
+  }
 }
 
 // --- 起動 ---
 
 setupKpis();
 setupFeedFilter();
+setupMonitorConnection();
 renderResults();
 ({ config } = await api('/api/config'));
 me = await api('/api/me').catch(() => me);
+renderMonitorIdentity();
+renderMonitorVisibility();
 renderRoulettes();
 await syncSession();
 const { recent } = await api('/api/status');

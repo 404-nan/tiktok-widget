@@ -11,7 +11,7 @@
 
 <header class="topbar panel">
   <div class="brand">
-    <div class="brand-title">TikTok LIVE ウィジェット</div>
+    <div class="brand-title" id="brandTitle">配信モニター</div>
     <div class="status" id="status"><span class="dot"></span><span id="statusText">未接続</span></div>
   </div>
   <nav class="nav" id="nav" aria-label="画面"></nav>
@@ -19,6 +19,15 @@
 </header>
 
 <main class="monitor">
+  <section class="panel section monitor-connect" id="monitorConnect">
+    <div class="section-head"><h2 id="monitorTitle">接続</h2><div class="status" id="monitorLiveStatus"><span class="dot"></span><span></span></div></div>
+    <form id="monitorConnectForm" class="monitor-connect-form">
+      <label class="input-wrap"><span class="prefix">@</span><input id="monitorUsername" autocomplete="username" placeholder="ユーザー名" required></label>
+      <button class="btn primary pressable" id="monitorConnectBtn" type="submit">接続</button>
+      <button class="btn pressable" id="monitorDisconnectBtn" type="button" hidden>切断</button>
+      <p class="message" id="monitorMessage"></p>
+    </form>
+  </section>
   <!-- この配信の数字。コインだけ大きく -->
   <section class="panel hero" aria-label="この配信">
     <div class="hero-main">
@@ -33,7 +42,7 @@
     </div>
   </section>
 
-  <section class="panel section solid feed-panel">
+  <section class="panel section solid feed-panel" id="feedPanel">
     <div class="section-head">
       <h2>ライブ</h2>
       <div class="segmented" id="feedFilter" role="tablist">
@@ -65,7 +74,7 @@
       <div class="roulette-buttons" id="rushButtons"></div>
     </section>
 
-    <section class="panel section">
+    <section class="panel section" id="rouletteSection">
       <div class="section-head">
         <h2>ルーレット</h2>
         <span class="hint" id="rouletteQueue"></span>
@@ -74,12 +83,12 @@
       <ol class="results" id="results"></ol>
     </section>
 
-    <section class="panel section">
+    <section class="panel section" id="goalsSection">
       <h2>目標</h2>
       <div class="goals" id="goals"></div>
     </section>
 
-    <section class="panel section">
+    <section class="panel section" id="rankingSection">
       <div class="section-head">
         <h2>トップギフター</h2>
         <span class="hint">この配信</span>

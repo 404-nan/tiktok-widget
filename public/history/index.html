@@ -11,7 +11,7 @@
 
 <header class="topbar panel">
   <div class="brand">
-    <div class="brand-title">TikTok LIVE ウィジェット</div>
+    <div class="brand-title" id="brandTitle">配信の統計</div>
     <div class="status" id="status"><span class="dot"></span><span id="statusText">未接続</span></div>
   </div>
   <nav class="nav" id="nav" aria-label="画面"></nav>
@@ -19,7 +19,8 @@
 </header>
 
 <main class="history">
-  <section class="panel section solid sessions-panel">
+  <p class="history-empty" id="historyEmpty" hidden>配信すると、ここに記録がたまります</p>
+  <section class="panel section solid sessions-panel" id="sessionsPanel">
     <div class="section-head">
       <h2>配信</h2>
       <div class="segmented" id="sessionFilter" role="tablist">

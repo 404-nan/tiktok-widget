@@ -185,7 +185,7 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 .stage-actions { justify-content: center; }
 .stage-list { display: grid; gap: 1px; }
 .stage-list h4 { margin: 0 0 6px; font-size: 14px; }
-.stage-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--stroke-secondary); }
+.stage-row { display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--stroke-secondary); }
 .stage-row input { width: 20px; height: 20px; accent-color: var(--attention); }
 .recommended-url { padding: 16px; border: 1px solid var(--attention); border-radius: var(--r-md); background: var(--fill-tertiary); }
 .recommended-url .view-title { margin-bottom: 10px; }

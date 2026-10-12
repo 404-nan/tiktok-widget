@@ -9,6 +9,7 @@ setupChrome('history');
 let sessions = [];
 let current = null; // 表示中の配信の id
 let showDemo = store.get('history-demo', false);
+let me = { mode: 'local' };
 
 const dateFmt = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
 const durationText = (ms) => {
@@ -51,6 +52,9 @@ function renderList() {
     }),
   );
   if (!rows.length) list.append(Object.assign(document.createElement('li'), { className: 'empty', textContent: showDemo ? 'まだ記録がありません' : 'まだ本番の記録がありません（「デモも」で切り替え）' }));
+  $('historyEmpty').hidden = rows.length > 0;
+  $('sessionsPanel').hidden = rows.length === 0;
+  $('detail').hidden = rows.length === 0;
 }
 
 // --- 1回分 ---
@@ -237,6 +241,10 @@ $('deleteBtn').addEventListener('click', async () => {
   load();
 });
 
+me = await api('/api/me').catch(() => me);
+const historyName = me.mode === 'tenant' ? (me.name || me.tiktokId || '配信者') : (me.tiktokId || '配信');
+$('brandTitle').textContent = `${historyName} の統計`;
+document.title = `${historyName} の統計`;
 await load();
 // 配信中の記録は少しずつ増えるので、表示中なら読み直す
 setInterval(() => {
