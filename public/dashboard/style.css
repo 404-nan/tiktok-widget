@@ -972,3 +972,32 @@ body:not(.ai-on) #aiView { display: none; }
 .ctx-menu button { all: unset; cursor: pointer; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--text, #fff); }
 .ctx-menu button:hover, .ctx-menu button:focus-visible { background: rgba(255,255,255,.08); }
 .item-row .thumb { -webkit-touch-callout: none; user-select: none; }
+
+/* ===== デザインの見直し（配信の「調整卓」） =====
+   主役はプレビュー（配信に映る画面）だけ。ほかは静かにそろえる */
+body { background: var(--page); } /* 飾りの色の傾きをやめる */
+[data-theme=dark] body { background: radial-gradient(120% 80% at 70% -10%, rgba(var(--paper), .045), transparent 60%) fixed, var(--page); }
+
+/* 見出し: 大きく・詰めて、説明は控えめに */
+.view-title h3, #detailHead.view-title h3 { font-size: 26px; letter-spacing: -.03em; line-height: 1.25; }
+.view-title .desc { font-size: 13px; color: var(--text-secondary); max-width: 46em; }
+.sgroup-title { font-size: 13px; font-weight: 700; color: var(--text-primary); opacity: .72; letter-spacing: .02em; }
+
+/* 左のメニュー: 選んでいるところに朱の細い目印（今いる場所） */
+.side-item { position: relative; transition: background-color var(--press), color var(--press); }
+.side-item:hover { color: var(--text-primary); background: var(--hover-wash); }
+.side-item[aria-current=true]::before { content: ""; position: absolute; left: -6px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--attention); }
+@media (max-width: 760px) { .side-item[aria-current=true]::before { left: 14px; right: 14px; top: auto; bottom: 2px; width: auto; height: 2px; } }
+
+/* プレビュー: 配信モニターのように、黒い縁と「配信画面」の札 */
+.preview { border-radius: 18px; background: #0e0e10; box-shadow: 0 0 0 6px #0e0e10, 0 0 0 7px var(--stroke-primary), 0 18px 50px rgba(0, 0, 0, .35); margin: 7px; }
+.preview::after { content: "配信画面"; position: absolute; left: 12px; right: auto; top: 10px; z-index: 2; padding: 3px 9px 3px 20px; border-radius: var(--r-pill); font-size: 11px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .55); pointer-events: none; }
+.preview::before { content: ""; position: absolute; left: 21px; top: 17px; z-index: 3; width: 7px; height: 7px; border-radius: 50%; background: var(--attention); box-shadow: 0 0 0 3px rgba(255, 79, 31, .25); pointer-events: none; }
+[data-theme=light] .preview { box-shadow: 0 0 0 6px #0e0e10, 0 18px 40px rgba(0, 0, 0, .18); }
+
+/* まとまりの面: 角の大きさで上下関係をつける（外 24 / まとまり 16 / 部品 12） */
+.sgroup-body { border-radius: 16px; }
+
+/* キーボードで動かしたときの目印をはっきり */
+:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .side-item { transition: none; } }
