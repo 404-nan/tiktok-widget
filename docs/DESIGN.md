@@ -60,7 +60,7 @@
 
 ## 6. 妨害マイクラ
 
-- 視聴者がギフトで Minecraft の配信者を妨害する配信。演出は **SuperStream**（Minecraft プラグイン）と RCON で起こす（`src/minecraft.js`・`src/superstream.js`・設定の `minecraft.rules`）
+- 視聴者がギフトで Minecraft の配信者を妨害する配信。演出はマイクラ側の演出プラグインと RCON で起こす（`src/minecraft.js`・`src/superstream.js`・設定の `minecraft.rules`）
 - **WIN数** はゲームのクリア回数（PK バトルではない）。クリアでボタン +1、ギフトのルールで増減（`{gifts: [Lion], add: -1}`）、マイナスまで行く。大きく減ると 大妨害 → 超妨害 → 壊滅、増えると 大 → 超 → 最大、目標達成はいちばん派手
 - 配信によって -10・-100・-1000 WIN もある。規模はプリセット（`lossPreset` / `gainPreset`）で合わせる
 

@@ -27,7 +27,7 @@ export const INFO = {
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
-  minecraft: { icon: 'box', desc: 'ギフトで Minecraft の中に何かを起こす' },
+  minecraft: { icon: 'box', desc: 'マイクラで遊ぶとき、ギフトでゲームの中に何かを起こす' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
 };
 
@@ -183,7 +183,7 @@ export const SIMPLE = {
     ],
   },
   minecraft: {
-    note: 'Minecraft 連携は、サーバーのアドレスやパスワードを入れる必要があるので「くわしく」で設定します。',
+    note: 'マイクラで遊ぶときだけ使います。1人で使うときは「くわしく」で設定します。',
     groups: [],
   },
   theme: {

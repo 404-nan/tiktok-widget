@@ -265,8 +265,8 @@ export const SCHEMA = {
           '討伐で Minecraft に送るコマンドの一覧（先頭の / は不要。minecraft の設定が必要）。' +
           '{user} はとどめを刺した人、{boss} はボスの名前、{round} は何体目に置き換わる',
       },
-      superstreamGift: str('', '討伐で起こす SuperStream の演出（そのギフト ID に設定した演出。minecraft の設定が必要）'),
-      superstreamAction: str('', '討伐で起こす SuperStream の演出を1つ（例 lightning）'),
+      superstreamGift: str('', '討伐で起こすマイクラの演出（そのギフト ID に設定した演出。minecraft の設定が必要）'),
+      superstreamAction: str('', '討伐で起こすマイクラの演出を1つ（例 lightning）'),
       power: num(1, '演出の強さ（揺れ・ダメージの数字の大きさの倍率）', { min: 0.3, max: 3 }),
       color: color('accent', 'HP の色'),
       sound: bool(true, '効果音'),
@@ -322,7 +322,7 @@ export const SCHEMA = {
           '項目の一覧。「歌う*2」のような文字か、{ label, weight, color, textColor, image, commands } で書く。' +
           'weight は当たりやすさ（丸型では扇の大きさも比例）。image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こす SuperStream の演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入',
+          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入',
       },
     },
   },
@@ -426,9 +426,9 @@ SCHEMA.rankings = {
 
 SCHEMA.minecraft = {
   kind: 'object',
-  title: 'Minecraft 連携',
+  title: 'マイクラ連携',
   desc:
-    'Minecraft サーバーの RCON にコマンドを送る。SuperStream などのプラグインのコマンドもそのまま書ける。' +
+    'Minecraft サーバーの RCON にコマンドを送る。マイクラ側の演出プラグインのコマンドもそのまま書ける。' +
     'server.properties で enable-rcon=true / rcon.port / rcon.password を設定しておく。' +
     'コマンドの中の {user} {userId} {gift} {giftId} {count} {coins} {item} {roulette} は置き換わる（{user} などは記号を取り除いた安全な文字になる）',
   fields: {
@@ -436,20 +436,20 @@ SCHEMA.minecraft = {
     host: str('127.0.0.1', 'Minecraft サーバーのアドレス'),
     port: num(25575, 'RCON のポート', { min: 1, max: 65535 }),
     password: str('', 'RCON のパスワード（rcon.password）', { secret: true }),
-    superstreamProfile: str('default_profile', 'SuperStream のプロフィール名（plugins/SuperStream/profiles の .yml を除いた名前）'),
+    superstreamProfile: str('default_profile', 'マイクラ側の演出プロフィール名（profiles の .yml を除いた名前）'),
     forwardGifts: bool(
       false,
-      '届いたギフトを SuperStream に渡して、そのギフトの演出を実行する（ss test profile）。' +
-        'SuperStream 側でプロフィールを start していないとき用（両方動かすと演出が二重になる）',
+      '届いたギフトをマイクラ側の演出に渡して、そのギフトの演出を実行する（ss test profile）。' +
+        'マイクラ側でプロフィールを start していないとき用（両方動かすと演出が二重になる）',
     ),
-    superstreamFile: str('', 'SuperStream のプロフィールのファイルの場所。書くと、設定済みのギフト ID と演出をダッシュボードや AI で確認できる'),
+    superstreamFile: str('', 'マイクラ側の演出プロフィールのファイルの場所。書くと、設定済みのギフト ID と演出をダッシュボードや AI で確認できる'),
     rules: {
       type: 'mcRules',
       default: [],
       desc:
         'イベントごとに送るコマンド。条件: gifts（ギフト名）/ minCoins / events（gift, follow, share, like）/ users。' +
-        '送るもの: commands（コマンドの一覧。先頭の / は不要）/ superstreamGift（SuperStream のそのギフト ID の演出）/ ' +
-        'superstreamAction（SuperStream の演出1つ。例 "lightning" や "spawn type=ZOMBIE amount=3"）。' +
+        '送るもの: commands（コマンドの一覧。先頭の / は不要）/ superstreamGift（マイクラ側のそのギフト ID の演出）/ ' +
+        'superstreamAction（マイクラの演出1つ。例 "lightning" や "spawn type=ZOMBIE amount=3"）。' +
         'perCount: true で ×5 なら5回（最大50回）。合ったルールは全部実行される',
     },
   },

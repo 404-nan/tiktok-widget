@@ -1,4 +1,4 @@
-// SuperStream（Minecraft のプラグイン）のプロフィールを読む。
+// Minecraft の演出プラグインのプロフィールを読む。
 // プロフィールの GiftListener にある「ギフト ID → 演出」を一覧にして、
 // ダッシュボードや AI が superstreamGift を選べるようにする（読むだけで書き換えない）。
 
@@ -8,7 +8,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { DEMO_GIFTS } from './demo.js';
 
-// プロフィールの説明に書かれている、SuperStream に組み込みの演出
+// プロフィールの説明に書かれている、演出プラグインに組み込みの演出
 export const SUPERSTREAM_ACTIONS = [
   'execute', 'random-execute', 'actionbar', 'message', 'effect', 'sound', 'spawn', 'shape', 'formation', 'title',
   'randomaction', 'teleport', 'launch', 'inventory', 'weather', 'time', 'fire', 'freeze', 'explode', 'lightning',

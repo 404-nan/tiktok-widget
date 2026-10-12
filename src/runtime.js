@@ -192,7 +192,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       res.status(400).json({ error: err.message });
     }
   });
-  // SuperStream のプロフィールに設定済みの演出（読むだけ）
+  // マイクラ側の演出プロフィールに設定済みの演出（読むだけ）
   r.get('/api/superstream', (_req, res) => {
     const mc = hub.config?.minecraft ?? {};
     res.json({ ...readProfile(mc.superstreamFile, [...hub.seenGifts.values()]), configuredProfile: mc.superstreamProfile, actions: SUPERSTREAM_ACTIONS });

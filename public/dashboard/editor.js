@@ -41,8 +41,8 @@ const LABELS = {
   enabled: '連携する', 'rush.enabled': 'RUSH を使う', 'rush.gifts': '突入するギフト名（カンマ区切り）', enterCoins: '突入するコイン',
   extendMinCoins: '時間が延びるコイン', extendSeconds: '延びる秒数', maxSeconds: '最長の秒数', 'rush.duration': 'RUSH の秒数',
   'rush.text': '帯に流れる文字', enterText: '突入の文字', host: 'サーバーのアドレス', port: 'RCON のポート', password: 'RCON のパスワード',
-  superstreamProfile: 'SuperStream のプロフィール名', superstreamFile: 'SuperStream のプロフィールのファイル',
-  forwardGifts: 'ギフトを SuperStream に渡す',
+  superstreamProfile: 'マイクラ側の演出プロフィール名', superstreamFile: 'マイクラ側の演出プロフィールのファイル',
+  forwardGifts: 'ギフトをマイクラ側の演出に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
   image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
@@ -50,7 +50,7 @@ const LABELS = {
   coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
   bigHit: '大ダメージになるダメージ', lowHp: '赤く点滅する残り HP（%）', nextNames: '2体目からの名前（カンマ区切り）', autoNext: '倒したら次のボスを出す',
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
-  'bosses.superstreamGift': '討伐で起こす SuperStream の演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こす SuperStream の演出（種類）', 'bosses.color': 'HP の色',
+  'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
   pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
@@ -186,6 +186,10 @@ export function createEditor({ api, setMessage }) {
   // --- 使うウィジェット（配信者ごとの URL のとき） ---
 
   const isTenant = () => me.mode === 'tenant';
+  const usesMinecraft = () => (isTenant() ? me.widgets.includes('minecraft') && unlocked('minecraft') : payload.config.minecraft?.enabled === true);
+  const isMinecraftField = (section, key) =>
+    (section === 'bosses' && ['commands', 'superstreamGift', 'superstreamAction'].includes(key)) ||
+    (section === 'minecraft' && ['host', 'port', 'password', 'superstreamProfile', 'superstreamFile'].includes(key));
   // 管理者が使えなくしているものは選べない（1人で使うときは全部使える）
   const unlocked = (section) => !isTenant() || me.access?.[section]?.on !== false;
   /** タブに出すもの: 1人で使うときは全部、配信者ごとのときは選んだものとテーマ */
@@ -667,7 +671,8 @@ export function createEditor({ api, setMessage }) {
     if (easy) {
       if (easy.note) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
       for (const g of easy.groups) {
-        form.append(listGroup(g.title, [...(g.presets ?? []).map((preset) => presetRow(preset, values)), ...g.fields.map((key) => fieldFor(key, def.fields[key], values[key]))]));
+        const fields = g.fields.filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
+        form.append(listGroup(g.title, [...(g.presets ?? []).map((preset) => presetRow(preset, values)), ...fields.map((key) => fieldFor(key, def.fields[key], values[key]))]));
       }
       const tail = [listRow({ iconName: 'sliders-horizontal', title: 'もっと細かく決める', sub: '全部の項目を出す（くわしく）', onClick: () => setMode('advanced') })];
       if (isTenant() && tab !== 'theme') tail.push(listRow({ iconName: 'eye-off', title: `${def.title}を使うのをやめる`, sub: '設定は残ります', trailing: null, onClick: () => dropCard(tab) }));
@@ -675,9 +680,9 @@ export function createEditor({ api, setMessage }) {
       form.append(listGroup('そのほか', tail));
     }
     // よく使う設定を上に、それ以外は「詳しい設定」に畳む
-    const basic = easy ? [] : BASIC[tab] ?? Object.keys(def.fields);
+    const basic = easy ? [] : (BASIC[tab] ?? Object.keys(def.fields)).filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
-    const rest = easy ? [] : Object.keys(def.fields).filter((k) => !basic.includes(k));
+    const rest = easy ? [] : Object.keys(def.fields).filter((k) => !basic.includes(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
     if (rest.length) {
       const more = document.createElement('details');
       more.className = 'more';
@@ -1038,14 +1043,19 @@ export function createEditor({ api, setMessage }) {
       bottom.className = 'item-bottom';
       bottom.append(color, picker, image, url);
 
-      // 当たったら Minecraft で起こすこと（SuperStream の演出かコマンド）
-      const ss = document.createElement('select');
-      ss.title = '当たったら SuperStream の演出を起こす';
-      ss.append(new Option('Minecraft: なし', ''));
-      for (const g of superstream.gifts) {
-        ss.append(new Option(`SuperStream ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join('・')}`, g.id));
+      if (!usesMinecraft()) {
+        row.append(top, bottom);
+        return row;
       }
-      if (r.superstreamGift && !superstream.gifts.some((g) => g.id === r.superstreamGift)) ss.append(new Option(`SuperStream ${r.superstreamGift}`, r.superstreamGift));
+
+      // 当たったらマイクラで起こすこと（マイクラ側の演出かコマンド）
+      const ss = document.createElement('select');
+      ss.title = '当たったらマイクラの演出を起こす';
+      ss.append(new Option('マイクラの演出: なし', ''));
+      for (const g of superstream.gifts) {
+        ss.append(new Option(`マイクラの演出 ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join('・')}`, g.id));
+      }
+      if (r.superstreamGift && !superstream.gifts.some((g) => g.id === r.superstreamGift)) ss.append(new Option(`マイクラの演出 ${r.superstreamGift}`, r.superstreamGift));
       ss.value = r.superstreamGift ?? '';
       ss.addEventListener('change', () => ((r.superstreamGift = ss.value || undefined), commit(0)));
       const cmd = document.createElement('input');
@@ -1305,7 +1315,7 @@ export function createEditor({ api, setMessage }) {
     }
   }
 
-  // --- Minecraft / SuperStream ---
+  // --- マイクラ連携 ---
 
   const mcLog = [];
   let mcStatus = null;
@@ -1331,6 +1341,14 @@ export function createEditor({ api, setMessage }) {
     const status = document.createElement('div');
     status.className = 'status mc-status';
     status.id = 'mcStatus';
+    if (isTenant()) {
+      const line = document.createElement('p');
+      line.className = 'desc';
+      line.textContent = mcStatus?.state === 'ok' ? 'マイクラのサーバー: つながっています' : 'マイクラのサーバー: まだ割り当てられていません（管理者が割り当てると、自動でつながります）';
+      panel.append(line);
+      return;
+    }
+
     const head = document.createElement('div');
     head.className = 'row wrap';
     head.append(status, chip('接続を確認', 'plug', async () => renderMcStatus(await api('/api/minecraft/check', {}))));
@@ -1362,12 +1380,12 @@ export function createEditor({ api, setMessage }) {
     });
     panel.append(form, out);
 
-    // SuperStream のプロフィールに設定済みの演出
+    // マイクラ側の演出プロフィールに設定済みの演出
     const ssBox = document.createElement('div');
     ssBox.className = 'field';
     const ssLabel = document.createElement('span');
     ssLabel.className = 'field-label';
-    ssLabel.textContent = 'SuperStream のプロフィールの演出（押すと試せます）';
+    ssLabel.textContent = 'マイクラ側の演出プロフィール（押すと試せます）';
     ssBox.append(ssLabel);
     if (superstream.error) {
       const p = document.createElement('span');

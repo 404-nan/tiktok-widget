@@ -27,7 +27,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | --- | --- | --- |
 | モニター | `/monitor/` | 配信中に手元（別画面・スマホ）で見る。コイン・視聴者などの数字、ライブのコメントとギフト、WIN 数のボタン（クリア +1 / -1 / 戻す / リセット）、延長タイマーの残り時間とボタン（スタート・一時停止・再開 / +1分 / -1分）、RUSH の残り時間と突入・終了のボタン、ルーレットの待ちと結果、目標、トップギフター、Minecraft に送ったコマンド |
 | 統計 | `/history/` | 配信ごとの記録。1分ごとのコイン・視聴者・いいねのグラフ、前回との比較、トップギフター、ギフトの内訳、ルーレットの結果 |
-| 設定 | `/dashboard/` | 接続、テスト送信、各ウィジェットと Minecraft 連携の設定、YAML の編集 |
+| 設定 | `/dashboard/` | 接続、テスト送信、各ウィジェットとマイクラ連携の設定、YAML の編集 |
 
 ## 使い方
 
@@ -214,7 +214,7 @@ roulettes:
   - 倒すと `nextDelay` 秒（初期 6 秒）後に、HP を `hpScale` 倍（初期 1.5 倍）にした次のボスが出ます。2体目からの名前は `nextNames`。倒れたままにしたいときは `autoNext: false`
   - 画像は `image` に `media/` のファイルか URL（空なら図形の鬼。何体目かで 白鬼 → 赤鬼 → 黒鬼 と変わる）
   - 演出: `bigHit`（初期 1000）以上のダメージは「大ダメージ」で板ごと揺れ、その 10 倍で「特大」。残り HP が `lowHp`%（初期 20%）以下で HP が赤く点滅
-  - 討伐で回すルーレットは `roulette: reward` のように roulettes の名前。Minecraft に送るコマンドは `commands: ["say {user} が {boss} を討伐！"]`（`{user}` とどめを刺した人、`{boss}` ボスの名前、`{round}` 何体目）、SuperStream の演出は `superstreamGift` / `superstreamAction`（`minecraft.enabled: true` が必要）
+  - 討伐で回すルーレットは `roulette: reward` のように roulettes の名前。Minecraft に送るコマンドは `commands: ["say {user} が {boss} を討伐！"]`（`{user}` とどめを刺した人、`{boss}` ボスの名前、`{round}` 何体目）、マイクラの演出は `superstreamGift` / `superstreamAction`（`minecraft.enabled: true` が必要）
   - ボタン・URL: ダッシュボードの「ダメージ 100 を与える」「討伐する」「HP を戻す」「次のボス」「1体目からやり直す」。Stream Deck などからは `http://127.0.0.1:3939/api/boss/default/heal`（HP を戻す）／ `…/damage?value=100` ／ `…/defeat` ／ `…/next` ／ `…/set?value=500` ／ `…/reset`（`default` を `all` にすると全部）
   - HP は `data/boss.json` に残ります。AI からは `npm run tw -- boss` / `boss damage 100` / `boss heal`、MCP の `boss` ツール
 - **RUSH**: `rush.gifts` のギフト、`rush.enterCoins` 以上のギフト、ルーレットの `rush: true` の項目、ダッシュボード・モニターのボタンで突入。RUSH 中は `extendMinCoins` 以上のギフトで `extendSeconds` 秒ずつ延び、最長 `maxSeconds` 秒。状態はサーバーが持つので、OBS を読み込み直しても続きから出ます
@@ -222,10 +222,10 @@ roulettes:
 
 書ける項目の一覧は `npm run tw -- reference`（ダッシュボードのフォームにも説明が出ます）。
 
-## Minecraft / SuperStream 連携
+## マイクラ連携
 
 Minecraft サーバーの RCON にコマンドを送れます（`config.yaml` の `minecraft`）。
-SuperStream（TikTok のギフトで Minecraft に演出を起こすプラグイン）の演出も、このツールから起こせます。
+マイクラ側の演出プラグイン（TikTok のギフトで Minecraft に演出を起こすもの）の演出も、このツールから起こせます。
 
 ```yaml
 minecraft:
@@ -237,7 +237,7 @@ minecraft:
   superstreamFile: ~/server/plugins/SuperStream/profiles/default_profile.yml   # 設定済みの演出を一覧するため（任意）
   rules:
     - events: [follow]
-      superstreamAction: lightning            # SuperStream の演出を1つ（ss test action）
+      superstreamAction: lightning            # マイクラの演出を1つ（ss test action）
       commands: ["say {user} さん、フォローありがとう！"]
     - minCoins: 1000
       superstreamGift: 6001                   # プロフィールのギフト 6001 の演出（ss test profile）
@@ -248,11 +248,11 @@ roulettes:
       - {label: ダイヤ, commands: ["give @a diamond 1"]}
 ```
 
-- **ルールごと**: ギフト名・コイン数・フォロー/シェア/いいね・ユーザーを条件に、コマンドや SuperStream の演出を送ります
+- **ルールごと**: ギフト名・コイン数・フォロー/シェア/いいね・ユーザーを条件に、コマンドやマイクラの演出を送ります
 - **ルーレットの結果**: 当たりの項目の `commands` / `superstreamGift` / `superstreamAction` を、結果が画面に出たタイミングで送ります（ルーレットの抽選はサーバーで行うので、OBS とプレビューなど複数の画面でも結果はそろいます）
-- **ギフトをそのまま渡す** (`forwardGifts: true`): 届いたギフトごとに `ss test profile <プロフィール> <ギフトID>` を送ります。SuperStream 側で `/ss profile start` していないとき用です（両方動かすと演出が二重になります）
+- **ギフトをそのまま渡す** (`forwardGifts: true`): 届いたギフトごとに `ss test profile <プロフィール> <ギフトID>` を送ります。マイクラ側で `/ss profile start` していないとき用です（両方動かすと演出が二重になります）
 - `{user}` などの視聴者由来の文字は、コマンドに入る前に記号を取り除きます
-- 設定画面の「Minecraft 連携」タブで、接続の確認、コマンドの試し打ち、SuperStream のプロフィールの演出の試し打ち、送ったコマンドの記録を見られます
+- 設定画面の「マイクラ連携」タブで、接続の確認、コマンドの試し打ち、マイクラ側の演出プロフィールの試し打ち、送ったコマンドの記録を見られます
 
 ## AI から設定する
 
@@ -272,7 +272,7 @@ Claude Desktop などは設定ファイルの `mcpServers` に追加します（
 | `set_config` / `merge_config` / `delete_config` / `replace_config` | 設定を変える（コメントは残る。エラーなら保存しない） |
 | `list_widget_urls` / `list_gifts` / `list_media` / `add_media_from_url` | URL・ギフト名・画像を調べる、画像を取り込む |
 | `test_event` / `spin_roulette` / `get_status` | 動きを確かめる（サーバー起動中） |
-| `list_superstream_actions` / `minecraft_command` | SuperStream の設定済みの演出を見る、Minecraft にコマンドを送る |
+| `list_superstream_actions` / `minecraft_command` | マイクラの設定済みの演出を見る、Minecraft にコマンドを送る |
 | `get_history` | 過去の配信の記録（「前回の配信を分析して」など） |
 
 ### CLI
@@ -330,9 +330,9 @@ src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増�
 src/timer.js           延長タイマー（残り時間・延長・一時停止をサーバーで持ち、data/timers.json に残す）
 src/boss.js            ボス討伐（ギフトのダメージで HP を削り、討伐・次のボスを配る。data/boss.json に残す）
 src/rush.js            RUSH（確変）モードの状態と時間（突入・延長・終了を全画面に配る）
-src/minecraft.js       Minecraft 連携（ルール・ルーレットの結果 → RCON）
+src/minecraft.js       マイクラ連携（ルール・ルーレットの結果 → RCON）
 src/rcon.js            RCON クライアント
-src/superstream.js     SuperStream のプロフィールを読む（演出の一覧）
+src/superstream.js     マイクラ側の演出プロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）
 mcp/server.js          MCP サーバー
 bin/tw.js              CLI

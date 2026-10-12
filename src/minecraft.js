@@ -1,5 +1,5 @@
 // Minecraft 連携。config.yaml の minecraft.rules と、ルーレットの項目の commands を
-// RCON で Minecraft サーバーに送る（SuperStream などのプラグインのコマンドも送れる）。
+// RCON で Minecraft サーバーに送る（マイクラ側の演出プラグインのコマンドも送れる）。
 
 import { Rcon } from './rcon.js';
 
@@ -35,7 +35,7 @@ export function ruleMatches(rule, e) {
   return true;
 }
 
-/** SuperStream の演出を起こすコマンド（ss test profile / ss test action） */
+/** マイクラの演出を起こすコマンド（ss test profile / ss test action） */
 export function superstreamCommands(src, profile) {
   const p = safe(profile, 64).replace(/ /g, '') || 'default_profile';
   const out = [];
@@ -66,7 +66,7 @@ export class Minecraft {
     this.queue = [];
     this.running = false;
     this.lastFailure = 0;
-    this.status = { state: 'off', message: 'Minecraft 連携はオフです', sent: 0 };
+    this.status = { state: 'off', message: 'マイクラ連携はオフです', sent: 0 };
     hub.on('event', (e) => this.onEvent(e));
   }
 
@@ -78,7 +78,7 @@ export class Minecraft {
       this.rcon?.close();
       this.rcon = null;
     }
-    if (!mc.enabled) return this.#setStatus({ state: 'off', message: 'Minecraft 連携はオフです' });
+    if (!mc.enabled) return this.#setStatus({ state: 'off', message: 'マイクラ連携はオフです' });
     if (changed || this.status.state === 'off') this.check();
   }
 
@@ -98,7 +98,7 @@ export class Minecraft {
   onEvent(e) {
     if (!this.config?.enabled) return;
     const profile = this.config.superstreamProfile;
-    // 届いたギフトをそのまま SuperStream に渡す（そのギフト ID に設定された演出が動く）
+    // 届いたギフトをそのままマイクラ側の演出に渡す（そのギフト ID に設定された演出が動く）
     if (this.config.forwardGifts && e.kind === 'gift' && /^\d+$/.test(String(e.gift.id))) {
       const times = Math.min(MAX_REPEAT, e.gift.count ?? 1);
       for (let i = 0; i < times; i++) this.enqueue(superstreamCommands({ superstreamGift: e.gift.id }, profile), {}, 'superstream');
@@ -112,7 +112,7 @@ export class Minecraft {
     }
   }
 
-  /** ルーレットの当たりの項目に commands や SuperStream の演出があれば送る */
+  /** ルーレットの当たりの項目に commands やマイクラの演出があれば送る */
   onRouletteResult(roulette, item, trigger) {
     if (!this.config?.enabled) return;
     const commands = [...(item.commands ?? []), ...superstreamCommands(item, this.config.superstreamProfile)];
@@ -120,7 +120,7 @@ export class Minecraft {
     this.enqueue(commands, varsFor(trigger ?? {}, { item: safe(item.label, 40), roulette: safe(roulette.name || roulette.id, 40) }), 'roulette');
   }
 
-  /** ボスを討伐したら、そのボスの設定の commands と SuperStream の演出を送る（{user} はとどめを刺した人） */
+  /** ボスを討伐したら、そのボスの設定の commands とマイクラの演出を送る（{user} はとどめを刺した人） */
   onBossDefeated(cfg, boss, by, trigger) {
     if (!this.config?.enabled) return;
     const ss = { superstreamGift: /^\d+$/.test(String(cfg.superstreamGift ?? '').trim()) ? String(cfg.superstreamGift).trim() : '', superstreamAction: String(cfg.superstreamAction ?? '').split(/[\r\n]/)[0].trim() };

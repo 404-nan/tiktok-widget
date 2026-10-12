@@ -178,7 +178,7 @@ export async function status() {
   return callServer('/api/status');
 }
 
-/** SuperStream のプロフィールに設定済みのギフトの演出 */
+/** マイクラ側の演出プロフィールに設定済みのギフトの演出 */
 export async function superstream() {
   const { config } = cfg.load();
   const mc = config?.minecraft ?? {};

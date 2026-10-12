@@ -71,7 +71,7 @@ export function checkChanges(raw) {
       continue;
     }
     if (keys[0] === 'minecraft' && keys[1] !== 'rules') {
-      errors.push('Minecraft のアドレスやパスワード、連携のオン/オフは AI では変えられません（「くわしく」の Minecraft 連携で設定してください）');
+      errors.push('Minecraft のアドレスやパスワード、連携のオン/オフは AI では変えられません（「くわしく」のマイクラ連携で設定してください）');
       continue;
     }
     // 「名前: { ... }」のセクションを丸ごと入れ替える・消すのは止める（ほかの設定を消してしまうので）

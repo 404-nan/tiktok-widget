@@ -159,12 +159,12 @@ function checkCommands(value, where, issues) {
   return out;
 }
 
-// SuperStream の演出の指定（ギフト ID か、演出の種類）
+// マイクラの演出の指定（ギフト ID か、演出の種類）
 function checkSuperStream(raw, out, at, issues) {
   if (raw.superstreamGift != null) {
     const id = String(raw.superstreamGift).trim();
     if (/^\d+$/.test(id)) out.superstreamGift = id;
-    else issues.errors.push(`${at}.superstreamGift: SuperStream のギフト ID（数字）で書いてください`);
+    else issues.errors.push(`${at}.superstreamGift: マイクラの演出のギフト ID（数字）で書いてください`);
   }
   if (raw.superstreamAction != null) {
     const a = String(raw.superstreamAction).trim();
