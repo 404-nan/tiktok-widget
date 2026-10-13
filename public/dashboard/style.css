@@ -5,8 +5,8 @@
   --paper: 245, 245, 247;
 
   --text-primary: rgb(var(--paper));
-  --text-secondary: rgba(var(--paper), .5);
-  --text-tertiary: rgba(var(--paper), .3);
+  --text-secondary: #C9C9D1; /* 読みやすさ: 透けない色で 4.5:1 以上 */
+  --text-tertiary: #A6A6AF;
   --fill-primary: rgb(var(--paper));
   --text-primary-on: rgb(var(--ink));
   --fill-tertiary: rgba(var(--paper), .05);
@@ -14,14 +14,14 @@
   --stroke-primary: rgba(var(--paper), .14);
   --stroke-secondary: rgba(var(--paper), .07);
   --hover-wash: rgba(var(--paper), .05);
-  --glass: rgba(var(--ink), .618);
-  --glass-solid: rgba(var(--ink), .96);
+  --glass: #222226; /* 透けない面 */
+  --glass-solid: #222226;
   --bevel: inset 0 1px 0 rgba(var(--paper), .14), inset 0 -1px 0 rgba(0, 0, 0, .2);
   --shadow: 0 8px 40px rgba(var(--ink), .12);
   --attention: #FF4F1F;
   --success: #96F0B0; --info: #A1D0FF;
   --error: rgba(255, 100, 100, .9); --warning: rgba(255, 200, 50, .8);
-  --page: #141416;
+  --page: #18181B;
 
   --r-sm: 8px; --r-md: 12px; --r-lg: 24px; --r-pill: 9999px;
   --press: .12s ease-out;
@@ -34,8 +34,8 @@
 
 [data-theme=light] {
   --text-primary: rgb(var(--ink));
-  --text-secondary: rgba(var(--ink), .5);
-  --text-tertiary: rgba(var(--ink), .3);
+  --text-secondary: #3F3F46;
+  --text-tertiary: #55555E;
   --fill-primary: rgb(var(--ink));
   --text-primary-on: rgb(249, 249, 250);
   --fill-tertiary: rgba(var(--ink), .05);
@@ -43,11 +43,11 @@
   --stroke-primary: rgba(var(--ink), .14);
   --stroke-secondary: rgba(var(--ink), .07);
   --hover-wash: rgba(var(--ink), .05);
-  --glass: rgba(255, 255, 255, .668);
-  --glass-solid: rgba(255, 255, 255, .96);
+  --glass: #FFFFFF;
+  --glass-solid: #FFFFFF;
   --bevel: inset 0 1px 0 rgba(255, 255, 255, .9), inset 0 -1px 0 rgba(var(--ink), .06);
   --success: #0F9D58; --info: #005AD7; --error: #D64545; --warning: #B45309;
-  --page: #ECECEF;
+  --page: #F2F2F4;
   color-scheme: light;
 }
 
@@ -85,8 +85,6 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
   z-index: -1;
   border-radius: inherit;
   background: var(--glass);
-  -webkit-backdrop-filter: blur(50px);
-  backdrop-filter: blur(50px);
   box-shadow: var(--bevel);
   transition: background-color var(--settle-time) var(--fade);
 }
@@ -1001,3 +999,7 @@ body { background: var(--page); } /* 飾りの色の傾きをやめる */
 /* キーボードで動かしたときの目印をはっきり */
 :focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .side-item { transition: none; } }
+
+/* ===== 読みやすさ（docs/DESIGN.md「読みやすさの基準」） =====
+   背景は均一な1色、面は透けない色、文字は 4.5:1 以上 */
+body, [data-theme=dark] body { background: var(--page) !important; }
