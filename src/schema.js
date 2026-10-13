@@ -215,8 +215,8 @@ export const SCHEMA = {
     fields: {
       ...placementFields(4, 55),
       title: str('残り', '時計の左に出す見出し'),
-      startMinutes: num(60, '初めの時間（分）', { min: 0, max: 43200 }),
-      maxHours: num(0, '延びても合計（初めの時間 + 延びた時間）はこの時間まで（時間。0 で上限なし。ボタンでの足し引きは数えない）', { min: 0, max: 720 }),
+      startMinutes: num(60, '初めの時間（分）', { min: 0 }),
+      maxHours: num(0, '延びても合計（初めの時間 + 延びた時間）はこの時間まで（時間。0 で上限なし。ボタンでの足し引きは数えない）', { min: 0 }),
       coinSeconds: num(10, 'ギフト 1 コインで延びる秒数（0 で金額では延ばさない）', { min: 0, max: 3600 }),
       minCoins: num(1, 'この合計コイン未満のギフトでは延ばさない（rules のギフトは別）', { min: 0 }),
       rules: {

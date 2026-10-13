@@ -336,7 +336,7 @@
 
   // --- 書式 ---
   const pad = (n) => String(n).padStart(2, '0');
-  /** 時計: 1時間以上は 1:23:45、それより下は 9:59 */
+  /** 時計: 1時間以上は 1:23:45（100時間以上も 123:45:00 のまま出す）、それより下は 9:59 */
   function clockText(ms) {
     const s = Math.ceil(ms / 1000);
     const h = Math.floor(s / 3600);

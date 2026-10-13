@@ -57,6 +57,29 @@ export class TimerEngine {
 
   setConfig(timers) {
     this.config = timers ?? {};
+    // 「初めの時間」を変えたら、すぐ反映する（リセットを押さなくても、見た目と残りが新しい時間になる）
+    // 始める前・止めている間・終わった後は新しい初めの時間に戻す。走っている間は差の分だけずらす。
+    let changed = false;
+    for (const [id, c] of Object.entries(this.config)) {
+      const s = this.#state(id);
+      const ms = startMs(c);
+      if (s.cfgStart != null && s.cfgStart !== ms) {
+        if (s.status === 'running') {
+          const diff = ms - s.cfgStart;
+          s.endsAt = Math.max(Date.now(), s.endsAt + diff);
+          s.base = ms;
+          this.#schedule(id);
+        } else {
+          Object.assign(s, { status: 'idle', endsAt: null, remaining: null, base: 0, extended: 0, adjusted: 0, startedAt: null, endedAt: null });
+          this.likes[id] = 0;
+        }
+        s.updatedAt = Date.now();
+        this.#send(id, { kind: 'reset' });
+      }
+      if (s.cfgStart !== ms) changed = true;
+      s.cfgStart = ms;
+    }
+    if (changed) this.#save();
   }
 
   /** 設定にある名前（なければ default） */
@@ -245,6 +268,7 @@ export class TimerEngine {
         delete this.states[id];
         this.likes[id] = 0;
         this.#state(id).updatedAt = now;
+        this.#state(id).cfgStart = startMs(this.config[id]);
         return this.#send(id, { kind: 'reset' });
       }
     }
@@ -294,6 +318,7 @@ export class TimerEngine {
           startedAt: num(raw.startedAt),
           endedAt: num(raw.endedAt),
           updatedAt: num(raw.updatedAt) ?? 0,
+          cfgStart: num(raw.cfgStart),
         };
         if (s.status === 'running' && s.endsAt == null) s.status = 'idle';
         // 止まっている間に 0 を過ぎていたら、終わったことにする（演出は出さない）

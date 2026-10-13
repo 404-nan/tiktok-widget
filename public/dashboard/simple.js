@@ -259,7 +259,7 @@ const SUMMARY = {
   roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目`,
   jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),
-  timers: (e) => `${e.startMinutes} 分から${e.coinSeconds ? `・1 コインで +${e.coinSeconds} 秒` : ''}`,
+  timers: (e) => `${e.startMinutes >= 60 ? `${Math.floor(e.startMinutes / 60)} 時間${e.startMinutes % 60 ? `${e.startMinutes % 60} 分` : ''}` : `${e.startMinutes} 分`}から${e.coinSeconds ? `・1 コインで +${e.coinSeconds} 秒` : ''}`,
   bosses: (e) => `${e.name}（HP ${e.hp}）`,
   cutins: (e) => `${e.minCoins} コインから`,
   imageCutins: (e) => `${e.minCoins} コインから${e.photo ? '' : '・写真なし'}`,

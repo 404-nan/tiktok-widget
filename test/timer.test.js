@@ -224,3 +224,20 @@ test('設定の検証: minutes は秒になり、書き間違いはエラー', (
   assert.ok(bad.errors.some((e) => e.startsWith('timers.default.rules[1]') && e.includes('どちらか')));
   assert.ok(bad.errors.some((e) => e.startsWith('timers.default.rules[2].seconds')));
 });
+
+test("初めの時間を変えたらリセットなしで反映・上限なし（100時間）", async () => {
+  const { TimerEngine } = await import("../src/timer.js");
+  const os = await import("node:os"); const fsm = await import("node:fs"); const pth = await import("node:path");
+  const file = pth.join(fsm.mkdtempSync(pth.join(os.tmpdir(), "tm-")), "timers.json");
+  const hub = { on() {}, broadcast() {}, emit() {} };
+  const t = new TimerEngine(hub, file);
+  t.setConfig({ default: { startMinutes: 60 } });
+  t.apply("default", "add", 60); // 始める前に足しても
+  t.setConfig({ default: { startMinutes: 6000 } });
+  assert.equal(t.get("default").remaining, 6000 * 60_000);
+  t.close();
+  const t2 = new TimerEngine(hub, file); // 再起動しても残る
+  t2.setConfig({ default: { startMinutes: 6000 } });
+  assert.equal(t2.get("default").remaining, 6000 * 60_000);
+  t2.close();
+});
