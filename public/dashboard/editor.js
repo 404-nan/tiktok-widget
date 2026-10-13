@@ -277,7 +277,11 @@ export function createEditor({ api, setMessage }) {
     tab = section;
     store.set('tab', tab);
     const ids = entriesOf(section);
-    id = nextId ?? (ids.includes(store.get(`id:${section}`)) ? store.get(`id:${section}`) : ids[0] ?? null);
+    // 開いたときは「配信に出している種類」を出す（選んだ種類 = 配信に出る種類、を保つ）。
+    // ルーレットだけは全部の種類が同時に有効なので、前に見ていた種類を覚えておく
+    const onAir = payload?.config?.active?.[section];
+    const remembered = store.get(`id:${section}`);
+    id = nextId ?? (section !== 'roulettes' && ids.includes(onAir) ? onAir : ids.includes(remembered) ? remembered : ids[0] ?? null);
     if (id) store.set(`id:${section}`, id);
     renderTabs();
     render();
