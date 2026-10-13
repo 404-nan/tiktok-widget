@@ -19,13 +19,14 @@
 </header>
 
 <main>
-  <section class="panel section notes-panel" id="notesPanel" hidden>
-    <div class="notes-head"><h2>更新のお知らせ</h2><span class="badge" id="notesBadge" hidden></span></div>
+  <!-- 上のカード: 下の中身と同じ列・同じ幅に並べる -->
+  <div class="top-cards">
+  <section class="notes-panel" id="notesPanel" hidden>
+    <div class="notes-head"><h2>更新のお知らせ</h2><span class="badge" id="notesBadge" hidden></span><button class="text-btn pressable" id="notesReadBtn" type="button" hidden>すべて読んだ</button></div>
     <div class="notes-list" id="notesList"></div>
-    <button class="text-btn pressable" id="notesReadBtn" type="button" hidden>すべて読んだ</button>
   </section>
 
-  <section class="panel section dev-panel" id="testSendPanel" data-dev-only hidden>
+  <section class="dev-panel" id="testSendPanel" data-dev-only hidden>
     <div class="notes-head"><h2>テスト送信</h2><span class="hint">画面の確認用。集計には残りません。</span></div>
     <div class="stack">
       <div class="row dev-send-row">
@@ -34,7 +35,7 @@
         <input id="giftCount" type="number" min="1" max="999" value="1" class="count-input" aria-label="個数">
         <button class="btn primary pressable" data-sim="gift" data-icon="gift" type="button">送る</button>
       </div>
-      <div class="row wrap">
+      <div class="btn-row">
         <button class="chip pressable" data-sim="like" data-icon="heart" type="button">いいね ×20</button>
         <button class="chip pressable" data-sim="follow" data-icon="user-plus" type="button">フォロー</button>
         <button class="chip pressable" data-sim="share" data-icon="repeat-2" type="button">シェア</button>
@@ -45,10 +46,11 @@
     </div>
   </section>
 
-  <section class="panel section dev-panel" id="devPreviewPanel" data-dev-only hidden>
-    <div class="notes-head"><h2>動作確認用の画面</h2><span class="hint">実際の大きさで表示しています。</span></div>
+  <section class="dev-panel" id="devPreviewPanel" data-dev-only hidden>
+    <div class="notes-head"><h2>動作確認用の画面</h2><span class="hint">実際の大きさです。枠の中を動かして全体を見られます。</span></div>
     <div class="dev-preview-grid" id="devPreviewGrid"></div>
   </section>
+  </div>
 
 <div class="layout">
   <section class="panel kpis" id="kpis" aria-label="集計" data-adv></section>

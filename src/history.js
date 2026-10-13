@@ -142,10 +142,15 @@ export class History {
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
     hub.on('event', (e) => {
+      // 開発環境で配信前に押したテスト送信は、デモの配信として記録する
+      if (process.env.TW_ENV === 'dev' && e.test && !this.current) this.current = new Session({ username: null, demo: true });
       // 本番の配信中に押したテスト送信は記録しない
       if (this.current && (this.current.demo || !String(e.user?.id ?? '').startsWith('demo_'))) this.current.record(e);
     });
-    hub.on('roulette', (r) => this.current?.recordRoulette(r));
+    hub.on('roulette', (r) => {
+      if (process.env.TW_ENV === 'dev' && r?.trigger?.test && !this.current) this.current = new Session({ username: null, demo: true });
+      this.current?.recordRoulette(r);
+    });
     hub.on('minecraft', (log) => {
       if (!this.current || log.source === 'test') return;
       this.current.minecraft[log.ok ? 'sent' : 'failed'] += 1;

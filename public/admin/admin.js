@@ -20,7 +20,9 @@ let page = store.get('adminPage', 'tenants');
 const detailBody = document.createElement('div');
 detailBody.className = 'detail-body';
 $('detail').append(detailBody);
-Object.assign(detailBody.style, { display: 'grid', gap: '16px' });
+
+// カードを縦に並べるページ（見出しはカードの外、中の項目は線で区切った行）
+const CARD_PAGES = ['lul', 'notes', 'keys'];
 
 async function api(path, body, method) {
   const res = await fetch(`/admin/api${path}`, {
@@ -563,17 +565,18 @@ function singlePage(title, body) {
 }
 
 function settingsEditor(t, section) {
+  const label = section === 'roulettes' ? 'ルーレット' : section === 'timers' ? 'タイマー' : 'RUSH';
   const textarea = el('textarea', { rows: 7, value: JSON.stringify(t.settings?.[section] ?? {}, null, 2), spellcheck: false });
-  textarea.setAttribute('aria-label', `${t.name}の${section}設定`);
+  textarea.setAttribute('aria-label', `${t.name}の${label}の設定`);
   const save = button('保存', async () => {
     try {
       const value = JSON.parse(textarea.value);
       await api(`/tenants/${t.id}/settings`, { path: [section], value }, 'PATCH');
       await load();
-      message(`${t.name}の${section}設定を保存しました`);
+      message(`${t.name}の${label}の設定を保存しました`);
     } catch (err) { message(`保存できませんでした: ${err.message}`, true); }
   }, { cls: 'btn primary' });
-  return el('div', { className: 'lul-setting' }, el('div', { className: 'lul-setting-head' }, el('strong', { textContent: section === 'roulettes' ? 'ルーレット' : section === 'timers' ? 'タイマー' : 'RUSH' })), textarea, el('div', { className: 'row' }, save));
+  return el('div', { className: 'lul-setting' }, el('div', { className: 'lul-setting-head' }, el('strong', { textContent: label })), textarea, el('div', { className: 'btn-row' }, save));
 }
 
 function lulDetail() {
@@ -582,7 +585,7 @@ function lulDetail() {
     el('p', { className: 'hint', textContent: `使っているウィジェット: ${(t.settings?.widgets ?? []).map((key) => data.features[key]?.label ?? key).join('・') || 'なし'}` }),
     ...['roulettes', 'timers', 'rush'].map((section) => settingsEditor(t, section)),
   ));
-  return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'LuL 管理ダッシュボード' }), el('p', { className: 'sub', textContent: '配信者ごとの設定をまとめて確認できます。変更は既存の設定保存経路で反映します。' })), el('div', { className: 'lul-list' }, ...rows)];
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'LuL 管理ダッシュボード' }), el('p', { className: 'sub', textContent: '配信者ごとの設定をまとめて確認して、その場で直せます。' })), el('div', { className: 'lul-list' }, ...rows)];
 }
 
 function notesDetail() {
@@ -590,7 +593,7 @@ function notesDetail() {
   const title = el('input', { placeholder: 'タイトル', required: true });
   const body = el('textarea', { rows: 5, placeholder: '本文', required: true });
   const date = el('input', { type: 'date', value: new Date().toISOString().slice(0, 10), required: true });
-  form.append(el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'タイトル' }), title), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '本文' }), body), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '日付' }), date), el('div', { className: 'row' }, button('追加', () => form.requestSubmit(), { cls: 'btn primary' })));
+  form.append(el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'タイトル' }), title), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '本文' }), body), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '日付' }), date), el('div', { className: 'btn-row' }, button('追加', () => form.requestSubmit(), { cls: 'btn primary' })));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     act(() => api('/notes', { title: title.value, body: body.value, date: date.value }), 'お知らせを追加しました')();
@@ -600,9 +603,9 @@ function notesDetail() {
     const editTitle = el('input', { value: note.title });
     const editBody = el('textarea', { rows: 4, value: note.body });
     const editDate = el('input', { type: 'date', value: note.date });
-    return el('article', { className: 'admin-note' }, el('div', { className: 'row' }, editTitle, editDate), editBody, el('div', { className: 'row' }, button('保存', act(() => api(`/notes/${note.id}`, { title: editTitle.value, body: editBody.value, date: editDate.value }, 'PATCH'), 'お知らせを保存しました'), { cls: 'btn primary' }), button('削除', () => { if (confirm('このお知らせを削除しますか？')) act(() => api(`/notes/${note.id}`, undefined, 'DELETE'), 'お知らせを削除しました')(); }, { cls: 'chip' })));
+    return el('article', { className: 'admin-note' }, el('div', { className: 'field-row' }, editTitle, editDate), editBody, el('div', { className: 'btn-row' }, button('保存', act(() => api(`/notes/${note.id}`, { title: editTitle.value, body: editBody.value, date: editDate.value }, 'PATCH'), 'お知らせを保存しました'), { cls: 'btn primary' }), button('削除', () => { if (confirm('このお知らせを削除しますか？')) act(() => api(`/notes/${note.id}`, undefined, 'DELETE'), 'お知らせを削除しました')(); }, { cls: 'chip' })));
   });
-  return [el('div', { className: 'detail-head' }, el('h2', { textContent: '更新のお知らせ' }), el('p', { className: 'sub', textContent: '配信者のダッシュボードの上に表示します。OBS の画面には表示しません。' })), form, el('div', { className: 'admin-note-list' }, ...rows)];
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: '更新のお知らせ' }), el('p', { className: 'sub', textContent: '配信者のダッシュボードの上に表示します。OBS の画面には表示しません。' })), el('section', { className: 'form-card' }, el('h3', { textContent: 'お知らせを追加' }), form), el('div', { className: 'admin-note-list' }, ...rows)];
 }
 
 function keysDetail() {
@@ -610,7 +613,7 @@ function keysDetail() {
   const name = el('input', { placeholder: '名前', required: true });
   const type = el('input', { placeholder: '種類', required: true });
   const value = el('input', { type: 'password', placeholder: 'API キー', autocomplete: 'off', required: true });
-  addForm.append(el('div', { className: 'row' }, name, type), value, el('div', { className: 'row' }, button('追加', () => addForm.requestSubmit(), { cls: 'btn primary' })));
+  addForm.append(el('div', { className: 'field-row' }, name, type), value, el('div', { className: 'btn-row' }, button('追加', () => addForm.requestSubmit(), { cls: 'btn primary' })));
   addForm.addEventListener('submit', (event) => { event.preventDefault(); act(() => api('/keys', { name: name.value, type: type.value, value: value.value }), 'API キーを追加しました')(); });
   const rows = (data.keys ?? []).map((key) => {
     const nameInput = el('input', { value: key.name, disabled: key.id === 'eulerstream' && key.readOnly });
@@ -623,9 +626,9 @@ function keysDetail() {
       act(() => api(`/keys/${key.id}`, patch, 'PATCH'), 'API キーを保存しました')();
     }, { cls: 'btn primary' });
     const remove = key.readOnly ? null : button('削除', () => { if (confirm(`${key.name}を削除しますか？`)) act(() => api(`/keys/${key.id}`, undefined, 'DELETE'), 'API キーを削除しました')(); });
-    return el('article', { className: 'admin-key' }, el('div', { className: 'key-meta' }, el('strong', { textContent: key.name }), el('span', { className: 'hint', textContent: `${key.type}・${key.environment}・${key.savedAt ? key.savedAt.slice(0, 10) : '保存日なし'}` })), el('code', { textContent: key.masked || '未設定' }), el('div', { className: 'row' }, nameInput, typeInput, secret, save, remove));
+    return el('article', { className: 'admin-key' }, el('div', { className: 'key-meta' }, el('strong', { textContent: key.name }), el('span', { className: 'hint', textContent: `${key.type}・${key.environment === 'data' ? 'この画面で保存' : key.environment}・${key.savedAt ? key.savedAt.slice(0, 10) : '保存日なし'}` })), el('code', { textContent: key.masked || '未設定' }), el('div', { className: 'field-row' }, nameInput, typeInput, secret), el('div', { className: 'btn-row' }, save, remove));
   });
-  return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'API キー' }), el('p', { className: 'sub', textContent: 'キーの値は最初の8文字と末尾4文字だけ表示します。環境変数のキーは読み取り専用です。' })), el('section', { className: 'group' }, el('h3', { textContent: 'API キーを追加' }), addForm), el('div', { className: 'admin-key-list' }, ...rows)];
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'API キー' }), el('p', { className: 'sub', textContent: 'キーの値は最初の8文字と末尾4文字だけ表示します。環境変数のキーは読み取り専用です。' })), el('section', { className: 'form-card' }, el('h3', { textContent: 'API キーを追加' }), addForm), el('div', { className: 'admin-key-list' }, ...rows)];
 }
 
 function renderShell() {
@@ -636,6 +639,7 @@ function renderShell() {
   const hasDetail = !tenants || Boolean(selected) || checkedCount >= 2;
   $('detail').hidden = !hasDetail;
   $('detail').classList.toggle('page-detail', hasDetail);
+  $('detail').classList.toggle('card-page', CARD_PAGES.includes(page));
   document.querySelectorAll('.admin-side .side-item[data-page]').forEach((b) => b.setAttribute('aria-current', String(b.dataset.page === page)));
 }
 
