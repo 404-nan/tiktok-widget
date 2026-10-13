@@ -154,6 +154,10 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 .stage-head p { margin: 6px 0 0; color: var(--text-secondary); }
 .stage-url { display: flex; gap: 8px; align-items: center; }
 .stage-url input { flex: 1; min-width: 0; font-size: 14px; }
+.roulette-urls { display: grid; gap: 10px; }
+.roulette-urls:empty { display: none; }
+.roulette-url { display: grid; gap: 4px; }
+.roulette-url .stage-url input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-secondary); }
 .stage-size { margin: -8px 0 0; }
 .stage-preview { position: relative; width: min(100%, calc(70vh * 9 / 16)); max-width: 405px; aspect-ratio: 9 / 16; margin: 0 auto; overflow: hidden; border: 1px solid var(--stroke-primary); background: linear-gradient(180deg, #25262b, #1d1e23); border-radius: var(--r-md); isolation: isolate; }
 .stage-preview::before { content: ''; position: absolute; z-index: 1; inset: 82% 0 0; pointer-events: none; opacity: .18; background: linear-gradient(180deg, transparent, rgba(8, 9, 12, .72)); border-top: 1px solid rgba(246, 245, 241, .22); }

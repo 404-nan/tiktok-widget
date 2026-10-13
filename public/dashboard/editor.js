@@ -1286,10 +1286,72 @@ export function createEditor({ api, setMessage }) {
 
   let previewTimer = null;
   let previewUrl = null;
+  function rouletteSourceUrl(w, rid) {
+    const u = new URL(w.url, location.origin);
+    u.searchParams.delete('ids');
+    if (rid == null) return u.href;
+    return `${u.href}${u.search ? '&' : '?'}ids=${encodeURIComponent(rid)}`;
+  }
+
+  function renderRouletteUrls(w) {
+    let box = $('rouletteUrls');
+    if (tab !== 'roulettes' || !w) {
+      if (box) box.replaceChildren();
+      return;
+    }
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'rouletteUrls';
+      box.className = 'roulette-urls';
+      $('sizeHint').insertAdjacentElement('afterend', box);
+    }
+    box.replaceChildren();
+    const title = document.createElement('span');
+    title.className = 'field-label';
+    title.textContent = 'LIVE Studio / OBS に入れるURL';
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'ルーレットごとに別のブラウザソースにするときは各URL、1つで全部出すときは一番下のURL';
+    box.append(title, hint);
+    const saved = Object.entries(payload.config.roulettes ?? {});
+    const rows = [];
+    saved.forEach(([name, entry], index) => {
+      if (!Array.isArray(entry?.items) || entry.items.length === 0) return;
+      const label = entry.kindName || entry.name || entry.title || `${schema.sections.roulettes.title} ${index + 1}`;
+      rows.push([label, name]);
+    });
+    rows.push(['全部まとめて（届いたギフトに合うものが出る）', null]);
+    for (const [label, rid] of rows) {
+      const row = document.createElement('div');
+      row.className = 'roulette-url';
+      const lab = document.createElement('span');
+      lab.className = 'field-label';
+      lab.textContent = label;
+      const line = document.createElement('div');
+      line.className = 'stage-url';
+      const input = document.createElement('input');
+      input.readOnly = true;
+      input.value = rouletteSourceUrl(w, rid);
+      input.setAttribute('aria-label', label);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn primary pressable';
+      btn.textContent = 'コピー';
+      btn.addEventListener('click', () => {
+        copyText(input.value, input);
+        flashCopied(btn, btn);
+      });
+      line.append(input, btn);
+      row.append(lab, line);
+      box.append(row);
+    }
+  }
+
   function updateUrl(immediate = false) {
     const w = currentWidget();
     if (!w) {
       $('widgetUrl').value = '';
+      renderRouletteUrls(null);
       return;
     }
     const explicit = !isObj(tab) && tab !== 'roulettes' ? (() => { const u = new URL(w.url, location.origin); u.searchParams.set('id', id); return `${u.pathname}${u.search}`; })() : w.url;
@@ -1322,6 +1384,7 @@ export function createEditor({ api, setMessage }) {
       $('sizeHint').textContent +=
         ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
     }
+    renderRouletteUrls(w);
     const url = new URL(explicit, location.origin);
     url.searchParams.set('preview', '1');
     url.searchParams.set('sound', '0');
