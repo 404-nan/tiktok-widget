@@ -2,12 +2,104 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ガチャ</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  body { display: grid; place-items: center; padding: 16px; }
+  .idle { display: none; margin: 0; font-weight: 900; color: var(--paper); }
+  body.preview:not(.on) .idle { display: block; }
+  .stage { display: none; width: min(92vw, 520px); }
+  body.on .stage { display: block; }
+  .plate {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 12px;
+    min-height: 240px;
+    padding: 28px 24px;
+    background: var(--surface);
+    color: var(--on-surface);
+    border-radius: var(--r);
+    border-left: 10px solid var(--paper);
+    box-shadow: var(--lift);
+    overflow: hidden;
+  }
+  .stage[data-phase="rolling"] .plate { border-left-color: var(--signal); animation: shake .12s linear infinite; }
+  .stage[data-tier="common"] .plate { border-left-color: var(--paper); }
+  .stage[data-tier="rare"] .plate { border-left-color: var(--signal); }
+  .stage[data-tier="legend"] .plate { border-left-color: var(--gold); }
+  .kicker { margin: 0; font-size: 14px; font-weight: 900; letter-spacing: .16em; color: var(--signal); }
+  .reel { display: none; width: 100%; height: 72px; overflow: hidden; }
+  .stage[data-phase="rolling"] .reel { display: block; }
+  .reel-track { display: grid; animation: reel .4s linear infinite; }
+  .reel span {
+    height: 72px;
+    display: grid;
+    place-items: center;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: 40px;
+    line-height: 1;
+  }
+  .reel span:nth-child(3n+1) { color: var(--paper); }
+  .reel span:nth-child(3n+2) { color: var(--signal); }
+  .reel span:nth-child(3n) { color: var(--gold); }
+  .result {
+    margin: 0;
+    min-height: 1em;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: 64px;
+    line-height: 1;
+    text-align: center;
+    opacity: 0;
+  }
+  .stage[data-phase="reveal"] .result {
+    opacity: 1;
+    color: var(--paper);
+    animation: slam var(--reveal, 2.5s) var(--ease-out) both;
+  }
+  .stage[data-phase="done"] .result { opacity: 1; color: var(--paper); }
+  .stage[data-tier="rare"][data-phase="reveal"] .result,
+  .stage[data-tier="rare"][data-phase="done"] .result { color: var(--signal); }
+  .stage[data-tier="legend"][data-phase="reveal"] .result,
+  .stage[data-tier="legend"][data-phase="done"] .result { color: var(--gold); }
+  .stage[data-phase="done"] .plate { animation: fadeout var(--done, 1.2s) linear both; }
+  .time { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @keyframes reel { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+  @keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+  @keyframes slam {
+    0% { transform: scale(1.7) rotate(-6deg); opacity: 0; }
+    16% { transform: scale(1) rotate(-2deg); opacity: 1; }
+    100% { transform: none; opacity: 1; }
+  }
+  @keyframes fadeout {
+    0% { opacity: 1; }
+    65% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
 </head>
 <body>
-<p id="phase">待機</p>
-<p id="result"></p>
-<p id="time"></p>
+<p class="idle" id="idle">ガチャ・待機</p>
+<div class="stage" id="stage" data-phase="idle">
+  <div class="plate" id="plate">
+    <p class="kicker" id="phase">待機</p>
+    <div class="reel" aria-hidden="true">
+      <div class="reel-track">
+        <span>ふつう</span><span>レア</span><span>激アツ</span>
+        <span>ふつう</span><span>レア</span><span>激アツ</span>
+      </div>
+    </div>
+    <p class="result" id="result"></p>
+    <p class="time" id="time"></p>
+  </div>
+</div>
 <script src="gacha.js"></script>
 </body>
 </html>

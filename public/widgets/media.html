@@ -2,12 +2,48 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>メディア通知</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+  body { display: grid; place-items: center; padding: 16px; }
+  .idle { display: none; margin: 0; font-weight: 900; color: var(--paper); }
+  body.preview:not(.on) .idle { display: block; }
+  .card {
+    display: none;
+    width: min(92vw, 600px);
+    background: var(--surface);
+    color: var(--on-surface);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+    padding: 16px;
+    gap: 10px;
+  }
+  body.on .card { display: grid; animation: rise .28s var(--ease-out); }
+  .kicker { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: .12em; color: var(--signal); }
+  .who { margin: 0; font-size: 22px; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+  .view { min-height: 0; }
+  .view img, .view video {
+    display: block;
+    width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    background: #000;
+  }
+  .view audio { width: 100%; }
+  @keyframes rise {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+</style>
 </head>
 <body>
-<p id="status">待機</p>
-<p id="label"></p>
-<div id="stage"></div>
+<p class="idle" id="idle">メディア通知・待機</p>
+<div class="card" id="card">
+  <p class="kicker" id="status">待機</p>
+  <p class="who" id="label"></p>
+  <div class="view" id="stage"></div>
+</div>
 <script src="media.js"></script>
 </body>
 </html>

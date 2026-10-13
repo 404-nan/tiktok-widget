@@ -4,6 +4,7 @@
   var labelEl = document.getElementById('label');
   var stage = document.getElementById('stage');
   var base = '';
+  if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var pathMatch = location.pathname.match(/^\/t\/[^/]+/);
   if (pathMatch) base = pathMatch[0];
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
@@ -34,6 +35,7 @@
     statusEl.textContent = '待機';
     labelEl.textContent = '';
     clearStage();
+    document.body.classList.remove('on');
     xhr('POST', '/api/media-alerts/ack', { token: token });
   }
 
@@ -61,6 +63,7 @@
     if (!msg || !msg.token || !item || !item.id) return;
     if (current === msg.token) return;
     current = msg.token;
+    document.body.classList.add('on');
     statusEl.textContent = '再生中';
     labelEl.textContent = item.giftLabel || item.name || '';
     clearStage();
@@ -75,7 +78,7 @@
     }
     var el = document.createElement(item.kind === 'audio' ? 'audio' : 'video');
     el.src = url;
-    el.controls = true;
+    el.controls = item.kind === 'audio';
     el.autoplay = true;
     if (item.kind !== 'audio') el.setAttribute('playsinline', '');
     el.onended = function () { finish(msg.token); };

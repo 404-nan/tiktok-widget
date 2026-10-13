@@ -17,7 +17,8 @@
     position: relative;
     display: grid;
     grid-template-columns: 176px minmax(0, 1fr);
-    height: 156px;
+    min-height: 156px;
+    height: auto;
     background: var(--surface);
     color: var(--on-surface);
     border-radius: var(--r);
@@ -107,6 +108,8 @@
   .nums .hp { font-size: 38px; font-weight: 700; }
   .nums .max { font-family: var(--font-num); font-weight: 600; font-size: 22px; color: var(--on-surface-dim); }
   .nums .label { font-family: var(--font-num); font-weight: 700; font-style: italic; font-size: 20px; color: var(--signal); margin-right: 2px; }
+  .gap { margin: 0; font-size: 14px; font-weight: 700; color: var(--on-surface-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gap[hidden] { display: none; }
 
   /* 残りが少ない: HP が赤く点滅（1秒に2回）、数字も赤 */
   .low .fill { animation: low .5s steps(1) infinite; }
@@ -123,8 +126,33 @@
   /* --- 演出 --- */
   .redflash { position: absolute; inset: 0; background: #FF2A2A; mix-blend-mode: screen; opacity: 0; pointer-events: none; }
   .redflash.go { animation: flash .4s ease-out; }
+  .greenflash { position: absolute; inset: 0; background: #1FAE5B; opacity: 0; pointer-events: none; }
+  .greenflash.go { animation: greenflash .5s ease-out; }
+  @keyframes greenflash { 0% { opacity: .42; } 100% { opacity: 0; } }
   .goldflash { position: absolute; inset: 0; background: #FFD84A; mix-blend-mode: screen; opacity: 0; pointer-events: none; }
   .goldflash.go { animation: flash .7s ease-out; }
+  .healword {
+    position: absolute;
+    left: 58%;
+    top: 8px;
+    z-index: 2;
+    font-weight: 900;
+    font-size: 28px;
+    line-height: 1;
+    color: #1FAE5B;
+    -webkit-text-stroke: 4px #111113;
+    paint-order: stroke fill;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .healword.go { animation: healword .9s cubic-bezier(.2, .9, .3, 1) forwards; }
+  @keyframes healword {
+    0% { opacity: 0; transform: translate(-50%, 8px) scale(1.35); }
+    18% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -10px) scale(1); }
+  }
   @keyframes flash { 0% { opacity: .8; } 100% { opacity: 0; } }
   /* 溜め: 板が暗くなって止まる */
   .plate::after { content: ""; position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .18s linear; }
@@ -149,6 +177,7 @@
   .dmg.t1 { color: #FF4F1F; -webkit-text-stroke: 4px #fff; }
   .dmg.t2 { color: #FFC53D; -webkit-text-stroke: 5px #111113; }
   .dmg.over { color: #FFC53D; -webkit-text-stroke: 3px #111113; opacity: .9; }
+  .dmg.heal { color: #1FAE5B; -webkit-text-stroke: 4px #111113; }
   @keyframes dmg {
     0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; }
     12% { transform: translate(calc(-50% + var(--dx) * .3), calc(-50% - 40px)) scale(1.25) rotate(var(--rot)); opacity: 1; }
@@ -236,12 +265,15 @@
         <span class="hitter" id="hitter"></span>
       </div>
       <div class="gauge"><i class="lag" id="lag"></i><i class="fill" id="fill"></i><span class="ticks"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></span></div>
-      <div class="nums"><span class="label">HP</span><span class="hp num" id="hp"></span><span class="max" id="max"></span></div>
+      <div class="nums"><span class="label" id="hpLabel">HP</span><span class="hp num" id="hp"></span><span class="max" id="max"></span></div>
+      <p class="gap" id="gap" hidden></p>
     </div>
     <div class="countdown"><i id="countdown"></i></div>
     <div class="redflash" id="redflash"></div>
+    <div class="greenflash" id="greenflash"></div>
     <div class="goldflash" id="goldflash"></div>
   </div>
+  <div class="healword" id="healword">回復した！</div>
   <div class="ko">
     <div class="word" id="word"><span class="back"></span><span class="mid"></span><span class="front"></span></div>
     <div class="finisher" id="finisher"></div>
@@ -335,12 +367,27 @@
     if (b.round !== faceRound) drawFace(b.round);
     $('round').innerHTML = `<b>${b.round}</b>体目`;
     $('name').textContent = b.name || p.name;
-    if (roll) odometer($('hp'), b.hp);
-    $('max').textContent = `/ ${fmt(b.maxHp)}`;
-    setBar(b.hp, b.maxHp, { instant });
-    const low = !charging && !b.defeated && p.lowHp > 0 && b.hp / b.maxHp <= p.lowHp / 100;
+    const gapMode = b.mode === 'rank-gap';
+    const waiting = gapMode && !(Number(b.rivalCoins) > 0);
+    $('hpLabel').textContent = waiting ? '未開始' : gapMode ? '差' : 'HP';
+    if (roll) odometer($('hp'), waiting ? 0 : b.hp);
+    $('max').textContent = waiting ? '' : `/ ${fmt(b.maxHp)}`;
+    const gap = $('gap');
+    if (!gapMode) {
+      gap.hidden = true;
+      gap.textContent = '';
+    } else if (waiting) {
+      gap.hidden = false;
+      gap.textContent = '相手のコインが未設定です';
+    } else {
+      gap.hidden = false;
+      const who = b.rivalName ? `上の人 ${b.rivalName}` : '上の人';
+      gap.textContent = `${who} ${fmt(b.rivalCoins)}コイン ・ 自分 ${fmt(b.ourCoins)}コイン`;
+    }
+    setBar(waiting ? 0 : b.hp, Math.max(1, waiting ? 1 : b.maxHp), { instant: instant || waiting });
+    const low = !waiting && !charging && !b.defeated && p.lowHp > 0 && b.maxHp > 0 && b.hp / b.maxHp <= p.lowHp / 100;
     document.body.classList.toggle('low', low);
-    document.body.classList.toggle('defeated', Boolean(b.defeated));
+    document.body.classList.toggle('defeated', !waiting && Boolean(b.defeated));
     countdown(b);
   }
 
@@ -493,15 +540,15 @@
   }
 
   // ダメージの数字。大きいほど大きく、朱 → 金
-  function damage(value, tier, { over = false } = {}) {
+  function damage(value, tier, { over = false, heal = false } = {}) {
     const wrap = $('wrap');
     const face = $('face').getBoundingClientRect();
     const w = wrap.getBoundingClientRect();
     const nums = wrap.querySelectorAll('.dmg');
     if (nums.length > 10) nums[0].remove();
     const el = document.createElement('div');
-    el.className = `dmg t${tier}${over ? ' over' : ''}`;
-    el.textContent = over ? `+${fmt(value)}` : fmt(value);
+    el.className = `dmg t${tier}${over ? ' over' : ''}${heal ? ' heal' : ''}`;
+    el.textContent = over || heal ? `+${fmt(value)}` : fmt(value);
     el.style.top = `${face.top - w.top + face.height * rnd(0.25, 0.5)}px`;
     const digits = Math.min(6, String(Math.round(value)).length);
     el.style.setProperty('--size', `${Math.min(110, (30 + digits * 3 + tier * 20) * p.power)}px`);
@@ -552,6 +599,19 @@
     }
     if (tier >= 2) setTimeout(() => restart($('slashB'), 'go'), 90);
     if (!wasLow && document.body.classList.contains('low')) SOUND.pinch();
+  }
+
+  // 回復: 緑に光って「回復した！」。数字があれば緑で出す
+  function onHeal(b, ev) {
+    render(b);
+    restart($('greenflash'), 'go');
+    const word = $('healword');
+    word.classList.remove('go');
+    void word.offsetWidth;
+    word.classList.add('go');
+    const n = Number(ev?.amount);
+    if (n > 0) damage(n, 0, { heal: true });
+    tones([523, 659, 784], { type: 'triangle', gap: 0.07, len: 0.18, vol: 0.35 });
   }
 
   // 討伐: HP が 0 になる → 一瞬止まって暗くなる → 「討伐!」を叩きつけ、金の光、とどめを刺した人
@@ -635,6 +695,7 @@
     const kind = ev?.kind;
     // ふつうのダメージは待たせずに出す（演出中なら状態だけ合わせる）
     if (kind === 'hit' && !busy.on) return onHit(b, ev, prev);
+    if (kind === 'heal' && !busy.on) return onHeal(b, ev);
     if (kind === 'overkill') {
       damage(ev.damage, 0, { over: true });
       if (ev.by?.user) showHitter(ev.by.user);
@@ -647,9 +708,11 @@
         if (kind === 'hit') onHit(b, ev, prev);
         else if (kind === 'defeat') await onDefeat(b, ev);
         else if (kind === 'next') await onNext(b);
-        else if (kind === 'heal' || kind === 'reset') {
+        else if (kind === 'heal') onHeal(b, ev);
+        else if (kind === 'reset') {
           $('word').classList.remove('go');
-          if (kind === 'reset') $('hitter').classList.remove('on');
+          $('healword').classList.remove('go');
+          $('hitter').classList.remove('on');
           render(b);
         } else render(b);
       } finally {

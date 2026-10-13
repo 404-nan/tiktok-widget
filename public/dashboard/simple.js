@@ -9,7 +9,7 @@ import { giftNameJa } from '/widgets/lib/gift-names.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush']],
+  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'gacha']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -33,7 +33,9 @@ export const INFO = {
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
   timers: { icon: 'timer', desc: 'ギフトで延びる残り時間（耐久配信）' },
-  bosses: { icon: 'skull', desc: 'みんなのギフトでボスの HP を削って倒す' },
+  bosses: { icon: 'skull', desc: 'みんなのギフトでボスの HP を削って倒す。上の人とのコイン差にもできる' },
+  mediaAlerts: { icon: 'clapperboard', desc: 'ギフトやフォローで、動画・音声・画像を出す' },
+  gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
@@ -154,7 +156,9 @@ export const SIMPLE = {
   },
   bosses: {
     groups: [
-      { title: 'ボス', fields: ['name', 'hp', 'hpScale', 'image'] },
+      { title: 'ボス', fields: ['name', 'image'] },
+      { title: 'コイン差', fields: ['mode', 'rankSource', 'rivalCoins'] },
+      { title: '固定HP', fields: ['hp', 'hpScale'] },
       { title: 'ダメージ', fields: ['damageFrom'] },
       { title: '倒したとき', fields: ['defeatText'] },
     ],
@@ -190,6 +194,19 @@ export const SIMPLE = {
         fields: ['gifts'],
       },
       { title: '中身', fields: ['duration', 'text', 'enterText'] },
+    ],
+  },
+  mediaAlerts: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      { title: '再生のきっかけ', fields: ['rules'] },
+    ],
+  },
+  gacha: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      { title: 'いつ回す', fields: ['minCoins', 'gifts'] },
+      { title: 'レアリティと天井', fields: ['tiers', 'pity'] },
     ],
   },
   minecraft: {
@@ -234,6 +251,9 @@ export const SIMPLE_LABELS = {
   'timers.startMinutes': '初めの時間（動かしたあとは「リセット」で反映）', 'timers.maxHours': '上限（0 でなし）', 'timers.coinSeconds': '1 コインで延びる', 'timers.rules': 'このギフトで決まった時間だけ延ばす',
   'timers.followSeconds': 'フォローで延びる', 'timers.likeEvery': 'いいね何回ごとに延ばす', 'timers.likeSeconds': 'そのとき延びる',
   'bosses.name': 'ボスの名前', 'bosses.hp': '最大 HP', 'bosses.hpScale': '次のボスの HP', 'bosses.image': 'ボスの画像', 'bosses.damageFrom': 'ダメージにするもの', 'bosses.defeatText': '倒したときの文字',
+  'bosses.mode': 'HPの出し方', 'bosses.rankSource': '相手コインの出どころ', 'bosses.rivalCoins': '相手のコイン',
+  'mediaAlerts.enabled': 'メディア通知を使う', 'mediaAlerts.rules': '再生のきっかけ',
+  'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   'cutins.gifts': 'このギフトなら必ず出す', 'cutins.redText': '赤の文字', 'cutins.goldText': '金の文字', 'cutins.rainbowText': '虹の文字', 'cutins.sound': '効果音',
   'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
   'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
@@ -244,6 +264,7 @@ export const SIMPLE_LABELS = {
 export const UNITS = {
   minCoins: 'コイン', bigCoins: 'コイン', fontSize: 'px', maxItems: '件', limit: '人', startMinutes: '分', maxHours: '時間',
   coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', scale: '倍',
+  rivalCoins: 'コイン', pity: '回',
 };
 
 const EVENT = { gift: 'ギフト', follow: 'フォロー', share: 'シェア' };
@@ -261,10 +282,12 @@ const SUMMARY = {
   jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),
   timers: (e) => `${e.startMinutes >= 60 ? `${Math.floor(e.startMinutes / 60)} 時間${e.startMinutes % 60 ? `${e.startMinutes % 60} 分` : ''}` : `${e.startMinutes} 分`}から${e.coinSeconds ? `・1 コインで +${e.coinSeconds} 秒` : ''}`,
-  bosses: (e) => `${e.name}（HP ${e.hp}）`,
+  bosses: (e) => (e.mode === 'rank-gap' ? `${e.name}（上の人まで ${e.rivalCoins} コイン）` : `${e.name}（HP ${e.hp}）`),
   cutins: (e) => `${e.minCoins} コインから`,
   imageCutins: (e) => `${e.minCoins} コインから${e.photo ? '' : '・写真なし'}`,
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
+  mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
+  gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),
 };
