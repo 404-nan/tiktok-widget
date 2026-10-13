@@ -59,14 +59,21 @@ export class Tenants {
     this.#resumeConnections();
   }
 
-  // 再起動前につないでいた配信者に、もう一度つなぐ
+  // 再起動前につないでいた配信者に、もう一度つなぐ。一度にたくさん開かないよう、2秒ずつずらす
   #resumeConnections() {
     if (process.env.TW_RESUME_CONNECT === '0') return;
-    for (const t of this.data.tenants) {
-      if (!t.enabled || !t.stayConnected) continue;
-      console.log(`[tiktok] ${new Date().toISOString()} 再起動前の接続を戻します: ${t.id} @${t.stayConnected}`);
-      this.runtime(t.id).tiktok.connect(t.stayConnected).catch((err) => console.warn(`[tiktok] ${t.id}: 接続を戻せませんでした（再試行します）: ${err.message}`));
-    }
+    const due = this.data.tenants.filter((t) => t.enabled && t.stayConnected);
+    due.forEach((t, i) => {
+      const wait = i * 2_000;
+      const later = wait ? `（${wait / 1000}秒後）` : '';
+      console.log(`[tiktok] ${new Date().toISOString()} 再起動前の接続を戻します: ${t.id} @${t.stayConnected}${later}`);
+      const timer = setTimeout(() => {
+        const cur = this.get(t.id);
+        if (!cur?.enabled || !cur.stayConnected) return;
+        this.runtime(cur.id).tiktok.connect(cur.stayConnected).catch((err) => console.warn(`[tiktok] ${cur.id}: 接続を戻せませんでした（再試行します）: ${err.message}`));
+      }, wait);
+      timer.unref?.();
+    });
   }
 
   // --- 読み書き ---
@@ -227,6 +234,7 @@ export class Tenants {
       widgets: [...DEFAULT_WIDGETS],
       template: null,
       guideDone: false,
+      stayConnected: null, // 切断するまで、再起動してもこのアカウントへつなぎ直す
       access: {},
       createdAt: Date.now(),
     };

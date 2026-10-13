@@ -236,7 +236,6 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       res.json({ ok: true, response: await minecraft.test(command) });
     } catch (err) {
-      setStayConnected?.(username.replace(/^@/, '').trim()); // 配信前でも、始まったらつながるよう再接続を続ける
       res.status(502).json({ error: err.message });
     }
   });
@@ -396,18 +395,29 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const username = String(req.body?.username ?? '').trim();
     if (!username) return res.status(400).json({ error: 'ユーザー名を入力してください' });
     demo.stop();
+    const handle = username.replace(/^@/, '').trim();
+    // 成功しても、配信前で失敗しても、切るまでは再接続を続ける
+    const keep = () => {
+      const id = tiktok.username || handle;
+      if (id) setStayConnected?.(id);
+    };
     try {
       await tiktok.connect(username, { signApiKey: req.body?.signApiKey });
       rememberTiktokId?.(tiktok.username);
-      setStayConnected?.(tiktok.username);
+      keep();
       res.json({ ok: true, status: hub.status });
     } catch (err) {
+      keep();
       res.status(502).json({ error: err.message, status: hub.status });
     }
   });
   r.post('/api/disconnect', async (_req, res) => {
     if (currentAutoId && auto.has(currentAutoId)) auto.get(currentAutoId).manuallyStopped = true;
-    await tiktok.disconnect();
+    try {
+      await tiktok.disconnect();
+    } finally {
+      setStayConnected?.(null);
+    }
     demo.stop();
     hub.setStatus({ mode: 'idle', username: null, message: '切断しました' });
     res.json({ ok: true });
