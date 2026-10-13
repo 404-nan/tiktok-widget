@@ -60,7 +60,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null }) {
   const hub = new Hub();
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
   const tiktok = new TikTokSource(hub, giftCatalog);
@@ -150,6 +150,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
     res.json({ ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) });
   });
+  r.get('/api/env', (_req, res) => res.json({ dev: process.env.TW_ENV === 'dev', environment: process.env.TW_ENV === 'dev' ? 'dev' : 'prod' }));
+  r.get('/api/notes', (_req, res) => res.json({ notes: notes?.list?.() ?? [] }));
   r.put('/api/me/widgets', (req, res) => {
     if (!setWidgets) return res.status(400).json({ error: '1人で使うときは選べません（全部使えます）' });
     const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w) && entitled(w)) : null;
@@ -436,6 +438,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json({ ok: true, demo: demo.running });
   });
   r.post('/api/simulate', (req, res) => {
+    if (process.env.TW_ENV !== 'dev') return res.status(403).json({ error: 'テスト送信は開発環境でだけ使えます' });
     const event = makeEvent(req.body?.kind, req.body ?? {});
     if (!event) return res.status(400).json({ error: '不明なイベント種類です' });
     hub.publish({ ...event, test: true });
@@ -509,6 +512,22 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return true;
     },
     router: r,
+    getConfig() { return hub.config; },
+    setConfig(p, value) {
+      const result = store.setValue(p, value);
+      applyConfigResult(result);
+      return result;
+    },
+    mergeConfig(p, value) {
+      const result = store.mergeValue(p, value);
+      applyConfigResult(result);
+      return result;
+    },
+    deleteConfig(p) {
+      const result = store.deleteValue(p);
+      applyConfigResult(result);
+      return result;
+    },
     /** 豪華な演出のオン/オフが変わったとき: 仕組みに反映し、開いている画面に読み込み直してもらう */
     entitlementsChanged() {
       if (hub.config) applyEngines(hub.config);

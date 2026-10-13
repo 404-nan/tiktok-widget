@@ -11,6 +11,9 @@ import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
+import { NotesStore } from './src/notes.js';
+import { ApiKeyStore } from './src/api-keys.js';
+import { adminGuard } from './src/admin-auth.js';
 import { createAi } from './src/ai.js';
 import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
 
@@ -25,19 +28,22 @@ const HOSTED = process.env.TW_HOSTED === '1';
 const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
 if (vault) await vault.restore();
 
+const notes = new NotesStore({ dir: DATA_DIR });
+
 // 「AI にたのむ」（キーは管理画面で入れたものが data/ai.json、または環境変数 TW_AI_KEY）
 const ai = createAi({ dir: DATA_DIR });
 
 // --- 1人で使うとき（今までどおり config.yaml と data/ を使う） ---
 const local = HOSTED
   ? null
-  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai });
+  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes });
 
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants({ ai });
+const tenants = new Tenants({ ai, notes });
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
+const apiKeys = new ApiKeyStore({ dir: DATA_DIR, signKey });
 
 // 管理画面の合言葉。TW_ADMIN_TOKEN がなければ作って data/admin-token.txt に残す
 const ADMIN_TOKEN_FILE = path.join(DATA_DIR, 'admin-token.txt');
@@ -71,14 +77,14 @@ app.use('/vendor/icons', vendor('lucide-static/icons'));
 
 // --- 管理画面（/admin） ---
 
-const sameToken = (t) => typeof t === 'string' && t.length === ADMIN_TOKEN.length && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(ADMIN_TOKEN));
 const admin = express.Router();
-admin.use((req, res, next) => (sameToken(req.get('x-admin-token')) ? next() : res.status(401).json({ error: '合言葉が違います' })));
+admin.use(adminGuard(ADMIN_TOKEN));
 
 // 前に Cloudflare などがあるときは、そこに届いた URL（X-Forwarded-Host / Proto）を使う
 const origin = (req) => `${req.protocol}://${req.host}`;
 function tenantView(req, t) {
   const rt = tenants.runtimes.get(t.id);
+  const config = rt?.hub.config ?? cfg.createStore(path.join(tenants.dataDir(t.id), 'config.yaml')).load().config;
   return {
     id: t.id,
     name: t.name,
@@ -92,6 +98,12 @@ function tenantView(req, t) {
     pin: t.pin,
     urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
+    settings: {
+      widgets: [...(t.widgets ?? [])],
+      roulettes: config ? cfg.publicConfig({ roulettes: config.roulettes ?? {} }).roulettes : {},
+      timers: config ? cfg.publicConfig({ timers: config.timers ?? {} }).timers : {},
+      rush: config ? cfg.publicConfig({ rush: config.rush ?? {} }).rush : {},
+    },
   };
 }
 admin.get('/tenants', (req, res) => {
@@ -101,8 +113,11 @@ admin.get('/tenants', (req, res) => {
     features: FEATURES,
     signKey: signKey.state(),
     ai: ai.state(),
+    keys: apiKeys.list(),
+    notes: notes.list(),
   });
 });
+admin.get('/lul', (req, res) => res.json({ tenants: tenants.list().map((t) => tenantView(req, t)), features: FEATURES }));
 admin.post('/tenants', (req, res) => {
   const t = tenants.create({ name: req.body?.name });
   res.json({ ok: true, tenant: tenantView(req, t) });
@@ -112,6 +127,18 @@ admin.patch('/tenants/:id', (req, res) => {
     res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
   } catch (err) {
     res.status(404).json({ error: err.message });
+  }
+});
+admin.patch('/tenants/:id/settings', (req, res) => {
+  try {
+    const rt = tenants.runtime(req.params.id);
+    const p = req.body?.path;
+    if (p == null || p === '') return res.status(400).json({ error: 'path が必要です' });
+    const result = req.body?.delete ? rt.deleteConfig(p) : req.body?.merge ? rt.mergeConfig(p, req.body?.value) : rt.setConfig(p, req.body?.value);
+    if (!result.ok) return res.status(422).json(result);
+    res.json({ ok: true, tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 admin.post('/tenants/:id/rekey', (req, res) => {
@@ -153,6 +180,42 @@ admin.put('/sign-key', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+admin.get('/keys', (_req, res) => res.json({ keys: apiKeys.list() }));
+admin.get('/api-keys', (_req, res) => res.json({ keys: apiKeys.list() }));
+admin.post('/keys', (req, res) => {
+  try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.post('/api-keys', (req, res) => {
+  try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.patch('/keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.patch('/api-keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.delete('/keys/:id', (req, res) => {
+  try { res.json({ ok: apiKeys.remove(req.params.id) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.delete('/api-keys/:id', (req, res) => {
+  try { res.json({ ok: apiKeys.remove(req.params.id) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.get('/notes', (_req, res) => res.json({ notes: notes.list() }));
+admin.post('/notes', (req, res) => {
+  try { res.status(201).json({ ok: true, note: notes.create(req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.patch('/notes/:id', (req, res) => {
+  try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.delete('/notes/:id', (req, res) => res.json({ ok: notes.remove(req.params.id) }));
 // 「AI にたのむ」の設定: { key?（空なら消す）, model?, dailyLimit?（配信者1人の1日の回数） }
 admin.put('/ai', (req, res) => {
   try {

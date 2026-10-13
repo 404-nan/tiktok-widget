@@ -28,7 +28,7 @@ export function demoUser(name = pick(NAMES)) {
 
 /** 種類を指定してテスト用イベントを1件作る（ダッシュボードのテストボタン用） */
 export function makeEvent(kind, opts = {}) {
-  const user = opts.user ? demoUser(opts.user) : demoUser();
+  const user = opts.user || opts.senderName ? demoUser(opts.user || opts.senderName) : demoUser();
   switch (kind) {
     case 'gift': {
       // 一覧にないギフト名でも、名前とコインを指定すればテストできる（ルーレットの条件の確認用）

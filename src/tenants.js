@@ -39,9 +39,10 @@ function migrate(holder) {
 }
 
 export class Tenants {
-  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null } = {}) {
+  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null } = {}) {
     this.dir = dir;
     this.ai = ai; // 「AI にたのむ」（全員で同じキーを使う）
+    this.notes = notes;
     this.file = path.join(dir, 'tenants.json');
     this.onChange = onChange;
     this.data = { tenants: [], global: { access: {} } };
@@ -333,6 +334,7 @@ export class Tenants {
       rememberTiktokId: (handle) => { if (!this.get(id)?.tiktokId) this.update(id, { tiktokId: handle }); },
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,
       ai: this.ai,
+      notes: this.notes,
     });
     this.runtimes.set(id, rt);
     return rt;

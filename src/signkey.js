@@ -5,6 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+const mask = (key) => (key.length > 12 ? `${key.slice(0, 8)}…${key.slice(-4)}` : '…');
+
 export function createSignKey({ dir }) {
   const file = path.join(dir, 'sign-api-key.txt');
   const fromEnv = (process.env.TIKTOK_SIGN_API_KEY || '').trim();
@@ -22,9 +24,18 @@ export function createSignKey({ dir }) {
   apply();
 
   return {
-    state() {
+    state(details = false) {
       const key = saved || fromEnv;
-      return { set: !!key, source: saved ? 'admin' : fromEnv ? 'env' : null, tail: key.length >= 12 ? key.slice(-4) : '' };
+      let savedAt = null;
+      if (saved) {
+        try { savedAt = fs.statSync(file).mtime.toISOString(); } catch {}
+      }
+      const basic = {
+        set: !!key,
+        source: saved ? 'admin' : fromEnv ? 'env' : null,
+        tail: key.length >= 12 ? key.slice(-4) : '',
+      };
+      return details ? { ...basic, masked: key ? mask(key) : '', savedAt } : basic;
     },
     /** 空の文字なら、管理画面で入れたキーを消す（環境変数があればそちらに戻る） */
     set(value) {
