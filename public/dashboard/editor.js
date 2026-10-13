@@ -858,10 +858,12 @@ export function createEditor({ api, setMessage }) {
         control.step = Number.isInteger(field.default) && field.max !== 1 ? '1' : '0.1';
       }
       control.value = value ?? '';
-      control.addEventListener('input', () => {
-        if (field.type !== 'number') return save(key, control.value, 500);
-        const n = Number(control.value);
-        if (control.value !== '' && Number.isFinite(n)) save(key, n, 500);
+      // 下で control を単位つきの枠に入れ替えることがあるので、入力欄そのものを別の名前で持っておく
+      const input = control;
+      input.addEventListener('input', () => {
+        if (field.type !== 'number') return save(key, input.value, 500);
+        const n = Number(input.value);
+        if (input.value !== '' && Number.isFinite(n)) save(key, n, 500);
       });
     }
     // かんたんでは、数字の後ろに単位を付ける
@@ -1558,6 +1560,8 @@ export function createEditor({ api, setMessage }) {
         api('/api/me').catch(() => ({ mode: 'local' })),
       ]);
       if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のウィジェット`;
+      // 配信者ごとの URL では、管理者向けの欄（署名サーバーのキー・サーバーの環境変数の話）を出さない
+      if (isTenant()) document.querySelector('#connectForm details.more')?.remove();
       stage = createStage({
         api,
         getPayload: () => payload,

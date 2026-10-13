@@ -17,7 +17,12 @@ const STATUSES = ['idle', 'running', 'paused', 'ended'];
 
 const slimUser = (u) => (u ? { id: u.id, name: u.name, avatar: u.avatar } : null);
 const startMs = (c) => Math.round((c?.startMinutes ?? 60) * 60_000);
-const capMs = (c) => (c?.maxHours > 0 ? Math.round(c.maxHours * 3_600_000) : Infinity);
+// 上限（maxHours）。初めの時間より短い上限は意味がないので、上限なしとして扱う
+// （24 時間のタイマーに「上限 12 時間」が残っていて、ギフトで延びなくなるのを防ぐ）
+const capMs = (c) => {
+  const cap = c?.maxHours > 0 ? Math.round(c.maxHours * 3_600_000) : Infinity;
+  return cap < startMs(c) ? Infinity : cap;
+};
 
 /** ギフト・フォロー・シェア・いいねで、何秒延びるか（いいねは数をためて、決まった回数ごと） */
 export function secondsFor(c, e, likeBank = 0) {
