@@ -116,6 +116,7 @@
   import { createWheel } from './lib/roulette-wheel.js';
   import { createStrip } from './lib/roulette-strip.js';
 
+  (async () => {
   const roulettes = await loadRoulettes();
   const stage = document.getElementById('stage');
   const views = {
@@ -139,6 +140,7 @@
       stage.classList.add('swap');
     },
   });
+  })();
 </script>
 </body>
 </html>

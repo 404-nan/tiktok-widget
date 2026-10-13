@@ -303,7 +303,7 @@ export function iconImage(name, color = '#111113', strokeWidth = 2.25) {
         .then((r) => (r.ok ? r.text() : Promise.reject()))
         .then((svg) => {
           const colored = svg
-            .replaceAll('currentColor', color)
+            .split('currentColor').join(color)
             .replace(/stroke-width="[\d.]+"/, `stroke-width="${strokeWidth}"`);
           return loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(colored)}`);
         })

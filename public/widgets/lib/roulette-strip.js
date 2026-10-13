@@ -77,7 +77,7 @@ export function createStrip(root) {
       win.classList.remove('settled');
       layout();
       seq = [];
-      for (let i = 0; i < 15; i++) seq.push(randomPick(seq.at(-1)));
+      for (let i = 0; i < 15; i++) seq.push(randomPick(seq[seq.length - 1]));
       x = xFor(7);
       renderTrack();
     },
@@ -93,10 +93,10 @@ export function createStrip(root) {
       seq = seq.slice(keepFrom);
       x += keepFrom * (T + G);
       const run = reduced ? 4 : 42 + Math.floor(Math.random() * 8);
-      for (let i = 0; i < run; i++) seq.push(randomPick(seq.at(-1)));
+      for (let i = 0; i < run; i++) seq.push(randomPick(seq[seq.length - 1]));
       const target = seq.length;
       seq.push(winner.index);
-      for (let i = 0; i < 8; i++) seq.push(randomPick(seq.at(-1)));
+      for (let i = 0; i < 8; i++) seq.push(randomPick(seq[seq.length - 1]));
       renderTrack();
 
       // 当たりのカードの中で止まる位置も毎回ずらす
