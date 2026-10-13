@@ -20,6 +20,10 @@ import { RushEngine } from './rush.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
+import { createEventBus } from './events.js';
+import { bindRouletteActions, runActions } from './actions.js';
+import { MediaAlerts } from './media-alerts.js';
+import { Gacha } from './gacha.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts } from './gifts.js';
@@ -35,7 +39,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'gacha', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -53,7 +57,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/];
+const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/];
 
 /**
  * 配信者1人分を作る。
@@ -74,6 +78,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
+  const bus = createEventBus();
+  const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
+  const gacha = new Gacha(hub, { bus });
+  boss.setBus(bus);
+  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, boss, gacha, bus });
+  bindRouletteActions(hub, bus, actionDeps);
+  hub.on('event', (e) => {
+    mediaAlerts.onEvent(e);
+    gacha.onEvent(e);
+  });
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
   let currentAutoId = null;
@@ -87,6 +101,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
+    mediaAlerts.setConfig(config.mediaAlerts);
+    gacha.setConfig(config.gacha);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -140,6 +156,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.use((req, res, next) => {
     if (req.role !== 'obs') return next();
     if (req.method === 'GET' && (req.path.startsWith('/media/') || OBS_ALLOWED.some((re) => re.test(req.path)))) return next();
+    if (req.method === 'POST' && /^\/api\/media-alerts\/(ack|autoplay)$/.test(req.path)) return next();
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
   });
 
@@ -445,6 +462,71 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     // 配信中のテストは画面に出るだけ（数は変わらない）
     res.json({ ok: true, visualOnly: hub.status.mode === 'live' });
   });
+  // 開発用。ルーレットの動作・ボス・メディア・ガチャを、配信イベントを作らずに試す
+  r.post('/api/dev/trigger', (req, res) => {
+    if (process.env.TW_ENV !== 'dev') return res.status(403).json({ error: 'テスト送信は開発環境でだけ使えます' });
+    const body = req.body ?? {};
+    try {
+      if (body.target === 'roulette-action') {
+        if (!Array.isArray(body.actions) || !body.actions.length) return res.status(400).json({ error: 'actions を一覧で送ってください' });
+        const results = runActions(body.actions, actionDeps(), { source: 'dev' });
+        const bad = results.find((item) => !item.ok);
+        if (bad) return res.status(400).json({ error: bad.error, results });
+        return res.json({ ok: true, results });
+      }
+      if (body.target === 'boss') {
+        const id = body.id || null;
+        if (body.action === 'damage') return res.json({ ok: true, boss: boss.apply(id, 'damage', body.amount) });
+        if (body.action === 'heal') return res.json({ ok: true, boss: boss.healBy(id, body.amount) });
+        return res.status(400).json({ error: 'action は damage か heal です' });
+      }
+      if (body.target === 'media') return res.json({ ok: true, media: mediaAlerts.play(body.mediaId, { source: 'dev' }) });
+      if (body.target === 'gacha') {
+        const started = gacha.start({ kind: 'dev', source: 'dev' });
+        if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
+        return res.json({ ok: true, gacha: started });
+      }
+      return res.status(400).json({ error: '不明な target です' });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  });
+  r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
+  r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
+  r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
+    try {
+      const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      let name = 'file';
+      if (typeof req.query?.name === 'string' && req.query.name) name = req.query.name;
+      else if (req.headers['x-filename']) name = String(req.headers['x-filename']);
+      const item = mediaAlerts.addBuffer({ mime, name, buffer: req.body });
+      res.json({ ok: true, item });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  r.post('/api/media-alerts/ack', (req, res) => {
+    res.json({ ok: mediaAlerts.ack(req.body?.token) });
+  });
+  r.post('/api/media-alerts/autoplay', (req, res) => {
+    res.json({ ok: true, autoplay: mediaAlerts.reportAutoplay({ muted: req.body?.muted === true }) });
+  });
+  r.delete('/api/media-alerts/:id', (req, res) => {
+    try {
+      mediaAlerts.remove(req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(404).json({ error: err.message });
+    }
+  });
+  r.get('/api/media-alerts/:id/file', (req, res) => {
+    const info = mediaAlerts.fileInfo(req.params.id);
+    if (!info) return res.status(404).json({ error: 'メディアが見つかりません' });
+    res.type(info.mime);
+    res.sendFile(info.path, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'メディアが見つかりません' });
+    });
+  });
   r.post('/api/control', (req, res) => {
     const { target, action, data } = req.body ?? {};
     if (!target || !action) return res.status(400).json({ error: 'target と action が必要です' });
@@ -540,6 +622,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       history.end();
       clearInterval(history.timer);
       timer.close();
+      gacha.close();
       boss.flush();
     },
   };

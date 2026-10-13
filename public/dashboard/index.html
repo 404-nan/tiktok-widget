@@ -43,6 +43,36 @@
         <button class="chip pressable" data-sim="viewers" data-icon="eye" type="button">視聴者数</button>
       </div>
       <button class="text-btn pressable" id="resetBtn" type="button">集計をリセット</button>
+      <div id="devFeatures">
+        <p>ルーレットの動作</p>
+        <label>種類
+          <select id="devActionType">
+            <option value="timer.add">タイマーを足す</option>
+            <option value="wins.add">WINを足す</option>
+            <option value="rush.start">RUSH開始</option>
+            <option value="media.play">メディア再生</option>
+            <option value="boss.damage">ボスにダメージ</option>
+            <option value="boss.heal">ボスを回復</option>
+            <option value="gacha.start">ガチャ</option>
+          </select>
+        </label>
+        <label>値 <input id="devActionValue" type="text" value="10"></label>
+        <label>名前 <input id="devActionId" type="text" value=""></label>
+        <button type="button" id="devActionBtn">動作を実行</button>
+        <p>ボス</p>
+        <label>量 <input id="devBossAmount" type="number" value="100"></label>
+        <button type="button" id="devBossDamage">ダメージ</button>
+        <button type="button" id="devBossHeal">回復</button>
+        <p>メディア</p>
+        <label>メディアID <input id="devMediaId" type="text"></label>
+        <button type="button" id="devMediaBtn">再生</button>
+        <p><a href="../widgets/media.html">メディア通知の画面</a></p>
+        <p id="devAutoplayNote"></p>
+        <p>ガチャ</p>
+        <button type="button" id="devGachaBtn">ガチャを回す</button>
+        <p><a href="../widgets/gacha.html">ガチャの画面</a></p>
+        <p id="devFeatureMsg"></p>
+      </div>
     </div>
   </section>
 
@@ -169,6 +199,7 @@
   </section>
 </main>
 
+<script src="dev-features.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
