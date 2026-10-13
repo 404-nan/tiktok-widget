@@ -521,7 +521,7 @@ export function createEditor({ api, setMessage }) {
         copyText(w.url);
         flashCopied(copy, label);
       });
-      const setting = chip('', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
+      const setting = chip('設定', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
       setting.setAttribute('aria-label', `${obsTitle(w)}の設定`);
       row.append(icon(INFO[w.section].icon), main, copy, setting);
       return row;
