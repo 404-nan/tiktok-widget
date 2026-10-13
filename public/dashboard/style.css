@@ -360,7 +360,7 @@ select option { background: var(--page); }
 .entry-action { min-height: 32px; padding: 0 8px; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px; cursor: pointer; }
 .entry-action:hover { color: var(--text-primary); }
 .entry-action.danger { color: var(--danger); }
-.entry-action:disabled { opacity: .4; cursor: not-allowed; }
+.entry-action:disabled { opacity: 1; color: var(--text-tertiary); cursor: not-allowed; } /* 押せないときも読める色で */
 .entry {
   display: inline-flex;
   align-items: center;
