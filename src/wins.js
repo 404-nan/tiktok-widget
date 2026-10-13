@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ruleMatches } from './minecraft.js';
+import { giftDisplayName } from './gifts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const WINS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'wins.json');
@@ -88,7 +89,7 @@ export class WinsEngine {
     for (const [id, c] of Object.entries(this.config)) {
       const rule = (c.rules ?? []).find((r) => ruleMatches(r, e));
       if (!rule) continue;
-      const by = { user: slimUser(e.user), gift: e.gift.nameJa || e.gift.name, count: e.gift.count, text: rule.text ?? '' };
+      const by = { user: slimUser(e.user), gift: giftDisplayName(e.gift), count: e.gift.count, text: rule.text ?? '' };
       if (rule.set != null) this.#change(id, 'set', rule.set, by);
       else this.#change(id, 'add', rule.add * (rule.perCount === false ? 1 : e.gift.count), by);
       changed = true;

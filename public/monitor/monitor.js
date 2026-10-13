@@ -1,6 +1,6 @@
 // 配信中モニター。WebSocket で届くイベントと、サーバーの配信記録（/api/status・/api/history）から作る。
 
-import { connect, icon } from '/widgets/lib/overlay.js';
+import { connect, icon, giftLabel } from '/widgets/lib/overlay.js';
 import { $, api, setupChrome, statusText } from '/dashboard/common.js';
 import { columnChart, fmtNum } from '/dashboard/charts.js';
 
@@ -111,7 +111,7 @@ function addFeed(e) {
   const what = document.createElement('span');
   what.className = 'what';
   what.textContent = {
-    gift: () => `${e.gift.nameJa || e.gift.name} ×${e.gift.count}`,
+    gift: () => `${giftLabel(e.gift)} ×${e.gift.count}`,
     follow: () => 'フォローしました',
     share: () => 'シェアしました',
     chat: () => e.text,
@@ -358,7 +358,7 @@ function renderResults() {
       time.textContent = timeFmt.format(spin.at);
       const meta = document.createElement('span');
       meta.className = 'meta';
-      const by = spin.trigger?.user ? `${spin.trigger.user.name}${spin.trigger.gift ? ` の ${spin.trigger.gift.nameJa || spin.trigger.gift.name}` : ''}` : '手動';
+      const by = spin.trigger?.user ? `${spin.trigger.user.name}${spin.trigger.gift ? ` の ${giftLabel(spin.trigger.gift)}` : ''}` : '手動';
       meta.textContent = `${spin.name} · ${by}`;
       li.append(label, time, meta);
       return li;

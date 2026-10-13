@@ -10,8 +10,9 @@ try {
   const raw = JSON.parse(fs.readFileSync(new URL('./gift-names-ja.json', import.meta.url), 'utf8'));
   for (const [id, [en, ja]] of Object.entries(raw.names ?? {})) {
     BUNDLED.byId.set(String(id), ja);
-    if (!BUNDLED.byName.has(String(en).toLocaleLowerCase())) {
-      BUNDLED.byName.set(String(en).toLocaleLowerCase(), ja);
+    const nameKey = String(en).trim().toLocaleLowerCase().replace(/\s+/g, '');
+    if (nameKey && !BUNDLED.byName.has(nameKey)) {
+      BUNDLED.byName.set(nameKey, ja);
       BUNDLED.list.push({ id: String(id), name: String(en), nameJa: ja });
     }
   }
@@ -19,21 +20,25 @@ try {
 /** 控えにある全ギフト（コイン数・画像はなし）。一覧を網羅するための補い */
 export function bundledGifts() { return BUNDLED.list.map((g) => ({ ...g })); }
 
+const nameKey = (value) => text(value).toLocaleLowerCase().replace(/\s+/g, '');
+
 export function bundledNameJa(gift) {
-  return BUNDLED.byId.get(String(gift?.id ?? gift?.giftId ?? '').trim())
-    ?? BUNDLED.byName.get(String(gift?.name ?? gift?.giftName ?? '').trim().toLocaleLowerCase()) ?? null;
+  const id = String(gift?.id ?? gift?.giftId ?? '').trim();
+  if (id && BUNDLED.byId.has(id)) return BUNDLED.byId.get(id);
+  const key = nameKey(gift?.name ?? gift?.giftName);
+  return (key && BUNDLED.byName.get(key)) || null;
 }
 
 const text = (v) => (v == null ? '' : String(v).trim());
 
 export function giftDisplayName(gift) {
-  return text(gift?.nameJa) || text(gift?.name) || text(gift?.id) || 'Gift';
+  return text(gift?.nameJa) || bundledNameJa(gift) || text(gift?.name) || text(gift?.id) || 'Gift';
 }
 
 export function giftMatches(gift, values) {
   if (!gift || !Array.isArray(values) || !values.length) return false;
-  const keys = [gift.id, gift.name, gift.nameJa].map((v) => text(v).toLocaleLowerCase()).filter(Boolean);
-  return values.some((value) => keys.includes(text(value).toLocaleLowerCase()));
+  const keys = [gift.id, gift.name, gift.nameJa].map(nameKey).filter(Boolean);
+  return values.some((value) => keys.includes(nameKey(value)));
 }
 
 export function normalizeGiftRecord(gift) {

@@ -1,6 +1,6 @@
 // 配信の統計・履歴。/api/history の一覧と1回分の記録から作る。
 
-import { connect } from '/widgets/lib/overlay.js';
+import { connect, giftLabel } from '/widgets/lib/overlay.js';
 import { $, api, store, setupChrome, statusText } from '/dashboard/common.js';
 import { columnChart, lineChart, fmtNum } from '/dashboard/charts.js';
 
@@ -172,7 +172,7 @@ function renderTables(full) {
       bar.className = 'bar';
       bar.style.width = `${Math.max(2, (g.coins / maxCoins) * 100)}%`;
       bar.title = `${fmtNum(g.coins)} コイン`;
-      return [[g.nameJa || g.name, 'name'], [bar, 'bar-cell'], [fmtNum(g.count), 'num'], [fmtNum(g.coins), 'num']];
+      return [[giftLabel(g), 'name'], [bar, 'bar-cell'], [fmtNum(g.count), 'num'], [fmtNum(g.coins), 'num']];
     }),
     'ギフトはまだありません',
   );

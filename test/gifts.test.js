@@ -48,10 +48,10 @@ test('日本語名が英語名と同じなら nameJa は null', async () => {
 });
 
 test('日本語名がないギフトの表示は今までの英語名のまま', () => {
-  const event = normalizeGift({ giftId: 1, gift: { id: 1, name: 'Rose', diamondCount: 1 }, repeatCount: 1 });
-  assert.equal(event.gift.name, 'Rose');
+  const event = normalizeGift({ giftId: 1, gift: { id: 1, name: 'Plain Gift', diamondCount: 1 }, repeatCount: 1 });
+  assert.equal(event.gift.name, 'Plain Gift');
   assert.equal(event.gift.nameJa, null);
-  assert.equal(giftDisplayName(event.gift), 'Rose');
+  assert.equal(giftDisplayName(event.gift), 'Plain Gift');
 });
 
 test('TikTok から日本語名が取れないときは控えの対応表（ID→英語名）から日本語名を出す', () => {

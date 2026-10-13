@@ -95,7 +95,7 @@
 <body>
 <div id="stage"></div>
 <script type="module">
-  import { setupWidget, list, connect, isFor, giftNode, giftNamed, avatarNode, icon, fmt, chime, createQueue, sleep, resolveColor, setSampleRenderer } from './lib/overlay.js';
+  import { setupWidget, list, connect, isFor, giftNode, giftNamed, giftLabel, avatarNode, icon, fmt, chime, createQueue, sleep, resolveColor, setSampleRenderer } from './lib/overlay.js';
 
   // 設定は config.yaml の alerts.<id>（?id= がなければ default）。URL パラメータでも上書きできる
   const p = await setupWidget('alerts', {
@@ -161,7 +161,7 @@
 
     if (e.kind === 'gift') {
       badge.append(giftNode(e.gift, 68));
-      descRow.append(el('span', null, rule.text || e.gift.nameJa || e.gift.name));
+      descRow.append(el('span', null, rule.text || giftLabel(e.gift)));
       const count = el('span', 'count num', `×${e.gift.count}`);
       descRow.append(count);
       if (rule.big ?? e.totalDiamonds >= p.bigCoins) lt.classList.add('big');

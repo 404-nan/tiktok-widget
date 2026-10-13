@@ -1,5 +1,5 @@
 import { brushImage as bandImage } from './brush.js';
-import { setupWidget, mediaUrl, loadConfig, list, connect, giftNode, avatarNode, giftNamed, fmt, createQueue, sleep } from './overlay.js';
+import { setupWidget, mediaUrl, loadConfig, list, connect, giftNode, avatarNode, giftNamed, giftLabel, fmt, createQueue, sleep } from './overlay.js';
 
 const STAGE = `
 <div class="stage" id="stage">
@@ -390,7 +390,7 @@ export async function startCutin(section) {
     tag.append(name);
     if (e.kind === 'gift') {
       const what = document.createElement('span');
-      what.textContent = `${e.gift.nameJa || e.gift.name} ×${e.gift.count}`;
+      what.textContent = `${giftLabel(e.gift)} ×${e.gift.count}`;
       const coins = document.createElement('span');
       coins.className = 'num';
       coins.textContent = fmt(e.totalDiamonds);

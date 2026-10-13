@@ -1,4 +1,5 @@
 // ギフト名を一覧から選ぶ共通部品。保存する値は今までどおり名前の配列。
+import { giftNameJa } from '../widgets/lib/gift-names.js';
 
 let giftListPromise;
 
@@ -18,7 +19,7 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
   root.className = 'gift-picker';
   let selected = [...new Set(value.filter(Boolean))];
   let all = sortGifts(gifts);
-  const label = (g) => g?.nameJa || g?.name || g?.id || '';
+  const label = (g) => (g?.nameJa && String(g.nameJa).trim()) || giftNameJa(g) || g?.id || '';
   const byValue = (value) => all.find((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => String(v).toLocaleLowerCase() === String(value).toLocaleLowerCase()));
   let open = false;
 

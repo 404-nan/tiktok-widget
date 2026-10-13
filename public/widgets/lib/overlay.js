@@ -1,4 +1,5 @@
 // ウィジェット共通: 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
+import { giftLabel as giftLabelFromTable, giftNameJa } from './gift-names.js';
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 // 配信者ごとの URL で開いたときは、API・画像・接続をその下に向ける（1人で使うときは BASE は空）
@@ -281,7 +282,7 @@ export function giftNode(gift, size = 64) {
   };
   if (gift?.image) {
     const img = new Image(size, size);
-    img.alt = gift.nameJa || gift.name || '';
+    img.alt = (gift.nameJa && String(gift.nameJa).trim()) || giftNameJa(gift) || '';
     img.referrerPolicy = 'no-referrer';
     img.src = gift.image;
     img.onerror = showToken;
@@ -469,7 +470,7 @@ export function giftNamed(gift, names) {
   return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.nameJa ?? '').toLowerCase()) || want.includes(String(gift.id));
 }
 
-export const giftLabel = (gift) => gift?.nameJa || gift?.name || gift?.id || 'Gift';
+export const giftLabel = (gift) => giftLabelFromTable(gift);
 
 /** ギフトがトリガー条件（ギフト名/ID の一覧、または最低コイン数）に合うか */
 export function giftMatches(e, { gifts = [], minCoins = 0, maxCoins = 0 }) {

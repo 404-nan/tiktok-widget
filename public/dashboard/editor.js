@@ -918,7 +918,7 @@ export function createEditor({ api, setMessage }) {
       } else {
         control = document.createElement('input');
         control.value = (value ?? []).join(', ');
-        control.placeholder = { gifts: '例: Rose, Doughnut', hideWords: '例: 宣伝, 荒らし', hideUsers: '例: spam_bot, @someone' }[key] ?? '';
+        control.placeholder = { gifts: '例: バラ, ドーナツ', hideWords: '例: 宣伝, 荒らし', hideUsers: '例: spam_bot, @someone' }[key] ?? '';
         control.addEventListener('input', () =>
           save(key, control.value.split(',').map((s) => s.trim()).filter(Boolean), 500),
         );

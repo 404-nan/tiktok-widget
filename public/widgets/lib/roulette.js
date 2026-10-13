@@ -6,6 +6,7 @@ import {
   reloadOnConfigChange, resolveColor, readableOn,
 } from './overlay.js';
 import { giftUserName } from './roulette-gift.js';
+import { giftNameJa } from './gift-names.js';
 
 export { giftUserName };
 
@@ -86,7 +87,7 @@ export function pickWeighted(items) {
 export function hintFor(r) {
   if (r.hint) return r.hint;
   const parts = [];
-  if (r.gifts.length) parts.push(r.gifts.join('・'));
+  if (r.gifts.length) parts.push(r.gifts.map(giftNameJa).join('・'));
   if (r.minCoins > 0) parts.push(r.maxCoins ? `${fmt(r.minCoins)}〜${fmt(r.maxCoins)}コインのギフト` : `${fmt(r.minCoins)}コイン以上のギフト`);
   if (r.events.includes('follow')) parts.push('フォロー');
   if (r.events.includes('share')) parts.push('シェア');
