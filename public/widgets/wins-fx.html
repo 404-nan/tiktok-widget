@@ -179,7 +179,7 @@
     sound: true, volume: 0.4, bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅', power: 1,
     goal: 0, minusAmbient: true, celebrate: true, winText: 'WIN!',
   });
-  const id = new URLSearchParams(location.search).get('id') || 'default';
+  const id = window.__twWidgetId || 'default';
   const $ = (x) => document.getElementById(x);
   const rnd = (a, b) => a + Math.random() * (b - a);
   const TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];

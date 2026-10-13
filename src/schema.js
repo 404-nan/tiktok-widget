@@ -475,6 +475,13 @@ SCHEMA.minecraft = {
   },
 };
 
+// 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
+for (const section of Object.keys(SCHEMA)) {
+  if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {
+    SCHEMA[section].fields = { kindName: str('', '種類の名前'), ...SCHEMA[section].fields };
+  }
+}
+
 export const SECTIONS = Object.keys(SCHEMA);
 
 /** 各セクションの初期値（map のセクションは1件分） */

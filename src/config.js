@@ -332,7 +332,7 @@ export function normalize(raw) {
   if (raw != null && (typeof raw !== 'object' || Array.isArray(raw))) issues.errors.push('設定の一番外側は「セクション名: ...」の形にしてください');
 
   for (const key of Object.keys(src)) {
-    if (!SCHEMA[key]) issues.warnings.push(`${key}: 使われないセクションです（使えるのは ${SECTIONS.join(', ')}）`);
+    if (!SCHEMA[key] && key !== 'active') issues.warnings.push(`${key}: 使われないセクションです（使えるのは ${SECTIONS.join(', ')}）`);
   }
   for (const section of SECTIONS) {
     const def = SCHEMA[section];
@@ -351,6 +351,17 @@ export function normalize(raw) {
       config[section][id] = checkFields(section, entry, `${section}.${id}`, issues);
       if (section === 'chats') checkChat(config[section][id], `${section}.${id}`, issues);
     }
+  }
+  // active は「種類を選ぶ」ための記録。書かれていないときは default、
+  // default もなければそのウィジェットの最初の種類を使う。
+  config.active = {};
+  const active = src.active && typeof src.active === 'object' && !Array.isArray(src.active) ? src.active : {};
+  for (const section of SECTIONS) {
+    if (SCHEMA[section].kind !== 'map') continue;
+    const names = Object.keys(config[section] ?? {});
+    const requested = active[section];
+    config.active[section] = names.includes(requested) ? requested : names.includes('default') ? 'default' : names[0] ?? 'default';
+    if (requested != null && typeof requested !== 'string') issues.errors.push(`active.${section}: 種類の名前は文字で書いてください`);
   }
   return { config, ...issues };
 }
@@ -528,6 +539,15 @@ export function publicConfig(config) {
     out[section] = def.kind === 'map' ? Object.fromEntries(Object.entries(out[section]).map(([id, e]) => [id, strip(e)])) : strip(out[section]);
   }
   return out;
+}
+
+/** URL に種類の指定がないときに使う種類。存在しない active は安全にフォールバックする。 */
+export function activeId(config, section, requested = null) {
+  const entries = config?.[section] ?? {};
+  const names = Object.keys(entries);
+  if (requested != null) return requested;
+  const chosen = config?.active?.[section];
+  return names.includes(chosen) ? chosen : names.includes('default') ? 'default' : names[0] ?? 'default';
 }
 
 // --- ウィジェットの URL と説明 ---

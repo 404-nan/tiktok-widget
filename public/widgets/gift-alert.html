@@ -102,9 +102,15 @@
     events: ['gift', 'follow'], gifts: [], minCoins: 1, bigCoins: 100, duration: 4.5, position: 'top', align: 'left',
     sound: true, volume: 0.3, followText: 'フォローしてくれました', shareText: '配信をシェアしてくれました', rules: [],
   });
-  const kinds = new Set(list(p.events));
+  let kinds = new Set(list(p.events));
   document.body.classList.add(`pos-${p.position}`, `align-${p.align}`);
   const stage = document.getElementById('stage');
+  window.addEventListener('tw-config-change', (event) => {
+    if (event.detail.section !== 'alerts' || window.__twWidgetQueryId != null) return;
+    Object.assign(p, event.detail.config?.alerts?.[event.detail.id] ?? {});
+    kinds = new Set(list(p.events));
+    document.body.className = `pos-${p.position} align-${p.align}`;
+  });
 
   const queue = createQueue(show, { max: 30 });
 

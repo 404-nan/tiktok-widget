@@ -197,7 +197,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // 例: /api/wins/default/win（+1）・/api/wins/default/add?value=-1・/api/wins/default/undo・/api/wins/all/reset
   r.all('/api/wins/:id/:action', (req, res) => {
     try {
-      const wid = req.params.id === 'all' ? null : req.params.id;
+      const wid = req.params.id === 'all' ? null : cfg.activeId(hub.config, 'wins', req.params.id === 'active' ? null : req.params.id);
       res.json({ ok: true, wins: wins.apply(wid, req.params.action, req.query.value ?? req.body?.value) });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -208,7 +208,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/timer', (_req, res) => res.json(timer.snapshot()));
   r.all('/api/timer/:id/:action', (req, res) => {
     try {
-      const tid = req.params.id === 'all' ? null : req.params.id;
+      const tid = req.params.id === 'all' ? null : cfg.activeId(hub.config, 'timers', req.params.id === 'active' ? null : req.params.id);
       res.json({ ok: true, timers: timer.apply(tid, req.params.action, timerSeconds({ ...req.body, ...req.query })) });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -218,7 +218,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/boss', (_req, res) => res.json(boss.snapshot()));
   r.all('/api/boss/:id/:action', (req, res) => {
     try {
-      const bid = req.params.id === 'all' ? null : req.params.id;
+      const bid = req.params.id === 'all' ? null : cfg.activeId(hub.config, 'bosses', req.params.id === 'active' ? null : req.params.id);
       res.json({ ok: true, boss: boss.apply(bid, req.params.action, req.query.value ?? req.body?.value) });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -446,7 +446,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     // WIN 数もサーバーで持つ
     if (target === 'wins') {
       try {
-        return res.json({ ok: true, wins: wins.apply(data?.id || null, String(action), data?.value) });
+        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'wins') : data?.id || null;
+        return res.json({ ok: true, wins: wins.apply(id, String(action), data?.value) });
       } catch (err) {
         return res.status(400).json({ error: err.message });
       }
@@ -454,7 +455,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     // 延長タイマーもサーバーで持つ（data: { id, seconds } か { id, minutes }）
     if (target === 'timer') {
       try {
-        return res.json({ ok: true, timers: timer.apply(data?.id || null, String(action), timerSeconds(data ?? {})) });
+        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'timers') : data?.id || null;
+        return res.json({ ok: true, timers: timer.apply(id, String(action), timerSeconds(data ?? {})) });
       } catch (err) {
         return res.status(400).json({ error: err.message });
       }
@@ -462,7 +464,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
     if (target === 'boss') {
       try {
-        return res.json({ ok: true, boss: boss.apply(data?.id || null, String(action), data?.value) });
+        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
+        return res.json({ ok: true, boss: boss.apply(id, String(action), data?.value) });
       } catch (err) {
         return res.status(400).json({ error: err.message });
       }

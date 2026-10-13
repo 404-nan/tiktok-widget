@@ -254,12 +254,20 @@
   const p = await setupWidget('bosses', {
     name: '魔王', image: '', defeatText: '討伐!', lowHp: 20, power: 1, color: 'accent', sound: true, volume: 0.4,
   });
-  const id = new URLSearchParams(location.search).get('id') || 'default';
+  let id = window.__twWidgetId || 'default';
   const $ = (x) => document.getElementById(x);
   const rnd = (a, b) => a + Math.random() * (b - a);
   document.body.style.setProperty('--signal', resolveColor(p.color));
   document.body.style.setProperty('--on-signal', readableOn(p.color));
   for (const el of $('word').children) el.textContent = p.defeatText;
+  window.addEventListener('tw-config-change', async (event) => {
+    if (event.detail.section !== 'bosses' || window.__twWidgetQueryId != null) return;
+    id = event.detail.id;
+    Object.assign(p, event.detail.config?.bosses?.[id] ?? {});
+    for (const el of $('word').children) el.textContent = p.defeatText;
+    const all = await (await fetch('/api/boss')).json();
+    if (all[id]) onBoss({ boss: all[id], event: { kind: 'config' } });
+  });
 
   // --- ボスの顔: 画像があれば画像、なければ日輪を背負った鬼の面。何体目かで 白鬼 → 赤鬼 → 黒鬼 と変わる ---
   const ONI_COLORS = [

@@ -569,25 +569,60 @@ export function createEditor({ api, setMessage }) {
       return;
     }
     const names = entriesOf(tab);
-    box.hidden = simple() && names.length < 2 && tab !== 'roulettes';
+    box.hidden = false;
+    const label = document.createElement('span');
+    label.className = 'entry-label';
+    label.textContent = '種類';
+    const selectBox = document.createElement('select');
+    selectBox.className = 'entry-select';
+    selectBox.setAttribute('aria-label', `${schema.sections[tab].title}の種類`);
     for (const name of names) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'entry pressable';
-      b.setAttribute('aria-pressed', String(name === id));
-      const title = payload.config[tab][name].name;
-      // かんたんでは URL 用の名前（英数字）は見せない
-      if (simple()) b.textContent = title || (names.length > 1 ? `${schema.sections[tab].title} ${names.indexOf(name) + 1}` : schema.sections[tab].title);
-      else b.textContent = title ? `${title}（${name}）` : name;
-      b.addEventListener('click', () => select(tab, name));
-      box.append(b);
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = payload.config[tab][name].kindName || payload.config[tab][name].name || payload.config[tab][name].title || `${schema.sections[tab].title} ${names.indexOf(name) + 1}`;
+      opt.selected = name === id;
+      selectBox.append(opt);
     }
+    const addOpt = document.createElement('option');
+    addOpt.value = '__new__';
+    addOpt.textContent = '＋ 新しい種類を作る';
+    selectBox.append(addOpt);
+    selectBox.addEventListener('change', async () => {
+      if (selectBox.value === '__new__') return addEntry();
+      const next = selectBox.value;
+      select(tab, next);
+      await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: ['active', tab], value: next }) });
+      await reload();
+      select(tab, next);
+    });
+    box.append(label, selectBox);
+    const rename = document.createElement('button');
+    rename.type = 'button'; rename.className = 'entry-action pressable'; rename.textContent = '名前を変える';
+    rename.addEventListener('click', renameEntry);
+    box.append(rename);
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.className = 'entry-action danger pressable'; remove.textContent = 'この種類を消す';
+    remove.disabled = names.length <= 1;
+    remove.addEventListener('click', removeEntry);
+    box.append(remove);
     const add = document.createElement('button');
     add.type = 'button';
     add.className = 'entry add pressable';
-    add.append(icon('plus'), simple() ? 'もう1つ作る' : '追加');
+    add.append(icon('plus'), 'もう1つ作る');
     add.addEventListener('click', addEntry);
     box.append(add);
+  }
+
+  async function renameEntry() {
+    const current = payload.config[tab]?.[id];
+    if (!current) return;
+    const next = prompt('種類の名前', current.kindName || current.name || current.title || schema.sections[tab].title);
+    if (next == null || !next.trim()) return;
+    const value = { kindName: next.trim() };
+    const res = await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: [tab, id], merge: true, value }) });
+    const data = await res.json();
+    if (data.config) payload = data;
+    render();
   }
 
   async function addEntry() {
@@ -599,10 +634,12 @@ export function createEditor({ api, setMessage }) {
       const base = tab.replace(/s$/, '').replace(/([A-Z])/g, '-$1').toLowerCase();
       name = used.includes('default') || used.length ? null : 'default';
       for (let n = 2; !name; n++) if (!used.includes(`${base}-${n}`)) name = `${base}-${n}`;
+      const title = prompt('新しい種類の名前（例: 24時間耐久）', '');
+      if (title == null) return;
+      value = structuredClone(payload.config[tab]?.[id] ?? {});
+      value.kindName = title.trim() || `${schema.sections[tab].title} ${used.length + 1}`;
       if (tab === 'roulettes') {
-        const title = prompt('ルーレットの名前（例: 罰ゲーム）', '');
-        if (title == null) return;
-        value = { name: title.trim() || 'ルーレット', gifts: [], items: ['当たり', 'ハズレ*2'] };
+        value.name = value.name || 'ルーレット';
       }
     } else {
       name = prompt('新しい設定の名前（英数字と - _。URL に使います）', tab === 'roulettes' ? 'new-roulette' : 'new');
@@ -618,6 +655,8 @@ export function createEditor({ api, setMessage }) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: [tab, name], value }),
     });
+    await reload();
+    await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: ['active', tab], value: name }) });
     await reload();
     select(tab, name);
   }
@@ -694,6 +733,7 @@ export function createEditor({ api, setMessage }) {
     const easy = simple() ? SIMPLE[tab] : null;
     // 今の設定では効かない項目は、かんたん表示では出さない（値は消さずに残す）
     const unusable = (key) =>
+      key === 'kindName' || // 種類の名前は上のプルダウン横で変える
       ['posX', 'posY', 'posScale'].includes(key) || // 位置と大きさは「1つにまとめる」で動かす
       (key === 'volume' && values.sound === false) ||
       (key === 'maxCoins' && !Number(values.minCoins));
@@ -747,7 +787,7 @@ export function createEditor({ api, setMessage }) {
     // よく使う設定を上に、それ以外は「詳しい設定」に畳む
     const basic = easy ? [] : (BASIC[tab] ?? Object.keys(def.fields)).filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
-    const rest = easy ? [] : Object.keys(def.fields).filter((k) => !basic.includes(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
+    const rest = easy ? [] : Object.keys(def.fields).filter((k) => k !== 'kindName' && !basic.includes(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
     if (rest.length) {
       const more = document.createElement('details');
       more.className = 'more';
@@ -777,9 +817,9 @@ export function createEditor({ api, setMessage }) {
   /** WIN数・タイマー・ボスを Stream Deck などから押す URL（[呼び名, URL]） */
   function streamDeckUrls() {
     const base = `${location.origin}${BASE}`;
-    if (tab === 'wins') return [['クリア +1', `${base}/api/wins/${id}/win`], ['-1', `${base}/api/wins/${id}/add?value=-1`], ['1つ戻す', `${base}/api/wins/${id}/undo`], ['リセット', `${base}/api/wins/${id}/reset`]];
-    if (tab === 'timers') return [['スタート', `${base}/api/timer/${id}/start`], ['一時停止', `${base}/api/timer/${id}/pause`], ['止める・動かす', `${base}/api/timer/${id}/toggle`], ['+1分', `${base}/api/timer/${id}/add?seconds=60`], ['-1分', `${base}/api/timer/${id}/add?seconds=-60`], ['リセット', `${base}/api/timer/${id}/reset`]];
-    if (tab === 'bosses') return [['HP を戻す', `${base}/api/boss/${id}/heal`], ['ダメージ 100', `${base}/api/boss/${id}/damage?value=100`], ['討伐', `${base}/api/boss/${id}/defeat`], ['次のボス', `${base}/api/boss/${id}/next`], ['1体目から', `${base}/api/boss/${id}/reset`]];
+    if (tab === 'wins') return [['クリア +1', `${base}/api/wins/active/win`], ['-1', `${base}/api/wins/active/add?value=-1`], ['1つ戻す', `${base}/api/wins/active/undo`], ['リセット', `${base}/api/wins/active/reset`]];
+    if (tab === 'timers') return [['スタート', `${base}/api/timer/active/start`], ['一時停止', `${base}/api/timer/active/pause`], ['止める・動かす', `${base}/api/timer/active/toggle`], ['+1分', `${base}/api/timer/active/add?seconds=60`], ['-1分', `${base}/api/timer/active/add?seconds=-60`], ['リセット', `${base}/api/timer/active/reset`]];
+    if (tab === 'bosses') return [['HP を戻す', `${base}/api/boss/active/heal`], ['ダメージ 100', `${base}/api/boss/active/damage?value=100`], ['討伐', `${base}/api/boss/active/defeat`], ['次のボス', `${base}/api/boss/active/next`], ['1体目から', `${base}/api/boss/active/reset`]];
     return [];
   }
 
@@ -1241,7 +1281,8 @@ export function createEditor({ api, setMessage }) {
       $('widgetUrl').value = '';
       return;
     }
-    $('widgetUrl').value = w.url;
+    const explicit = !isObj(tab) && tab !== 'roulettes' ? (() => { const u = new URL(w.url, location.origin); u.searchParams.set('id', id); return `${u.pathname}${u.search}`; })() : w.url;
+    $('widgetUrl').value = explicit;
     $('sizeHint').textContent =
       tab === 'roulettes'
         ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
@@ -1256,21 +1297,21 @@ export function createEditor({ api, setMessage }) {
       const fx = payload.widgets.find((x) => x.section === 'wins' && x.id === id && x.extra);
       if (fx) $('sizeHint').textContent += ` 大妨害・超妨害・壊滅の全画面演出は ${fx.url} を配信画面と同じ大きさ（${fx.size[0]} × ${fx.size[1]}）で重ねてください。`;
       $('sizeHint').textContent +=
-        ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます: クリア +1 ${base}/api/wins/${id}/win ／ -1 ${base}/api/wins/${id}/add?value=-1 ／ 1つ戻す ${base}/api/wins/${id}/undo ／ リセット ${base}/api/wins/${id}/reset`;
+        ` ゲーム中は Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: クリア +1 ${base}/api/wins/active/win ／ -1 ${base}/api/wins/active/add?value=-1 ／ 1つ戻す ${base}/api/wins/active/undo ／ リセット ${base}/api/wins/active/reset`;
     }
     // 延長タイマーも、Stream Deck などから押せる URL を出す
     if (!simple() && tab === 'timers') {
       const base = `${location.origin}${BASE}/api/timer/${id}`;
       $('sizeHint').textContent +=
-        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: スタート ${base}/start ／ 一時停止 ${base}/pause ／ 止める・動かすを1つで ${base}/toggle ／ +1分 ${base}/add?seconds=60 ／ -1分 ${base}/add?seconds=-60 ／ リセット ${base}/reset`;
+        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: スタート ${location.origin}${BASE}/api/timer/active/start ／ 一時停止 ${location.origin}${BASE}/api/timer/active/pause ／ 止める・動かすを1つで ${location.origin}${BASE}/api/timer/active/toggle ／ +1分 ${location.origin}${BASE}/api/timer/active/add?seconds=60 ／ -1分 ${location.origin}${BASE}/api/timer/active/add?seconds=-60 ／ リセット ${location.origin}${BASE}/api/timer/active/reset`;
     }
     // ボス討伐も、Stream Deck などから押せる URL を出す
     if (!simple() && tab === 'bosses') {
       const base = `${location.origin}${BASE}`;
       $('sizeHint').textContent +=
-        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます: HP を戻す ${base}/api/boss/${id}/heal ／ ダメージ 100 ${base}/api/boss/${id}/damage?value=100 ／ 討伐 ${base}/api/boss/${id}/defeat ／ 次のボス ${base}/api/boss/${id}/next ／ 1体目から ${base}/api/boss/${id}/reset`;
+        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
     }
-    const url = new URL(w.url, location.origin);
+    const url = new URL(explicit, location.origin);
     url.searchParams.set('preview', '1');
     url.searchParams.set('sound', '0');
     url.searchParams.set('keep', '0');

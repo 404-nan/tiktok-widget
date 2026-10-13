@@ -286,14 +286,25 @@
     bigLossText: '大妨害', hugeLossText: '超妨害', ruinLossText: '壊滅', power: 1,
   });
   // 演出の段階（0 通常 / 1 大妨害 / 2 超妨害 / 3 壊滅）はサーバーが決めて送ってくる（event.tier）
-  const TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
-  const id = new URLSearchParams(location.search).get('id') || 'default';
+  let TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
+  let id = window.__twWidgetId || 'default';
   const $ = (x) => document.getElementById(x);
   const rnd = (a, b) => a + Math.random() * (b - a);
   document.body.classList.add(`style-${p.style}`);
   document.body.style.setProperty('--signal', resolveColor(p.color));
   document.body.style.setProperty('--on-signal', readableOn(p.color));
   $('title').textContent = p.title;
+  window.addEventListener('tw-config-change', async (event) => {
+    if (event.detail.section !== 'wins' || window.__twWidgetQueryId != null) return;
+    id = event.detail.id;
+    Object.assign(p, event.detail.config?.wins?.[id] ?? {});
+    TIER_TEXT = ['', p.bigLossText, p.hugeLossText, p.ruinLossText];
+    $('title').textContent = p.title;
+    document.body.style.setProperty('--signal', resolveColor(p.color));
+    document.body.style.setProperty('--on-signal', readableOn(p.color));
+    const all = await (await fetch('/api/wins')).json();
+    if (all[id]) render(all[id], { roll: false });
+  });
 
   function render(c, { roll = true } = {}) {
     const n = c.wins;

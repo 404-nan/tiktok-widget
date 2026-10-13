@@ -29,6 +29,16 @@ test('項目は「名前*重み」とオブジェクトのどちらでも書け�
   ]);
 });
 
+test('今の種類は active から選び、ない名前は default、default もなければ先頭にする', () => {
+  const one = cfg.normalize({ timers: { default: { startMinutes: 60 }, long: { startMinutes: 1440 } }, active: { timers: 'long' } }).config;
+  assert.equal(cfg.activeId(one, 'timers'), 'long');
+  const missing = cfg.normalize({ timers: { default: {}, long: {} }, active: { timers: 'missing' } }).config;
+  assert.equal(cfg.activeId(missing, 'timers'), 'default');
+  const first = cfg.normalize({ timers: { long: {}, short: {} }, active: { timers: 'missing' } }).config;
+  assert.equal(cfg.activeId(first, 'timers'), 'long');
+  assert.equal(cfg.activeId(first, 'timers', 'short'), 'short');
+});
+
 test('間違いは場所と直し方つきでエラーになる', () => {
   const { errors, warnings } = cfg.normalize({
     roulettes: { 'bad id': { style: 'round', items: [{ weight: 0 }] } },

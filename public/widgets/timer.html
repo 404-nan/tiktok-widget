@@ -311,13 +311,23 @@
     title: '残り', startMinutes: 60, coinSeconds: 10, minCoins: 1, rules: [], followSeconds: 0, shareSeconds: 0, likeEvery: 0, likeSeconds: 10,
     hint: '', showHint: true, avatars: true, warnMinutes: 10, dangerMinutes: 1, endText: '終了', color: 'accent', sound: true, volume: 0.4,
   });
-  const id = new URLSearchParams(location.search).get('id') || 'default';
+  let id = window.__twWidgetId || 'default';
   const $ = (x) => document.getElementById(x);
   const rnd = (a, b) => a + Math.random() * (b - a);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   document.body.style.setProperty('--signal', resolveColor(p.color));
   document.body.style.setProperty('--on-signal', readableOn(p.color));
   $('title').textContent = p.title;
+  window.addEventListener('tw-config-change', async (event) => {
+    if (event.detail.section !== 'timers' || window.__twWidgetQueryId != null) return;
+    id = event.detail.id;
+    Object.assign(p, event.detail.config?.timers?.[id] ?? {});
+    $('title').textContent = p.title;
+    document.body.style.setProperty('--signal', resolveColor(p.color));
+    document.body.style.setProperty('--on-signal', readableOn(p.color));
+    const all = await (await fetch('/api/timer')).json();
+    if (all[id]) apply({ timer: all[id] }, { quiet: true });
+  });
 
   let t = { status: 'idle', remaining: p.startMinutes * 60_000, endsAt: null, extended: 0 };
   let offset = 0; // サーバーの時計 - この画面の時計

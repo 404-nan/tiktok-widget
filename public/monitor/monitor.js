@@ -167,7 +167,7 @@ function renderWins() {
         b.append(icon(iconName), name);
         b.addEventListener('click', () => {
           if (ask && !confirm(ask)) return;
-          api('/api/control', { target: 'wins', action, data: { id, value } });
+          api('/api/control', { target: 'wins', action, data: { id: id === config?.active?.wins ? 'active' : id, value } });
         });
         return b;
       };
@@ -222,7 +222,7 @@ function renderTimers() {
         b.type = 'button';
         b.className = `chip pressable ${cls}`;
         b.append(icon(iconName), name);
-        b.addEventListener('click', () => api('/api/control', { target: 'timer', action, data: { id, seconds } }));
+        b.addEventListener('click', () => api('/api/control', { target: 'timer', action, data: { id: id === config?.active?.timers ? 'active' : id, seconds } }));
         return b;
       };
       // 大きいボタン1つで、止める・動かすを切り替える

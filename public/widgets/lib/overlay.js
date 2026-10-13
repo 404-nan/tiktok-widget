@@ -36,10 +36,14 @@ export async function setupWidget(section, fallback = {}) {
   const { config, defaults } = await loadConfig();
   applyTheme(config?.theme);
   setupPage();
-  const id = new URLSearchParams(location.search).get('id') || 'default';
+  const queryId = new URLSearchParams(location.search).get('id');
+  const names = Object.keys(config?.[section] ?? {});
+  const id = queryId ?? (names.includes(config?.active?.[section]) ? config.active[section] : names.includes('default') ? 'default' : names[0] ?? 'default');
+  window.__twWidgetId = id;
+  window.__twWidgetSection = section;
   const entry = config?.[section]?.[id] ?? {};
-  reloadOnConfigChange((c) => [c?.theme, c?.[section]?.[id]]);
-  configSnapshot = JSON.stringify([config?.theme, config?.[section]?.[id]]);
+  reloadOnConfigChange((c) => [c?.theme, c?.active?.[section], c?.[section]?.[id], queryId]);
+  configSnapshot = JSON.stringify([config?.theme, config?.active?.[section], config?.[section]?.[id], queryId]);
   setupSample(section, id);
   return params({ ...fallback, ...defaults[section], ...entry });
 }
@@ -78,7 +82,17 @@ export function reloadOnConfigChange(selector, initialConfig) {
 function handleConfig(config) {
   if (!configSelector) return;
   const next = JSON.stringify(configSelector(config));
-  if (configSnapshot !== null && next !== configSnapshot) location.reload();
+  if (configSnapshot !== null && next !== configSnapshot) {
+    const previous = window.__twWidgetId;
+    if (window.__twWidgetQueryId == null && window.__twWidgetSection) {
+      const names = Object.keys(config?.[window.__twWidgetSection] ?? {});
+      const nextId = names.includes(config?.active?.[window.__twWidgetSection]) ? config.active[window.__twWidgetSection] : names.includes('default') ? 'default' : names[0] ?? 'default';
+      window.__twWidgetId = nextId;
+      window.dispatchEvent(new CustomEvent('tw-config-change', { detail: { config, section: window.__twWidgetSection, id: nextId, previous } }));
+    } else {
+      window.dispatchEvent(new CustomEvent('tw-config-change', { detail: { config, section: window.__twWidgetSection, id: previous } }));
+    }
+  }
   configSnapshot = next;
 }
 
@@ -139,6 +153,7 @@ export function applyTheme(theme) {
 /** 全ウィジェット共通のパラメータ（theme / preview / scale）を反映する */
 export function setupPage() {
   const q = new URLSearchParams(location.search);
+  window.__twWidgetQueryId = q.get('id');
   if (q.get('theme') === 'light') document.documentElement.dataset.theme = 'light';
   if (q.get('preview') === '1') document.body.classList.add('preview');
   const scale = Number(q.get('scale'));
