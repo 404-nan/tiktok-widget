@@ -426,7 +426,7 @@ export function createEditor({ api, setMessage }) {
       ...(isTenant() ? [item('sparkles', '遊び方をえらびなおす', false, async () => { await api('/api/me/template', { template: null }, 'PUT'); me = await api('/api/me'); view = 'stage'; renderNav(); stage?.render(); })] : []),
       item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
       item('file-code', '設定ファイル', view === 'files', goTo('files')),
-      item('book-open', '使い方', false, () => window.open('../help/', '_blank', 'noopener')),
+      item('book-open', '使い方', false, () => window.open('/help/', '_blank', 'noopener')),
     );
     if (desktop) {
       const head = document.createElement('div');

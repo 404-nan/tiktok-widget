@@ -237,6 +237,7 @@ if (local) {
   app.use('/admin', express.static(path.join(PUBLIC, 'admin')));
   app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'))); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
   app.use('/widgets', express.static(path.join(PUBLIC, 'widgets')));
+  app.use('/help', express.static(path.join(PUBLIC, 'help'))); // 配信者向け使い方（鍵なしで開ける）
 }
 
 // --- WebSocket（ウィジェットへの配信） ---
