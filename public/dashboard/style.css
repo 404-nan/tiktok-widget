@@ -1046,3 +1046,110 @@ input, select, textarea, .btn, .chip, .side-item, .field-label { font-size: max(
 .widgets > .panel-bg { display: none; } /* 透けなくしたので、高さの合わない下地を出さない */
 @media (max-width: 520px) { #actions > .chip:first-of-type { grid-column: 1 / -1; } }
 .topbar > .panel-bg { background: var(--page); box-shadow: none; } /* 上の帯は背景と同じ色（下の中身と重なっても段にならない） */
+
+/* ============================================================
+   1ページ目「OBSに入れるURL」（かんたん・PC/スマホ共通）
+   ルール: 余白は 4/8/12/16/24/32/48 の目盛りだけ。
+   中身は1本の列（最大幅を固定）。カードは全部同じ幅・同じ内側余白・同じ間隔。
+   色はアクセント1色。グラデーション・ぼかし・強い影は使わない。
+   ============================================================ */
+:root {
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --col: 840px;          /* 中身の列の幅 */
+  --card-pad-x: var(--s-5);
+  --card-pad-y: var(--s-4);
+  --card-gap: var(--s-5); /* カード同士の間隔＝一番上の余白 */
+  --card-radius: 10px;
+  --surface: #1F1F23;
+  --border: rgba(255, 255, 255, .10);
+  --accent: #FF5A2B;
+  --btn-w: 104px; --btn-h: 40px;
+}
+[data-theme=light] { --surface: #FFFFFF; --border: rgba(0, 0, 0, .10); --accent: #D9411A; }
+
+[data-mode=simple] body, body[data-mode=simple] { background: var(--page); }
+body[data-mode=simple] .side { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface); }
+
+/* 列 */
+body[data-mode=simple] #cards:not([hidden]) {
+  display: grid;
+  gap: var(--card-gap);
+  width: 100%;
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: var(--card-gap) 0 var(--s-7);
+}
+body[data-mode=simple] #cards > * { width: 100%; margin: 0; min-width: 0; }
+
+/* 見出し（カードではない。下の間隔はカード間隔と同じ） */
+body[data-mode=simple] #cards > .view-title { gap: var(--s-2); padding: 0; }
+body[data-mode=simple] #cards > .view-title h3 { font-size: 24px; line-height: 1.3; letter-spacing: -.01em; }
+body[data-mode=simple] #cards > .view-title .desc { font-size: 15px; color: var(--text-secondary); max-width: none; }
+
+/* カード（見本・URL一覧） */
+body[data-mode=simple] #cards > .sample-control,
+body[data-mode=simple] #cards > .sgroup {
+  display: grid;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: none;
+  overflow: hidden;
+}
+body[data-mode=simple] #cards > .sample-control { padding: var(--card-pad-y) var(--card-pad-x); gap: var(--s-2); }
+body[data-mode=simple] #cards > .sample-control > .check {
+  flex-direction: row; justify-content: space-between; align-items: center;
+  min-height: var(--btn-h); padding: 0; font-size: 15px; font-weight: 600;
+}
+body[data-mode=simple] #cards > .sample-control > .check input[type=checkbox]:checked { background: var(--accent); }
+body[data-mode=simple] #cards > .sample-control > .hint { margin: 0; font-size: 14px; color: var(--text-secondary); }
+
+body[data-mode=simple] #cards > .sgroup > .sgroup-title {
+  margin: 0;
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border-bottom: 1px solid var(--border);
+  font-size: 15px; font-weight: 600; opacity: 1; letter-spacing: 0; color: var(--text-primary);
+}
+body[data-mode=simple] #cards > .sgroup > .sgroup-body { border-radius: 0; background: transparent; box-shadow: none; }
+body[data-mode=simple] #cards .sgroup-body > * + * { box-shadow: none; border-top: 1px solid var(--border); }
+
+/* 行：全部同じ高さ・同じ並び */
+body[data-mode=simple] #cards .url-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) var(--btn-w) var(--btn-w);
+  gap: var(--s-4);
+  height: 72px;
+  padding: 0 var(--card-pad-x);
+}
+body[data-mode=simple] #cards .url-item .srow-title { font-size: 15px; font-weight: 600; }
+body[data-mode=simple] #cards .url-item .srow-sub { font-size: 14px; }
+
+/* ボタン：同じ大きさで横に並べる */
+body[data-mode=simple] #cards .url-item > .chip {
+  width: var(--btn-w); height: var(--btn-h); min-height: 0; padding: 0;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; box-shadow: none; font-size: 14px; font-weight: 500;
+}
+body[data-mode=simple] #cards .url-item > .chip:hover { background: var(--hover-wash); }
+body[data-mode=simple] #cards .url-item > .chip:first-of-type { background: var(--text-primary); color: var(--text-primary-on); border-color: transparent; }
+
+body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; padding: 0; font-size: 14px; color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* PC：サイドバーと列の間も同じ目盛り */
+@media (min-width: 900px) {
+  body[data-mode=simple] .layout { max-width: none; padding: 0 var(--s-6) 0 calc(248px + var(--s-6)); }
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { padding-top: 0; max-width: var(--col); margin-left: auto !important; margin-right: auto !important; width: 100%; }
+  body[data-mode=simple] .side { gap: var(--s-4); padding: var(--s-5) var(--s-4); }
+  body[data-mode=simple] .side-item[aria-current=true]::before { background: var(--accent); }
+}
+
+/* スマホ：列は画面いっぱい、左右の余白はカード間隔と同じ */
+@media (max-width: 899px) {
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { padding-left: var(--s-4); padding-right: var(--s-4); }
+  body[data-mode=simple] #cards:not([hidden]) { gap: var(--s-4); padding-top: var(--s-4); }
+  body[data-mode=simple] #cards { --card-pad-x: var(--s-4); --btn-w: 72px; }
+  body[data-mode=simple] #cards .url-item { grid-template-columns: minmax(0, 1fr) var(--btn-w) var(--btn-w); gap: var(--s-2); }
+  body[data-mode=simple] #cards .url-item > .icon { display: none; }
+  body[data-mode=simple] #cards .url-item > .chip .icon { display: none; }
+}
