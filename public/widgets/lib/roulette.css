@@ -12,6 +12,16 @@
   white-space: nowrap;
 }
 .chip .icon { --size: 18px; color: var(--signal); }
+.spin-by { display: none; max-width: 92%; }
+.spin-by.show { display: flex; }
+.spin-by-av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  background: var(--ink-3);
+}
 .queue { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity .2s linear; }
 .queue.show { opacity: 1; }
 .queue .num { font-size: 20px; line-height: 1; }

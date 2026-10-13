@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rouletteFor, pickWeighted } from '../src/roulette.js';
+import { giftUserName } from '../public/widgets/lib/roulette-gift.js';
 
 const gift = (name, totalDiamonds) => ({ kind: 'gift', gift: { name, id: '1' }, totalDiamonds });
 const roulettes = [
@@ -28,4 +29,16 @@ test('重みに比例して当たる', () => {
   const items = [{ label: 'a', weight: 1 }, { label: 'b', weight: 3 }];
   assert.equal(pickWeighted(items, () => 0.2).label, 'a');
   assert.equal(pickWeighted(items, () => 0.3).label, 'b');
+});
+
+test('ギフトした人の名前があるときだけ出す（手動は出さない）', () => {
+  assert.equal(giftUserName({ user: { name: 'さくら', avatar: 'https://x/a.jpg' } }), 'さくら');
+  assert.equal(giftUserName({ user: { name: '<b>xss</b>' } }), '<b>xss</b>');
+  assert.equal(giftUserName({ user: { name: '' } }), '');
+  assert.equal(giftUserName({ user: {} }), '');
+  assert.equal(giftUserName(null), '');
+  assert.equal(giftUserName({}), '');
+  const name = giftUserName({ user: { name: 'たろう' } });
+  assert.equal(name ? `${name}さんのギフトで回転中` : '', 'たろうさんのギフトで回転中');
+  assert.equal(name ? `${name}さんのギフト` : '', 'たろうさんのギフト');
 });

@@ -5,6 +5,9 @@ import {
   loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
   reloadOnConfigChange, resolveColor, readableOn,
 } from './overlay.js';
+import { giftUserName } from './roulette-gift.js';
+
+export { giftUserName };
 
 // config.yaml がないとき（古い URL パラメータだけで使うとき）の初期値
 const FALLBACK = {
@@ -94,7 +97,7 @@ export function hintFor(r) {
  * 回す順番の管理と結果の表示。
  * どのルーレットで何が当たるかはサーバーが決めて 'roulette' で知らせてくる（全部の画面で結果がそろう）。
  * views: { wheel, strip }。それぞれ show(r) / spin(r, winner) / hide() を持つ。
- * ページには #hint #queue #queueNum #result #kicker #resultName #resultBy が必要。
+ * ページには #hint #queue #queueNum #result #kicker #resultName #resultBy #spinBy が必要。
  */
 /** 画面の外からすべり込む・戻る時間（サーバーの ENTER_MS と同じ） */
 export const ENTER_MS = 500;
@@ -136,8 +139,42 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     onSwitch?.(r, styleOverride || r.style);
   }
 
+  function setSpinBy(trigger) {
+    const el = $('spinBy');
+    if (!el) return;
+    const name = giftUserName(trigger);
+    if (!name) {
+      el.classList.remove('show');
+      el.replaceChildren();
+      return;
+    }
+    const text = document.createElement('span');
+    text.textContent = `${name}さんのギフトで回転中`;
+    const kids = [];
+    if (trigger.user.avatar) {
+      const img = new Image();
+      img.className = 'spin-by-av';
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.src = trigger.user.avatar;
+      img.onerror = () => img.remove();
+      kids.push(img);
+    }
+    kids.push(text);
+    el.replaceChildren(...kids);
+    el.classList.add('show');
+  }
+
+  function hideSpinBy() {
+    const el = $('spinBy');
+    if (!el) return;
+    el.classList.remove('show');
+    el.replaceChildren();
+  }
+
   async function run({ r, index, trigger }) {
     renderQueue();
+    setSpinBy(trigger); // 回り始めたときから、誰のギフトかを出す
     await enter();
     if (active !== r) {
       activate(r);
@@ -146,8 +183,10 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     const winner = r.items[index] ?? pickWeighted(r.items);
     await viewOf(r).spin(r, winner);
 
+    hideSpinBy();
     $('resultName').textContent = winner.label;
-    $('resultBy').textContent = trigger?.user ? `${trigger.user.name} の ${trigger.gift?.name ?? (trigger.kind === 'follow' ? 'フォロー' : 'シェア')}` : '';
+    const byName = giftUserName(trigger);
+    $('resultBy').textContent = byName ? `${byName}さんのギフト` : '';
     const kicker = $('kicker');
     if (winner.src) {
       const img = new Image();
@@ -195,6 +234,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
       } else if (msg.action === 'reset') {
         queue.clear();
         renderQueue();
+        hideSpinBy();
       }
     },
   });

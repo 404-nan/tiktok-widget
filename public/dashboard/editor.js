@@ -574,12 +574,13 @@ export function createEditor({ api, setMessage }) {
     }
     const names = entriesOf(tab);
     box.hidden = false;
+    const isRoulette = tab === 'roulettes';
     const label = document.createElement('span');
-    label.className = 'entry-label';
-    label.textContent = '種類';
+    label.className = isRoulette ? 'entry-label is-roulette' : 'entry-label';
+    label.textContent = isRoulette ? '保存したルーレット' : '種類';
     const selectBox = document.createElement('select');
     selectBox.className = 'entry-select';
-    selectBox.setAttribute('aria-label', `${schema.sections[tab].title}の種類`);
+    selectBox.setAttribute('aria-label', isRoulette ? '保存したルーレット' : `${schema.sections[tab].title}の種類`);
     for (const name of names) {
       const opt = document.createElement('option');
       opt.value = name;
@@ -600,6 +601,12 @@ export function createEditor({ api, setMessage }) {
       select(tab, next);
     });
     box.append(label, selectBox);
+    if (isRoulette) {
+      const note = document.createElement('p');
+      note.className = 'entry-roulette-note';
+      note.textContent = '前に作ったルーレットはここから選べます';
+      box.append(note);
+    }
     const rename = document.createElement('button');
     rename.type = 'button'; rename.className = 'entry-action pressable'; rename.textContent = '名前を変える';
     rename.addEventListener('click', renameEntry);
