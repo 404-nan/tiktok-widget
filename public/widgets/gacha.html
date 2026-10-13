@@ -23,14 +23,14 @@
     background: var(--surface);
     color: var(--on-surface);
     border-radius: var(--r);
-    border-left: 10px solid var(--paper);
-    box-shadow: var(--lift);
+    --tier: #6B6B72;
+    box-shadow: inset 10px 0 0 var(--tier), var(--lift);
     overflow: hidden;
   }
-  .stage[data-phase="rolling"] .plate { border-left-color: var(--signal); animation: shake .12s linear infinite; }
-  .stage[data-tier="common"] .plate { border-left-color: var(--paper); }
-  .stage[data-tier="rare"] .plate { border-left-color: var(--signal); }
-  .stage[data-tier="legend"] .plate { border-left-color: var(--gold); }
+  .stage[data-phase="rolling"] .plate { --tier: var(--signal); animation: shake .12s linear infinite; }
+  .stage[data-tier="common"] .plate { --tier: #8E8E96; }
+  .stage[data-tier="rare"] .plate { --tier: var(--signal); }
+  .stage[data-tier="legend"] .plate { --tier: var(--gold); }
   .kicker { margin: 0; font-size: 14px; font-weight: 900; letter-spacing: .16em; color: var(--signal); }
   .reel { display: none; width: 100%; height: 72px; overflow: hidden; }
   .stage[data-phase="rolling"] .reel { display: block; }
