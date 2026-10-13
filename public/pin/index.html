@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ダッシュボードを開く</title>
+<link rel="stylesheet" href="/dashboard/style.css">
+<style>
+  /* 見た目はダッシュボードの「かんたん」と同じ（/dashboard/style.css）。ここは置き場所と数字の大きさだけ */
+  body { display: grid; place-items: center; padding: 16px; }
+  .pin-card { width: min(100%, 380px); text-align: center; }
+  .pin-card h1 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
+  #pin { min-height: 64px; font-family: "Barlow Condensed", sans-serif; font-size: 40px; font-weight: 600; letter-spacing: .4em; text-indent: .4em; text-align: center; font-variant-numeric: tabular-nums; }
+  #pin:focus { outline: none; }
+  #go { width: 100%; min-height: 48px; font-size: 16px; }
+  #msg { justify-content: center; }
+</style>
+</head>
+<body>
+<form id="f" class="panel section pin-card">
+  <h1>4桁の数字を入れてください</h1>
+  <input id="pin" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{4}" maxlength="4" required autofocus aria-label="4桁の数字">
+  <button id="go" class="btn primary pressable">開く</button>
+  <p id="msg" class="form-message error" role="alert"></p>
+</form>
+<script type="module">
+  // ほかの画面と同じガラスの面と、選んでいるテーマ（明るい / 暗い）
+  import { setupPanels, store } from '/dashboard/common.js';
+  document.documentElement.dataset.theme = store.get('theme', 'dark');
+  setupPanels();
+</script>
+<script>
+  const f = document.getElementById('f');
+  const pin = document.getElementById('pin');
+  const go = document.getElementById('go');
+  const msg = document.getElementById('msg');
+  pin.addEventListener('input', () => {
+    pin.value = pin.value.replace(/\D/g, '').slice(0, 4);
+    if (pin.value.length === 4) f.requestSubmit();
+  });
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    go.disabled = true;
+    msg.textContent = '';
+    try {
+      const r = await fetch(location.pathname, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin: pin.value }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.url) return location.replace(j.url);
+      msg.textContent = j.error || 'うまくいきませんでした';
+    } catch {
+      msg.textContent = 'つながりませんでした。もう一度押してください';
+    }
+    pin.value = '';
+    go.disabled = false;
+    pin.focus();
+  });
+</script>
+</body>
+</html>

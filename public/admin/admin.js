@@ -3,7 +3,7 @@
 // API は /admin/api/...（合言葉を x-admin-token で送る）
 
 import { icon } from '/widgets/lib/overlay.js';
-import { $, store, setupPanels, setupTheme } from '/dashboard/common.js';
+import { $, store, setupPanels, setupTheme, copyText } from '/dashboard/common.js';
 
 setupPanels();
 setupTheme();
@@ -183,13 +183,8 @@ const setter = (target, feature, done) => (on, hours) => act(() => api('/access'
 
 function copyField(label, url) {
   const input = el('input', { value: url, readOnly: true });
-  const b = button('コピー', async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      input.select();
-      document.execCommand('copy');
-    }
+  const b = button('コピー', () => {
+    copyText(url, input);
     message(`${label}の URL をコピーしました`);
   }, { iconName: 'copy' });
   return el('div', { className: 'group-item' }, el('span', { className: 'url-label', textContent: label }), el('div', { className: 'url' }, input, b));
@@ -352,7 +347,7 @@ function tenantDetail(t) {
       selected = null;
       renderRows();
       renderDetail();
-    }, { cls: 'back-button' }),
+    }, { cls: 'chip back-button' }),
     el(
       'div',
       { className: 'detail-head' },
@@ -369,6 +364,18 @@ function tenantDetail(t) {
       'div',
       { className: 'group' },
       el('p', { className: 'sub', textContent: '配信者に渡す URL' }),
+      copyField('短い URL', t.urls.short),
+      el('div', { className: 'group-item' },
+        el('span', { className: 'url-label', textContent: '4桁の数字' }),
+        el('div', { className: 'url' },
+          el('input', { value: t.pin ?? '', readOnly: true, className: 'pin-value' }),
+          button('作り直す', () => {
+            if (!confirm(`${t.name} の 4桁の数字を作り直しますか？ 今の数字で開いていたスマホ・PC は、新しい数字を入れ直すことになります。`)) return;
+            act(() => api(`/tenants/${t.id}/repin`, {}), '作り直しました。新しい数字を渡してください')();
+          }, { iconName: 'refresh-cw' }),
+        ),
+      ),
+      el('p', { className: 'sub hint', textContent: '短い URL と 4桁の数字を渡すと、配信者は数字を入れて開けます（一度入れた端末は次から数字なし）。下の URL はそのまま開けます。' }),
       copyField('ダッシュボード', t.urls.dashboard),
       el('div', { className: 'monitor-url' }, copyField('モニター', t.urls.monitor)),
     ),
@@ -381,8 +388,8 @@ function tenantDetail(t) {
         'div',
         { className: 'danger' },
         button('URL を作り直す', () => {
-          if (!confirm(`${t.name} の URL を作り直しますか？ 今の URL（ダッシュボードと OBS）は使えなくなります。`)) return;
-          act(() => api(`/tenants/${t.id}/rekey`, { which: 'both' }), '作り直しました。新しい URL を渡してください')();
+          if (!confirm(`${t.name} の URL を作り直しますか？ 鍵の入った今の URL（ダッシュボードと OBS）は使えなくなります。短い URL と 4桁の数字はそのまま使えます（OBS の URL は貼り直しです）。`)) return;
+          act(() => api(`/tenants/${t.id}/rekey`, { which: 'both' }), '作り直しました。OBS の URL を貼り直してもらってください')();
         }, { iconName: 'key-round' }),
         button('削除', () => {
           if (!confirm(`${t.name} を削除しますか？（設定と記録のファイルは data/tenants/${t.id}/ に残ります）`)) return;
@@ -434,7 +441,7 @@ function signKeyGroup() {
   const st = data.signKey ?? { set: false };
   const from = st.source === 'env' ? 'サーバーの環境変数' : 'ここで入れたもの';
   const state = st.set ? `入っています（${from}${st.tail ? `・末尾 ${st.tail}` : ''}）` : '入っていません';
-  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'Euler Stream の API キー' });
+  const input = el('input', { type: 'password', autocomplete: 'off', placeholder: st.set ? '新しいキーに入れ替える' : 'API キー' });
   input.setAttribute('aria-label', 'TikTok につなぐための API キー');
   const save = () => {
     const key = input.value.trim();
@@ -450,7 +457,7 @@ function signKeyGroup() {
   return el(
     'div',
     { className: 'group' },
-    el('p', { className: 'sub', textContent: 'TikTok につなぐための API キー（署名サーバー Euler Stream）' }),
+    el('p', { className: 'sub', textContent: 'TikTok につなぐための API キー' }),
     el('p', { className: `sub hint${st.set ? ' key-on' : ''}`, textContent: `${state}。全員の接続で共通に使います。つながりにくいときに入れてください。` }),
     el('div', { className: 'url' }, input, button('保存', save, { iconName: 'key-round' })),
     st.source === 'admin' ? el('div', { className: 'danger' }, remove) : null,
@@ -628,7 +635,7 @@ $('createForm').addEventListener('submit', async (e) => {
     selected = tenant.id;
     checked.clear();
     await load();
-    message(`${tenant.name} を追加しました。ダッシュボードの URL を渡してください`);
+    message(`${tenant.name} を追加しました。短い URL と 4桁の数字を渡してください`);
   } catch (err) {
     message(err.message, true);
   }

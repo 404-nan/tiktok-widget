@@ -18,6 +18,11 @@ const MEDIA_DIR = path.join(root, 'media');
 
 const newKey = () => crypto.randomBytes(18).toString('base64url');
 const newId = () => `t${crypto.randomBytes(5).toString('hex')}`;
+// 短い URL（/d/<短いID>）用。読み間違えやすい字（0 o 1 l i）は使わない
+const SHORT_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+const newShortId = () => Array.from(crypto.randomBytes(6), (b) => SHORT_CHARS[b % SHORT_CHARS.length]).join('');
+// ダッシュボードを開くための 4桁の数字
+const newPin = () => String(crypto.randomInt(0, 10000)).padStart(4, '0');
 
 // 配信者が最初に使えるウィジェット（豪華な演出は管理者がオンにしてから選べる）
 export const DEFAULT_WIDGETS = ['alerts', 'chats', 'goals'];
@@ -42,6 +47,7 @@ export class Tenants {
     this.data = { tenants: [], global: { access: {} } };
     this.runtimes = new Map(); // id → runtime
     this.rental = new RentalState();
+    this.backupDir = backupData(dir);
     this.#load();
     // 期限が切れたら、その配信者の画面を読み込み直す（使えなくなったものは止まり、使えるようになったものは出る）
     this.lastState = new Map();
@@ -55,6 +61,7 @@ export class Tenants {
   // --- 読み書き ---
 
   #load() {
+    let needSave = false; // 前の形のファイルに、短い ID や 4桁の数字を足したとき
     try {
       const d = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       this.data = { tenants: d.tenants ?? [], global: { access: {}, ...d.global } };
@@ -62,11 +69,36 @@ export class Tenants {
         migrate(t);
         t.template ??= null;
         t.guideDone ??= false;
+        if (!t.shortId) (t.shortId = this.#uniqueShortId()), (needSave = true);
+        if (!t.pin) (t.pin = newPin()), (t.pinVer = 1), (needSave = true);
         const customWidgets = JSON.stringify([...(t.widgets ?? [])].sort()) !== JSON.stringify([...DEFAULT_WIDGETS].sort());
         if (t.template == null && (customWidgets || fs.existsSync(path.join(this.dataDir(t.id), 'config.yaml')))) t.template = 'custom';
       }
       migrate(this.data.global);
+      if (needSave) this.#save();
     } catch {}
+  }
+
+  #uniqueShortId() {
+    for (;;) {
+      const s = newShortId();
+      if (!this.data.tenants.some((t) => t.shortId === s)) return s;
+    }
+  }
+
+  /** 短い URL の ID から配信者を探す */
+  byShortId(shortId) {
+    return this.data.tenants.find((t) => typeof shortId === 'string' && t.shortId === shortId) ?? null;
+  }
+
+  /** 4桁の数字を作り直す。前の数字で覚えたスマホ・PC は、もう一度入れ直しになる */
+  repin(id) {
+    const t = this.get(id);
+    if (!t) throw new Error('その配信者は見つかりません');
+    t.pin = newPin();
+    t.pinVer = (t.pinVer ?? 1) + 1;
+    this.#save();
+    return t;
   }
 
   #save() {
@@ -177,6 +209,9 @@ export class Tenants {
       tiktokId: '',
       key: newKey(),
       obsKey: newKey(),
+      shortId: this.#uniqueShortId(),
+      pin: newPin(),
+      pinVer: 1,
       enabled: true,
       widgets: [...DEFAULT_WIDGETS],
       template: null,
@@ -329,4 +364,35 @@ export class Tenants {
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/**
+ * 起動のたびに、配信者の一覧と設定を data/backups/<日時>/ に写しておく（更新や手違いで消えても戻せるように）。
+ * 新しい 20 回分だけ残す。写したところを返す（何もなければ null）
+ */
+export function backupData(dir, keep = 20) {
+  const files = [];
+  const list = path.join(dir, 'tenants.json');
+  if (fs.existsSync(list)) files.push('tenants.json');
+  const tdir = path.join(dir, 'tenants');
+  if (fs.existsSync(tdir)) {
+    for (const id of fs.readdirSync(tdir)) {
+      if (fs.existsSync(path.join(tdir, id, 'config.yaml'))) files.push(path.join('tenants', id, 'config.yaml'));
+    }
+  }
+  if (!files.length) return null;
+  const root = path.join(dir, 'backups');
+  const to = path.join(root, new Date().toISOString().replace(/[:.]/g, '-'));
+  try {
+    for (const f of files) {
+      fs.mkdirSync(path.dirname(path.join(to, f)), { recursive: true });
+      fs.copyFileSync(path.join(dir, f), path.join(to, f));
+    }
+    const all = fs.readdirSync(root).sort();
+    for (const old of all.slice(0, Math.max(0, all.length - keep))) fs.rmSync(path.join(root, old), { recursive: true, force: true });
+    return to;
+  } catch (err) {
+    console.warn(`[backup] 写せませんでした: ${err.message}`);
+    return null;
+  }
 }

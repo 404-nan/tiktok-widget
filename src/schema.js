@@ -313,7 +313,7 @@ export const SCHEMA = {
     desc:
       'ギフトで回るルーレット。複数作ると、届いたギフトに合うルーレットへ切り替わって回る。' +
       'URL は /widgets/roulette.html（全部）か ?ids=<名前>,<名前>（絞り込み）',
-    size: (e) => (e.style === 'strip' ? [820, 330] : [600, 680]),
+    size: (e) => (e.style === 'strip' ? [820, 330] : [600, 680]).map((v) => Math.round(v * (Number(e.scale) || 1))),
     fields: {
       ...placementFields(40, 43),
       name: str('', '表示名（ダッシュボード用）'),
@@ -332,6 +332,7 @@ export const SCHEMA = {
       pointerColor: color('accent', '針の色'),
       frameColor: color('ink', '縁・枠の色'),
       fontScale: num(1, '項目の文字の大きさの倍率', { min: 0.5, max: 2 }),
+      scale: num(1, 'ルーレット全体の大きさの倍率（1 がふつう）', { min: 0.5, max: 2 }),
       items: {
         type: 'items',
         default: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],

@@ -96,11 +96,35 @@ export function hintFor(r) {
  * views: { wheel, strip }。それぞれ show(r) / spin(r, winner) / hide() を持つ。
  * ページには #hint #queue #queueNum #result #kicker #resultName #resultBy が必要。
  */
+/** 画面の外からすべり込む・戻る時間（サーバーの ENTER_MS と同じ） */
+export const ENTER_MS = 500;
+
 export function startRoulettes({ roulettes, views, onSwitch }) {
   const $ = (id) => document.getElementById(id);
   const styleOverride = new URLSearchParams(location.search).get('style');
   const viewOf = (r) => views[styleOverride || r.style] ?? views.wheel;
   let active = null;
+
+  // ギフトが来たときだけ出す: ふだんは画面の外（下）に置いて何も映さず、回すときにすべり込み、
+  // 結果を見せて待ちがなくなったら外へ戻る。ダッシュボードのプレビュー（?preview=1）と ?always=1 では出したまま
+  const stageEl = $('stage');
+  const q = new URLSearchParams(location.search);
+  const autoHide = stageEl && q.get('preview') !== '1' && q.get('always') !== '1';
+  let shown = !autoHide;
+  // ふだんは CSS で外に置いておく（読み込んだ瞬間に一度映ってから消えることがないように）
+  if (stageEl && !autoHide) stageEl.classList.add('on');
+  async function enter() {
+    if (shown) return;
+    shown = true;
+    stageEl.classList.add('on');
+    await sleep(ENTER_MS);
+  }
+  async function leave() {
+    if (!autoHide || !shown) return;
+    shown = false;
+    stageEl.classList.remove('on');
+    await sleep(ENTER_MS);
+  }
 
   function activate(r) {
     if (active === r) return;
@@ -114,6 +138,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
 
   async function run({ r, index, trigger }) {
     renderQueue();
+    await enter();
     if (active !== r) {
       activate(r);
       await sleep(450); // 切り替わったことが見えるよう少し待つ（サーバーの SWITCH_MS と同じ）
@@ -143,6 +168,8 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     result.classList.add('hide');
     await sleep(400);
     result.classList.remove('show', 'hide');
+    // 次が待っていなければ、画面の外へ戻る（連続のギフトは出たまま順番に回す）
+    if (queue.size <= 1) await leave();
   }
 
   const queue = createQueue(run, { max: 100 });

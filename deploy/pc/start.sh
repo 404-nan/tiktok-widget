@@ -23,7 +23,7 @@ if [ -n "${TUNNEL_TOKEN:-}" ]; then
   cloudflared tunnel run --token "$TUNNEL_TOKEN"
 else
   echo
-  echo "★ 下に出る https://〇〇.trycloudflare.com が公開 URL です。管理画面はその後ろに /admin/ を付けます。"
+  echo "★ 下に出る https://〇〇.trycloudflare.com が公開 URL です。管理画面はその後ろに /admin/ を付けます（URL は起動のたびに変わります。決まった URL にするなら README の「いまの公開先」を見てください）。"
   echo "★ 合言葉は data/admin-token.txt に入っています。"
   echo
   cloudflared tunnel --url http://127.0.0.1:3939

@@ -10,7 +10,8 @@
 <style>
   /* 延長タイマー（サブアソン）。スコアボードの板に、見出しと大きな時計。
      延びたら「+30秒」が延ばした人のアイコンと一緒に飛び、時計が金に光る。
-     残りが少なくなると朱 → 板が赤く脈打つ → 残り 10 秒はカウントの音と点滅。0 で「終了」を叩きつける */
+     減ったら「-30秒」がやわらかいピンクで、小さなハートがふわっと舞って、板がぽよんと弾む。
+     残りが少なくなると朱 → 板が赤く脈打つ → 残り 10 秒はカウントの音と点滅、画面の真ん中に 10 から 1。0 で「終了」を叩きつける */
   body { display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; }
   .wrap { position: relative; width: 100%; }
 
@@ -142,12 +143,37 @@
   @keyframes glint { to { transform: translateX(100%); } }
   .head.flash { animation: flashHead .5s ease-out; }
   @keyframes flashHead { 0% { filter: brightness(1.8); } 100% { filter: none; } }
-  /* 減ったとき: 赤い閃光 */
-  .lose .clock { color: #FF2A2A !important; transition: none; }
-  .redflash { position: absolute; inset: 0; background: #FF2A2A; opacity: 0; pointer-events: none; }
-  .redflash.go { animation: goldflash .45s ease-out; }
+  /* 減ったとき: やわらかいピンク。点滅はせず、一度だけ薄く染まる（1秒に3回は超えない） */
+  .lose .clock { color: #FF9EBE !important; transition: none; }
+  .pinkflash { position: absolute; inset: 0; background: #FFB7D0; opacity: 0; pointer-events: none; }
+  .pinkflash.go { animation: pinkwash .6s ease-out; }
+  @keyframes pinkwash { 0% { opacity: .28; } 100% { opacity: 0; } }
   .shake { animation: shake .45s cubic-bezier(.3, 1.6, .5, 1); }
   @keyframes shake { 0% { transform: translateY(10px) rotate(-1deg); } 35% { transform: translateY(-3px); } 100% { transform: none; } }
+  /* 板がぽよんと弾む（延びたときの揺れとは別） */
+  .poyo { transform-origin: 50% 80%; animation: poyo .5s cubic-bezier(.2, 1.35, .35, 1); }
+  @keyframes poyo {
+    0% { transform: scale(1, 1); }
+    32% { transform: scale(1.035, .94); }
+    58% { transform: scale(.985, 1.045); }
+    100% { transform: scale(1, 1); }
+  }
+  /* 小さなハート。ふわっと上へ。繰り返し点滅はしない */
+  .hearts { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: visible; }
+  .heart {
+    position: absolute;
+    left: var(--x);
+    bottom: var(--y, 48px);
+    color: #FF8FB8;
+    opacity: 0;
+    animation: heartUp 1.45s var(--ease-out) forwards;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes heartUp {
+    0% { opacity: 0; transform: translateY(12px) scale(.65); }
+    22% { opacity: 1; transform: translateY(-4px) scale(1); }
+    100% { opacity: 0; transform: translate(var(--drift, 0px), -86px) scale(.8) rotate(var(--tilt, 0deg)); }
+  }
 
   /* 「+30秒」と延ばした人のアイコン: 時計の上に飛ぶ */
   .flies { position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 0; pointer-events: none; }
@@ -167,8 +193,16 @@
   .fly .avatar { box-shadow: 0 0 0 3px var(--gold), 0 4px 10px rgba(0, 0, 0, .4); }
   .fly .word { padding: 3px 10px 4px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 900; border-radius: 2px; }
   .fly.big .amt { font-size: 88px; }
-  .fly.minus { color: #FF2A2A; }
-  .fly.minus .avatar { box-shadow: 0 0 0 3px #FF2A2A, 0 4px 10px rgba(0, 0, 0, .4); }
+  .fly.minus { color: #FF9EBE; animation-name: flySoft; }
+  .fly.minus .amt { text-shadow: 0 3px 0 rgba(90, 30, 50, .35); }
+  .fly.minus .avatar { box-shadow: 0 0 0 3px #FF9EBE, 0 4px 10px rgba(0, 0, 0, .28); }
+  @keyframes flySoft {
+    0% { opacity: 0; transform: translate(-50%, 16px) scale(.85); }
+    20% { opacity: 1; transform: translate(-50%, -4px) scale(1.04); }
+    32% { transform: translate(-50%, 0) scale(1); }
+    72% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -48px); }
+  }
   .fly.plain { color: var(--paper); }
   .fly.plain .amt { font-size: 52px; }
   .fly.cap .amt { font-size: 40px; color: var(--paper); font-style: normal; font-family: var(--font); font-weight: 900; }
@@ -205,20 +239,65 @@
   .stamp.rest { opacity: 1; left: 76%; transform: translate(-50%, -50%) rotate(-6deg) scale(.62); transition: left .5s var(--ease-out), transform .5s var(--ease-out); }
   .whiteflash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
   .whiteflash.go { animation: goldflash .7s ease-out; }
+
+  /* 残り 10 秒: 画面の真ん中に 10, 9, … 1。ポンと拡大してから、その1秒のあいだにフェード */
+  .counting .clock { opacity: 0; }
+  .countpop {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+  .countpop[hidden] { display: none; }
+  .countpop b {
+    display: block;
+    font-family: var(--font-num);
+    font-weight: 700;
+    font-style: italic;
+    font-size: 150px;
+    line-height: .8;
+    color: #FF4F1F;
+    text-shadow: 0 5px 0 rgba(0, 0, 0, .55);
+    animation: countScale .26s cubic-bezier(.15, 1.7, .35, 1), countFade .92s linear forwards;
+  }
+  /* 大きいギフトの差し込み: 金の帯がワイプで入り、送った人と「+10分」を叩きつける */
+  .cutin { position: absolute; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; gap: 18px; background: var(--gold); color: #111113; clip-path: inset(0 100% 0 0); pointer-events: none; }
+  .cutin[hidden] { display: none; }
+  .cutin.go { animation: cutWipe 2.2s cubic-bezier(.2, .9, .25, 1) forwards; }
+  .cutin .amt { font-family: "Dela Gothic One", var(--font-num); font-size: 92px; line-height: 1; letter-spacing: -.02em; animation: cutSlam .32s .18s cubic-bezier(.15, 1.6, .35, 1) both; }
+  .cutin .who { display: grid; justify-items: center; gap: 4px; font-weight: 700; font-size: 18px; max-width: 30%; }
+  .cutin .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  @keyframes cutWipe { 0% { clip-path: inset(0 100% 0 0); } 12% { clip-path: inset(0 0 0 0); } 85% { clip-path: inset(0 0 0 0); } 100% { clip-path: inset(0 0 0 100%); } }
+  @keyframes cutSlam { 0% { transform: scale(2.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .cutin.go { animation-duration: 2.2s; } .cutin .amt { animation: none; } }
+  @keyframes countScale {
+    0% { transform: scale(.42); }
+    100% { transform: scale(1); }
+  }
+  @keyframes countFade {
+    0% { opacity: 0; }
+    12% { opacity: 1; }
+    58% { opacity: 1; }
+    100% { opacity: 0; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap" id="wrap">
   <div class="flies" id="flies"></div>
+  <div class="hearts" id="hearts"></div>
   <div class="plate" id="plate">
     <div class="head" id="head">
       <div class="title" id="title"></div>
       <div class="state" id="state"></div>
     </div>
-    <div class="main"><div class="clock" id="clock"></div></div>
+    <div class="main"><div class="clock" id="clock"></div><div class="countpop" id="countpop" hidden></div></div>
+    <div class="cutin" id="cutin" hidden></div>
     <div class="glint" id="glint"></div>
     <div class="goldflash" id="goldflash"></div>
-    <div class="redflash" id="redflash"></div>
+    <div class="pinkflash" id="pinkflash"></div>
     <div class="whiteflash" id="whiteflash"></div>
   </div>
   <div class="sub" id="sub"><span class="hint" id="hint"></span><span class="total" id="total"></span></div>
@@ -369,6 +448,31 @@
   let rolling = false;
   setInterval(tick, 100);
 
+  // 残り 10 秒以下: 画面の真ん中に 10, 9, … 1 を1秒ずつ出す。0 になったら消す（時計の表示はそのまま）
+  let countShown = null;
+  function updateCountPop() {
+    const sec = Math.ceil(leftMs() / 1000);
+    const show = t.status === 'running' && sec >= 1 && sec <= 10;
+    const el = $('countpop');
+    document.body.classList.toggle('counting', show);
+    if (!show) {
+      if (countShown != null) {
+        countShown = null;
+        el.replaceChildren();
+        el.hidden = true;
+      }
+      return;
+    }
+    if (sec === countShown) return;
+    countShown = sec;
+    el.hidden = false;
+    el.replaceChildren(Object.assign(document.createElement('b'), { textContent: String(sec) }));
+  }
+  (function watchCount() {
+    updateCountPop();
+    requestAnimationFrame(watchCount);
+  })();
+
   // --- 効果音（音源なしで合成） ---
   let ac;
   const audio = () => (ac ??= new AudioContext());
@@ -393,11 +497,25 @@
       tone('sine', 3136, 3136, t0 + 0.06, 0.45, 0.22);
       if (big) [784, 1047, 1319, 1568, 2093].forEach((f, i) => tone('triangle', f, f, t0 + 0.1 + i * 0.05, 0.35, 0.18));
     },
-    // 減った: ズン
+    // 減った: ぷにっとした高めのやさしい音（低いズンにはしない）
     lose() {
-      const t0 = audio().currentTime;
-      tone('sine', 140, 40, t0, 0.45, 0.9);
-      tone('sawtooth', 220, 110, t0, 0.3, 0.12);
+      const a = audio();
+      const t0 = a.currentTime;
+      const peak = 0.2 * p.volume;
+      if (!(peak > 0)) return;
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(1280, t0);
+      o.frequency.exponentialRampToValueAtTime(760, t0 + 0.06);
+      o.frequency.exponentialRampToValueAtTime(1100, t0 + 0.14);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.26);
+      o.connect(g).connect(a.destination);
+      o.start(t0);
+      o.stop(t0 + 0.3);
+      tone('triangle', 1680, 1200, t0 + 0.015, 0.14, 0.05);
     },
     // 手で足し引き: ピッ
     adjust(up) {
@@ -445,6 +563,30 @@
     void el.offsetWidth;
     el.classList.add(cls);
   };
+  // 板の揺れ。延びたときの shake と、減ったときの poyo が同時に残らないようにする
+  const bouncePlate = (cls) => {
+    const el = $('plate');
+    el.classList.remove('shake', 'poyo');
+    void el.offsetWidth;
+    el.classList.add(cls);
+  };
+
+  // 減ったとき、小さなハートを数個ふわっと浮かべる
+  function floatHearts() {
+    const box = $('hearts');
+    const spots = [22, 38, 54, 70, 84];
+    spots.forEach((x, i) => {
+      const h = icon('heart', 14 + (i % 3) * 4);
+      h.classList.add('heart');
+      h.style.setProperty('--x', `${x + rnd(-3, 3)}%`);
+      h.style.setProperty('--y', `${36 + (i % 2) * 28}px`);
+      h.style.setProperty('--drift', `${rnd(-16, 16)}px`);
+      h.style.setProperty('--tilt', `${rnd(-14, 14)}deg`);
+      h.style.setProperty('--delay', `${i * 0.07}s`);
+      box.append(h);
+      setTimeout(() => h.remove(), 1800);
+    });
+  }
 
   let gainTimer = null;
   function glow(cls, ms = 1400) {
@@ -475,6 +617,25 @@
     setTimeout(() => el.remove(), 2000);
   }
 
+  // 大きいギフトの差し込み（残り10秒のカウント中でも上にかぶせる）
+  function cutin(html, user) {
+    const el = $('cutin');
+    el.replaceChildren();
+    if (user) {
+      const who = Object.assign(document.createElement('div'), { className: 'who' });
+      if (p.avatars) who.append(avatarNode(user, 72));
+      who.append(Object.assign(document.createElement('span'), { textContent: user.nickname || user.uniqueId || '' }));
+      el.append(who);
+    }
+    el.append(Object.assign(document.createElement('span'), { className: 'amt', innerHTML: html }));
+    el.hidden = false;
+    el.classList.remove('go');
+    void el.offsetWidth;
+    el.classList.add('go');
+    clearTimeout(cutin.timer);
+    cutin.timer = setTimeout(() => (el.hidden = true), 2300);
+  }
+
   let stampTimer = null;
   async function stamp(text, cls, { hold = 1300, rest = false } = {}) {
     const el = $('stamp');
@@ -484,7 +645,7 @@
     void el.offsetWidth;
     el.classList.add('go');
     await sleep(160);
-    restart($('plate'), 'shake');
+    bouncePlate('shake');
     await sleep(hold);
     if (rest) {
       el.classList.add('rest');
@@ -502,9 +663,10 @@
     const s = ev.seconds;
     if (s < 0) {
       glow('lose', 900);
-      restart($('redflash'), 'go');
-      restart($('plate'), 'shake');
+      restart($('pinkflash'), 'go');
+      bouncePlate('poyo');
       fly(amountHtml(s), 'minus', ev.user, ev.text);
+      floatHearts();
       sfx('lose');
       return;
     }
@@ -514,7 +676,8 @@
     restart($('glint'), 'go');
     restart($('head'), 'flash');
     restart($('clock'), 'pop');
-    if (big) restart($('plate'), 'shake');
+    if (big) bouncePlate('shake');
+    if (s >= (p.cutinSeconds ?? 300)) cutin(amountHtml(s), ev.user);
     fly(amountHtml(s), big ? 'big' : '', ev.user, ev.capped ? '上限' : ev.text);
     sfx('extend', big || s >= 60);
   }

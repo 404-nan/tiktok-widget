@@ -90,8 +90,9 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 1つのサーバーで、契約している配信者それぞれに専用のダッシュボードを渡せます。配信者ごとに設定・配信の記録・WIN数・TikTok の接続が分かれます。
 
 1. サーバーを起動すると、管理画面の場所と合言葉のファイルが表示されます（`data/admin-token.txt`。環境変数 `TW_ADMIN_TOKEN` でも決められます）
-2. 管理画面 `/admin/` を開いて合言葉を入れ、「配信者を追加」で名前を入れると、その配信者の URL ができます
-   - **ダッシュボード** `/t/<鍵>/dashboard/` … 配信者だけに渡す（設定を変えられる）。モニター・統計もこの下
+2. 管理画面 `/admin/` を開いて合言葉を入れ、「配信者を追加」で名前を入れると、その配信者の URL ができます（URL は開いているドメインで出ます。いまの公開先なら `https://widget.lul.works/...`）
+   - **短い URL と 4桁の数字** `/d/<短いID>` … **配信者にはふつうこれを渡します。** 配信者は数字を入れるとダッシュボードが開きます。一度入れた端末は 180 日間数字なし。5回間違えると15分止まる（同じ場所から・全体での入れすぎも止める）。数字は管理画面でいつでも見られ、作り直せます
+   - **ダッシュボード** `/t/<鍵>/dashboard/` … 数字なしでそのまま開ける URL（今までどおり使えます）。モニター・統計もこの下
    - **OBS 用** `/t/<OBS 用の鍵>/widgets/...` … 配信者のダッシュボードに出る URL を OBS に入れる。こちらでは設定は変えられず、パスワードも見えません
 3. 配信者は、ダッシュボードの「使うウィジェット」で、使うものを自分で選べます
 
@@ -108,7 +109,7 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 
 TikTok につなぐための API キー（署名サーバー Euler Stream）は、管理画面の「全員まとめて」のいちばん上で入れられます。全員の接続で共通に使い、次に接続するときから効きます（`data/sign-api-key.txt` に残ります。環境変数 `TIKTOK_SIGN_API_KEY` より先に使います）。
 
-URL が漏れたときは、管理画面の「URL を作り直す」で古い URL を使えなくできます。「使える」のチェックを外すと、その配信者の利用を止められます。
+数字が漏れたときは、管理画面の「4桁の数字」の「作り直す」で新しい数字にできます（前の数字で開いていた端末は入れ直し）。鍵の URL が漏れたときは、「URL を作り直す」で古い URL を使えなくできます（短い URL と数字はそのまま、OBS の URL は貼り直し）。「使える」のチェックを外すと、その配信者の利用を止められます。
 
 - 1人で使うときは今までどおり `/dashboard/`（`config.yaml` と `data/`）。配信者ごとのデータは `data/tenants/<id>/`、配信者の一覧は `data/tenants.json`
 - サーバーとして公開するときは `TW_HOSTED=1`（1人用の `/dashboard/` を出さず、管理画面と配信者ごとの URL だけにする）と `HOST=0.0.0.0`。HTTPS で公開してください
@@ -125,8 +126,15 @@ URL が漏れたときは、管理画面の「URL を作り直す」で古い UR
 
 **Mac**: `brew install node cloudflared` のあと `bash deploy/pc/start.sh`
 
-- 注意: この方法の URL は、**起動するたびに変わります**。変わると、配信者に渡した URL や OBS の URL も変わるので、そのたびに渡し直しです。
-- 毎回同じ URL にするには、自分のドメイン（Cloudflare に登録したもの。年1,000円ほど）で Tunnel を作り、トークンを `TUNNEL_TOKEN` に入れて起動します（Cloudflare の「Zero Trust → Networks → Tunnels」で作成、公開先は `http://localhost:3939`）。
+- 注意: この方法の URL は、**起動するたびに変わります**。また `trycloudflare.com` の URL は、Chrome などで「危険なサイト」の警告が出ることがあります（だれでも使える一時的な URL なので、悪用されやすいため）。変わると、配信者に渡した URL や OBS の URL も変わるので、そのたびに渡し直しです。
+- 毎回同じ URL にするには、自分のドメイン（Cloudflare に登録したもの。年1,000円ほど）で Tunnel を作り、トークンを `TUNNEL_TOKEN` に入れて起動します（Cloudflare の「Zero Trust → Networks → Tunnels」で作成、公開先は `http://localhost:3939`）。自分のドメインにすると、上の警告も出なくなります。
+
+### いまの公開先（widget.lul.works）
+
+いまは LuLServer で動かし、`https://widget.lul.works` で公開しています。
+- サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。更新は `git pull` のあと `systemctl --user restart tiktok-widget.service`
+- トンネル: `~/.config/systemd/user/tiktok-widget-tunnel.service`（設定は `~/.cloudflared/tiktok-widget.yml`、`widget.lul.works` → `http://127.0.0.1:3939`）
+- 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
 - 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
 
 ## 無料で公開する（配信者に URL を渡すとき）
