@@ -87,6 +87,22 @@
 
 .danger { display: flex; gap: 8px; flex-wrap: wrap; }
 
+.lul-list, .admin-note-list, .admin-key-list { display: grid; gap: 16px; }
+.lul-tenant, .admin-note, .admin-key { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--stroke-secondary); border-radius: var(--r-md); background: var(--fill-tertiary); }
+.lul-tenant h3 { margin: 0; font-size: 18px; }
+.lul-tenant-head, .key-meta { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.lul-tenant-head .hint, .key-meta .hint { margin-left: auto; }
+.lul-setting { display: grid; gap: 8px; }
+.lul-setting-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.lul-setting textarea { min-height: 120px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.note-form, .key-form { padding: 16px; border: 1px solid var(--stroke-secondary); border-radius: var(--r-md); background: var(--fill-tertiary); }
+.admin-note input:first-child { flex: 1; }
+.admin-note textarea { width: 100%; }
+.admin-key code { color: var(--text-primary); font: 16px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.admin-key > .row { align-items: stretch; }
+.admin-key > .row input { min-width: 0; flex: 1 1 140px; }
+.admin-key > .row .btn, .admin-key > .row .chip { flex: 0 0 auto; }
+
 /* 右上のお知らせ */
 .toast { position: fixed; right: 20px; bottom: 20px; margin: 0; padding: 10px 16px; border-radius: var(--r-pill); background: var(--glass-solid); box-shadow: var(--shadow), var(--bevel); font-size: 14px; opacity: 0; translate: 0 8px; filter: blur(3px); transition: opacity var(--settle-time) var(--fade), translate var(--settle-time) var(--fade), filter var(--settle-time) var(--fade); pointer-events: none; }
 .toast.show { opacity: 1; translate: 0 0; filter: none; }

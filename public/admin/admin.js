@@ -562,6 +562,72 @@ function singlePage(title, body) {
   return [el('div', { className: 'detail-head' }, el('h2', { textContent: title })), body];
 }
 
+function settingsEditor(t, section) {
+  const textarea = el('textarea', { rows: 7, value: JSON.stringify(t.settings?.[section] ?? {}, null, 2), spellcheck: false });
+  textarea.setAttribute('aria-label', `${t.name}の${section}設定`);
+  const save = button('保存', async () => {
+    try {
+      const value = JSON.parse(textarea.value);
+      await api(`/tenants/${t.id}/settings`, { path: [section], value }, 'PATCH');
+      await load();
+      message(`${t.name}の${section}設定を保存しました`);
+    } catch (err) { message(`保存できませんでした: ${err.message}`, true); }
+  }, { cls: 'btn primary' });
+  return el('div', { className: 'lul-setting' }, el('div', { className: 'lul-setting-head' }, el('strong', { textContent: section === 'roulettes' ? 'ルーレット' : section === 'timers' ? 'タイマー' : 'RUSH' })), textarea, el('div', { className: 'row' }, save));
+}
+
+function lulDetail() {
+  const rows = data.tenants.map((t) => el('article', { className: 'lul-tenant' },
+    el('div', { className: 'lul-tenant-head' }, el('h3', { textContent: t.name }), el('span', { className: 'hint', textContent: t.status.mode === 'live' ? '配信中' : '停止中' })),
+    el('p', { className: 'hint', textContent: `使っているウィジェット: ${(t.settings?.widgets ?? []).map((key) => data.features[key]?.label ?? key).join('・') || 'なし'}` }),
+    ...['roulettes', 'timers', 'rush'].map((section) => settingsEditor(t, section)),
+  ));
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'LuL 管理ダッシュボード' }), el('p', { className: 'sub', textContent: '配信者ごとの設定をまとめて確認できます。変更は既存の設定保存経路で反映します。' })), el('div', { className: 'lul-list' }, ...rows)];
+}
+
+function notesDetail() {
+  const form = el('form', { className: 'note-form stack' });
+  const title = el('input', { placeholder: 'タイトル', required: true });
+  const body = el('textarea', { rows: 5, placeholder: '本文', required: true });
+  const date = el('input', { type: 'date', value: new Date().toISOString().slice(0, 10), required: true });
+  form.append(el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'タイトル' }), title), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '本文' }), body), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '日付' }), date), el('div', { className: 'row' }, button('追加', () => form.requestSubmit(), { cls: 'btn primary' })));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    act(() => api('/notes', { title: title.value, body: body.value, date: date.value }), 'お知らせを追加しました')();
+  });
+  const list = data.notes ?? [];
+  const rows = list.map((note) => {
+    const editTitle = el('input', { value: note.title });
+    const editBody = el('textarea', { rows: 4, value: note.body });
+    const editDate = el('input', { type: 'date', value: note.date });
+    return el('article', { className: 'admin-note' }, el('div', { className: 'row' }, editTitle, editDate), editBody, el('div', { className: 'row' }, button('保存', act(() => api(`/notes/${note.id}`, { title: editTitle.value, body: editBody.value, date: editDate.value }, 'PATCH'), 'お知らせを保存しました'), { cls: 'btn primary' }), button('削除', () => { if (confirm('このお知らせを削除しますか？')) act(() => api(`/notes/${note.id}`, undefined, 'DELETE'), 'お知らせを削除しました')(); }, { cls: 'chip' })));
+  });
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: '更新のお知らせ' }), el('p', { className: 'sub', textContent: '配信者のダッシュボードの上に表示します。OBS の画面には表示しません。' })), form, el('div', { className: 'admin-note-list' }, ...rows)];
+}
+
+function keysDetail() {
+  const addForm = el('form', { className: 'key-form stack' });
+  const name = el('input', { placeholder: '名前', required: true });
+  const type = el('input', { placeholder: '種類', required: true });
+  const value = el('input', { type: 'password', placeholder: 'API キー', autocomplete: 'off', required: true });
+  addForm.append(el('div', { className: 'row' }, name, type), value, el('div', { className: 'row' }, button('追加', () => addForm.requestSubmit(), { cls: 'btn primary' })));
+  addForm.addEventListener('submit', (event) => { event.preventDefault(); act(() => api('/keys', { name: name.value, type: type.value, value: value.value }), 'API キーを追加しました')(); });
+  const rows = (data.keys ?? []).map((key) => {
+    const nameInput = el('input', { value: key.name, disabled: key.id === 'eulerstream' && key.readOnly });
+    const typeInput = el('input', { value: key.type, disabled: key.id === 'eulerstream' && key.readOnly });
+    const secret = el('input', { type: 'password', placeholder: key.set ? '新しいキーに入れ替える' : 'API キー', autocomplete: 'off', disabled: key.readOnly });
+    const save = button('保存', () => {
+      const patch = { name: nameInput.value, type: typeInput.value };
+      if (secret.value) patch.value = secret.value;
+      if (key.id === 'eulerstream' && !patch.value) return message('新しいキーを入れてください', true);
+      act(() => api(`/keys/${key.id}`, patch, 'PATCH'), 'API キーを保存しました')();
+    }, { cls: 'btn primary' });
+    const remove = key.readOnly ? null : button('削除', () => { if (confirm(`${key.name}を削除しますか？`)) act(() => api(`/keys/${key.id}`, undefined, 'DELETE'), 'API キーを削除しました')(); });
+    return el('article', { className: 'admin-key' }, el('div', { className: 'key-meta' }, el('strong', { textContent: key.name }), el('span', { className: 'hint', textContent: `${key.type}・${key.environment}・${key.savedAt ? key.savedAt.slice(0, 10) : '保存日なし'}` })), el('code', { textContent: key.masked || '未設定' }), el('div', { className: 'row' }, nameInput, typeInput, secret, save, remove));
+  });
+  return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'API キー' }), el('p', { className: 'sub', textContent: 'キーの値は最初の8文字と末尾4文字だけ表示します。環境変数のキーは読み取り専用です。' })), el('section', { className: 'group' }, el('h3', { textContent: 'API キーを追加' }), addForm), el('div', { className: 'admin-key-list' }, ...rows)];
+}
+
 function renderShell() {
   const tenants = page === 'tenants';
   $('tenantListPanel').hidden = !tenants;
@@ -587,6 +653,18 @@ function renderDetail(force = false) {
   }
   if (page === 'sign') {
     detailBody.replaceChildren(...singlePage('TikTok の接続キー', signKeyGroup()));
+    return;
+  }
+  if (page === 'lul') {
+    detailBody.replaceChildren(...lulDetail());
+    return;
+  }
+  if (page === 'notes') {
+    detailBody.replaceChildren(...notesDetail());
+    return;
+  }
+  if (page === 'keys') {
+    detailBody.replaceChildren(...keysDetail());
     return;
   }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));

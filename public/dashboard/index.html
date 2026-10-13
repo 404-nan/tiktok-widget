@@ -12,12 +12,45 @@
   <div class="brand">
     <div class="brand-title">TikTok LIVE ウィジェット</div>
     <div class="status" id="status"><span class="dot"></span><span id="statusText">未接続</span></div>
+    <span class="dev-badge" id="devBadge" hidden>開発</span>
   </div>
   <nav class="nav" id="nav" aria-label="画面"></nav>
   <button class="icon-btn pressable" id="themeBtn" type="button" aria-label="テーマを切り替え"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button>
 </header>
 
-<main class="layout">
+<main>
+  <section class="panel section notes-panel" id="notesPanel" hidden>
+    <div class="notes-head"><h2>更新のお知らせ</h2><span class="badge" id="notesBadge" hidden></span></div>
+    <div class="notes-list" id="notesList"></div>
+    <button class="text-btn pressable" id="notesReadBtn" type="button" hidden>すべて読んだ</button>
+  </section>
+
+  <section class="panel section dev-panel" id="testSendPanel" data-dev-only hidden>
+    <div class="notes-head"><h2>テスト送信</h2><span class="hint">画面の確認用。集計には残りません。</span></div>
+    <div class="stack">
+      <div class="row dev-send-row">
+        <select id="giftSelect" class="grow" aria-label="ギフト"></select>
+        <input id="senderName" type="text" value="テストさん" placeholder="送った人の名前" aria-label="送った人の名前">
+        <input id="giftCount" type="number" min="1" max="999" value="1" class="count-input" aria-label="個数">
+        <button class="btn primary pressable" data-sim="gift" data-icon="gift" type="button">送る</button>
+      </div>
+      <div class="row wrap">
+        <button class="chip pressable" data-sim="like" data-icon="heart" type="button">いいね ×20</button>
+        <button class="chip pressable" data-sim="follow" data-icon="user-plus" type="button">フォロー</button>
+        <button class="chip pressable" data-sim="share" data-icon="repeat-2" type="button">シェア</button>
+        <button class="chip pressable" data-sim="chat" data-icon="message-circle" type="button">コメント</button>
+        <button class="chip pressable" data-sim="viewers" data-icon="eye" type="button">視聴者数</button>
+      </div>
+      <button class="text-btn pressable" id="resetBtn" type="button">集計をリセット</button>
+    </div>
+  </section>
+
+  <section class="panel section dev-panel" id="devPreviewPanel" data-dev-only hidden>
+    <div class="notes-head"><h2>動作確認用の画面</h2><span class="hint">実際の大きさで表示しています。</span></div>
+    <div class="dev-preview-grid" id="devPreviewGrid"></div>
+  </section>
+
+<div class="layout">
   <section class="panel kpis" id="kpis" aria-label="集計" data-adv></section>
 
   <div class="col">
@@ -35,25 +68,6 @@
         </div>
         <p class="message" id="message"></p>
       </form>
-    </section>
-
-    <section class="panel section" data-adv>
-      <h2>テスト送信</h2>
-      <div class="stack">
-        <div class="row">
-          <select id="giftSelect" class="grow" aria-label="ギフト"></select>
-          <input id="giftCount" type="number" min="1" max="999" value="1" class="count-input" aria-label="個数">
-          <button class="btn primary pressable" data-sim="gift" data-icon="gift" type="button">送る</button>
-        </div>
-        <div class="row wrap">
-          <button class="chip pressable" data-sim="like" data-icon="heart" type="button">いいね ×20</button>
-          <button class="chip pressable" data-sim="follow" data-icon="user-plus" type="button">フォロー</button>
-          <button class="chip pressable" data-sim="share" data-icon="repeat-2" type="button">シェア</button>
-          <button class="chip pressable" data-sim="chat" data-icon="message-circle" type="button">コメント</button>
-          <button class="chip pressable" data-sim="viewers" data-icon="eye" type="button">視聴者数</button>
-        </div>
-        <button class="text-btn pressable" id="resetBtn" type="button">集計をリセット</button>
-      </div>
     </section>
 
     <section class="panel section solid" data-adv>
@@ -108,6 +122,7 @@
     </div>
     </div>
   </section>
+</div>
 
   <section class="config-panel" hidden>
     <div class="view-title"><h3>設定ファイル</h3></div>

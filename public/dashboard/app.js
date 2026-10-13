@@ -1,4 +1,4 @@
-import { connect, fmt, icon, giftLabel } from '/widgets/lib/overlay.js';
+import { connect, fmt, icon, giftLabel, BASE } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
 import { $, store, api, setupChrome, statusText } from './common.js';
@@ -90,8 +90,10 @@ async function setupSimulate() {
       if (kind === 'gift') {
         body.giftName = $('giftSelect').value;
         body.count = Number($('giftCount').value) || 1;
+        body.senderName = $('senderName').value.trim() || 'テストさん';
       } else if (kind === 'like') {
         body.count = 20;
+        body.senderName = $('senderName').value.trim() || 'テストさん';
       }
       api('/api/simulate', body).catch((e) => setMessage(e.message, true));
     });
@@ -99,6 +101,75 @@ async function setupSimulate() {
   $('resetBtn').addEventListener('click', () => {
     if (confirm('いいね・フォロー・コインなどの集計を 0 に戻します。よろしいですか？')) api('/api/reset', {});
   });
+}
+
+async function setupNotes() {
+  const me = await api('/api/me').catch(() => null);
+  const notes = (await api('/api/notes').catch(() => ({ notes: [] }))).notes ?? [];
+  if (!notes.length) return;
+  const key = `notesLastRead:${me?.id ?? 'local'}`;
+  const lastRead = store.get(key, '');
+  const unread = lastRead ? notes.findIndex((note) => note.id === lastRead) : notes.length;
+  const unreadCount = unread < 0 ? notes.length : unread;
+  $('notesPanel').hidden = false;
+  $('notesBadge').hidden = unreadCount === 0;
+  $('notesBadge').textContent = unreadCount ? `未読 ${unreadCount}件` : '';
+  $('notesList').replaceChildren(...notes.map((note) => {
+    const item = document.createElement('article');
+    item.className = 'note';
+    const title = document.createElement('h3');
+    title.textContent = note.title;
+    const date = document.createElement('time');
+    date.dateTime = note.date;
+    date.textContent = note.date;
+    const body = document.createElement('p');
+    body.className = 'note-body';
+    body.textContent = note.body;
+    item.append(title, date, body);
+    return item;
+  }));
+  $('notesReadBtn').hidden = unreadCount === 0;
+  $('notesReadBtn').addEventListener('click', () => {
+    store.set(key, notes[0].id);
+    $('notesBadge').hidden = true;
+    $('notesReadBtn').hidden = true;
+  });
+}
+
+async function setupDevTools() {
+  const env = await api('/api/env').catch(() => ({ dev: false }));
+  document.body.dataset.dev = String(Boolean(env.dev));
+  $('devBadge').hidden = !env.dev;
+  if (!env.dev) return;
+  $('testSendPanel').hidden = false;
+  $('devPreviewPanel').hidden = false;
+  await setupSimulate();
+  const previews = [
+    ['ルーレット', `${BASE}/widgets/roulette.html?preview=1`, 600, 680],
+    ['RUSH', `${BASE}/widgets/rush.html?preview=1`, 1080, 1920],
+    ['延長タイマー', `${BASE}/widgets/timer.html?preview=1`, 720, 280],
+    ['モニター', `${BASE}/monitor/`, 1280, 900],
+    ['統計', `${BASE}/history/`, 1280, 900],
+  ];
+  $('devPreviewGrid').replaceChildren(...previews.map(([title, src, width, height]) => {
+    const box = document.createElement('article');
+    box.className = 'dev-preview';
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    const frame = document.createElement('div');
+    frame.className = 'dev-preview-frame';
+    frame.style.height = `${Math.min(height, 520)}px`;
+    const iframe = document.createElement('iframe');
+    iframe.title = `${title}の確認画面`;
+    iframe.src = src;
+    iframe.width = String(width);
+    iframe.height = String(height);
+    iframe.style.width = `${width}px`;
+    iframe.style.height = `${height}px`;
+    frame.append(iframe);
+    box.append(heading, frame);
+    return box;
+  }));
 }
 
 // --- イベントログ ---
@@ -153,7 +224,8 @@ function clearLog() {
 setupChrome('settings');
 setupKpis();
 await setupConnect();
-setupSimulate();
+setupNotes();
+setupDevTools();
 clearLog();
 
 const editor = createEditor({ api, setMessage });

@@ -584,6 +584,34 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 
 /* --- かんたん / くわしく --- */
 [data-mode=simple] [data-adv], [data-mode=advanced] [data-simple] { display: none !important; }
+[data-dev-only] { display: none; }
+body[data-dev=true] [data-dev-only] { display: grid; }
+
+main > .notes-panel, main > .dev-panel { max-width: 1180px; width: calc(100% - 32px); margin: 16px auto 0; }
+.notes-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.notes-head h2 { margin-right: auto; }
+.badge, .dev-badge { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: var(--r-pill); background: var(--accent-fill); color: var(--text-primary); font-size: 14px; font-weight: 700; }
+.dev-badge { background: var(--attention); color: #fff; }
+.notes-list { display: grid; gap: 12px; }
+.note { padding: 14px 16px; border-left: 3px solid var(--attention); background: var(--fill-tertiary); }
+.note h3 { margin: 0; font-size: 16px; }
+.note time { display: block; margin-top: 2px; color: var(--text-secondary); font-size: 14px; }
+.note-body { margin: 8px 0 0; white-space: pre-wrap; }
+.dev-send-row { align-items: stretch; }
+.dev-send-row > * { min-width: 150px; }
+.dev-send-row .count-input { min-width: 72px; }
+.dev-preview-grid { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 16px; overflow-x: auto; padding-bottom: 4px; }
+.dev-preview { display: grid; gap: 8px; min-width: 220px; }
+.dev-preview h3 { margin: 0; font-size: 16px; }
+.dev-preview-frame { overflow: auto; min-height: 80px; background: #202024; border: 1px solid var(--stroke-secondary); border-radius: var(--r-md); }
+.dev-preview-frame iframe { display: block; border: 0; transform-origin: top left; }
+@media (max-width: 900px) { .dev-preview-grid { grid-template-columns: repeat(5, 260px); } }
+@media (max-width: 600px) {
+  main > .notes-panel, main > .dev-panel { width: calc(100% - 24px); }
+  .dev-send-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .dev-send-row .grow { grid-column: 1 / -1; }
+  .dev-send-row .btn { min-width: 0; }
+}
 .segmented.mode { flex: none; }
 [data-mode=simple] .layout { grid-template-columns: 1fr; max-width: 1080px; }
 [data-mode=simple] .topbar { max-width: 1080px; }
