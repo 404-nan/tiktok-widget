@@ -20,7 +20,7 @@
   --shadow: 0 8px 40px rgba(var(--ink), .12);
   --attention: #FF4F1F;
   --success: #96F0B0; --info: #A1D0FF;
-  --error: rgba(255, 100, 100, .9); --warning: rgba(255, 200, 50, .8);
+  --error: #FF8A8A; --warning: #FFD166;
   --page: #18181B;
 
   --r-sm: 8px; --r-md: 12px; --r-lg: 24px; --r-pill: 9999px;
@@ -46,7 +46,7 @@
   --glass: #FFFFFF;
   --glass-solid: #FFFFFF;
   --bevel: inset 0 1px 0 rgba(255, 255, 255, .9), inset 0 -1px 0 rgba(var(--ink), .06);
-  --success: #0F9D58; --info: #005AD7; --error: #D64545; --warning: #B45309;
+  --success: #0B7A43; --info: #005AD7; --error: #B42318; --warning: #92400E;
   --page: #F2F2F4;
   color-scheme: light;
 }
@@ -355,9 +355,9 @@ select option { background: var(--page); }
 
 /* --- 設定の名前（同じ種類のウィジェットを複数作れる） --- */
 .entries { display: flex; flex-wrap: wrap; gap: 6px; }
-.entry-label { align-self: center; font-size: 12px; color: var(--text-secondary); }
+.entry-label { align-self: center; font-size: 14px; color: var(--text-secondary); }
 .entry-select { min-height: 36px; min-width: 190px; padding: 0 32px 0 12px; border: 1px solid var(--stroke-secondary); border-radius: var(--r-md); background: var(--fill-secondary); color: var(--text-primary); font: inherit; }
-.entry-action { min-height: 32px; padding: 0 8px; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+.entry-action { min-height: 32px; padding: 0 8px; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px; cursor: pointer; }
 .entry-action:hover { color: var(--text-primary); }
 .entry-action.danger { color: var(--danger); }
 .entry-action:disabled { opacity: .4; cursor: not-allowed; }
@@ -377,7 +377,7 @@ select option { background: var(--page); }
 .entry[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); box-shadow: var(--bevel); }
 .entry.add { background: transparent; }
 .entry .icon { --size: 14px; }
-@media (max-width: 600px) { .entries { gap: 4px; } .entry-select { min-width: 150px; max-width: 52vw; } .entry-action { padding: 0 4px; font-size: 11px; } }
+@media (max-width: 600px) { .entries { gap: 4px; } .entry-select { min-width: 150px; max-width: 52vw; } .entry-action { padding: 0 4px; font-size: 14px; } }
 
 .form-message { margin: 0; min-height: 1.4em; font-size: 14px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
 .form-message.error { color: var(--error); }
