@@ -57,7 +57,7 @@ const LABELS = {
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
   'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
-  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', items: '項目',
+  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', items: '項目',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
@@ -73,7 +73,7 @@ const LABELS = {
 const BASIC = {
   alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
   chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
-  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'items'],
+  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
@@ -686,6 +686,7 @@ export function createEditor({ api, setMessage }) {
   // --- フォーム ---
 
   function render() {
+    syncRushOdds = () => {};
     // 色見本をテーマの色に合わせる
     const theme = payload.config.theme ?? {};
     for (const t of ['accent', 'gold', 'ink', 'paper']) {
@@ -825,6 +826,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   let withHints = false; // 「ほかの項目」では、項目の説明も出す
+  let syncRushOdds = () => {}; // ルーレット項目の「RUSH中の当たりやすさ」を出し入れする
   /** WIN数・タイマー・ボスを Stream Deck などから押す URL（[呼び名, URL]） */
   function streamDeckUrls() {
     const base = `${location.origin}${BASE}`;
@@ -868,7 +870,8 @@ export function createEditor({ api, setMessage }) {
 
   function buildField(key, field, value) {
     if (field.type === 'items') {
-      const editor = itemsEditor(value);
+      const entry = isObj(tab) ? payload.config[tab] : payload.config[tab]?.[id];
+      const editor = itemsEditor(value, { rushOdds: tab === 'roulettes' && key === 'items' && !!(entry && entry.rushOdds) });
       if (simple()) editor.querySelector('.field-label').textContent = labelText(key);
       return editor;
     }
@@ -879,7 +882,14 @@ export function createEditor({ api, setMessage }) {
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = Boolean(value);
-      input.addEventListener('change', () => save(key, input.checked));
+      input.addEventListener('change', () => {
+        save(key, input.checked);
+        if (key === 'rushOdds' && tab === 'roulettes') {
+          const entry = payload.config.roulettes?.[id];
+          if (entry) entry.rushOdds = input.checked;
+          syncRushOdds(input.checked);
+        }
+      });
       wrap.append(input, labelText(key));
       wrap.title = field.desc ?? '';
       return wrap;
@@ -1036,7 +1046,7 @@ export function createEditor({ api, setMessage }) {
 
   // --- ルーレットの項目 ---
 
-  function itemsEditor(items) {
+  function itemsEditor(items, opts = {}) {
     const wrap = document.createElement('div');
     wrap.className = 'field items-field';
     const head = document.createElement('span');
@@ -1045,18 +1055,61 @@ export function createEditor({ api, setMessage }) {
     const list = document.createElement('div');
     list.className = 'items';
     let rows = items.map((it) => ({ ...it }));
+    let rushOn = !!(opts && opts.rushOdds);
+
+    const baseOf = (r) => {
+      const n = r.weight == null || r.weight === '' ? 1 : Number(r.weight);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    };
+    const rushOf = (r) => {
+      if (r.rushWeight == null || r.rushWeight === '') return baseOf(r);
+      const n = Number(r.rushWeight);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    };
+    const fmtPct = (part, total) => {
+      if (!(total > 0)) return '0%';
+      const n = Math.round((part / total) * 1000) / 10;
+      return `${Number.isInteger(n) ? String(n) : n.toFixed(1)}%`;
+    };
+    const updateOdds = () => {
+      const baseTotal = rows.reduce((a, r) => a + baseOf(r), 0);
+      let rushParts = rows.map(rushOf);
+      let rushTotal = rushParts.reduce((a, b) => a + b, 0);
+      if (!(rushTotal > 0)) {
+        rushParts = rows.map(baseOf);
+        rushTotal = baseTotal;
+      }
+      list.querySelectorAll('[data-odds]').forEach((el) => {
+        const i = Number(el.getAttribute('data-odds'));
+        const row = rows[i];
+        if (!row) return;
+        el.textContent = `いつも ${fmtPct(baseOf(row), baseTotal)} → RUSH中 ${fmtPct(rushParts[i], rushTotal)}`;
+      });
+    };
+    const applyRush = () => {
+      list.querySelectorAll('[data-rush-row]').forEach((el) => {
+        el.hidden = !rushOn;
+      });
+    };
+    syncRushOdds = (on) => {
+      rushOn = !!on;
+      applyRush();
+      updateOdds();
+    };
 
     const commit = (delay = 400) => {
       // 色も画像もない項目は「名前*重み」の短い形で書く
       const value = rows.map((r) => {
         const out = { label: r.label };
         if (r.weight && r.weight !== 1) out.weight = r.weight;
+        if (typeof r.rushWeight === 'number' && r.rushWeight >= 0) out.rushWeight = r.rushWeight;
         if (r.color) out.color = r.color;
         if (r.textColor) out.textColor = r.textColor;
         if (r.image) out.image = r.image;
         if (r.commands?.length) out.commands = r.commands;
         if (r.superstreamGift) out.superstreamGift = r.superstreamGift;
         if (r.superstreamAction) out.superstreamAction = r.superstreamAction;
+        if (r.rush) out.rush = true;
         const keys = Object.keys(out);
         if (keys.length === 1) return r.label;
         if (keys.length === 2 && out.weight) return `${r.label}*${r.weight}`;
@@ -1067,6 +1120,8 @@ export function createEditor({ api, setMessage }) {
 
     const draw = () => {
       list.replaceChildren(...rows.map((r, i) => itemRow(r, i)));
+      updateOdds();
+      applyRush();
     };
 
     const itemRow = (r, i) => {
@@ -1162,8 +1217,48 @@ export function createEditor({ api, setMessage }) {
       weight.className = 'weight';
       weight.addEventListener('input', () => {
         const n = parseWeight(weight.value);
-        if (n != null) (r.weight = n), commit();
+        if (n != null) {
+          r.weight = n;
+          commit();
+          updateOdds();
+        }
       });
+
+      // RUSH中だけ当たりやすさを変える。空欄はいつもの weight のまま
+      const rushBox = document.createElement('div');
+      rushBox.className = 'row wrap';
+      rushBox.setAttribute('data-rush-row', '');
+      rushBox.hidden = !rushOn;
+      const rushName = document.createElement('span');
+      rushName.className = 'field-label';
+      rushName.textContent = 'RUSH中の当たりやすさ';
+      const rushWeight = document.createElement('input');
+      rushWeight.type = 'number';
+      rushWeight.className = 'weight';
+      rushWeight.placeholder = 'いつもと同じ';
+      rushWeight.title = 'RUSH中の当たりやすさ（空欄はいつもと同じ）';
+      rushWeight.setAttribute('aria-label', 'RUSH中の当たりやすさ');
+      rushWeight.min = '0';
+      rushWeight.step = '1';
+      if (r.rushWeight != null && r.rushWeight !== '') rushWeight.value = r.rushWeight;
+      rushWeight.addEventListener('input', () => {
+        const text = rushWeight.value.trim();
+        if (text === '') {
+          delete r.rushWeight;
+          commit();
+          updateOdds();
+          return;
+        }
+        const n = Number(text);
+        if (!Number.isFinite(n) || n < 0) return;
+        r.rushWeight = Math.round(n * 100) / 100;
+        commit();
+        updateOdds();
+      });
+      const odds = document.createElement('span');
+      odds.className = 'hint';
+      odds.setAttribute('data-odds', String(i));
+      rushBox.append(rushName, rushWeight, odds);
 
       const color = document.createElement('select');
       color.title = '色';
@@ -1231,7 +1326,7 @@ export function createEditor({ api, setMessage }) {
       bottom.append(color, picker, image, url);
 
       if (!usesMinecraft()) {
-        row.append(top, bottom);
+        row.append(top, rushBox, bottom);
         return row;
       }
 
@@ -1255,7 +1350,7 @@ export function createEditor({ api, setMessage }) {
       const mc = document.createElement('div');
       mc.className = 'item-bottom item-mc';
       mc.append(ss, cmd);
-      row.append(top, bottom, mc);
+      row.append(top, rushBox, bottom, mc);
       return row;
     };
 

@@ -95,6 +95,12 @@ function checkItems(value, where, issues) {
       if (!(w > 0)) issues.errors.push(`${at}.weight: 0 より大きい数にしてください`);
       else item.weight = w;
     }
+    // 空欄は「書かなかった」と同じ（いつもの weight を使う）。0 は RUSH 中に出さない
+    if (raw.rushWeight != null && raw.rushWeight !== '') {
+      const w = Number(raw.rushWeight);
+      if (!Number.isFinite(w) || w < 0) issues.errors.push(`${at}.rushWeight: 0 以上の数にしてください`);
+      else item.rushWeight = w;
+    }
     for (const key of ['color', 'textColor']) {
       if (raw[key] == null) continue;
       if (isColor(raw[key])) item[key] = raw[key];
@@ -104,7 +110,7 @@ function checkItems(value, where, issues) {
     if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
     checkSuperStream(raw, item, at, issues);
     if (raw.rush != null) item.rush = raw.rush === true || raw.rush === 'true';
-    const known = ['label', 'name', 'weight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush'];
+    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });

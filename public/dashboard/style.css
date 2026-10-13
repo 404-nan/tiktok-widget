@@ -437,6 +437,7 @@ input[type=color] { width: 48px; flex: none; padding: 4px; cursor: pointer; }
 .item-bottom input:not([type=color]) { flex: 1 1 100%; min-height: 34px; font-size: 14px; }
 .item-bottom input[type=color] { min-height: 34px; height: 34px; }
 .item-row .weight { padding-right: 4px; font-variant-numeric: tabular-nums; }
+.item-row .row .weight { width: 11em; flex: none; }
 .thumb {
   display: grid;
   place-items: center;
