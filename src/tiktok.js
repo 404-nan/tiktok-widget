@@ -11,6 +11,7 @@ import {
   normalizeViewers,
 } from './normalize.js';
 
+const log = (msg) => console.log(`[tiktok] ${new Date().toISOString()} ${msg}`);
 const RETRY_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000];
 
 export function connectionOptions(signApiKey) {
@@ -33,10 +34,19 @@ export class TikTokSource {
     this.username = username.replace(/^@/, '').trim();
     this.signApiKey = signApiKey || process.env.TIKTOK_SIGN_API_KEY || undefined;
     this.retry = 0;
-    await this.#open();
+    this.stay = true; // 切るまでつなぎ続ける（落ちても配信が終わっても再接続を続ける）
+    log(`@${this.username} に接続します`);
+    try {
+      await this.#open();
+    } catch (err) {
+      this.#scheduleRetry(err.message);
+      throw err;
+    }
   }
 
   async disconnect() {
+    if (this.username) log(`@${this.username} から切断しました（手動または接続し直し）`);
+    this.stay = false;
     clearTimeout(this.retryTimer);
     this.retryTimer = null;
     const conn = this.connection;
@@ -64,6 +74,7 @@ export class TikTokSource {
       });
       if (giftResult?.error) console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message);
       this.retry = 0;
+      log(`@${username} の LIVE に接続しました（room ${state.roomId}）`);
       this.hub.setStatus({ mode: 'live', username, message: `@${username} の LIVE に接続しました`, roomId: state.roomId });
     } catch (err) {
       if (this.connection !== conn) return;
@@ -94,26 +105,29 @@ export class TikTokSource {
     conn.on(WebcastEvent.STREAM_END, () => {
       if (this.connection !== conn) return;
       this.connection = null;
+      log(`@${this.username} の配信が終了しました`);
       this.hub.setStatus({ mode: 'ended', message: '配信が終了しました' });
+      if (this.stay) this.#scheduleRetry('配信終了');
     });
     conn.on(ControlEvent.ERROR, (err) => console.warn('[tiktok] error:', err?.info ?? err));
     conn.on(ControlEvent.DISCONNECTED, () => {
       if (this.connection !== conn) return; // 自分で切ったか、配信終了
       this.connection = null;
-      this.#scheduleRetry();
+      this.#scheduleRetry('接続が切れた');
     });
   }
 
-  #scheduleRetry() {
-    if (this.retry >= RETRY_DELAYS.length) {
-      this.hub.setStatus({ mode: 'error', message: '接続が切れました。再接続をあきらめました' });
-      return;
-    }
-    const delay = RETRY_DELAYS[this.retry++];
-    this.hub.setStatus({ mode: 'connecting', message: `接続が切れました。${delay / 1000}秒後に再接続します` });
+  #scheduleRetry(reason = '') {
+    if (!this.stay || !this.username) return;
+    clearTimeout(this.retryTimer);
+    const delay = RETRY_DELAYS[Math.min(this.retry++, RETRY_DELAYS.length - 1)];
+    log(`@${this.username}: ${reason} → ${delay / 1000}秒後に再接続します（${this.retry}回目）`);
+    this.hub.setStatus({ mode: 'connecting', username: this.username, message: `接続が切れました。${delay / 1000}秒後に再接続します` });
     this.retryTimer = setTimeout(() => {
-      this.#open().catch(() => this.#scheduleRetry());
+      this.retryTimer = null;
+      this.#open().catch((err) => this.#scheduleRetry(err.message));
     }, delay);
+    this.retryTimer.unref?.();
   }
 }
 

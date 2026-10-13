@@ -60,7 +60,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, widgetBase, ai = null }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null }) {
   const hub = new Hub();
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
   const tiktok = new TikTokSource(hub, giftCatalog);
@@ -236,6 +236,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       res.json({ ok: true, response: await minecraft.test(command) });
     } catch (err) {
+      setStayConnected?.(username.replace(/^@/, '').trim()); // 配信前でも、始まったらつながるよう再接続を続ける
       res.status(502).json({ error: err.message });
     }
   });
@@ -398,6 +399,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       await tiktok.connect(username, { signApiKey: req.body?.signApiKey });
       rememberTiktokId?.(tiktok.username);
+      setStayConnected?.(tiktok.username);
       res.json({ ok: true, status: hub.status });
     } catch (err) {
       res.status(502).json({ error: err.message, status: hub.status });

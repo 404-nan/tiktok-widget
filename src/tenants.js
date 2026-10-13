@@ -56,6 +56,17 @@ export class Tenants {
     this.rentalTimer = setInterval(() => this.#autoConnectRentals(), 30_000);
     this.rentalTimer.unref();
     this.#autoConnectRentals();
+    this.#resumeConnections();
+  }
+
+  // 再起動前につないでいた配信者に、もう一度つなぐ
+  #resumeConnections() {
+    if (process.env.TW_RESUME_CONNECT === '0') return;
+    for (const t of this.data.tenants) {
+      if (!t.enabled || !t.stayConnected) continue;
+      console.log(`[tiktok] ${new Date().toISOString()} 再起動前の接続を戻します: ${t.id} @${t.stayConnected}`);
+      this.runtime(t.id).tiktok.connect(t.stayConnected).catch((err) => console.warn(`[tiktok] ${t.id}: 接続を戻せませんでした（再試行します）: ${err.message}`));
+    }
   }
 
   // --- 読み書き ---
@@ -310,6 +321,7 @@ export class Tenants {
       setWidgets: (list) => this.update(id, { widgets: list }),
       setTemplate: (template) => this.setTemplate(id, template),
       setGuideDone: (done) => this.setGuideDone(id, done),
+      setStayConnected: (handle) => { const t = this.get(id); if (t && (t.stayConnected ?? null) !== handle) { t.stayConnected = handle; this.#save(); } },
       rememberTiktokId: (handle) => { if (!this.get(id)?.tiktokId) this.update(id, { tiktokId: handle }); },
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,
       ai: this.ai,
