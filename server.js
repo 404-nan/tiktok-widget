@@ -194,7 +194,15 @@ admin.patch('/keys/:id', (req, res) => {
   try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
   catch (err) { res.status(400).json({ error: err.message }); }
 });
+admin.put('/keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
 admin.patch('/api-keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.put('/api-keys/:id', (req, res) => {
   try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
   catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -212,6 +220,10 @@ admin.post('/notes', (req, res) => {
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 admin.patch('/notes/:id', (req, res) => {
+  try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.put('/notes/:id', (req, res) => {
   try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
   catch (err) { res.status(400).json({ error: err.message }); }
 });
