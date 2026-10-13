@@ -56,7 +56,7 @@ test('ギフトで HP が減り、送った人が最後の一撃として残る'
   assert.equal(msg.event.kind, 'hit');
   assert.equal(msg.event.damage, 60);
   assert.equal(msg.prev.hp, 1000);
-  assert.equal(msg.event.by.gift, 'Doughnut');
+  assert.equal(msg.event.by.gift, 'ドーナッツ');
   // チャットやフォローではダメージにならない
   hub.emit('event', { kind: 'follow', user: { id: 'x', name: 'x' } });
   assert.equal(engine.get('default').hp, 940);

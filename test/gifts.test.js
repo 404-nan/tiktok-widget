@@ -22,7 +22,8 @@ test('条件は英語名・日本語名・ID のどれでも同じギフトに�
   assert.equal(giftMatches(gift, ['Rose']), true);
   assert.equal(giftMatches(gift, ['ローズ']), true);
   assert.equal(giftMatches(gift, ['1']), true);
-  assert.equal(giftDisplayName(gift), 'ローズ');
+  // 表示は対応表の英語名「Rose」に当たる。判定用の nameJa（ローズ）は変えない
+  assert.equal(giftDisplayName(gift), 'バラ');
 });
 
 test('ギフト一覧は ID で英語名と日本語名を対にする', async () => {
@@ -47,11 +48,11 @@ test('日本語名が英語名と同じなら nameJa は null', async () => {
   assert.equal(catalog.find('1').nameJa, null);
 });
 
-test('日本語名がないギフトの表示は今までの英語名のまま', () => {
+test('届いたイベントの名前は英語のまま、画面の表示だけ対応表の日本語になる', () => {
   const event = normalizeGift({ giftId: 1, gift: { id: 1, name: 'Rose', diamondCount: 1 }, repeatCount: 1 });
   assert.equal(event.gift.name, 'Rose');
   assert.equal(event.gift.nameJa, null);
-  assert.equal(giftDisplayName(event.gift), 'Rose');
+  assert.equal(giftDisplayName(event.gift), 'バラ');
 });
 
 test('TikTok から日本語名が取れないときは控えの対応表（ID→英語名）から日本語名を出す', () => {

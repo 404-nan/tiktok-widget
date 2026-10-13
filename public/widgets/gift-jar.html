@@ -63,7 +63,7 @@
 </div>
 <script src="/vendor/matter.min.js"></script>
 <script type="module">
-  import { setupWidget, connect, isFor, loadImage, iconImage, odometer, icon, tier, giftNamed, resolveColor } from './lib/overlay.js';
+  import { setupWidget, connect, isFor, loadImage, iconImage, odometer, icon, tier, giftNamed, giftLabel, resolveColor } from './lib/overlay.js';
   import { buildVessel, inside } from './lib/vessels.js';
 
   // 設定は config.yaml の jars.<id>（?id= がなければ default）。URL パラメータでも上書きできる
@@ -232,7 +232,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
-        const data = items.map(({ gift }) => ({ n: gift.nameJa || gift.name, i: gift.image, c: gift.icon, d: gift.diamonds }));
+        const data = items.map(({ gift }) => ({ n: giftLabel(gift), i: gift.image, c: gift.icon, d: gift.diamonds }));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       } catch {}
     }, 500);
@@ -245,7 +245,7 @@
       data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     } catch {}
     data.slice(-p.maxItems).forEach((g, i) => {
-      setTimeout(() => drop({ name: g.n, image: g.i, icon: g.c, diamonds: g.d }, { fast: true }), i * 12);
+      setTimeout(() => drop({ name: giftLabel({ name: g.n }), image: g.i, icon: g.c, diamonds: g.d }, { fast: true }), i * 12);
     });
   }
 

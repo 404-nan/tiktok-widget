@@ -1,34 +1,21 @@
 // TikTok から受け取ったギフトの台帳。名前は TikTok が返したものだけを保存する。
+// 画面に出す名前は src/gift-display.js（対応表）だけを通す。ここでの一致判定は変えない。
 import fs from 'node:fs';
 import path from 'node:path';
+import { bundledGiftList, giftDisplayName, lookupGiftJa } from './gift-display.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// TikTok の gift/list（webcast_language=ja-JP）で取った日本語名の控え。取得できないときに ID→英語名の順で引く
-let BUNDLED = { byId: new Map(), byName: new Map(), list: [] };
-try {
-  const raw = JSON.parse(fs.readFileSync(new URL('./gift-names-ja.json', import.meta.url), 'utf8'));
-  for (const [id, [en, ja]] of Object.entries(raw.names ?? {})) {
-    BUNDLED.byId.set(String(id), ja);
-    if (!BUNDLED.byName.has(String(en).toLocaleLowerCase())) {
-      BUNDLED.byName.set(String(en).toLocaleLowerCase(), ja);
-      BUNDLED.list.push({ id: String(id), name: String(en), nameJa: ja });
-    }
-  }
-} catch {}
+export { giftDisplayName };
+
 /** 控えにある全ギフト（コイン数・画像はなし）。一覧を網羅するための補い */
-export function bundledGifts() { return BUNDLED.list.map((g) => ({ ...g })); }
+export function bundledGifts() { return bundledGiftList(); }
 
 export function bundledNameJa(gift) {
-  return BUNDLED.byId.get(String(gift?.id ?? gift?.giftId ?? '').trim())
-    ?? BUNDLED.byName.get(String(gift?.name ?? gift?.giftName ?? '').trim().toLocaleLowerCase()) ?? null;
+  return lookupGiftJa(gift);
 }
 
 const text = (v) => (v == null ? '' : String(v).trim());
-
-export function giftDisplayName(gift) {
-  return text(gift?.nameJa) || text(gift?.name) || text(gift?.id) || 'Gift';
-}
 
 export function giftMatches(gift, values) {
   if (!gift || !Array.isArray(values) || !values.length) return false;

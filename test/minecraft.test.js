@@ -68,7 +68,7 @@ test('ルールの条件', () => {
 test('置き換えと、視聴者の名前の無害化', () => {
   assert.equal(safe('さくら"; op @a'), 'さくら op a');
   const vars = varsFor({ kind: 'gift', user: { name: 'Ken{x}' }, gift: { name: 'Rose', id: '5655', count: 2 }, totalDiamonds: 2 });
-  assert.equal(fill('say {user} から {gift} ×{count}（{coins}）{unknown}', vars), 'say Kenx から Rose ×2（2）{unknown}');
+  assert.equal(fill('say {user} から {gift} ×{count}（{coins}）{unknown}', vars), 'say Kenx から バラ ×2（2）{unknown}');
 });
 
 test('ギフトでルールのコマンドを送る（perCount で個数分）', async () => {

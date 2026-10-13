@@ -3,7 +3,7 @@
 
 import {
   loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
-  reloadOnConfigChange, resolveColor, readableOn,
+  reloadOnConfigChange, resolveColor, readableOn, giftLabel,
 } from './overlay.js';
 import { giftUserName } from './roulette-gift.js';
 
@@ -85,11 +85,14 @@ export function pickWeighted(items) {
 
 export function hintFor(r) {
   if (r.hint) return r.hint;
+  const build = globalThis.rouletteTriggerText;
+  if (typeof build === 'function') return build(r, fmt);
   const parts = [];
-  if (r.gifts.length) parts.push(r.gifts.join('・'));
+  const gifts = r.gifts ?? [];
+  if (gifts.length) parts.push(gifts.map((name) => giftLabel(name)).join('・'));
   if (r.minCoins > 0) parts.push(r.maxCoins ? `${fmt(r.minCoins)}〜${fmt(r.maxCoins)}コインのギフト` : `${fmt(r.minCoins)}コイン以上のギフト`);
-  if (r.events.includes('follow')) parts.push('フォロー');
-  if (r.events.includes('share')) parts.push('シェア');
+  if (r.events?.includes('follow')) parts.push('フォロー');
+  if (r.events?.includes('share')) parts.push('シェア');
   return parts.length ? `${parts.join(' / ')}で${r.name || 'ルーレット'}` : r.name || 'ルーレット';
 }
 

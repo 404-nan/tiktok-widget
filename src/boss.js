@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultsFor } from './schema.js';
 import { giftMatches } from './gifts.js';
+import { giftDisplayName } from './gift-display.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BOSS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'boss.json');
@@ -126,7 +127,7 @@ export class BossEngine {
       if (damage <= 0) continue;
       const by = {
         user: slimUser(e.user),
-        ...(e.kind === 'gift' ? { gift: e.gift?.name, count: e.gift?.count ?? 1, coins: e.totalDiamonds } : { likes: e.count }),
+        ...(e.kind === 'gift' ? { gift: giftDisplayName(e.gift), count: e.gift?.count ?? 1, coins: e.totalDiamonds } : { likes: e.count }),
       };
       this.#hit(id, damage, by, e);
     }

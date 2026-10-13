@@ -23,6 +23,7 @@ import { BossEngine } from './boss.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts } from './gifts.js';
+import { giftNamesDocument } from './gift-display.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -239,6 +240,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       setStayConnected?.(username.replace(/^@/, '').trim()); // 配信前でも、始まったらつながるよう再接続を続ける
       res.status(502).json({ error: err.message });
     }
+  });
+
+  // 画面に出すギフト名の対応表（GiftID → [英語名, 日本語名]）。ウィジェットが読む
+  r.get('/api/gift-names', (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.json(giftNamesDocument());
   });
 
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）

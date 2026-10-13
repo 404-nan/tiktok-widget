@@ -1,4 +1,4 @@
-import { connect, fmt, icon } from '/widgets/lib/overlay.js';
+import { connect, fmt, icon, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
 import { $, store, api, setupChrome, statusText } from './common.js';
@@ -80,7 +80,7 @@ async function setupSimulate() {
   for (const g of gifts) {
     const opt = document.createElement('option');
     opt.value = g.name;
-    opt.textContent = `${g.nameJa || g.name}（${fmt(g.diamonds)} コイン）`;
+    opt.textContent = `${giftLabel(g)}（${fmt(g.diamonds)} コイン）`;
     $('giftSelect').append(opt);
   }
   for (const btn of document.querySelectorAll('[data-sim]')) {
@@ -109,7 +109,7 @@ const timeFmt = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-d
 function describe(e) {
   switch (e.kind) {
     case 'gift':
-      return [e.user.name, ` ${e.gift.nameJa || e.gift.name} ×${e.gift.count}（${fmt(e.totalDiamonds)} コイン）`];
+      return [e.user.name, ` ${giftLabel(e.gift)} ×${e.gift.count}（${fmt(e.totalDiamonds)} コイン）`];
     case 'like':
       return [e.user.name, ` いいね ×${e.count}`];
     case 'follow':
@@ -152,6 +152,7 @@ function clearLog() {
 
 setupChrome('settings');
 setupKpis();
+await ensureGiftNames();
 await setupConnect();
 setupSimulate();
 clearLog();

@@ -6,6 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import * as admin from '../src/admin.js';
+import { giftDisplayName } from '../src/gift-display.js';
 
 const server = new McpServer(
   { name: 'tiktok-widget', version: '0.2.0' },
@@ -134,7 +135,7 @@ server.registerTool(
   },
   wrap(async () => {
     const { source, gifts } = await admin.gifts();
-    const lines = gifts.map((g) => `- ${g.name}（${g.diamonds} コイン${g.seen ? '・配信で受信' : ''}）${g.image ? ` ${g.image}` : ''}`);
+    const lines = gifts.map((g) => `- ${giftDisplayName(g)}（${g.diamonds} コイン${g.seen ? '・配信で受信' : ''}）${g.image ? ` ${g.image}` : ''}`);
     return text(`${source === 'demo' ? 'サーバーが起動していないので、テスト用の一覧だけです。\n' : ''}${lines.join('\n')}`);
   }),
 );
@@ -264,7 +265,7 @@ server.registerTool(
     const lines = [
       r.error ? `注意: ${r.error}` : `プロフィール: ${r.profile}（${r.file}）${r.tiktokUsername ? ` TikTok: @${r.tiktokUsername}` : ''}`,
       `config の superstreamProfile: ${r.configuredProfile}`,
-      ...r.gifts.map((g) => `- ギフト ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join(', ') || '演出なし'}`),
+      ...r.gifts.map((g) => `- ギフト ${g.id}${g.name ? `（${giftDisplayName({ id: g.id, name: g.name })}）` : ''}: ${g.actions.join(', ') || '演出なし'}`),
       '',
       `組み込みの演出（superstreamAction に書ける種類）: ${r.actions.join(', ')}`,
     ];

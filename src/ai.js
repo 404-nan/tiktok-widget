@@ -9,6 +9,7 @@ import path from 'node:path';
 import * as cfg from './config.js';
 import { SCHEMA, SECTIONS } from './schema.js';
 import { buildSystem } from './ai-prompt.js';
+import { giftDisplayName } from './gift-display.js';
 
 // 使える AI。kind: 'claude' は Anthropic の SDK、'openai' は OpenAI と同じ形の API（chat/completions）
 export const AI_PROVIDERS = {
@@ -107,7 +108,7 @@ export function buildRequest({ text, config, focus, gifts = [], availableWidgets
   const lines = ['今の設定（JSON。パスワードなどは抜いてあります）:', '<config>', JSON.stringify(cfg.publicConfig(config)), '</config>'];
   if (availableWidgets.length) lines.push(`この配信者が使えるウィジェット: ${availableWidgets.join('、')}`);
   if (focus?.section) lines.push(`配信者がいま開いているウィジェット: ${[focus.section, focus.id].filter(Boolean).join('.')}`);
-  if (gifts.length) lines.push(`配信者が知っているギフト（名前と1個のコイン）: ${gifts.map((g) => `${g.name}(${g.diamonds})`).join(', ')}`);
+  if (gifts.length) lines.push(`配信者が知っているギフト（画面の名前、設定に書く名前、1個のコイン）: ${gifts.map((g) => `${giftDisplayName(g)}（設定: ${g.name}、${g.diamonds}）`).join(', ')}`);
   lines.push('配信者のたのみ:', '<request>', text, '</request>');
   return lines.join('\n');
 }
