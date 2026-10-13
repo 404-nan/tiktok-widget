@@ -61,3 +61,23 @@ test('TikTok から日本語名が取れないときは控えの対応表（ID�
   assert.equal(catalog.enrich({ id: '0', name: 'Meteor Shower' }).nameJa, '流星群');
   assert.equal(catalog.enrich({ id: '0', name: 'Unknown Gift' }).nameJa, null);
 });
+
+test('届いたギフトの表示名は日本語の対応表（src/gift-names-ja.json）を通る', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  const event = normalizeGift({ giftId: 5655, gift: { id: 5655, name: 'Rose', diamondCount: 1 }, repeatCount: 1 }, catalog);
+  assert.equal(giftDisplayName(event.gift), 'バラ');
+  const other = normalizeGift({ giftId: 999999999, gift: { id: 999999999, name: 'Brand New Gift', diamondCount: 1 }, repeatCount: 1 }, catalog);
+  assert.equal(giftDisplayName(other.gift), 'Brand New Gift');
+});
+
+test('対応表は GiftID → [英語名, 日本語名] の形で、日本語名が入っている', () => {
+  const table = JSON.parse(fs.readFileSync(new URL('../src/gift-names-ja.json', import.meta.url), 'utf8'));
+  const entries = Object.entries(table.names);
+  assert.ok(entries.length > 500);
+  for (const [id, pair] of entries) {
+    assert.match(id, /^\d+$/);
+    assert.equal(pair.length, 2);
+    assert.ok(pair[1] && pair[1] !== pair[0], `${id} の日本語名`);
+  }
+});

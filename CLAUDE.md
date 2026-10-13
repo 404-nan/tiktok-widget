@@ -1,0 +1,8 @@
+# ギフト名は日本語で表示する（AI・開発者向けの決まり）
+
+- ギフト名は必ず日本語で表示すること。
+- 名前は GiftID から `src/gift-names-ja.json`（`{ "names": { "<GiftID>": ["英語名", "日本語名"] } }`）で引く。
+- TikTok の公開 gift/list API（`https://webcast.tiktok.com/webcast/gift/list/`）を呼ぶときは `webcast_language=ja-JP` を付けること。`ja` だけだと英語名で返る。
+- 表に無いギフトは今の名前（TikTok から来た名前）のまま表示すること。自分で訳した名前は使わない。
+- 表の作り直し方は `scripts/giftlist.js` の手順を参照（`node scripts/giftlist.js [roomId ...]`。署名・ログイン・有料プランは不要）。
+- 英語名を新しくハードコードしないこと（表示名は対応表から引く）。
