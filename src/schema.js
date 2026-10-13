@@ -259,6 +259,9 @@ export const SCHEMA = {
     fields: {
       ...placementFields(5, 39),
       name: str('魔王', 'ボスの名前（1体目）'),
+      mode: oneOf(['hp', 'rank-gap'], 'hp', 'hp は固定HP。rank-gap は一つ上の人とのコイン差をHPにする（自分のコインが増えると減り、相手のコインが増えると増える）'),
+      rankSource: oneOf(['manual', 'live'], 'manual', 'rank-gap の相手コインの出どころ。live は配信の順位。取れなければ manual の目標コインを使う'),
+      rivalCoins: num(0, 'rank-gap の相手コイン（手入力の目標。API でも変えられる）。自分のコインとの差がHP', { min: 0 }),
       hp: num(10000, '1体目の最大 HP', { min: 1 }),
       hpScale: num(1.5, '倒すたびに次のボスの HP を何倍にするか（1 で同じ）', { min: 1, max: 10 }),
       image: str('', 'ボスの画像（media/ のファイルか URL）。空なら図形の鬼を描く'),
@@ -343,7 +346,8 @@ export const SCHEMA = {
           'rushWeight は RUSH 中の当たりやすさ（0 以上の数。書かなければ weight と同じ。rushOdds が true のときだけ使う）。' +
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入',
+          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。' +
+          'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start。id を書くとそのタイマー・WIN数・ボスだけ',
       },
     },
   },
@@ -426,6 +430,56 @@ SCHEMA.rush = {
     enterText: str('RUSH突入', '突入のときの文字'),
     sound: bool(true, '効果音'),
     volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
+SCHEMA.mediaAlerts = {
+  kind: 'object',
+  page: 'media',
+  title: 'メディア通知',
+  size: () => [640, 360],
+  desc:
+    'ギフト・フォロー・ルーレットの動作で、動画・音声・画像を順番に再生する。' +
+    'ファイルは配信者のデータの alert-media に置く。URL は /widgets/media.html',
+  fields: {
+    enabled: bool(true, 'メディア通知を使う'),
+    rules: {
+      type: 'mediaRules',
+      default: [],
+      desc:
+        '再生のきっかけ。上から順に、合ったものを全部再生待ちに入れる。' +
+        '条件: gifts（ギフトIDか名前）/ minCoins（この合計コイン以上）/ events（follow）。' +
+        'mediaId はアップロードしたメディアのID。条件が無いルールは再生しない',
+    },
+  },
+};
+
+SCHEMA.gacha = {
+  kind: 'object',
+  page: 'gacha',
+  title: 'ガチャ',
+  size: () => [640, 360],
+  desc:
+    '高額ギフトなどで回すガチャ。待機 → 回転 → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
+    'きっかけ: gifts のギフト / minCoins 以上のギフト / ルーレットなどの gacha.start。' +
+    'pity が 1 以上のとき、pity 対象のレアリティがそれ回出なければ次は確定。URL は /widgets/gacha.html',
+  fields: {
+    enabled: bool(true, 'ガチャを使う'),
+    minCoins: num(0, 'この合計コイン以上のギフトで回す（0 で金額では回さない）', { min: 0 }),
+    gifts: list([], 'このギフトID（または名前）で回す'),
+    rollMs: num(3000, '回転しているミリ秒', { min: 0, max: 60000 }),
+    revealMs: num(2500, '結果を出しているミリ秒', { min: 0, max: 60000 }),
+    doneMs: num(1200, '終了表示のミリ秒', { min: 0, max: 60000 }),
+    pity: num(0, 'この回数、当たり（pity: true のレアリティ）が出なかったら次は確定（0 で無効）', { min: 0, max: 999 }),
+    tiers: {
+      type: 'gachaTiers',
+      default: [
+        { id: 'common', label: 'ふつう', weight: 70, pity: false },
+        { id: 'rare', label: 'レア', weight: 25, pity: false },
+        { id: 'legend', label: '激アツ', weight: 5, pity: true },
+      ],
+      desc: 'レアリティ。id / label / weight（当たりやすさ）/ pity（true なら天井の対象。1つだけ）',
+    },
   },
 };
 
