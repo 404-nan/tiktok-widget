@@ -245,11 +245,16 @@ me = await api('/api/me').catch(() => me);
 const historyName = me.mode === 'tenant' ? (me.name || me.tiktokId || '配信者') : (me.tiktokId || '配信');
 $('brandTitle').textContent = `${historyName} の統計`;
 document.title = `${historyName} の統計`;
+const env = await api('/api/env').catch(() => ({ dev: false }));
+// 開発では、まだ選んでいなければテスト送信（デモ記録）を最初から出す。ボタンの選択は renderList が付ける。
+if (env.dev && store.get('history-demo', null) === null) showDemo = true;
 await load();
-// 配信中の記録は少しずつ増えるので、表示中なら読み直す
+// 配信中の記録は少しずつ増えるので、表示中なら読み直す。
+// 開発では、まだ選んでいないときも短い間隔で読み直し、最初のテスト送信をリロードなしで出す。
 setInterval(() => {
-  if (sessions.find((s) => s.id === current)?.live) load();
-}, 30_000);
+  const live = Boolean(sessions.find((s) => s.id === current)?.live);
+  if (live || (env.dev && current == null)) load();
+}, env.dev ? 5_000 : 30_000);
 
 // WebSocket が通らない環境（プロキシ・古い内蔵ブラウザ）でも接続の状態を出す
 const showStatus = (status) => {
