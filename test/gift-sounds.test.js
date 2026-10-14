@@ -248,6 +248,7 @@ test('ウィジェット一覧に無い配信者には出さず、OBS は読む�
   });
   const port = server.address().port;
   const before = process.env.TW_ENV;
+  const beforePort = process.env.PORT;
   const post = (url, body) => fetch(`http://127.0.0.1:${port}${url}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -270,6 +271,7 @@ test('ウィジェット一覧に無い配信者には出さず、OBS は読む�
     assert.equal((await runtime.setConfig('giftSounds.maxSeconds', 30)).ok, true);
     assert.equal((await runtime.setConfig('giftSounds.rules', [{ events: ['follow'], mediaId, volume: 70 }])).ok, true);
     process.env.TW_ENV = 'dev';
+    process.env.PORT = '3999';
     const quiet = await post('/api/simulate', { kind: 'follow' });
     assert.equal(quiet.status, 200);
     assert.equal((await (await get('/api/gift-sounds')).json()).playing.length, 0);
@@ -301,6 +303,8 @@ test('ウィジェット一覧に無い配信者には出さず、OBS は読む�
   } finally {
     if (before === undefined) delete process.env.TW_ENV;
     else process.env.TW_ENV = before;
+    if (beforePort === undefined) delete process.env.PORT;
+    else process.env.PORT = beforePort;
     await stopServer(server);
     await runtime.close();
   }
