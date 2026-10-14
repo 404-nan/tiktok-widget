@@ -37,7 +37,7 @@ export const INFO = {
   bosses: { icon: 'skull', desc: 'みんなのギフトでボスの HP を削って倒す。上の人とのコイン差にもできる' },
   mediaAlerts: { icon: 'clapperboard', desc: 'ギフトやフォローで、動画・音声・画像を出す' },
   giftSounds: { icon: 'volume-2', desc: 'ギフトごとに効果音を重ねて鳴らす' },
-  gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
+  gacha: { icon: 'sparkles', desc: '視聴者ごとに無料で回せて、ギフトでたまった回数はコメントで使う' },
   slots: { icon: 'disc-3', desc: 'ギフトで3つの絵柄をそろえるスロット演出' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
@@ -216,6 +216,7 @@ export const SIMPLE = {
     groups: [
       { title: '使う', fields: ['enabled'] },
       { title: 'いつ回す', fields: ['minCoins', 'gifts'] },
+      { title: '視聴者の回数', fields: ['freePerReset', 'resetMode', 'freeRequires', 'command', 'cooldownSec', 'paidRule'] },
       { title: 'レアリティと天井', fields: ['tiers', 'pity'] },
     ],
   },
@@ -272,6 +273,8 @@ export const SIMPLE_LABELS = {
   'mediaAlerts.enabled': 'メディア通知を使う', 'mediaAlerts.rules': '再生のきっかけ',
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
+  'gacha.freePerReset': '1人の無料回数', 'gacha.resetMode': '無料回数のリセット', 'gacha.freeRequires': '無料回数の条件',
+  'gacha.paidRule': '有料回数のたまり方', 'gacha.command': '回すコメント', 'gacha.cooldownSec': '同じ人の間隔',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
   'cutins.gifts': 'このギフトなら必ず出す', 'cutins.redText': '赤の文字', 'cutins.goldText': '金の文字', 'cutins.rainbowText': '虹の文字', 'cutins.sound': '効果音',
   'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
@@ -283,7 +286,7 @@ export const SIMPLE_LABELS = {
 export const UNITS = {
   minCoins: 'コイン', bigCoins: 'コイン', fontSize: 'px', maxItems: '件', limit: '人', startMinutes: '分', maxHours: '時間',
   coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', scale: '倍',
-  rivalCoins: 'コイン', pity: '回',
+  rivalCoins: 'コイン', pity: '回', freePerReset: '回', cooldownSec: '秒',
 };
 
 const EVENT = { gift: 'ギフト', follow: 'フォロー', share: 'シェア' };
@@ -307,7 +310,7 @@ const SUMMARY = {
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
-  gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
+  gacha: (e) => (e.enabled === false ? '使わない設定' : `無料${e.freePerReset ?? 1}回・${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
   slots: (e) => (e.enabled === false ? '使わない設定' : `${e.revivalRate}% 復活・${e.nearMissRate}% ニアミス`),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),
