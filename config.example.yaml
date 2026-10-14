@@ -123,6 +123,7 @@ bosses:
 # 筆の帯と文字だけ。ギフトのコインで 青 → 緑 → 赤 → 金 → 虹 と格上げ。虹は画面が止まってから入る。
 cutins:
   default:
+    textWeight: normal # normal 普通 / bold 太字
     minCoins: 100
     greenCoins: 300
     redCoins: 1000
@@ -130,10 +131,14 @@ cutins:
     rainbowCoins: 20000
 
 # 画像付きカットイン … /widgets/image-cutin.html（default 以外は ?id=名前）
+# imageStyle: stripe 縞・標準 / invert 縞・反転 / thick 縞・枠太。空なら layout の帯
 # layout: inside 帯の中いっぱいに写真（縁が木炭のかすれ線）/ side 色の帯の横に写真が大きく乗る
+# crop は切り抜きの位置だけ。元の画像ファイルは変えない
 imageCutins:
   default:
     photo: "" # 例: media/my-photo.jpg（inside で空なら段階の色で埋める）
+    imageStyle: "" # stripe / invert / thick。空なら今までの帯
+    crop: {x: 0.5, y: 0.5, scale: 1}
     layout: inside
     minCoins: 1000 # 画像付きは高額ギフトだけにする例
 

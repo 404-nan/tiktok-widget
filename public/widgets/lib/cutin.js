@@ -32,7 +32,9 @@ export async function startCutin(section) {
   document.body.insertAdjacentHTML('afterbegin', STAGE);
   const isImage = section === 'imageCutins';
   // 設定は config.yaml の cutins.<id> / imageCutins.<id>（?id= がなければ default）。URL パラメータでも上書きできる
-  const p = await setupWidget(section, isImage ? { ...TIER_DEFAULTS, photo: '', layout: 'inside' } : { ...TIER_DEFAULTS });
+  const p = await setupWidget(section, isImage
+    ? { ...TIER_DEFAULTS, photo: '', layout: 'inside', imageStyle: '', crop: { x: 0.5, y: 0.5, scale: 1 } }
+    : { ...TIER_DEFAULTS, textWeight: 'normal' });
   // 内部の描き方にそろえる: style（band 色の帯 / photo 写真の帯）と image（帯に乗せるもの）
   p.style = isImage && p.layout === 'inside' ? 'photo' : 'band';
   p.image = isImage ? 'photo' : 'none';
@@ -110,6 +112,7 @@ export async function startCutin(section) {
       const img = new Image();
       img.className = 'photo-img';
       img.src = mediaUrl(src);
+      if (p.crop && typeof p.crop === 'object') img.style.objectPosition = `${Number(p.crop.x) * 100}% ${Number(p.crop.y) * 100}%`;
       photo.append(img);
       parts.push(img);
     } else {
@@ -323,6 +326,7 @@ export async function startCutin(section) {
     const bw = Math.round(Math.max(W, H) * 1.5);
     const bh = Math.round(unit * 0.36);
     stage.className = `stage tier-${tier}`;
+    if (!isImage && p.textWeight === 'bold') stage.classList.add('weight-bold');
     stage.style.setProperty('--bw', `${bw}px`);
     stage.style.setProperty('--bh', `${bh}px`);
     stage.style.setProperty('--vw', `${W}px`);
@@ -342,7 +346,26 @@ export async function startCutin(section) {
     tagEl.style.cssText = '';
     word.hidden = !p.word;
 
-    if (p.style === 'photo') {
+    const hatch = isImage && window.CutinStyle && window.CutinStyle.isHatch(p.imageStyle);
+    if (hatch) {
+      const size = window.CutinStyle.frameSize(W, H);
+      const mounted = window.CutinStyle.mount($('band'), {
+        width: size.w,
+        height: size.h,
+        style: p.imageStyle,
+        crop: p.crop && typeof p.crop === 'object' ? p.crop : { x: 0.5, y: 0.5, scale: 1 },
+        photo: p.photo ? mediaUrl(p.photo) : '',
+        accent: t.accent,
+      });
+      stage.classList.add('style-hatch');
+      stage.style.setProperty('--bw', `${size.w}px`);
+      stage.style.setProperty('--bh', `${size.h}px`);
+      wait = mounted ? mounted.wait : [];
+      visual.replaceChildren();
+      word.style.left = '0px';
+      const fs = Math.round(Math.min((mounted?.bandHeight ?? bh) * 0.46, (size.w * 0.72) / Math.max(2, TEXT[tier].length)));
+      stage.style.setProperty('--fs', `${fs}px`);
+    } else if (p.style === 'photo') {
       // 写真の帯（縁が木炭のかすれ線）
       const sh = Math.round(H > W ? Math.min(H * 0.3, W * 0.62) : H * 0.42);
       const strip = buildPhotoStrip(e, t, bw, sh, seed);
@@ -368,11 +391,13 @@ export async function startCutin(section) {
     }
 
     // 色の帯に乗せるもの。写真を指定したときだけ写真を乗せ、なければ帯と文字だけ
-    visual.replaceChildren();
-    if (p.style !== 'photo') {
+    // 縦長フレームは帯の中に写真を入れてあるので、横の写真は足さない
+    if (!hatch) visual.replaceChildren();
+    if (!hatch && p.style !== 'photo') {
       if (p.image === 'photo' && p.photo) {
         const img = new Image();
         img.src = mediaUrl(p.photo);
+        if (p.crop && typeof p.crop === 'object') img.style.objectPosition = `${Number(p.crop.x) * 100}% ${Number(p.crop.y) * 100}%`;
         visual.replaceChildren(img);
         wait.push(img);
       } else if (p.image === 'avatar') visual.replaceChildren(avatarNode(e.user, bh));

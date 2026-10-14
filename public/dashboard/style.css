@@ -1188,6 +1188,86 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .top-cards > .notes-panel,
 .top-cards > .plan-panel { display: grid; }
 .plan-body { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+
+/* カットインの切り抜き。余白は 4/8/12/16/24/32/48 だけ。横並びのボタンは同じ大きさ */
+.cutin-crop {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--r-md);
+  background: var(--fill-tertiary);
+}
+.cutin-shell {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, calc(var(--s-7) * 10 * 9 / 16));
+  aspect-ratio: 9 / 16;
+  max-height: calc(var(--s-7) * 10);
+  margin: 0 auto;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.cutin-hatch { flex: 1 1 auto; min-height: var(--s-2); }
+.cutin-viewport {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  overflow: hidden;
+  background: #111113;
+  touch-action: none;
+  cursor: grab;
+}
+.cutin-viewport:active { cursor: grabbing; }
+.cutin-crop-img { position: absolute; max-width: none; user-select: none; -webkit-user-drag: none; }
+.cutin-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  color: #F6F5F1;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.cutin-scale-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--s-7);
+}
+.cutin-scale-row span { flex: 0 0 auto; font-size: 14px; }
+.cutin-scale-row input[type="range"] { flex: 1 1 auto; min-width: 0; height: var(--s-6); margin: 0; }
+.cutin-scale-num {
+  flex: 0 0 var(--s-7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.cutin-choice-row { display: flex; gap: var(--s-2); }
+.cutin-choice {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--s-7);
+  margin: 0;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--stroke-primary);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cutin-crop > .cutin-choice { width: 100%; }
+.cutin-choice[aria-pressed="true"] {
+  background: var(--fill-primary);
+  color: var(--text-primary-on);
+  border-color: var(--fill-primary);
+}
 .top-cards input, .top-cards select { border-radius: var(--s-2); }
 
 /* カードの見出しの行 */

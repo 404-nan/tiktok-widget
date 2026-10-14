@@ -388,6 +388,7 @@ SCHEMA.cutins = {
   size: () => [1080, 1920],
   fields: {
     ...cutinFields(),
+    textWeight: oneOf(['normal', 'bold'], 'normal', '文字だけの太さ。normal 普通 / bold 太字'),
     yieldToImage: bool(false, '画像付きカットインが出るギフトのときは、こちらを出さない（両方を OBS に入れて重ならないように）'),
   },
 };
@@ -397,13 +398,26 @@ SCHEMA.imageCutins = {
   page: 'image-cutin',
   title: '画像付きカットイン',
   desc:
-    '写真を使うカットイン。inside は斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる。' +
-    'side は色の帯の横に写真が大きく乗る（背景を切り抜いた PNG がおすすめ）。段階・文字・動きは通常カットインと同じ。' +
+    '写真を使うカットイン。imageStyle を選ぶと縦長のフレームになり、中央の帯に写真、上下に斜めの縞が入る' +
+    '（縞・標準 / 縞・反転 / 縞・枠太）。空なら今までの帯のまま。' +
+    'inside は斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる。' +
+    'side は色の帯の横に写真が大きく乗る（背景を切り抜いた PNG がおすすめ）。' +
+    '切り抜きは位置と拡大だけを保存し、元の画像は変えない。段階・文字・動きは通常カットインと同じ。' +
     'URL は /widgets/image-cutin.html?id=<名前>',
   size: () => [1080, 1920],
   fields: {
     photo: str('', '写真（media/ のファイルか URL）。inside で空のときは段階の色で埋める'),
-    layout: oneOf(['inside', 'side'], 'inside', 'inside 帯の中いっぱい（縁が木炭のかすれ線）/ side 色の帯の横に大きく乗る'),
+    imageStyle: {
+      type: 'cutinStyle',
+      default: '',
+      desc: '縦長フレームの画像スタイル。stripe 縞・標準 / invert 縞・反転 / thick 縞・枠太。空なら今までの帯（layout）',
+    },
+    crop: {
+      type: 'crop',
+      default: { x: 0.5, y: 0.5, scale: 1 },
+      desc: '写真の切り抜き。x と y は 0〜1 の位置、scale は 1〜4 の拡大。元の画像ファイルは変えない',
+    },
+    layout: oneOf(['inside', 'side'], 'inside', 'imageStyle が空のとき。inside 帯の中いっぱい（縁が木炭のかすれ線）/ side 色の帯の横に大きく乗る'),
     ...cutinFields(),
   },
 };

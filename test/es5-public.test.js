@@ -9,6 +9,8 @@ import vm from 'node:vm';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
   'public/dashboard/dev-features.js',
+  'public/dashboard/cutin-crop.js',
+  'public/widgets/lib/cutin-style.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
   'public/widgets/slot.js',

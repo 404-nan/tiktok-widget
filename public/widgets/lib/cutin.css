@@ -118,6 +118,21 @@ canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity:
 .out .rig { transform: rotate(var(--angle)) translateX(-170%); transition: transform .18s cubic-bezier(.6, 0, .9, .4); }
 .out .dim, .out canvas.lines { opacity: 0; transition: opacity .2s linear; }
 
+/* 文字だけの太さ。普通は今までの線のまま。太字だけ縁を厚くする */
+.weight-bold .word .back {
+  -webkit-text-stroke: calc(var(--fs) * .24) #111;
+  text-shadow:
+    calc(var(--fs) * .05) calc(var(--fs) * .08) 0 #111,
+    calc(var(--fs) * .1) calc(var(--fs) * .16) 0 #111,
+    calc(var(--fs) * .15) calc(var(--fs) * .24) 0 #111;
+}
+.weight-bold .word .mid { -webkit-text-stroke: calc(var(--fs) * .12) #fff; }
+
+/* 縦長の縞フレーム。縞は JS が repeating-linear-gradient で塗る。グラデーションの塗りとガラスは使わない */
+.style-hatch .band.hatch-host { overflow: hidden; }
+.style-hatch .hatch-frame { position: absolute; inset: 0; }
+.style-hatch .band img.crop-img { inset: auto; width: auto; height: auto; max-width: none; }
+
 /* フリーズ: 画面が止まって暗転 */
 .freeze { position: absolute; inset: 0; background: #000; opacity: 0; display: grid; place-items: center; }
 .freeze.on { opacity: .94; }

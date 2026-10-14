@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
+import { parseCrop, parseImageStyle } from './cutin-style.js';
 import { checkActions } from './actions.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -79,9 +80,26 @@ function checkValue(field, value, where, issues) {
       return checkSlotTrigger(value, where, issues);
     case 'slotPayouts':
       return checkSlotPayouts(value, where, issues);
+    case 'cutinStyle':
+      return checkCutinStyle(value, where, issues);
+    case 'crop':
+      return checkCrop(value, where, issues);
     default:
       return value;
   }
+}
+
+function checkCutinStyle(value, where, issues) {
+  const parsed = parseImageStyle(value);
+  if (!parsed.ok) issues.errors.push(`${where}: stripe / invert / thick のどれかにするか、空にしてください（今: ${JSON.stringify(value)}）`);
+  return parsed.value;
+}
+
+function checkCrop(value, where, issues) {
+  const parsed = parseCrop(value);
+  for (const msg of parsed.errors) issues.errors.push(`${where}: ${msg}`);
+  for (const msg of parsed.warnings) issues.warnings.push(`${where}.${msg}`);
+  return parsed.value;
 }
 
 function checkSlotTrigger(value, where, issues) {

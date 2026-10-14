@@ -28,6 +28,8 @@ const ENUM_LABELS = {
   'gainPreset.large': '大きく増える配信（+10 大 / +100 超 / +1000 最大）', 'gainPreset.medium': '中くらい（+3 / +10 / +30）',
   'gainPreset.small': '+1 から派手に（+1 / +3 / +5）', 'gainPreset.custom': '自分で決める（下の詳しい設定）',
   inside: '帯の中いっぱい（縁が木炭）', side: '帯の横に大きく乗る',
+  normal: '普通', bold: '太字',
+  stripe: '縞・標準', invert: '縞・反転', thick: '縞・枠太',
   'mode.hp': '固定HP', 'mode.rank-gap': '上の人とのコイン差',
   'rankSource.manual': '手入力', 'rankSource.live': '配信の順位（無ければ手入力）',
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
@@ -54,6 +56,7 @@ const LABELS = {
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
   image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  textWeight: '文字の太さ', imageStyle: '画像のスタイル', crop: '切り抜き',
   'bosses.name': 'ボスの名前', hp: '最大 HP', hpScale: '次のボスの HP の倍率', 'bosses.image': 'ボスの画像', damageFrom: 'ダメージにするもの',
   rankSource: '順位の参照', rivalCoins: '相手のコイン',
   'mediaAlerts.enabled': 'メディア通知を使う', 'gacha.enabled': 'ガチャを使う',
@@ -87,8 +90,8 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'yieldToImage'],
-  imageCutins: ['photo', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'textWeight', 'yieldToImage'],
+  imageCutins: ['photo', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
   bosses: ['name', 'mode', 'rankSource', 'rivalCoins', 'hp', 'hpScale', 'image', 'damageFrom', 'coinDamage', 'likeDamage', 'gifts', 'nextNames', 'roulette', 'commands'],
@@ -890,7 +893,7 @@ export function createEditor({ api, setMessage }) {
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
-    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'gifts' || key === 'photo' || key === 'image' || key === 'masterVolume' ? 'wide' : 'inline');
+    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'gifts' || key === 'photo' || key === 'image' || key === 'masterVolume' || key === 'crop' || key === 'imageStyle' || key === 'textWeight' ? 'wide' : 'inline');
     return el;
   }
 
@@ -949,6 +952,36 @@ export function createEditor({ api, setMessage }) {
       const editor = itemsEditor(value, { rushOdds: tab === 'roulettes' && key === 'items' && !!(entry && entry.rushOdds) });
       if (simple()) editor.querySelector('.field-label').textContent = labelText(key);
       return editor;
+    }
+
+    if ((key === 'textWeight' || key === 'imageStyle') && window.CutinForm) {
+      const wrap = labelFor(key, field);
+      const choices = key === 'textWeight'
+        ? [{ id: 'normal', label: '普通' }, { id: 'bold', label: '太字' }]
+        : [{ id: 'stripe', label: '縞・標準' }, { id: 'invert', label: '縞・反転' }, { id: 'thick', label: '縞・枠太' }];
+      wrap.append(window.CutinForm.choices({
+        value: value || '',
+        choices,
+        onChange: (id) => {
+          save(key, id);
+          if (key === 'imageStyle') document.dispatchEvent(new CustomEvent('tw-cutin-style', { detail: id }));
+        },
+      }));
+      if (wrap.hint) wrap.append(wrap.hint);
+      return wrap;
+    }
+    if (key === 'crop' && window.CutinForm) {
+      const wrap = labelFor(key, field);
+      const entry = isObj(tab) ? payload.config[tab] : payload.config[tab]?.[id] ?? {};
+      wrap.append(window.CutinForm.crop({
+        value: value || { x: 0.5, y: 0.5, scale: 1 },
+        imageUrl: entry.photo ? mediaUrl(entry.photo) : '',
+        style: entry.imageStyle || '',
+        resolve: mediaUrl,
+        onChange: (next) => save(key, next, 200),
+      }));
+      if (wrap.hint) wrap.append(wrap.hint);
+      return wrap;
     }
 
     if (field.type === 'boolean') {
@@ -1036,7 +1069,10 @@ export function createEditor({ api, setMessage }) {
       dl.id = listId;
       for (const m of media) dl.append(new Option(m, m));
       wrap.append(dl);
-      control.addEventListener('input', () => save(key, control.value.trim(), 500));
+      control.addEventListener('input', () => {
+        save(key, control.value.trim(), 500);
+        if (tab === 'imageCutins' && key === 'photo') document.dispatchEvent(new CustomEvent('tw-cutin-photo', { detail: control.value.trim() }));
+      });
     } else if (simple() && hasRulesEditor(field.type)) {
       control = rulesEditor({ type: field.type, value, gifts, onChange: (rules, delay) => save(key, rules, delay) });
     } else if (field.type === 'rules' || field.type === 'mcRules' || field.type === 'winRules' || field.type === 'timerRules') {

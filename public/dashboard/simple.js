@@ -169,12 +169,12 @@ export const SIMPLE = {
   cutins: {
     groups: [
       { title: 'いつ出す', presets: [CUTIN_SCALE], fields: ['gifts'] },
-      { title: '文字と音', fields: ['redText', 'goldText', 'rainbowText', 'sound'] },
+      { title: '文字と音', fields: ['textWeight', 'redText', 'goldText', 'rainbowText', 'sound'] },
     ],
   },
   imageCutins: {
     groups: [
-      { title: '写真', fields: ['photo', 'layout'] },
+      { title: '写真', fields: ['photo', 'imageStyle', 'crop'] },
       { title: 'いつ出す', presets: [CUTIN_SCALE], fields: ['gifts'] },
       { title: '文字と音', fields: ['redText', 'goldText', 'sound'] },
     ],
@@ -274,7 +274,9 @@ export const SIMPLE_LABELS = {
   'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
   'cutins.gifts': 'このギフトなら必ず出す', 'cutins.redText': '赤の文字', 'cutins.goldText': '金の文字', 'cutins.rainbowText': '虹の文字', 'cutins.sound': '効果音',
+  'cutins.textWeight': '文字の太さ',
   'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
+  'imageCutins.imageStyle': '画像のスタイル', 'imageCutins.crop': '切り抜き',
   'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
@@ -302,8 +304,8 @@ const SUMMARY = {
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),
   timers: (e) => `${e.startMinutes >= 60 ? `${Math.floor(e.startMinutes / 60)} 時間${e.startMinutes % 60 ? `${e.startMinutes % 60} 分` : ''}` : `${e.startMinutes} 分`}から${e.coinSeconds ? `・1 コインで +${e.coinSeconds} 秒` : ''}`,
   bosses: (e) => (e.mode === 'rank-gap' ? `${e.name}（上の人まで ${e.rivalCoins} コイン）` : `${e.name}（HP ${e.hp}）`),
-  cutins: (e) => `${e.minCoins} コインから`,
-  imageCutins: (e) => `${e.minCoins} コインから${e.photo ? '' : '・写真なし'}`,
+  cutins: (e) => `${e.minCoins} コインから・${e.textWeight === 'bold' ? '太字' : '普通'}`,
+  imageCutins: (e) => `${e.minCoins} コインから${{ stripe: '・縞・標準', invert: '・縞・反転', thick: '・縞・枠太' }[e.imageStyle] ?? ''}${e.photo ? '' : '・写真なし'}`,
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
