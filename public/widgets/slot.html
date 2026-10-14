@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スロット</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { color: #f6f5f1; font-family: sans-serif; }
+  #slot { box-sizing: border-box; width: min(96vw, 720px); min-height: 320px; margin: 2vh auto; padding: 28px; background: #111113; border: 4px solid #f6f5f1; text-align: center; }
+  #title { margin: 0 0 18px; font-size: clamp(24px, 5vw, 48px); letter-spacing: .12em; }
+  #reels { display: flex; gap: 12px; justify-content: center; }
+  .reel { box-sizing: border-box; flex: 1; min-width: 0; height: clamp(110px, 18vw, 170px); display: grid; place-items: center; overflow: hidden; background: #25262b; border: 3px solid #f6f5f1; }
+  .symbol { max-width: 100%; padding: 6px; font-size: clamp(22px, 5vw, 54px); font-weight: 800; overflow-wrap: anywhere; }
+  .reel.spin .symbol { animation: shake .12s linear infinite; }
+  #message { min-height: 1.2em; margin: 22px 0 8px; font-size: clamp(24px, 5vw, 52px); font-weight: 800; }
+  #meta { min-height: 1.4em; margin: 0; font-size: clamp(14px, 2.4vw, 22px); }
+  #slot[data-tier="small"] #message { color: #6fc3ff; }
+  #slot[data-tier="big"] #message { color: #72df9b; }
+  #slot[data-tier="jackpot"] #message { color: #ffc53d; }
+  #slot.reach { animation: reach .18s linear 2; }
+  #slot.revival { animation: revival .22s linear 3; }
+  #slot.near-miss { border-color: #6fc3ff; }
+  #slot.flash { background: #f6f5f1; color: #111113; }
+  @keyframes shake { 0% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 100% { transform: translateX(-3px); } }
+  @keyframes reach { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+  @keyframes revival { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(7px, -3px); } }
+</style>
+</head>
+<body>
+<main id="slot" data-tier="lose" aria-live="polite">
+  <h1 id="title">スロット</h1>
+  <div id="reels"><div class="reel"><span class="symbol">？</span></div><div class="reel"><span class="symbol">？</span></div><div class="reel"><span class="symbol">？</span></div></div>
+  <p id="message"></p>
+  <p id="meta"></p>
+</main>
+<script src="lib/gift-name.js"></script>
+<script src="slot.js"></script>
+</body>
+</html>

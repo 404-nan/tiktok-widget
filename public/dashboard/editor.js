@@ -12,7 +12,7 @@ import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gi
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -59,6 +59,7 @@ const LABELS = {
   'mediaAlerts.enabled': 'メディア通知を使う', 'gacha.enabled': 'ガチャを使う',
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
+  'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
   coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
   bigHit: '大ダメージになるダメージ', lowHp: '赤く点滅する残り HP（%）', nextNames: '2体目からの名前（カンマ区切り）', autoNext: '倒したら次のボスを出す',
@@ -95,6 +96,7 @@ const BASIC = {
   mediaAlerts: ['enabled', 'rules'],
   giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
   gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
+  slots: ['enabled', 'trigger', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 // WIN数の演出の段階の境目（src/wins.js の LOSS_PRESETS と同じ）
@@ -884,7 +886,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   // かんたんでは、短い項目は「呼び名 | 入れるところ」の1行に、長い項目は呼び名の下に置く
-  const WIDE_TYPES = ['list', 'items', 'rules', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers'];
+  const WIDE_TYPES = ['list', 'items', 'rules', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'slotPayouts'];
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
@@ -893,6 +895,38 @@ export function createEditor({ api, setMessage }) {
   }
 
   function buildField(key, field, value) {
+    if (field.type === 'slotTrigger') {
+      const wrap = document.createElement('div');
+      wrap.className = 'field items-field';
+      const head = document.createElement('span');
+      head.className = 'field-label';
+      head.textContent = labelText(key);
+      const giftControl = giftPicker({ value: value?.gifts ?? [], gifts, onChange: (names) => save(key, { gifts: names, minCoins: Number(coins.value) || 0 }) });
+      const coins = document.createElement('input');
+      coins.type = 'number';
+      coins.min = '0';
+      coins.step = '1';
+      coins.value = value?.minCoins ?? 0;
+      coins.setAttribute('aria-label', '最低コイン');
+      coins.addEventListener('input', () => save(key, { gifts: value?.gifts ?? [], minCoins: Number(coins.value) || 0 }));
+      const coinLabel = document.createElement('span');
+      coinLabel.className = 'field-label';
+      coinLabel.textContent = '最低コイン';
+      wrap.append(head, giftControl, coinLabel, coins);
+      return wrap;
+    }
+    if (field.type === 'slotPayouts') {
+      const wrap = labelFor(key, field);
+      const control = document.createElement('textarea');
+      control.rows = 10;
+      control.className = 'mono';
+      control.spellcheck = false;
+      control.value = rulesToYaml(value);
+      control.placeholder = '- {id: lose, text: はずれ, tier: lose, weight: 70, symbols: []}\n- {id: jackpot, text: ジャックポット, tier: jackpot, weight: 1, symbols: [7, 7, 7]}';
+      control.addEventListener('input', () => patch(pathOf(key), { yaml: control.value.trim() || '[]' }, 700));
+      wrap.append(control);
+      return wrap;
+    }
     if (field.type === 'mediaRules' || field.type === 'gachaTiers' || field.type === 'soundRules') {
       const editor = field.type === 'mediaRules' ? mediaRulesEditor(value) : field.type === 'soundRules' ? giftSoundRulesView({
         rules: value,

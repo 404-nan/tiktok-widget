@@ -196,6 +196,7 @@ async function setupDevTools() {
   await setupSimulate();
   const previews = [
     ['ルーレット', `${BASE}/widgets/roulette.html?preview=1`, 600, 680],
+    ['スロット', `${BASE}/widgets/slot.html?preview=1`, 720, 520],
     ['RUSH', `${BASE}/widgets/rush.html?preview=1`, 1080, 1920],
     ['延長タイマー', `${BASE}/widgets/timer.html?preview=1`, 720, 280],
     ['モニター', `${BASE}/monitor/`, 1280, 900],

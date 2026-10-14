@@ -25,6 +25,7 @@ import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
+import { SlotEngine } from './slot.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
@@ -42,7 +43,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -60,7 +61,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -109,13 +110,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
+  const slot = new SlotEngine(hub, { bus });
   boss.setBus(bus);
   const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
   bindRouletteActions(hub, bus, actionDeps);
+  bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
     mediaAlerts.onEvent(e);
     giftSounds.onEvent(e);
     gacha.onEvent(e);
+    slot.onEvent(e);
   });
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
@@ -134,6 +138,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     mediaAlerts.setConfig(config.mediaAlerts);
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
+    slot.setConfig(config.slots);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -169,6 +174,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   function configPayload(req) {
     const defaults = Object.fromEntries(SECTIONS.map((s) => [s, defaultsFor(s)]));
     if (req.role === 'obs') return { config: cfg.publicConfig(hub.config), defaults: cfg.publicConfig(defaults) };
+    const me = info();
+    const widgets = hub.config ? cfg.widgetList(hub.config, widgetBase ? widgetBase(origin(req)) : origin(req)) : [];
+    const visibleWidgets = me.mode === 'tenant' ? widgets.filter((widget) => widget.section === 'all' || (me.widgets ?? []).includes(widget.section)) : widgets;
     return {
       path: store.path,
       yaml: store.readText(),
@@ -176,7 +184,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       defaults,
       errors: lastIssues.errors,
       warnings: lastIssues.warnings,
-      widgets: hub.config ? cfg.widgetList(hub.config, widgetBase ? widgetBase(origin(req)) : origin(req)) : [],
+      widgets: visibleWidgets,
     };
   }
 
@@ -536,12 +544,18 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
         return res.json({ ok: true, gacha: started });
       }
+      if (body.target === 'slot') {
+        const started = slot.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
+        if (!started) return res.status(400).json({ error: 'スロットはオフです' });
+        return res.json({ ok: true, slot: started });
+      }
       return res.status(400).json({ error: '不明な target です' });
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
   });
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
+  r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
   r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
   r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
     try {
@@ -731,7 +745,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readBoss() { return boss.snapshot(); },
     readRush() { return rush.snapshot(); },
     readWidgets(base) {
-      return hub.config ? cfg.widgetList(hub.config, base) : [];
+      const list = hub.config ? cfg.widgetList(hub.config, base) : [];
+      const me = info();
+      return me.mode === 'tenant' ? list.filter((widget) => widget.section === 'all' || (me.widgets ?? []).includes(widget.section)) : list;
     },
     performControl,
     simulateEvent,
@@ -750,6 +766,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       clearInterval(history.timer);
       timer.close();
       gacha.close();
+      slot.close();
       giftSounds.close();
       boss.flush();
     },

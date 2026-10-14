@@ -55,11 +55,13 @@
     var healBtn = document.getElementById('devBossHeal');
     var mediaBtn = document.getElementById('devMediaBtn');
     var gachaBtn = document.getElementById('devGachaBtn');
+    var slotBtn = document.getElementById('devSlotBtn');
     if (actionBtn) actionBtn.onclick = function () { trigger({ target: 'roulette-action', actions: [buildAction()] }); };
     if (damageBtn) damageBtn.onclick = function () { trigger({ target: 'boss', action: 'damage', amount: Number(num('devBossAmount')) }); };
     if (healBtn) healBtn.onclick = function () { trigger({ target: 'boss', action: 'heal', amount: Number(num('devBossAmount')) }); };
     if (mediaBtn) mediaBtn.onclick = function () { trigger({ target: 'media', mediaId: num('devMediaId') }); };
     if (gachaBtn) gachaBtn.onclick = function () { trigger({ target: 'gacha' }); };
+    if (slotBtn) slotBtn.onclick = function () { trigger({ target: 'slot' }); };
   }
 
   function pollNote() {

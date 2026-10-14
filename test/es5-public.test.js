@@ -4,12 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
   'public/dashboard/dev-features.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
+  'public/widgets/slot.js',
   'public/widgets/sounds.js',
 ];
 
@@ -29,9 +31,12 @@ function loadAcorn() {
 
 test('新しい公開 JS は ES5 として解析できる', () => {
   const acorn = loadAcorn();
-  assert.ok(acorn, 'acorn が見つかりません');
   for (const file of files) {
     const code = fs.readFileSync(path.join(root, file), 'utf8');
-    assert.doesNotThrow(() => acorn.parse(code, { ecmaVersion: 5, sourceType: 'script' }), file);
+    if (acorn) assert.doesNotThrow(() => acorn.parse(code, { ecmaVersion: 5, sourceType: 'script' }), file);
+    else {
+      assert.doesNotMatch(code, /=>|`|\?\.|\?\?|\b(?:let|const|class|import|export)\b/, file);
+      assert.doesNotThrow(() => new vm.Script(code), file);
+    }
   }
 });

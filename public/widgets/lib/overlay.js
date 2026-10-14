@@ -93,7 +93,7 @@ export async function setupWidget(section, fallback = {}) {
   return params({ ...fallback, ...defaults[section], ...entry });
 }
 
-const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', theme: 'ウィジェット' };
+const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット' };
 /** 各ウィジェットの本物の描画関数を、見本モードにも使う。 */
 export function setSampleRenderer(renderer) {
   window.__twSampleRenderer = renderer;

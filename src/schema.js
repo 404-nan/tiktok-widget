@@ -508,6 +508,47 @@ SCHEMA.gacha = {
   },
 };
 
+SCHEMA.slots = {
+  kind: 'object',
+  page: 'slot',
+  title: 'スロット',
+  size: () => [720, 520],
+  desc:
+    'ギフトで回る3リールのスロット。結果はサーバーで先に決まり、画面はリーチ・ニアミス・復活を含む開示演出だけを行う。' +
+    '景品は演出・特典のみで、賭博・現金の表現は使わない。URL は /widgets/slot.html',
+  fields: {
+    enabled: bool(true, 'スロットを使う'),
+    trigger: {
+      type: 'slotTrigger',
+      default: { gifts: ['5655'], minCoins: 0 },
+      desc: '回すきっかけ。gifts のギフト、または minCoins 以上のギフト',
+    },
+    symbols: {
+      type: 'items',
+      default: [
+        { label: 'さくらんぼ', weight: 40 },
+        { label: 'ベル', weight: 30 },
+        { label: 'スター', weight: 20 },
+        { label: '7', weight: 10 },
+      ],
+      desc: '絵柄と出現の重み。payouts の symbols にはここで書いた絵柄名を使う',
+    },
+    payouts: {
+      type: 'slotPayouts',
+      default: [
+        { id: 'lose', text: 'はずれ', tier: 'lose', weight: 70, symbols: [] },
+        { id: 'small', text: '小当たり', tier: 'small', weight: 20, symbols: ['さくらんぼ', 'さくらんぼ', 'ベル'] },
+        { id: 'big', text: '大当たり', tier: 'big', weight: 9, symbols: ['ベル', 'ベル', 'ベル'] },
+        { id: 'jackpot', text: 'ジャックポット', tier: 'jackpot', weight: 1, symbols: ['7', '7', '7'] },
+      ],
+      desc: '役ごとの重み、表示文、当たり絵柄、当選時の actions',
+    },
+    revivalRate: num(20, '当たりのうち復活演出で見せる割合（0〜100）', { min: 0, max: 100 }),
+    nearMissRate: num(30, '外れのうちニアミス演出にする割合（0〜100）', { min: 0, max: 100 }),
+    reelStopMs: num(700, 'リール1本が止まる間隔（ミリ秒）', { min: 100, max: 10000 }),
+  },
+};
+
 SCHEMA.rankings = {
   kind: 'map',
   page: 'ranking',

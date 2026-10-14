@@ -75,9 +75,58 @@ function checkValue(field, value, where, issues) {
       return checkSoundRules(value, where, issues);
     case 'gachaTiers':
       return checkGachaTiers(value, where, issues);
+    case 'slotTrigger':
+      return checkSlotTrigger(value, where, issues);
+    case 'slotPayouts':
+      return checkSlotPayouts(value, where, issues);
     default:
       return value;
   }
+}
+
+function checkSlotTrigger(value, where, issues) {
+  if (value == null) return { gifts: [], minCoins: 0 };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    issues.errors.push(`${where}: { gifts: [...], minCoins: 100 } のように書いてください`);
+    return { gifts: [], minCoins: 0 };
+  }
+  const out = {
+    gifts: value.gifts == null ? [] : checkValue({ type: 'list', default: [] }, value.gifts, `${where}.gifts`, issues),
+    minCoins: value.minCoins == null ? 0 : checkValue({ type: 'number', default: 0, min: 0 }, value.minCoins, `${where}.minCoins`, issues),
+  };
+  for (const key of Object.keys(value)) if (!['gifts', 'minCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  return out;
+}
+
+function checkSlotPayouts(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.slots.fields.payouts.default);
+  if (value == null) return fallback;
+  if (!Array.isArray(value) || value.length === 0) {
+    issues.errors.push(`${where}: 役を1つ以上、一覧で書いてください`);
+    return fallback;
+  }
+  const ids = new Set();
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { id, text, tier, weight, symbols, actions } で書いてください`);
+      return { id: `role${i}`, text: '？', tier: 'lose', weight: 1, symbols: [], actions: [] };
+    }
+    const id = String(raw.id ?? `role${i}`).trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) issues.errors.push(`${at}.id: 英数字と - _ だけにしてください`);
+    if (ids.has(id)) issues.errors.push(`${at}.id: 同じ id が重なっています`);
+    ids.add(id);
+    const tier = ['lose', 'small', 'big', 'jackpot'].includes(raw.tier) ? raw.tier : 'lose';
+    if (!['lose', 'small', 'big', 'jackpot'].includes(raw.tier)) issues.errors.push(`${at}.tier: lose / small / big / jackpot のどれかにしてください`);
+    const weight = Number(raw.weight ?? 1);
+    if (!(weight > 0)) issues.errors.push(`${at}.weight: 0 より大きい数にしてください`);
+    const symbols = raw.symbols == null ? [] : checkValue({ type: 'list', default: [] }, raw.symbols, `${at}.symbols`, issues);
+    const actions = raw.actions == null ? [] : checkActions(raw.actions, `${at}.actions`, issues);
+    const text = String(raw.text ?? raw.label ?? id).trim() || id;
+    const known = ['id', 'text', 'label', 'tier', 'weight', 'symbols', 'actions'];
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return { id: /^[A-Za-z0-9_-]+$/.test(id) ? id : `role${i}`, text, tier, weight: weight > 0 ? weight : 1, symbols, actions };
+  });
 }
 
 function checkItems(value, where, issues) {
@@ -699,7 +748,7 @@ export function reference() {
     '',
     `場所: ${CONFIG_PATH}`,
     '',
-    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / giftSounds / gacha など。',
+    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / giftSounds / gacha / slots など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
     'ギフト名は TikTok の英語名・日本語名・ID のどれでも書けます。画面には TikTok の日本語名を出します。list_gifts で確認できます。',
