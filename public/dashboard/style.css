@@ -1159,7 +1159,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 }
 
 /* ============================================================
-   上のカード（更新のお知らせ・テスト送信・動作確認用の画面）と、開発の札
+   上のカード（プラン・更新のお知らせ・テスト送信・動作確認用の画面）と、開発の札
    1ページ目と同じ決まり: 下の中身と同じ列・同じ幅・同じ内側余白・同じ間隔。
    中の項目は箱にせず、線で区切った行にする。
    ============================================================ */
@@ -1171,6 +1171,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 }
 /* 上の余白はカードが持つ（カードが1枚も出ていないときは、何も足さない） */
 .top-cards > .notes-panel,
+.top-cards > .plan-panel,
 .top-cards > .dev-panel {
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
@@ -1184,7 +1185,9 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   box-shadow: none;
   overflow: hidden;
 }
-.top-cards > .notes-panel { display: grid; }
+.top-cards > .notes-panel,
+.top-cards > .plan-panel { display: grid; }
+.plan-body { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
 .top-cards input, .top-cards select { border-radius: var(--s-2); }
 
 /* カードの見出しの行 */

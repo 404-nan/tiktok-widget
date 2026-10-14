@@ -11,6 +11,7 @@ import { createStore } from './config.js';
 import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
 import { RentalState, rentalForHandle } from './rental.js';
+import { BillingStore } from './billing.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'));
@@ -39,10 +40,11 @@ function migrate(holder) {
 }
 
 export class Tenants {
-  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null } = {}) {
+  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env } = {}) {
     this.dir = dir;
     this.ai = ai; // 「AI にたのむ」（全員で同じキーを使う）
     this.notes = notes;
+    this.billing = new BillingStore({ dir, env });
     this.file = path.join(dir, 'tenants.json');
     this.onChange = onChange;
     this.data = { tenants: [], global: { access: {} } };
@@ -221,7 +223,9 @@ export class Tenants {
 
   // --- 配信者の追加・変更 ---
 
-  create({ name }) {
+  create({ name, referralCode } = {}) {
+    const code = referralCode == null || referralCode === '' ? '' : String(referralCode).trim();
+    if (code) this.billing.assertUsableCode(code);
     const t = {
       id: newId(),
       name: String(name ?? '').trim() || '名前なし',
@@ -241,7 +245,42 @@ export class Tenants {
     };
     this.data.tenants.push(t);
     this.#save();
+    if (code) this.billing.applyCode(t.id, code);
     return t;
+  }
+
+  updateBilling(id, patch) {
+    if (!this.get(id)) throw new Error('その配信者は見つかりません');
+    const view = this.billing.setAccount(id, patch);
+    this.#notify(id);
+    return view;
+  }
+
+  updateBillingSettings(patch) {
+    const view = this.billing.setGlobal(patch);
+    this.#notify(null);
+    return view;
+  }
+
+  issueReferralCode(id) {
+    if (!this.get(id)) throw new Error('その配信者は見つかりません');
+    const code = this.billing.ensureCode(id);
+    this.#notify(id);
+    return code;
+  }
+
+  applyReferral(id, code) {
+    if (!this.get(id)) throw new Error('その配信者は見つかりません');
+    const result = this.billing.applyCode(id, code);
+    this.#notify(null);
+    return result;
+  }
+
+  useBillingCredit(id) {
+    if (!this.get(id)) throw new Error('その配信者は見つかりません');
+    const result = this.billing.useMonth(id);
+    this.#notify(id);
+    return result;
   }
 
   update(id, patch) {
@@ -271,6 +310,7 @@ export class Tenants {
     await this.close(id);
     this.data.tenants = this.data.tenants.filter((t) => t.id !== id);
     this.#save();
+    this.billing.remove(id);
   }
 
   // --- 配信者ごとの仕組み（runtime） ---
@@ -285,6 +325,8 @@ export class Tenants {
     const rental = rentalForHandle(this.rental.snapshot, t?.tiktokId);
     const widgets = [...(t?.widgets ?? [])].filter((section) => this.entitled(id, section));
     if (rental.now && this.entitled(id, 'minecraft') && !widgets.includes('minecraft')) widgets.push('minecraft');
+    const billing = this.billing.clientView(id);
+    billing.limited = Object.keys(FEATURES).filter((feature) => !this.billing.isFeatureAllowed(id, feature));
     return {
       mode: 'tenant',
       id,
@@ -295,6 +337,7 @@ export class Tenants {
       access: Object.fromEntries(Object.entries(this.accessState(id)).filter(([, state]) => state.on)),
       template: t?.template ?? null,
       guideDone: Boolean(t?.guideDone),
+      billing,
     };
   }
 
@@ -370,7 +413,12 @@ export class Tenants {
   }
 
   onMap(id) {
-    return Object.fromEntries(Object.keys(FEATURES).map((f) => [f, this.entitled(id, f)]));
+    const billing = this.billing.clientView(id);
+    return {
+      features: Object.fromEntries(Object.keys(FEATURES).map((f) => [f, this.entitled(id, f)])),
+      overlay: billing.overlay,
+      limited: Object.keys(FEATURES).filter((feature) => !this.billing.isFeatureAllowed(id, feature)),
+    };
   }
 
   #checkExpiry() {
@@ -396,6 +444,7 @@ export function backupData(dir, keep = 20) {
   const files = [];
   const list = path.join(dir, 'tenants.json');
   if (fs.existsSync(list)) files.push('tenants.json');
+  if (fs.existsSync(path.join(dir, 'billing.json'))) files.push('billing.json');
   const tdir = path.join(dir, 'tenants');
   if (fs.existsSync(tdir)) {
     for (const id of fs.readdirSync(tdir)) {

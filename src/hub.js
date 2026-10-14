@@ -43,6 +43,11 @@ export class Hub extends EventEmitter {
   addClient(ws) {
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
+    // 未払いの配信画面には、中身もエラー文も出さない
+    if (ws.quiet) {
+      this.#send(ws, { type: 'hello', status: { mode: 'idle', message: '' }, state: emptyState(), sample: { on: false, until: null }, config: null, recentChats: [] });
+      return;
+    }
     // ウィジェットにはパスワードなどを抜いた設定を配る
     // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
     this.#send(ws, { type: 'hello', status: this.status, state: this.state, sample: this.sampleState(), config: publicConfig(this.config), recentChats: this.recentChats });
@@ -121,7 +126,11 @@ export class Hub extends EventEmitter {
 
   broadcast(msg) {
     const text = JSON.stringify(msg);
-    for (const ws of this.clients) if (ws.readyState === 1) ws.send(text);
+    for (const ws of this.clients) {
+      if (ws.readyState !== 1) continue;
+      if (typeof ws.allowMessage === 'function' && !ws.allowMessage(msg)) continue;
+      ws.send(text);
+    }
   }
 
   // ユーザーごとの集計の行（なければ作る）

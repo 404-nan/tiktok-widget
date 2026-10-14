@@ -40,6 +40,8 @@ const pageUrl = (page, id, extra = '') => {
 };
 const entitled = (section, me) => me?.mode !== 'tenant' || (section === 'winsFx' ? me.access?.winsFx?.on : me.access?.[section]?.on !== false);
 const active = (section, config, me) => {
+  if (me?.billing?.overlay === false) return false;
+  if ((me?.billing?.limited ?? []).includes(section)) return false;
   if (!entitled(section, me)) return false;
   if (me?.mode === 'tenant') return me.widgets?.includes(section);
   if (section === 'rush') return config.rush?.enabled !== false;
@@ -120,7 +122,20 @@ async function boot() {
   let currentConfig = data.config ?? {};
   let currentMe = me;
   render(currentConfig, currentMe);
-  connect({ config: (config) => { currentConfig = config; render(currentConfig, currentMe); }, entitlements: (info) => { currentMe = info; render(currentConfig, currentMe); } });
+  connect({
+    config: (config) => { currentConfig = config; render(currentConfig, currentMe); },
+    entitlements: (msg) => {
+      const info = msg && msg.info ? msg.info : msg;
+      currentMe = info || currentMe;
+      if (currentMe?.billing?.overlay === false) {
+        stage.replaceChildren();
+        frameMap.clear();
+        placeholderMap.clear();
+        return;
+      }
+      render(currentConfig, currentMe);
+    },
+  });
 }
 boot().catch(() => {});
 </script>

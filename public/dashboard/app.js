@@ -117,6 +117,37 @@ async function setupSimulate() {
   });
 }
 
+function renderPlan(billing) {
+  const panel = $('planPanel');
+  if (!panel) return;
+  if (!billing?.show) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const bits = [billing.planLabel || 'プラン未設定', billing.statusLabel || ''];
+  if (billing.paidUntil && billing.status === 'active') bits.push(`${billing.paidUntil} まで`);
+  $('planStatus').textContent = bits.filter(Boolean).join('・');
+  const lines = [];
+  if (billing.enforcement && billing.overlay === false) {
+    lines.push('お支払いの確認が取れていないため、配信画面のウィジェットを止めています。設定は残っています。管理者に連絡してください。');
+  } else if (billing.status === 'free') {
+    lines.push('無料で使えます。');
+  } else if (billing.status === 'active') {
+    lines.push('支払い済みの期間は、配信画面が出ます。');
+  } else if (billing.status === 'unpaid') {
+    lines.push('未払いです。いまは配信画面を止めていません。');
+  }
+  if (billing.credit > 0) lines.push(`翌月以降に使える割引: ${fmt(billing.credit)}円（現金にはできません）`);
+  if (billing.code) lines.push(`紹介コード: ${billing.code}`);
+  $('planBody').textContent = lines.join('\n');
+}
+
+async function refreshPlan() {
+  const me = await api('/api/me').catch(() => null);
+  renderPlan(me?.billing);
+}
+
 async function setupNotes() {
   const me = await api('/api/me').catch(() => null);
   const notes = (await api('/api/notes').catch(() => ({ notes: [] }))).notes ?? [];
@@ -239,6 +270,7 @@ setupChrome('settings');
 setupKpis();
 await setupConnect();
 setupNotes();
+refreshPlan();
 setupDevTools();
 clearLog();
 
@@ -284,5 +316,6 @@ connect({
   entitlements: () => {
     editor.onEntitlements();
     ai?.refresh();
+    refreshPlan();
   },
 });

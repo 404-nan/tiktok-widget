@@ -9,6 +9,7 @@ import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
+import { overlayMessageAllowed } from './src/billing.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
 import { NotesStore } from './src/notes.js';
@@ -96,6 +97,7 @@ function tenantView(req, t) {
     rental: tenants.info(t.id).rental,
     shortId: t.shortId,
     pin: t.pin,
+    billing: tenants.billing.adminView(t.id),
     urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
     settings: {
@@ -115,12 +117,17 @@ admin.get('/tenants', (req, res) => {
     ai: ai.state(),
     keys: apiKeys.list(),
     notes: notes.list(),
+    billing: tenants.billing.globalView(),
   });
 });
 admin.get('/lul', (req, res) => res.json({ tenants: tenants.list().map((t) => tenantView(req, t)), features: FEATURES }));
 admin.post('/tenants', (req, res) => {
-  const t = tenants.create({ name: req.body?.name });
-  res.json({ ok: true, tenant: tenantView(req, t) });
+  try {
+    const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
+    res.json({ ok: true, tenant: tenantView(req, t) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 admin.patch('/tenants/:id', (req, res) => {
   try {
@@ -228,6 +235,43 @@ admin.put('/notes/:id', (req, res) => {
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 admin.delete('/notes/:id', (req, res) => res.json({ ok: notes.remove(req.params.id) }));
+// プランと支払い。決済はせず、支払った日までと無料提供を手で入れる
+admin.put('/billing', (req, res) => {
+  try {
+    res.json({ ok: true, billing: tenants.updateBillingSettings(req.body ?? {}) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.put('/tenants/:id/billing', (req, res) => {
+  try {
+    res.json({ ok: true, billing: tenants.updateBilling(req.params.id, req.body ?? {}), tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/billing/code', (req, res) => {
+  try {
+    res.json({ ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/referral', (req, res) => {
+  try {
+    const result = tenants.applyReferral(req.params.id, req.body?.code);
+    res.json({ ok: true, ...result, tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/billing/credit', (req, res) => {
+  try {
+    res.json({ ok: true, discount: tenants.useBillingCredit(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 // 「AI にたのむ」の設定: { key?（空なら消す）, model?, dailyLimit?（配信者1人の1日の回数） }
 admin.put('/ai', (req, res) => {
   try {
@@ -293,9 +337,10 @@ app.use('/t/:key', (req, res, next) => {
   if (role === 'obs' && (p === '/widgets' || p === '/widgets/')) {
     return res.type('text/plain; charset=utf-8').send('OBS 用の土台 URL です。ダッシュボードで各ウィジェットの URL をコピーして OBS に貼ってください');
   }
-  // 管理者が使えなくしているウィジェットは、何も出さないページにする
+  // 未払い、またはプランに含まれないウィジェットは、何も出さないページにする（配信画面にエラーは出さない）
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
   const feature = page && featureOfPage(page);
+  if (page && /\.html$/i.test(page) && tenants.billing.widgetBlocked(tenant.id, feature)) return res.sendFile(lockedPage);
   if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
   const rt = tenants.runtime(tenant.id);
   tenantStatic(req, res, () => rt.router(req, res, next));
@@ -323,12 +368,14 @@ server.on('upgrade', (req, socket, head) => {
   const { pathname } = new URL(req.url, 'http://x');
   let rt = null;
   let role = 'owner';
+  let tenantId = null;
   const m = pathname.match(/^\/t\/([^/]+)\/ws$/);
   if (m) {
     const found = tenants.byKey(m[1]);
     if (found?.tenant.enabled) {
       rt = tenants.runtime(found.tenant.id);
       role = found.role;
+      tenantId = found.tenant.id;
     }
   } else if (pathname === '/ws') {
     rt = local;
@@ -341,6 +388,10 @@ server.on('upgrade', (req, socket, head) => {
     ws.role = role;
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
+    const overlayBlocked = () => tenantId != null && tenants.billing.isOverlayBlocked(tenantId);
+    // 未払いの OBS 用接続は、配信に映るものを流さない。読み込み直しだけは届ける
+    ws.quiet = role === 'obs' && overlayBlocked();
+    ws.allowMessage = (msg) => overlayMessageAllowed({ role, blocked: overlayBlocked(), type: msg?.type });
     rt.hub.addClient(ws);
   });
 });

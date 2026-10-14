@@ -22,7 +22,7 @@ detailBody.className = 'detail-body';
 $('detail').append(detailBody);
 
 // カードを縦に並べるページ（見出しはカードの外、中の項目は線で区切った行）
-const CARD_PAGES = ['lul', 'notes', 'keys'];
+const CARD_PAGES = ['lul', 'notes', 'keys', 'billing'];
 
 async function api(path, body, method) {
   const res = await fetch(`/admin/api${path}`, {
@@ -608,6 +608,134 @@ function notesDetail() {
   return [el('div', { className: 'detail-head' }, el('h2', { textContent: '更新のお知らせ' }), el('p', { className: 'sub', textContent: '配信者のダッシュボードの上に表示します。OBS の画面には表示しません。' })), el('section', { className: 'form-card' }, el('h3', { textContent: 'お知らせを追加' }), form), el('div', { className: 'admin-note-list' }, ...rows)];
 }
 
+const FLAG_ALIASES = {
+  bosses: ['bosses', 'boss'],
+  gacha: ['gacha'],
+  mediaAlerts: ['mediaAlerts', 'media'],
+  roulettes: ['roulettes'],
+  rouletteLinks: ['rouletteLinks'],
+};
+
+function billingDetail() {
+  const settings = data.billing ?? { enforcement: null, effective: false, multiplier: 1.5, premiumFeatures: [], plans: [] };
+  const plans = settings.plans?.length ? settings.plans : [
+    { id: 'percent5', label: '5%プラン', price: null },
+    { id: 'yen2000', label: '2000円プラン', price: 2000 },
+    { id: 'yen5000', label: '5000円プラン', price: 5000 },
+  ];
+  const selected = new Set(settings.premiumFeatures ?? []);
+  const features = Object.entries(data.features ?? {});
+  const known = new Set(features.flatMap(([key]) => FLAG_ALIASES[key] ?? [key]));
+  const enforcement = el('select');
+  enforcement.setAttribute('aria-label', '支払いの確認');
+  enforcement.append(new Option('初期値（本番はオフ、開発はオン）', '', false, settings.enforcement == null));
+  enforcement.append(new Option('オン（未払いの配信画面を止める）', 'on', false, settings.enforcement === true));
+  enforcement.append(new Option('オフ（止めない）', 'off', false, settings.enforcement === false));
+  const multiplier = el('select');
+  multiplier.setAttribute('aria-label', '紹介の倍率');
+  multiplier.append(new Option('1.5倍', '1.5', false, settings.multiplier !== 2));
+  multiplier.append(new Option('2倍', '2', false, settings.multiplier === 2));
+  const checks = features.map(([key, feature]) => {
+    const input = el('input', { type: 'checkbox' });
+    input.dataset.flag = key;
+    input.checked = (FLAG_ALIASES[key] ?? [key]).some((name) => selected.has(name));
+    return el('label', {}, input, el('span', { textContent: feature.label }));
+  });
+  const flagBox = el('div', { className: 'flag-row' }, ...checks);
+  const extra = el('input', { value: (settings.premiumFeatures ?? []).filter((name) => !known.has(name)).join(', '), placeholder: '例: rouletteLinks' });
+  extra.setAttribute('aria-label', 'そのほかの機能名');
+  const saveGlobal = button('保存', () => {
+    const flags = [...flagBox.querySelectorAll('input:checked')].map((input) => input.dataset.flag);
+    const more = extra.value.split(/[,、\s]+/).map((name) => name.trim()).filter(Boolean);
+    act(() => api('/billing', {
+      enforcement: enforcement.value === 'on' ? true : enforcement.value === 'off' ? false : null,
+      multiplier: Number(multiplier.value),
+      premiumFeatures: [...flags, ...more],
+    }, 'PUT'), 'プランの設定を保存しました')();
+  }, { cls: 'btn primary' });
+  const globalCard = el(
+    'section',
+    { className: 'form-card' },
+    el('h3', { textContent: '全体' }),
+    el(
+      'div',
+      { className: 'note-form' },
+      el('p', { className: 'sub', textContent: settings.effective ? 'いまは支払いの確認がオンです。未払いの配信画面は止まります。' : 'いまは支払いの確認がオフです。配信画面は今までどおり出ます。' }),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払いの確認' }), enforcement),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '紹介の倍率' }), multiplier),
+      el('div', { className: 'field' }, el('span', { className: 'field-label', textContent: '5000円プランだけの機能' }), flagBox),
+      el('p', { className: 'sub', textContent: '空のままだと、まだ決めていません。5%プランと2000円プランは同じ機能です。' }),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'そのほかの機能名' }), extra),
+      el('div', { className: 'btn-row' }, saveGlobal),
+    ),
+  );
+  const rows = (data.tenants ?? []).map((t) => tenantBillingCard(t, plans));
+  return [
+    el('div', { className: 'detail-head' }, el('h2', { textContent: 'プラン・支払い' }), el('p', { className: 'sub', textContent: '配信者ごとのプランと、支払った日までを手で入れます。割引は次の月の料金から引き、現金では渡しません。' })),
+    globalCard,
+    el('div', { className: 'admin-note-list' }, ...rows),
+  ];
+}
+
+function tenantBillingCard(t, plans) {
+  const b = t.billing ?? {};
+  const yen = (n) => `${Number(n || 0).toLocaleString('ja-JP')}円`;
+  const plan = el('select');
+  plan.setAttribute('aria-label', `${t.name}のプラン`);
+  plan.append(new Option('未設定', '', false, !b.plan));
+  for (const item of plans) plan.append(new Option(item.label, item.id, false, b.plan === item.id));
+  const free = el('input', { type: 'checkbox' });
+  free.checked = Boolean(b.free);
+  const until = el('input', { type: 'date', value: b.paidUntil || '' });
+  until.setAttribute('aria-label', `${t.name}の支払った日まで`);
+  const price = el('input', { type: 'number', min: '0', step: '1', value: b.monthlyPrice == null ? '' : String(b.monthlyPrice), placeholder: '空ならプランの金額' });
+  price.setAttribute('aria-label', `${t.name}の月額`);
+  const save = button('保存', () => {
+    act(() => api(`/tenants/${t.id}/billing`, {
+      plan: plan.value || null,
+      free: free.checked,
+      paidUntil: until.value || null,
+      monthlyPrice: price.value === '' ? null : Number(price.value),
+    }, 'PUT'), `${t.name}のプランを保存しました`)();
+  }, { cls: 'btn primary' });
+  const codeLine = b.code
+    ? el('p', { className: 'sub', textContent: `紹介コード: ${b.code}` })
+    : el('div', { className: 'btn-row loose' }, button('紹介コードを作る', () => act(() => api(`/tenants/${t.id}/billing/code`, {}, 'POST'), '紹介コードを作りました')()));
+  const useCode = el('input', { placeholder: '相手の紹介コード', value: '' });
+  useCode.setAttribute('aria-label', `${t.name}に適用する紹介コード`);
+  if (b.referredBy) useCode.disabled = true;
+  const apply = button('コードを適用', () => {
+    if (!useCode.value.trim()) return message('紹介コードを入れてください', true);
+    if (!confirm('この紹介コードを適用します。双方の割引残高が増えます。現金にはなりません。')) return;
+    act(() => api(`/tenants/${t.id}/referral`, { code: useCode.value.trim() }, 'POST'), '紹介コードを適用しました')();
+  }, { cls: 'btn primary' });
+  if (b.referredBy) apply.disabled = true;
+  const discount = b.discount ?? { price: 0, discount: 0, due: 0 };
+  const use = button('1か月分の割引を残高から引く', () => {
+    if (!confirm('残高から1か月分の割引を引きます。現金にはなりません。')) return;
+    act(() => api(`/tenants/${t.id}/billing/credit`, {}, 'POST'), '割引を残高から引きました')();
+  });
+  if (!discount.discount) use.disabled = true;
+  return el(
+    'article',
+    { className: 'admin-note' },
+    el('div', { className: 'lul-tenant-head' }, el('h3', { textContent: t.name }), el('span', { className: 'hint', textContent: `${b.statusLabel || '無料提供'}・割引残高 ${yen(b.credit)}` })),
+    el('p', { className: 'sub', textContent: `次の月: ${yen(discount.price)}のうち ${yen(discount.discount)}が割引（残る支払額 ${yen(discount.due)}）` }),
+    el('div', { className: 'field-row' },
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'プラン' }), plan),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払った日まで' }), until),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '月額（円）' }), price),
+    ),
+    el('label', { className: 'row' }, free, el('span', { textContent: '無料提供' })),
+    el('div', { className: 'btn-row' }, save),
+    codeLine,
+    b.referredBy
+      ? el('p', { className: 'sub', textContent: '紹介コードは適用済みです。' })
+      : el('div', {}, el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '相手の紹介コード' }), useCode), el('div', { className: 'btn-row loose' }, apply)),
+    el('div', { className: 'btn-row loose' }, use),
+  );
+}
+
 function keysDetail() {
   const addForm = el('form', { className: 'key-form stack' });
   const name = el('input', { placeholder: '名前', required: true });
@@ -669,6 +797,10 @@ function renderDetail(force = false) {
   }
   if (page === 'keys') {
     detailBody.replaceChildren(...keysDetail());
+    return;
+  }
+  if (page === 'billing') {
+    detailBody.replaceChildren(...billingDetail());
     return;
   }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));

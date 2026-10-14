@@ -21,6 +21,10 @@
 <main>
   <!-- 上のカード: 下の中身と同じ列・同じ幅に並べる -->
   <div class="top-cards">
+  <section class="plan-panel" id="planPanel" hidden>
+    <div class="notes-head"><h2>プラン</h2><span class="hint" id="planStatus"></span></div>
+    <p class="plan-body" id="planBody"></p>
+  </section>
   <section class="notes-panel" id="notesPanel" hidden>
     <div class="notes-head"><h2>更新のお知らせ</h2><span class="badge" id="notesBadge" hidden></span><button class="text-btn pressable" id="notesReadBtn" type="button" hidden>すべて読んだ</button></div>
     <div class="notes-list" id="notesList"></div>

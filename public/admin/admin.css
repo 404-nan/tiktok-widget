@@ -162,7 +162,7 @@
 @media (min-width: 900px) { .admin:has(#main[hidden]) { padding-left: var(--s-6); } }
 
 /* ============================================================
-   カードのページ（LuL 管理・更新のお知らせ・API キー）
+   カードのページ（LuL 管理・更新のお知らせ・API キー・プラン・支払い）
    ダッシュボードの1ページ目と同じ決まり（余白の目盛り・カードの幅・内側余白・間隔は
    /dashboard/style.css の変数を使う）。
    見出しはカードの外。カードは1本の列に同じ幅で並べ、中の項目は箱にせず線で区切った行にする。
@@ -215,13 +215,26 @@
 .field-row > * { min-width: 0; }
 
 .lul-tenant { gap: var(--s-4); }
-.lul-tenant h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; }
+.lul-tenant h3, .admin-note h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; }
 .lul-tenant-head, .key-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
 .lul-tenant-head .hint, .key-meta .hint { margin-left: auto; }
 .lul-setting { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); }
 .lul-setting-head { font-size: 14px; color: var(--text-secondary); }
 .lul-setting textarea { min-height: 120px; font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .admin-key code { color: var(--text-primary); font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.flag-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.flag-row label { display: flex; align-items: center; gap: 6px; font-size: 15px; line-height: 1.6; }
+/* プランの操作は文言が長い。104px のマスに押し込むとはみ出す */
+.detail.card-page .btn-row.loose { display: flex; flex-wrap: wrap; }
+.detail.card-page .btn-row.loose > .btn,
+.detail.card-page .btn-row.loose > .chip {
+  width: auto;
+  min-width: var(--btn-w);
+  height: auto;
+  min-height: var(--btn-h);
+  padding: 0 16px;
+  font-size: 15px;
+}
 
 /* スマホ: 列は画面いっぱい（決まった幅を持たせない） */
 @media (max-width: 899px) {
