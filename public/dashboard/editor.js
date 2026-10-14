@@ -8,10 +8,11 @@ import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } f
 import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 import { giftPicker } from './gift-picker.js';
+import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gift-sounds-form.js';
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'gacha', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -56,6 +57,7 @@ const LABELS = {
   'bosses.name': 'ボスの名前', hp: '最大 HP', hpScale: '次のボスの HP の倍率', 'bosses.image': 'ボスの画像', damageFrom: 'ダメージにするもの',
   rankSource: '順位の参照', rivalCoins: '相手のコイン',
   'mediaAlerts.enabled': 'メディア通知を使う', 'gacha.enabled': 'ガチャを使う',
+  'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
   coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
@@ -91,6 +93,7 @@ const BASIC = {
   bosses: ['name', 'mode', 'rankSource', 'rivalCoins', 'hp', 'hpScale', 'image', 'damageFrom', 'coinDamage', 'likeDamage', 'gifts', 'nextNames', 'roulette', 'commands'],
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   mediaAlerts: ['enabled', 'rules'],
+  giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
   gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -107,6 +110,7 @@ const gainSteps = (e) => {
 const TOKEN_LABELS = { accent: '朱（accent）', gold: '金（gold）', ink: '墨（ink）', 'ink-2': '墨2（ink-2）', paper: '白（paper）' };
 
 export function createEditor({ api, setMessage }) {
+  let devMode = false;
   let schema = null;
   let payload = null; // GET /api/config の結果
   let media = [];
@@ -833,6 +837,14 @@ export function createEditor({ api, setMessage }) {
       form.append(del);
     }
     if (tab === 'mediaAlerts') form.append(mediaLibrary());
+    if (tab === 'giftSounds') {
+      form.append(giftSoundStatusView({
+        dev: devMode,
+        api,
+        setMessage,
+        rules: () => (isObj(tab) ? payload.config[tab]?.rules : []) ?? [],
+      }));
+    }
     renderActions();
     updateUrl(true);
   }
@@ -872,23 +884,32 @@ export function createEditor({ api, setMessage }) {
   }
 
   // かんたんでは、短い項目は「呼び名 | 入れるところ」の1行に、長い項目は呼び名の下に置く
-  const WIDE_TYPES = ['list', 'items', 'rules', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'gachaTiers'];
+  const WIDE_TYPES = ['list', 'items', 'rules', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers'];
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
-    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'gifts' || key === 'photo' || key === 'image' ? 'wide' : 'inline');
+    if (simple()) el.classList.add(WIDE_TYPES.includes(field.type) || key === 'gifts' || key === 'photo' || key === 'image' || key === 'masterVolume' ? 'wide' : 'inline');
     return el;
   }
 
   function buildField(key, field, value) {
-    if (field.type === 'mediaRules' || field.type === 'gachaTiers') {
-      const editor = field.type === 'mediaRules' ? mediaRulesEditor(value) : gachaTiersEditor(value);
+    if (field.type === 'mediaRules' || field.type === 'gachaTiers' || field.type === 'soundRules') {
+      const editor = field.type === 'mediaRules' ? mediaRulesEditor(value) : field.type === 'soundRules' ? giftSoundRulesView({
+        rules: value,
+        gifts,
+        dev: devMode,
+        api,
+        onChange: (rules, delay) => save(key, rules, delay),
+        setMessage,
+        masterVolume: () => (isObj(tab) ? payload.config[tab]?.masterVolume : 80) ?? 80,
+      }) : gachaTiersEditor(value);
       if (simple()) {
         const lab = editor.querySelector('.field-label');
         if (lab) lab.textContent = labelText(key);
       }
       return editor;
     }
+    if (tab === 'giftSounds' && key === 'masterVolume') return masterVolumeField(value, (n) => save(key, n, 200));
     if (field.type === 'items') {
       const entry = isObj(tab) ? payload.config[tab] : payload.config[tab]?.[id];
       const editor = itemsEditor(value, { rushOdds: tab === 'roulettes' && key === 'items' && !!(entry && entry.rushOdds) });
@@ -1413,6 +1434,7 @@ export function createEditor({ api, setMessage }) {
       ['wins.add', 'WIN数を足す・減らす'],
       ['rush.start', 'RUSHを始める'],
       ['media.play', 'メディアを再生'],
+      ['sound.play', '効果音を鳴らす'],
       ['boss.damage', 'ボスにダメージ'],
       ['boss.heal', 'ボスを回復'],
       ['gacha.start', 'ガチャを回す'],
@@ -1423,6 +1445,11 @@ export function createEditor({ api, setMessage }) {
       if (a.type === 'timer.add') return Number.isFinite(Number(a.seconds)) && Number(a.seconds) !== 0;
       if (a.type === 'wins.add') return Number.isInteger(Number(a.n)) && Number(a.n) !== 0;
       if (a.type === 'media.play') return String(a.mediaId || '').trim() !== '';
+      if (a.type === 'sound.play') {
+        if (!String(a.mediaId || '').trim()) return false;
+        if (a.volume != null && a.volume !== '' && !(Number(a.volume) >= 0 && Number(a.volume) <= 100)) return false;
+        return true;
+      }
       if (a.type === 'boss.damage' || a.type === 'boss.heal') return Number(a.amount) > 0;
       return a.type === 'rush.start' || a.type === 'gacha.start';
     };
@@ -1432,6 +1459,10 @@ export function createEditor({ api, setMessage }) {
       if (a.type === 'timer.add') out.seconds = Number(a.seconds);
       else if (a.type === 'wins.add') out.n = Number(a.n);
       else if (a.type === 'media.play') out.mediaId = String(a.mediaId).trim();
+      else if (a.type === 'sound.play') {
+        out.mediaId = String(a.mediaId).trim();
+        if (a.volume != null && a.volume !== '') out.volume = Number(a.volume);
+      }
       else if (a.type === 'boss.damage' || a.type === 'boss.heal') out.amount = Number(a.amount);
       return out;
     };
@@ -1439,6 +1470,7 @@ export function createEditor({ api, setMessage }) {
       if (type === 'timer.add') return '秒（マイナスで減らす）';
       if (type === 'wins.add') return '数（マイナスで減らす）';
       if (type === 'media.play') return 'メディアID';
+      if (type === 'sound.play') return '音声のID';
       if (type === 'boss.damage' || type === 'boss.heal') return '量';
       return '';
     };
@@ -1721,6 +1753,13 @@ export function createEditor({ api, setMessage }) {
           type.value = a.type || 'timer.add';
           const valueInput = document.createElement('input');
           valueInput.setAttribute('aria-label', '動作の値');
+          const volumeInput = document.createElement('input');
+          volumeInput.type = 'number';
+          volumeInput.min = '0';
+          volumeInput.max = '100';
+          volumeInput.step = '1';
+          volumeInput.placeholder = '音量（空なら100）';
+          volumeInput.setAttribute('aria-label', '効果音の音量');
           const idInput = document.createElement('input');
           idInput.placeholder = '対象の名前（空なら全部）';
           idInput.setAttribute('aria-label', '対象の名前');
@@ -1729,16 +1768,18 @@ export function createEditor({ api, setMessage }) {
             const needsValue = a.type !== 'rush.start' && a.type !== 'gacha.start';
             const needsId = a.type === 'timer.add' || a.type === 'wins.add' || a.type === 'boss.damage' || a.type === 'boss.heal';
             valueInput.hidden = !needsValue;
+            volumeInput.hidden = a.type !== 'sound.play';
             idInput.hidden = !needsId;
             valueInput.placeholder = actionPlaceholder(a.type);
-            valueInput.type = a.type === 'media.play' ? 'text' : 'number';
+            valueInput.type = a.type === 'media.play' || a.type === 'sound.play' ? 'text' : 'number';
             if (a.type === 'wins.add') valueInput.step = '1';
             else valueInput.step = '1';
             if (a.type === 'timer.add') valueInput.value = a.seconds ?? '';
             else if (a.type === 'wins.add') valueInput.value = a.n ?? '';
-            else if (a.type === 'media.play') valueInput.value = a.mediaId ?? '';
+            else if (a.type === 'media.play' || a.type === 'sound.play') valueInput.value = a.mediaId ?? '';
             else if (a.type === 'boss.damage' || a.type === 'boss.heal') valueInput.value = a.amount ?? '';
             else valueInput.value = '';
+            volumeInput.value = a.volume ?? '';
           };
           type.addEventListener('change', () => {
             a.type = type.value;
@@ -1746,15 +1787,22 @@ export function createEditor({ api, setMessage }) {
             delete a.n;
             delete a.mediaId;
             delete a.amount;
+            delete a.volume;
             sync();
             commit(0);
           });
           valueInput.addEventListener('input', () => {
             const text = valueInput.value.trim();
-            if (a.type === 'media.play') a.mediaId = text;
+            if (a.type === 'media.play' || a.type === 'sound.play') a.mediaId = text;
             else if (a.type === 'timer.add') a.seconds = text === '' ? '' : Number(text);
             else if (a.type === 'wins.add') a.n = text === '' ? '' : Number(text);
             else if (a.type === 'boss.damage' || a.type === 'boss.heal') a.amount = text === '' ? '' : Number(text);
+            commit();
+          });
+          volumeInput.addEventListener('input', () => {
+            const text = volumeInput.value.trim();
+            if (text === '') delete a.volume;
+            else a.volume = Number(text);
             commit();
           });
           idInput.addEventListener('input', () => {
@@ -1776,7 +1824,7 @@ export function createEditor({ api, setMessage }) {
           });
           buttons.append(delAction);
           sync();
-          line.append(type, valueInput, idInput, buttons);
+          line.append(type, valueInput, volumeInput, idInput, buttons);
           return line;
         }));
       };
@@ -2376,7 +2424,8 @@ export function createEditor({ api, setMessage }) {
 
   return {
     async start() {
-      [schema, payload, media, gifts, superstream, mcStatus, me] = await Promise.all([
+      let env = { dev: false };
+      [schema, payload, media, gifts, superstream, mcStatus, me, env] = await Promise.all([
         api('/api/config/schema'),
         api('/api/config'),
         api('/api/media').catch(() => []),
@@ -2384,7 +2433,9 @@ export function createEditor({ api, setMessage }) {
         api('/api/superstream').catch(() => ({ gifts: [] })),
         api('/api/minecraft').catch(() => null),
         api('/api/me').catch(() => ({ mode: 'local' })),
+        api('/api/env').catch(() => ({ dev: false })),
       ]);
+      devMode = env?.dev === true;
       if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のウィジェット`;
       // TikTok の署名キーは、配信者ごとの URL では管理者が入れる
       if (isTenant()) document.querySelector('#connectForm details')?.toggleAttribute('hidden', true);

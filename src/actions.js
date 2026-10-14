@@ -1,7 +1,7 @@
 // ルーレットの当たりなどで実行する動作。
-// 設定の actions を検証し、タイマー・WIN数・RUSH・メディア・ボス・ガチャへ渡す。
+// 設定の actions を検証し、タイマー・WIN数・RUSH・メディア・効果音・ボス・ガチャへ渡す。
 
-export const ACTION_TYPES = ['timer.add', 'wins.add', 'rush.start', 'media.play', 'boss.damage', 'boss.heal', 'gacha.start'];
+export const ACTION_TYPES = ['timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'gacha.start'];
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 
 /** 動作1件を検証する。壊れていれば null（issues.errors に理由） */
@@ -35,12 +35,21 @@ export function parseAction(raw, where, issues = { errors: [], warnings: [] }) {
     const mediaId = String(raw.mediaId ?? '').trim();
     if (!mediaId) err('mediaId が必要です');
     else action.mediaId = mediaId;
+  } else if (type === 'sound.play') {
+    const mediaId = String(raw.mediaId ?? '').trim();
+    if (!mediaId) err('mediaId が必要です');
+    else action.mediaId = mediaId;
+    if (raw.volume != null && raw.volume !== '') {
+      const n = Number(raw.volume);
+      if (!Number.isFinite(n) || n < 0 || n > 100) err('volume は 0 から 100 にしてください');
+      else action.volume = n;
+    }
   } else if (type === 'boss.damage' || type === 'boss.heal') {
     const n = Number(raw.amount);
     if (!Number.isFinite(n) || n <= 0) err('amount に 1 以上の数を入れてください');
     else action.amount = n;
   }
-  const known = ['type', 'id', 'seconds', 'n', 'mediaId', 'amount'];
+  const known = ['type', 'id', 'seconds', 'n', 'mediaId', 'volume', 'amount'];
   for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
   if (issues.errors.length > before) return null;
   return action;
@@ -74,6 +83,9 @@ function runOne(action, deps) {
     case 'media.play':
       if (!deps.media) throw new Error('メディア通知がありません');
       return deps.media.play(action.mediaId, { source: 'action' });
+    case 'sound.play':
+      if (!deps.sounds) throw new Error('ギフト別サウンドがありません');
+      return deps.sounds.play(action.mediaId, { volume: action.volume, source: 'action' });
     case 'boss.damage':
       if (!deps.boss) throw new Error('ボスがありません');
       return deps.boss.apply(id, 'damage', action.amount);

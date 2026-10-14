@@ -454,6 +454,31 @@ SCHEMA.mediaAlerts = {
   },
 };
 
+SCHEMA.giftSounds = {
+  kind: 'object',
+  page: 'sounds',
+  title: 'ギフト別サウンド',
+  size: () => [1080, 1920],
+  desc:
+    'ギフト・フォロー・シェアで効果音を重ねて鳴らす。音源はメディア通知に入れた音声を使う。' +
+    '上から順に見て、最初に合ったルールだけ鳴らす。同時に鳴らせる数と、鳴らし終わるまでの待ちには上限がある。' +
+    'URL は /widgets/sounds.html',
+  fields: {
+    enabled: bool(true, 'ギフト別サウンドを使う'),
+    masterVolume: num(80, '全体の音量（0〜100）。ルールの音量と掛けて鳴らす', { min: 0, max: 100 }),
+    maxSeconds: num(8, '1回の再生を止める秒数', { min: 1, max: 30 }),
+    maxConcurrent: num(3, '同時に鳴らす数', { min: 1, max: 5 }),
+    rules: {
+      type: 'soundRules',
+      default: [],
+      desc:
+        '鳴らすルール。上から順に、最初に合った1つだけ鳴らす。' +
+        '条件: gifts（ギフトIDか名前）/ minCoins（この合計コイン以上）/ events（follow, share）。' +
+        'mediaId は音声のID。volume は 0〜100（全体の音量と掛ける）。条件が無いルールは鳴らさない',
+    },
+  },
+};
+
 SCHEMA.gacha = {
   kind: 'object',
   page: 'gacha',

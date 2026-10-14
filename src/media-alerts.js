@@ -255,17 +255,23 @@ function safeName(name) {
   return text || 'file';
 }
 
-/** gifts と minCoins は両方あるとき両方必要。events の follow はフォローで再生する */
-function ruleMatches(rule, e) {
+/**
+ * gifts と minCoins は両方あるとき両方必要。
+ * events の follow / share は、その出来事で再生する（ギフトの条件とは別）。
+ * ギフト別サウンドも同じ判定を使う。
+ */
+export function ruleMatches(rule, e) {
   if (!rule?.mediaId) return false;
   const gifts = Array.isArray(rule.gifts) ? rule.gifts : [];
   const min = Number(rule.minCoins) || 0;
   const events = Array.isArray(rule.events) ? rule.events : [];
   const hasGift = gifts.length > 0;
   const hasMin = min > 0;
-  const hasEvent = events.includes('follow');
-  if (!hasGift && !hasMin && !hasEvent) return false;
-  if (e?.kind === 'follow') return hasEvent;
+  const hasFollow = events.includes('follow');
+  const hasShare = events.includes('share');
+  if (!hasGift && !hasMin && !hasFollow && !hasShare) return false;
+  if (e?.kind === 'follow') return hasFollow;
+  if (e?.kind === 'share') return hasShare;
   if (e?.kind !== 'gift') return false;
   if (!hasGift && !hasMin) return false;
   if (hasGift && !giftMatches(e.gift, gifts)) return false;

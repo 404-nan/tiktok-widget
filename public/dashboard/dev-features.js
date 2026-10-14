@@ -37,6 +37,7 @@
     if (type === 'timer.add') action.seconds = Number(raw);
     else if (type === 'wins.add') action.n = Number(raw);
     else if (type === 'media.play') action.mediaId = raw;
+    else if (type === 'sound.play') action.mediaId = raw;
     else if (type === 'boss.damage' || type === 'boss.heal') action.amount = Number(raw);
     return action;
   }

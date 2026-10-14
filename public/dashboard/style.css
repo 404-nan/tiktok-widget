@@ -1276,6 +1276,33 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 /* 同じ幅に文字が入りきるよう、テスト送信のボタンは文字だけにする */
 .dev-panel .btn-row .icon, .dev-send-row > .btn .icon { display: none; }
 
+/* ギフト別サウンド: 音量は横に伸び、720px でも文字が切れない */
+.sound-rules,
+.sound-rules .item-row,
+.sound-rules .field,
+.sound-volume { min-width: 0; max-width: 100%; }
+.sound-rules .hint,
+.sound-rules .desc { overflow-wrap: anywhere; }
+.sound-volume {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5em;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+}
+.sound-volume input[type=range] {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--text-primary);
+}
+.sound-volume-value { font-variant-numeric: tabular-nums; text-align: right; }
+
 /* 動作確認用の画面: 1つ1行（枠の中を動かして全体を見る） */
 .dev-preview-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 .dev-preview {
