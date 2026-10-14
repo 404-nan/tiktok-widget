@@ -10,15 +10,19 @@ const WRITE_LIMIT = 30;
 const WRITE_WINDOW_MS = 60_000;
 const UNDO_KEEP = 50;
 
-const HARD_SEGMENTS = new Set([
-  'apikeys', 'api-keys', 'api_keys', 'keys',
-  'pin', 'pinver',
-  'password', 'secret', 'token', 'tokens',
-  'connect', 'disconnect', 'connection', 'reconnect', 'restart',
+const POLLUTION = new Set(['__proto__', 'constructor', 'prototype']);
+const EXACT_FORBIDDEN = new Set([
+  'keys',
   'stayconnected', 'tiktok', 'tiktokid',
-  'signapikey', 'signkey', 'sign-key', 'eulerstream',
+  'signkey', 'eulerstream',
   'enforcement', 'billingswitch', 'billingenabled',
+  'authorization', 'cookie', 'cookies', 'credential', 'credentials',
+  'privatekey', 'clientsecret',
 ]);
+const PREFIX_FORBIDDEN = [
+  'pin', 'connect', 'disconnect', 'reconnect', 'restart',
+  'stayconnected', 'tiktok', 'eulerstream', 'signkey', 'signapikey',
+];
 
 const ACCOUNT_FIELDS = {
   plan: 'plan',
@@ -81,23 +85,79 @@ const TOOLS = {
 };
 
 const SECRET_KEY = /pin|password|secret|token|apikey|api_key|authorization|signkey|cookie/i;
+const TOKEN_TEXT = /twai_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}|bearer\s+[A-Za-z0-9._~+/-]{12,}/i;
 
 function segments(configPath) {
-  return String(configPath ?? '').split('.').filter(Boolean).map((part) => part.toLowerCase());
+  return String(configPath ?? '').split('.').filter(Boolean).map((part) => part.trim().toLowerCase());
 }
 
-/** 設定パスを、拒否・課金の申請・通常の変更に分ける */
-export function classifyConfigPath(configPath, value) {
-  const segs = segments(configPath);
-  if (segs.some((part) => HARD_SEGMENTS.has(part))) return 'deny';
-  if (segs[0] === 'minecraft' && ['host', 'port', 'password'].includes(segs[1])) return 'deny';
-  if (segs[0] === 'billing' && segs[1] === 'switch') return 'deny';
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const keys = Object.keys(value).map((key) => key.toLowerCase());
-    if (keys.some((key) => HARD_SEGMENTS.has(key) || key === 'switch')) return 'deny';
+function normalizedName(part) {
+  return String(part ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** パスの1区切り、またはオブジェクトのキーが秘密・接続・原型汚染なら true */
+export function isForbiddenSegment(part) {
+  const raw = String(part ?? '').trim().toLowerCase();
+  if (!raw) return false;
+  if (POLLUTION.has(raw)) return true;
+  const name = normalizedName(raw);
+  if (!name) return false;
+  if (POLLUTION.has(name)) return true;
+  if (name.includes('token') || name.includes('password') || name.includes('passwd') || name.includes('secret') || name.includes('apikey')) return true;
+  if (name === 'keys') return true;
+  if (PREFIX_FORBIDDEN.some((prefix) => name.startsWith(prefix))) return true;
+  return EXACT_FORBIDDEN.has(name);
+}
+
+function forbiddenKey(key) {
+  return isForbiddenSegment(key) || String(key ?? '').trim().toLowerCase() === 'switch';
+}
+
+function containsForbidden(value, seen = new WeakSet()) {
+  if (!value || typeof value !== 'object') return false;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  if (Array.isArray(value)) return value.some((item) => containsForbidden(item, seen));
+  for (const key of Object.keys(value)) {
+    if (forbiddenKey(key) || containsForbidden(value[key], seen)) return true;
   }
-  if (segs[0] === 'billing') return 'billing';
+  return false;
+}
+
+function forbiddenPath(configPath) {
+  const segs = segments(configPath);
+  if (segs.some((part) => isForbiddenSegment(part))) return true;
+  for (let i = 0; i < segs.length - 1; i += 1) {
+    if (isForbiddenSegment(`${segs[i]}${segs[i + 1]}`)) return true;
+  }
+  if (segs[0] === 'minecraft' && ['host', 'port', 'password'].includes(segs[1])) return true;
+  if (segs[0] === 'billing' && segs[1] === 'switch') return true;
+  return false;
+}
+
+/** 設定パスを、拒否・課金の申請・通常の変更に分ける。値の中のネストと配列も見る */
+export function classifyConfigPath(configPath, value) {
+  if (forbiddenPath(configPath) || containsForbidden(value)) return 'deny';
+  if (segments(configPath)[0] === 'billing') return 'billing';
   return 'ok';
+}
+
+function allTenantsToken(token) {
+  return Array.isArray(token?.tenants) && token.tenants.length === 1 && token.tenants[0] === '*';
+}
+
+/** 読んだ設定から、秘密のキーを除く */
+function stripSecrets(value, seen = new WeakSet()) {
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return null;
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => stripSecrets(item, seen));
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (isForbiddenSegment(key)) continue;
+    out[key] = stripSecrets(item, seen);
+  }
+  return out;
 }
 
 function fieldOf(key) {
@@ -156,17 +216,29 @@ function safeTenantId(id) {
   return /^[A-Za-z0-9_-]{1,64}$/.test(text) ? text : null;
 }
 
-function redact(value, tokenValue) {
+function looksLikeToken(text) {
+  if (TOKEN_TEXT.test(text)) return true;
+  const trimmed = text.trim();
+  if (/^[A-Fa-f0-9]{32,}$/.test(trimmed)) return true;
+  if (/^[A-Za-z0-9_-]{40,}$/.test(trimmed) && /\d/.test(trimmed) && /[A-Za-z]/.test(trimmed)) return true;
+  return false;
+}
+
+function redact(value, tokenValue, seen = new WeakSet()) {
   if (typeof value === 'string') {
     let out = value;
     if (tokenValue && out.includes(tokenValue)) out = out.split(tokenValue).join('[伏せる]');
-    if (out.startsWith('twai_')) return '[伏せる]';
+    if (looksLikeToken(out)) return '[伏せる]';
     return out.length > 500 ? `${out.slice(0, 500)}…` : out;
   }
-  if (Array.isArray(value)) return value.map((item) => redact(item, tokenValue));
+  if (Array.isArray(value)) return value.map((item) => redact(item, tokenValue, seen));
   if (value && typeof value === 'object') {
+    if (seen.has(value)) return null;
+    seen.add(value);
     const out = {};
-    for (const [key, item] of Object.entries(value)) out[key] = SECRET_KEY.test(key) ? '[伏せる]' : redact(item, tokenValue);
+    for (const [key, item] of Object.entries(value)) {
+      out[key] = isForbiddenSegment(key) || SECRET_KEY.test(key) ? '[伏せる]' : redact(item, tokenValue, seen);
+    }
     return out;
   }
   return value ?? null;
@@ -180,6 +252,11 @@ function redactArgs(args, tokenValue) {
 
 function isProd() {
   return process.env.TW_ENV !== 'dev';
+}
+
+function staleVersion(args, version, live) {
+  if (!isProd() || args.baseVersion === version) return null;
+  return { status: 409, body: { error: '設定の版が違います。読み直してからやり直してください', configVersion: version, live } };
 }
 
 function writesOpen() {
@@ -315,6 +392,14 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (row.status !== '承認待ち') throw new Error('すでに処理しています');
     if (status === '承認済み') {
       if (!applyBilling) throw new Error('反映先がありません');
+      if (isProd()) {
+        const target = resolveTenant(row.tenant);
+        if (target?.runtime?.aiLive?.()) {
+          const err = new Error('配信中はAIから変更できません');
+          err.status = 403;
+          throw err;
+        }
+      }
       applyBilling({ global: row.global, tenant: row.tenant, patch: row.patch });
     }
     row.status = status;
@@ -334,7 +419,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       dryRun: Boolean(ctx.dryRun),
       ok: result.status < 400,
       error: body.error ?? null,
-      diff: extra.diff ?? body.diff ?? null,
+      diff: redact(extra.diff ?? body.diff ?? null, ctx.tokenValue),
       changeId: extra.changeId ?? body.changeId ?? null,
     }, ctx.tokenValue);
     return result;
@@ -383,14 +468,15 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       if (tool === 'validate_config') {
         return finish(tool, context, { status: 200, body: { ok: issues.errors.length === 0, ...issues, configVersion: version, live } });
       }
+      const shown = stripSecrets(cfg.publicConfig(runtime.getConfig()));
       if (args.path) {
-        if (classifyConfigPath(args.path) === 'deny') {
+        if (classifyConfigPath(args.path, lookup(shown, args.path).value) === 'deny') {
           return finish(tool, context, { status: 403, body: { error: 'この項目は AI からは変えられません' } });
         }
-        const place = lookup(cfg.publicConfig(runtime.getConfig()), args.path);
+        const place = lookup(shown, args.path);
         return finish(tool, context, { status: 200, body: { path: args.path, value: place.defined ? place.value : null, ...issues, configVersion: version, live } });
       }
-      return finish(tool, context, { status: 200, body: { config: cfg.publicConfig(runtime.getConfig()), ...issues, configVersion: version, live } });
+      return finish(tool, context, { status: 200, body: { config: shown, ...issues, configVersion: version, live } });
     }
     if (tool === 'get_history') {
       const row = runtime.readHistory(args.id);
@@ -411,7 +497,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       const changes = [...data.changes].reverse().map(publicChange);
       return finish(tool, context, { status: 200, body: { changes } });
     }
-    if (tool === 'undo') return finish(tool, context, undoChange(runtime, target, tenantId, args.changeId));
+    if (tool === 'undo') return finish(tool, context, undoChange(runtime, target, tenantId, args.changeId, token.id));
     if (spec.op || spec.billing) return finish(tool, context, writeConfig(runtime, target, context, spec, args));
     if (spec.operate) return finish(tool, context, operate(runtime, tenantId, tool, args, context));
     if (spec.test) return finish(tool, context, runtime.simulateEvent(args));
@@ -430,6 +516,9 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (kind === 'billing' || spec.billing) {
       const request = billingRequest(configPath, op, args.value);
       if (request.error) return { status: request.status, body: { error: request.error } };
+      if (request.global && !allTenantsToken(ctx.token)) {
+        return { status: 403, body: { error: '全体の課金は、全配信者のトークンからだけ申請できます' } };
+      }
       if (ctx.dryRun) {
         return {
           status: 200,
@@ -463,15 +552,15 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     const preview = runtime.previewConfig(op, configPath, args.value);
     const before = clonePlace(lookup(runtime.getConfig(), configPath));
     const after = preview.config ? clonePlace(lookup(preview.config, configPath)) : { defined: false, value: null };
-    const diff = { path: configPath, op, before: before.defined ? before.value : null, after: after.defined ? after.value : null };
+    const shown = (place) => (place.defined ? stripSecrets(place.value) : null);
+    const diff = { path: configPath, op, before: shown(before), after: shown(after) };
     const validation = { ok: preview.ok, errors: preview.errors, warnings: preview.warnings };
     const body = { ok: preview.ok, dryRun: ctx.dryRun, diff, validation, live, configVersion: version };
     if (!preview.ok) return { status: 422, body: { ...body, error: preview.errors[0] ?? '設定を確認できません' } };
     if (ctx.dryRun) return { status: 200, body };
     if (isProd() && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true, configVersion: version } };
-    if (isProd() && args.baseVersion !== version) {
-      return { status: 409, body: { error: '設定の版が違います。読み直してからやり直してください', configVersion: version, live } };
-    }
+    const stale = staleVersion(args, version, live);
+    if (stale) return stale;
     const applied = op === 'delete' ? runtime.deleteConfig(configPath) : op === 'merge' ? runtime.mergeConfig(configPath, args.value) : runtime.setConfig(configPath, args.value);
     if (!applied.ok) return { status: 422, body: { ...body, ok: false, validation: { ok: false, errors: applied.errors ?? [], warnings: applied.warnings ?? [] }, error: applied.errors?.[0] ?? '保存できません' } };
     const storedAfter = clonePlace(lookup(runtime.getConfig(), configPath));
@@ -486,6 +575,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       before,
       after: storedAfter,
       undoable: true,
+      tokenId: ctx.token.id,
     });
     saveUndo(ctx.tenantId, book);
     return {
@@ -494,7 +584,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
         ...body,
         ok: true,
         dryRun: false,
-        diff: { ...diff, after: storedAfter.defined ? storedAfter.value : null },
+        diff: { ...diff, after: shown(storedAfter) },
         validation: { ok: true, errors: [], warnings: applied.warnings ?? [] },
         configVersion: runtime.configVersion(),
         changeId,
@@ -536,7 +626,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     const changeId = crypto.randomBytes(8).toString('hex');
     if (out.status < 400 && action !== 'status') {
       const book = loadUndo(tenantId);
-      book.operations.push({ id: changeId, at: new Date(now()).toISOString(), tool, undoable: false });
+      book.operations.push({ id: changeId, at: new Date(now()).toISOString(), tool, undoable: false, tokenId: ctx.token.id });
       saveUndo(tenantId, book);
     }
     return { status: out.status, body: { ...out.body, changeId: out.status < 400 && action !== 'status' ? changeId : null, live, configVersion: version } };
@@ -554,9 +644,11 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       if (ctx.dryRun) {
         return { status: 200, body: { ok: true, dryRun: true, diff: { path: 'widgets', op: 'set', before, after: args.widgets }, validation: { ok: true, errors: [], warnings: [] }, live, configVersion: version } };
       }
+      const stale = staleVersion(args, version, live);
+      if (stale) return stale;
       target.setWidgets(args.widgets);
       const after = typeof target.getWidgets === 'function' ? target.getWidgets() : args.widgets;
-      const changeId = rememberTenant(tenantId, { tool, path: 'widgets', before, after });
+      const changeId = rememberTenant(tenantId, ctx.token.id, { tool, path: 'widgets', before, after });
       return { status: 200, body: { ok: true, widgets: after, changeId, live, configVersion: version } };
     }
     if (typeof target.setTemplate !== 'function') return { status: 400, body: { error: 'この配信者の遊び方は選べません' } };
@@ -564,17 +656,19 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (ctx.dryRun) {
       return { status: 200, body: { ok: true, dryRun: true, diff: { path: 'template', op: 'set', before, after: args.template ?? null }, validation: { ok: true, errors: [], warnings: [] }, live, configVersion: version } };
     }
+    const stale = staleVersion(args, version, live);
+    if (stale) return stale;
     try {
       target.setTemplate(args.template);
     } catch (err) {
       return { status: 400, body: { error: err.message } };
     }
     const after = typeof target.getTemplate === 'function' ? target.getTemplate() : args.template ?? null;
-    const changeId = rememberTenant(tenantId, { tool, path: 'template', before, after });
+    const changeId = rememberTenant(tenantId, ctx.token.id, { tool, path: 'template', before, after });
     return { status: 200, body: { ok: true, template: after, changeId, live, configVersion: version } };
   }
 
-  function rememberTenant(tenantId, { tool, path: configPath, before, after }) {
+  function rememberTenant(tenantId, tokenId, { tool, path: configPath, before, after }) {
     const changeId = crypto.randomBytes(8).toString('hex');
     const book = loadUndo(tenantId);
     book.changes.push({
@@ -587,18 +681,24 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       before: { defined: true, value: before ?? null },
       after: { defined: true, value: after ?? null },
       undoable: true,
+      tokenId,
     });
     saveUndo(tenantId, book);
     return changeId;
   }
 
-  function undoChange(runtime, target, tenantId, changeId) {
+  function undoChange(runtime, target, tenantId, changeId, tokenId) {
     if (!changeId) return { status: 400, body: { error: 'changeId が必要です' } };
     const book = loadUndo(tenantId);
+    const owned = (row) => row?.tokenId === tokenId;
     const operation = book.operations.find((item) => item.id === changeId);
-    if (operation) return { status: 400, body: { error: 'ルーレットを回すなどの操作は取り消せません' } };
+    if (operation) {
+      if (!owned(operation)) return { status: 403, body: { error: 'この変更は別のトークンが作ったので取り消せません' } };
+      return { status: 400, body: { error: 'ルーレットを回すなどの操作は取り消せません' } };
+    }
     const change = book.changes.find((item) => item.id === changeId);
     if (!change) return { status: 404, body: { error: 'その変更は見つかりません' } };
+    if (!owned(change)) return { status: 403, body: { error: 'この変更は別のトークンが作ったので取り消せません' } };
     if (change.undoable === false) return { status: 400, body: { error: 'ルーレットを回すなどの操作は取り消せません' } };
     const live = runtime.aiLive();
     if (isProd() && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true } };
@@ -680,14 +780,14 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       try {
         res.json({ ok: true, approval: decide(req.params.id, '承認済み') });
       } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(err.status || 400).json({ error: err.message });
       }
     });
     admin.post('/ai-approvals/:id/reject', (req, res) => {
       try {
         res.json({ ok: true, approval: decide(req.params.id, '却下') });
       } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(err.status || 400).json({ error: err.message });
       }
     });
   }
