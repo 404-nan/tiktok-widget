@@ -37,6 +37,10 @@ find "$DATA_NEW" "$DATA_OLD" -type f \( \
   -name 'sign-api-key.txt' -o -name 'admin-token.txt' -o -name 'ai.json' -o -name 'api-keys.json' \
   -o -name '*.pem' -o -name '*.key' -o -name '*secret*' -o -name '*credential*' \
 \) -exec rm -f {} +
+# 合成データは config.fixture.yaml で保存（config.yaml はコミットしない）。コピー側でだけ config.yaml に戻す
+for d in "$DATA_NEW" "$DATA_OLD"; do
+  find "$d" -name config.fixture.yaml | while read -r f; do mv "$f" "$(dirname "$f")/config.yaml"; done
+done
 
 snapshot() {
   dir=$1

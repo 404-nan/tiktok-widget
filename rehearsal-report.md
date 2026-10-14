@@ -36,10 +36,10 @@ release は 127.0.0.1:3941、旧版 d03dd38 は 127.0.0.1:3942。TW_HOSTED=1、T
 
 - 新規:
   - `admin-token.txt`
-  - `backups/2026-10-14T13-24-32-168Z/tenants.json`
-  - `backups/2026-10-14T13-24-32-168Z/tenants/rh-asagiri/config.yaml`
-  - `backups/2026-10-14T13-24-32-168Z/tenants/rh-ramune/config.yaml`
-  - `backups/2026-10-14T13-24-32-168Z/tenants/rh-yuki/config.yaml`
+  - `backups/2026-10-14T13-27-25-108Z/tenants.json`
+  - `backups/2026-10-14T13-27-25-108Z/tenants/rh-asagiri/config.yaml`
+  - `backups/2026-10-14T13-27-25-108Z/tenants/rh-ramune/config.yaml`
+  - `backups/2026-10-14T13-27-25-108Z/tenants/rh-yuki/config.yaml`
   - `pin-cookie-secret.txt`
   - `tenants/rh-asagiri/boss.json`
   - `tenants/rh-ramune/boss.json`
@@ -51,10 +51,10 @@ release は 127.0.0.1:3941、旧版 d03dd38 は 127.0.0.1:3942。TW_HOSTED=1、T
 
 - 新規:
   - `admin-token.txt`
-  - `backups/2026-10-14T13-24-32-166Z/tenants.json`
-  - `backups/2026-10-14T13-24-32-166Z/tenants/rh-asagiri/config.yaml`
-  - `backups/2026-10-14T13-24-32-166Z/tenants/rh-ramune/config.yaml`
-  - `backups/2026-10-14T13-24-32-166Z/tenants/rh-yuki/config.yaml`
+  - `backups/2026-10-14T13-27-25-069Z/tenants.json`
+  - `backups/2026-10-14T13-27-25-069Z/tenants/rh-asagiri/config.yaml`
+  - `backups/2026-10-14T13-27-25-069Z/tenants/rh-ramune/config.yaml`
+  - `backups/2026-10-14T13-27-25-069Z/tenants/rh-yuki/config.yaml`
   - `pin-cookie-secret.txt`
   - `tenants/rh-asagiri/boss.json`
   - `tenants/rh-ramune/boss.json`
