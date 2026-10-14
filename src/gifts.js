@@ -1,54 +1,40 @@
 // TikTok から受け取ったギフトの台帳。名前は TikTok が返したものだけを保存する。
+// 画面に出す名前は src/gift-display.js（対応表）だけを通す。ここでの一致判定は変えない。
 import fs from 'node:fs';
 import path from 'node:path';
+import { bundledGiftList, giftDisplayName, lookupGiftJa } from './gift-display.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// TikTok の gift/list（webcast_language=ja-JP）で取った日本語名の控え。取得できないときに ID→英語名の順で引く
-let BUNDLED = { byId: new Map(), byName: new Map(), coins: new Map(), list: [] };
+export { giftDisplayName };
+
+// 公開 gift/list の diamond_count。名前の対応表（gift-display.js）とは別に置く
+let COINS = new Map();
 try {
-  const raw = JSON.parse(fs.readFileSync(new URL('./gift-names-ja.json', import.meta.url), 'utf8'));
-  for (const [id, [en, ja]] of Object.entries(raw.names ?? {})) {
-    BUNDLED.byId.set(String(id), ja);
-    const nameKey = String(en).trim().toLocaleLowerCase().replace(/\s+/g, '');
-    if (nameKey && !BUNDLED.byName.has(nameKey)) {
-      BUNDLED.byName.set(nameKey, ja);
-      BUNDLED.list.push({ id: String(id), name: String(en), nameJa: ja });
-    }
-  }
-} catch {}
-try {
-  // 公開 gift/list の diamond_count。名前の対応表とは別に置く（名前の形は変えない）
   const raw = JSON.parse(fs.readFileSync(new URL('./gift-coins.json', import.meta.url), 'utf8'));
   for (const [id, n] of Object.entries(raw.coins ?? {})) {
     const coins = coinCount({ diamonds: n });
-    if (coins != null) BUNDLED.coins.set(String(id), coins);
+    if (coins != null) COINS.set(String(id), coins);
   }
 } catch {}
+
 /** 控えにある全ギフト。コインが分かっているものは数、無いものは null（画面では「? コイン」） */
 export function bundledGifts() {
-  return BUNDLED.list.map((g) => ({ ...g, diamonds: BUNDLED.coins.has(g.id) ? BUNDLED.coins.get(g.id) : null }));
+  return bundledGiftList().map((g) => ({ ...g, diamonds: COINS.has(g.id) ? COINS.get(g.id) : null }));
 }
 
 /** gift-coins.json の1個あたりのコイン。表に無いときは null（0 にはしない） */
 export function bundledCoinCount(id) {
   const key = String(id ?? '').trim();
-  return key && BUNDLED.coins.has(key) ? BUNDLED.coins.get(key) : null;
-}
-
-const nameKey = (value) => text(value).toLocaleLowerCase().replace(/\s+/g, '');
-
-export function bundledNameJa(gift) {
-  const id = String(gift?.id ?? gift?.giftId ?? '').trim();
-  if (id && BUNDLED.byId.has(id)) return BUNDLED.byId.get(id);
-  const key = nameKey(gift?.name ?? gift?.giftName);
-  return (key && BUNDLED.byName.get(key)) || null;
+  return key && COINS.has(key) ? COINS.get(key) : null;
 }
 
 const text = (v) => (v == null ? '' : String(v).trim());
+const nameKey = (value) => text(value).toLocaleLowerCase().replace(/\s+/g, '');
 
-export function giftDisplayName(gift) {
-  return text(gift?.nameJa) || bundledNameJa(gift) || text(gift?.name) || text(gift?.id) || 'Gift';
+/** 対応表の日本語。GiftID → 英語名。表示の本線は giftDisplayName */
+export function bundledNameJa(gift) {
+  return lookupGiftJa(gift);
 }
 
 export function giftMatches(gift, values) {

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import * as admin from '../src/admin.js';
+import { giftDisplayName } from '../src/gift-display.js';
 
 const HELP = `使い方: tw <コマンド>
 
@@ -102,7 +103,7 @@ try {
     case 'gifts': {
       const { source, gifts } = await admin.gifts();
       if (source === 'demo') print('（サーバーが起動していないので、テスト用の一覧だけです）');
-      for (const g of gifts) print(`${g.name}\t${g.diamonds} コイン${g.seen ? '\t配信で受信' : ''}`);
+      for (const g of gifts) print(`${giftDisplayName(g)}\t${g.diamonds} コイン${g.seen ? '\t配信で受信' : ''}`);
       break;
     }
     case 'media':
@@ -126,7 +127,7 @@ try {
       const r = await admin.superstream();
       if (r.error) print(`注意: ${r.error}`);
       else print(`プロフィール: ${r.profile}（${r.file}）`);
-      for (const g of r.gifts) print(`  ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join(', ')}`);
+      for (const g of r.gifts) print(`  ${g.id}${g.name ? `（${giftDisplayName({ id: g.id, name: g.name })}）` : ''}: ${g.actions.join(', ')}`);
       print(`組み込みの演出: ${r.actions.join(', ')}`);
       break;
     }

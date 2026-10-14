@@ -1,10 +1,12 @@
 // ウィジェット共通: 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
-import { giftLabel as giftLabelFromTable, giftNameJa } from './gift-names.js';
+import { giftNameJa } from './gift-names.js';
+import './gift-name.js';
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 // 配信者ごとの URL で開いたときは、API・画像・接続をその下に向ける（1人で使うときは BASE は空）
-export const BASE = location.pathname.match(/^\/t\/[^/]+/)?.[0] ?? '';
-if (BASE && !window.__twBase) {
+const loc = typeof location === 'undefined' ? { pathname: '' } : location;
+export const BASE = loc.pathname.match(/^\/t\/[^/]+/)?.[0] ?? '';
+if (BASE && typeof window !== 'undefined' && !window.__twBase) {
   window.__twBase = BASE;
   const original = window.fetch.bind(window);
   window.fetch = (input, init) => original(typeof input === 'string' && /^\/(api|media)\//.test(input) ? BASE + input : input, init);
@@ -17,8 +19,26 @@ export const mediaUrl = (src) => (/^(https?:|data:|blob:)/.test(src) ? src : src
 let configSelector = null; // 設定のどこが変わったら読み込み直すか
 let configSnapshot = null;
 
+let giftNamesPromise = null;
+/** ギフト名の対応表を読み、画面の表示名を日本語にする。一度読めば次は待たない */
+export function ensureGiftNames() {
+  if (globalThis.__twGiftNamesReady) return Promise.resolve();
+  if (typeof fetch !== 'function') return Promise.resolve();
+  giftNamesPromise ??= fetch('/api/gift-names')
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data && typeof globalThis.installGiftNames === 'function') globalThis.installGiftNames(data);
+      globalThis.__twGiftNamesReady = true;
+    })
+    .catch(() => {
+      globalThis.__twGiftNamesReady = true;
+    });
+  return giftNamesPromise;
+}
+
 /** サーバーから設定と初期値を取る（サーバーが古い・落ちているときは null） */
 export async function loadConfig() {
+  await ensureGiftNames();
   try {
     const res = await fetch('/api/config');
     if (!res.ok) return { config: null, defaults: {} };
@@ -282,7 +302,7 @@ export function giftNode(gift, size = 64) {
   };
   if (gift?.image) {
     const img = new Image(size, size);
-    img.alt = (gift.nameJa && String(gift.nameJa).trim()) || giftNameJa(gift) || '';
+    img.alt = giftLabel(gift);
     img.referrerPolicy = 'no-referrer';
     img.src = gift.image;
     img.onerror = showToken;
@@ -470,7 +490,35 @@ export function giftNamed(gift, names) {
   return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.nameJa ?? '').toLowerCase()) || want.includes(String(gift.id));
 }
 
-export const giftLabel = (gift) => giftLabelFromTable(gift);
+/** 対応表をまだ読んでいないときの表示。GiftID → 英語名 → nameJa → 今の名前 */
+function bundledGiftLabel(gift) {
+  if (gift != null && typeof gift === 'object') {
+    const id = String(gift.id ?? gift.giftId ?? '').trim();
+    const name = String(gift.name ?? gift.giftName ?? '').trim();
+    if (id) {
+      const byId = giftNameJa(id);
+      if (byId && byId !== id) return byId;
+    }
+    if (name) {
+      const byName = giftNameJa(name);
+      if (byName && byName !== name) return byName;
+    }
+    const nameJa = String(gift.nameJa ?? '').trim();
+    return nameJa || name || id || 'Gift';
+  }
+  if (gift == null || gift === '') return 'Gift';
+  const named = giftNameJa(gift);
+  return named || 'Gift';
+}
+
+/** 画面に出すギフト名。対応表を読んだあとは GiftID を先にし、表に無ければ今の名前 */
+export function giftLabel(gift) {
+  if (globalThis.__twGiftNamesReady && typeof globalThis.giftDisplayName === 'function') {
+    const name = globalThis.giftDisplayName(gift);
+    if (name) return name;
+  }
+  return bundledGiftLabel(gift);
+}
 
 /** ギフトがトリガー条件（ギフト名/ID の一覧、または最低コイン数）に合うか */
 export function giftMatches(e, { gifts = [], minCoins = 0, maxCoins = 0 }) {

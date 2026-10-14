@@ -4,8 +4,8 @@
 import { icon } from '/widgets/lib/overlay.js';
 
 const EXAMPLES = [
-  'Rose で回る罰ゲームルーレットを作って。項目は 歌う・変顔・激辛',
-  'Lion が来たら WIN を 1 減らして',
+  'バラ で回る罰ゲームルーレットを作って。項目は 歌う・変顔・激辛',
+  'ライオン が来たら WIN を 1 減らして',
   'フォロー 100 人の目標バーを作って',
   '全体の色を青っぽくして',
 ];
@@ -21,7 +21,7 @@ export function setupAi({ box, api, editor }) {
   let pending = null; // 見せている案（{ reply, changes }）
 
   const left = el('span', { className: 'hint' });
-  const text = el('textarea', { rows: 3, placeholder: '例: Lion が来たら WIN を 5 減らして' });
+  const text = el('textarea', { rows: 3, placeholder: '例: ライオン が来たら WIN を 5 減らして' });
   text.setAttribute('aria-label', 'AI にたのむこと');
   const ask = el('button', { type: 'submit', className: 'btn primary pressable' }, icon('sparkles'), el('span', { textContent: 'たのむ' }));
   const form = el('form', { className: 'ai-form' }, text, ask);

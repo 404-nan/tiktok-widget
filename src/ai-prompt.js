@@ -5,15 +5,15 @@
 // 例は、返す形（値を JSON そのままで書くか、JSON の文字で書くか）に合わせて作る
 const EXAMPLES = [
   {
-    request: 'Rose で回る罰ゲームルーレットを作って。項目は 歌う・変顔・激辛 で、激辛は赤にして',
-    reply: 'Rose が来ると回る「罰ゲーム」のルーレットを作ります。激辛だけ赤にしました。入れたあと「まわす」で試せます。',
-    changes: [{ op: 'set', path: 'roulettes.batsu', value: { name: '罰ゲーム', gifts: ['Rose'], items: ['歌う', '変顔', { label: '激辛', color: '#E5484D' }] }, label: 'ルーレット「罰ゲーム」を作る（Rose で回る・3 項目）' }],
+    request: 'バラ で回る罰ゲームルーレットを作って。項目は 歌う・変顔・激辛 で、激辛は赤にして',
+    reply: 'バラが来ると回る「罰ゲーム」のルーレットを作ります。激辛だけ赤にしました。入れたあと「まわす」で試せます。',
+    changes: [{ op: 'set', path: 'roulettes.batsu', value: { name: '罰ゲーム', gifts: ['Rose'], items: ['歌う', '変顔', { label: '激辛', color: '#E5484D' }] }, label: 'ルーレット「罰ゲーム」を作る（バラで回る・3 項目）' }],
   },
   {
     note: '今の設定の wins.default.rules が [{"gifts":["GG"],"add":1}] のとき',
     request: 'ライオンが来たら WIN を 1 減らして',
-    reply: 'Lion が来たら WIN が 1 減るようにします。GG で +1 のルールはそのまま残します。',
-    changes: [{ op: 'set', path: 'wins.default.rules', value: [{ gifts: ['GG'], add: 1 }, { gifts: ['Lion'], add: -1 }], label: 'Lion で WIN -1 のルールを足す' }],
+    reply: 'ライオンが来たら WIN が 1 減るようにします。GG で +1 のルールはそのまま残します。',
+    changes: [{ op: 'set', path: 'wins.default.rules', value: [{ gifts: ['GG'], add: 1 }, { gifts: ['Lion'], add: -1 }], label: 'ライオン で WIN -1 のルールを足す' }],
   },
   {
     request: '全体を青っぽくして',
@@ -85,7 +85,7 @@ ${valueRule}
 # 返事（reply と label）の書き方
 - やさしい日本語で、1〜3文。まず「何がどうなるか」を書きます。
 - 設定の項目名（英字）や path は書きません。「WIN数」「ルーレット」など、画面に出ている名前で書きます。
-- 配信者に見える変化で書きます（○「Lion が来たら WIN が 1 減ります」 ×「rules に add: -1 を追加しました」）。
+- 配信者に見える変化で書きます（○「ライオンが来たら WIN が 1 減ります」 ×「rules に add: -1 を追加しました」）。ギフト名は日本語で書きます。
 - 試し方が分かるなら、ひと言そえます（「ためす」のボタンなど）。
 - 書いたあとに読み直し、字の抜けや誤字がないか確かめます。
 

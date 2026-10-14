@@ -1,5 +1,5 @@
 // ギフト名を一覧から選ぶ共通部品。保存する値は今までどおり名前の配列。
-import { giftNameJa } from '../widgets/lib/gift-names.js';
+import { giftLabel } from '../widgets/lib/overlay.js';
 
 let giftListPromise;
 
@@ -19,7 +19,11 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
   root.className = 'gift-picker';
   let selected = [...new Set(value.filter(Boolean))];
   let all = sortGifts(gifts);
-  const label = (g) => (g?.nameJa && String(g.nameJa).trim()) || giftNameJa(g) || g?.id || '';
+  const label = (g) => {
+    if (g == null || g === '') return '';
+    const shown = giftLabel(g);
+    return shown && shown !== 'Gift' ? shown : '';
+  };
   const byValue = (value) => all.find((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => String(v).toLocaleLowerCase() === String(value).toLocaleLowerCase()));
   let open = false;
 
@@ -50,11 +54,12 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
     for (const name of selected) {
       const chip = document.createElement('span');
       chip.className = 'gift-picker-chip';
-      chip.append(Object.assign(document.createElement('span'), { textContent: label(byValue(name)) || name }));
+      const shown = label(byValue(name) || name);
+      chip.append(Object.assign(document.createElement('span'), { textContent: shown }));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'gift-picker-remove pressable';
-      remove.setAttribute('aria-label', `${name}を外す`);
+      remove.setAttribute('aria-label', `${shown}を外す`);
       remove.textContent = '×';
       remove.addEventListener('click', () => {
         selected = selected.filter((v) => v !== name);

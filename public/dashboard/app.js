@@ -1,4 +1,4 @@
-import { connect, fmt, icon, giftLabel, BASE } from '/widgets/lib/overlay.js';
+import { connect, fmt, icon, giftLabel, BASE, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
 import { $, store, api, setupChrome, statusText } from './common.js';
@@ -273,6 +273,7 @@ function clearLog() {
 
 setupChrome('settings');
 setupKpis();
+await ensureGiftNames();
 await setupConnect();
 setupNotes();
 refreshPlan();

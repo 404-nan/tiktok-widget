@@ -21,17 +21,19 @@ export function giftNameJa(value) {
   return raw;
 }
 
-/** 画面に出す名前。ギフト側の nameJa が先、無ければ対応表、それも無ければ英語名か ID */
+/** 画面に出す名前。GiftID → 英語名 → nameJa → 今の名前。表に無いときだけ nameJa を使う */
 export function giftLabel(gift) {
   if (gift != null && typeof gift === 'object') {
-    const explicit = String(gift.nameJa ?? '').trim();
-    if (explicit) return explicit;
+    const id = String(gift.id ?? gift.giftId ?? '').trim();
+    if (id && table.byId[id]) return table.byId[id];
+    const name = String(gift.name ?? gift.giftName ?? '').trim();
+    const key = compact(name);
+    if (key && table.byName[key]) return table.byName[key];
+    const nameJa = String(gift.nameJa ?? '').trim();
+    return nameJa || name || id || 'Gift';
   }
   const named = giftNameJa(gift);
   if (named) return named;
-  if (gift != null && typeof gift === 'object') {
-    const id = String(gift.id ?? gift.giftId ?? '').trim();
-    if (id) return id;
-  }
-  return 'Gift';
+  if (gift == null || gift === '') return 'Gift';
+  return String(gift);
 }

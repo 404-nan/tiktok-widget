@@ -1,6 +1,6 @@
 // 配信中モニター。WebSocket で届くイベントと、サーバーの配信記録（/api/status・/api/history）から作る。
 
-import { connect, icon, giftLabel } from '/widgets/lib/overlay.js';
+import { connect, icon, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { $, api, setupChrome, statusText } from '/dashboard/common.js';
 import { columnChart, fmtNum } from '/dashboard/charts.js';
 
@@ -452,6 +452,7 @@ function renderStatus(status) {
 setupKpis();
 setupFeedFilter();
 setupMonitorConnection();
+await ensureGiftNames();
 renderResults();
 ({ config } = await api('/api/config'));
 me = await api('/api/me').catch(() => me);

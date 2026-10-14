@@ -116,7 +116,7 @@ test('起動時の読み込みでは討伐を知らせない。コインはフ�
 test('固定HPは今までどおり。一部回復は満タンにしない', () => {
   const { engine, hub, sent } = setup({ default: boss({ hp: 100, autoNext: false }) });
   hub.emit('event', { kind: 'gift', user: { id: 'u', name: 'たろう' }, gift: { name: 'Doughnut', id: '1', count: 1 }, totalDiamonds: 10 });
-  assert.equal(sent.at(-1).event.by.gift, 'Doughnut');
+  assert.equal(sent.at(-1).event.by.gift, 'ドーナツ');
   assert.equal(engine.get('default').hp, 90);
   engine.healBy('default', 5);
   assert.equal(engine.get('default').hp, 95);

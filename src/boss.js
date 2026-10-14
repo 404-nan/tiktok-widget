@@ -180,7 +180,7 @@ export class BossEngine {
       if (damage <= 0) continue;
       const by = {
         user: slimUser(e.user),
-        ...(e.kind === 'gift' ? { gift: e.gift?.name, count: e.gift?.count ?? 1, coins: e.totalDiamonds } : { likes: e.count }),
+        ...(e.kind === 'gift' ? { gift: giftDisplayName(e.gift), count: e.gift?.count ?? 1, coins: e.totalDiamonds } : { likes: e.count }),
       };
       this.#hit(id, damage, by, e);
     }

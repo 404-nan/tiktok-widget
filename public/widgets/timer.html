@@ -304,7 +304,7 @@
   <div class="stamp" id="stamp"></div>
 </div>
 <script type="module">
-  import { setupWidget, connect, icon, avatarNode, resolveColor, readableOn, sleep } from './lib/overlay.js';
+  import { setupWidget, connect, icon, avatarNode, resolveColor, readableOn, sleep, giftLabel } from './lib/overlay.js';
 
   // 設定は config.yaml の timers.<id>（?id= がなければ default）。残り時間はサーバー（/api/timer）が持つ
   const p = await setupWidget('timers', {
@@ -392,7 +392,7 @@
   function autoHint() {
     const parts = [];
     if (p.coinSeconds > 0) parts.push(`${p.minCoins > 1 ? `${p.minCoins}コイン以上 1コイン` : '1コイン'}<b>+${esc(amountText(p.coinSeconds))}</b>`);
-    for (const r of (p.rules ?? []).filter((r) => r.gifts?.length && r.seconds > 0).slice(0, 2)) parts.push(`${esc(r.gifts[0])}<b>+${esc(amountText(r.seconds))}</b>`);
+    for (const r of (p.rules ?? []).filter((r) => r.gifts?.length && r.seconds > 0).slice(0, 2)) parts.push(`${esc(giftLabel(r.gifts[0]))}<b>+${esc(amountText(r.seconds))}</b>`);
     if (p.followSeconds > 0) parts.push(`フォロー<b>+${esc(amountText(p.followSeconds))}</b>`);
     if (p.shareSeconds > 0) parts.push(`シェア<b>+${esc(amountText(p.shareSeconds))}</b>`);
     if (p.likeEvery > 0 && p.likeSeconds > 0) parts.push(`いいね${p.likeEvery}回<b>+${esc(amountText(p.likeSeconds))}</b>`);

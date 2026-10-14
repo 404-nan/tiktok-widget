@@ -1,6 +1,6 @@
 // 配信の統計・履歴。/api/history の一覧と1回分の記録から作る。
 
-import { connect, giftLabel } from '/widgets/lib/overlay.js';
+import { connect, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { $, api, store, setupChrome, statusText } from '/dashboard/common.js';
 import { columnChart, lineChart, fmtNum } from '/dashboard/charts.js';
 
@@ -241,6 +241,7 @@ $('deleteBtn').addEventListener('click', async () => {
   load();
 });
 
+await ensureGiftNames();
 me = await api('/api/me').catch(() => me);
 const historyName = me.mode === 'tenant' ? (me.name || me.tiktokId || '配信者') : (me.tiktokId || '配信');
 $('brandTitle').textContent = `${historyName} の統計`;

@@ -1,7 +1,7 @@
 // ダッシュボードの設定エディタ。config.yaml をフォームと YAML の両方から編集する。
 // フォームの変更は1項目ずつ PATCH /api/config で保存する（ファイルのコメントは残る）。
 
-import { icon, mediaUrl, BASE } from '/widgets/lib/overlay.js';
+import { icon, mediaUrl, BASE, giftLabel } from '/widgets/lib/overlay.js';
 import { copyText, flashCopied } from './common.js';
 import { WEIGHT_INPUT, parseWeight } from './weight.js';
 import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
@@ -1813,7 +1813,7 @@ export function createEditor({ api, setMessage }) {
       ss.title = '当たったらマイクラの演出を起こす';
       ss.append(new Option('マイクラの演出: なし', ''));
       for (const g of superstream.gifts) {
-        ss.append(new Option(`マイクラの演出 ${g.id}${g.name ? `（${g.name}）` : ''}: ${g.actions.join('・')}`, g.id));
+        ss.append(new Option(`マイクラの演出 ${g.id}${g.name ? `（${giftLabel({ id: g.id, name: g.name })}）` : ''}: ${g.actions.join('・')}`, g.id));
       }
       if (r.superstreamGift && !superstream.gifts.some((g) => g.id === r.superstreamGift)) ss.append(new Option(`マイクラの演出 ${r.superstreamGift}`, r.superstreamGift));
       ss.value = r.superstreamGift ?? '';
@@ -2069,7 +2069,7 @@ export function createEditor({ api, setMessage }) {
           .filter((r) => r.gifts?.length || r.minCoins != null)
           .slice(0, 4)
           .map((r) =>
-            chip(`${r.gifts?.[0] ?? `${r.minCoins} コイン`}（${r.set != null ? `WIN ${r.set} に` : `WIN ${r.add > 0 ? '+' : ''}${r.add}`}）`, 'gift', () =>
+            chip(`${r.gifts?.[0] ? giftLabel(r.gifts[0]) : `${r.minCoins} コイン`}（${r.set != null ? `WIN ${r.set} に` : `WIN ${r.add > 0 ? '+' : ''}${r.add}`}）`, 'gift', () =>
               api('/api/simulate', r.gifts?.length ? { kind: 'gift', giftName: r.gifts[0], count: 1, diamonds: 1 } : { kind: 'gift', giftName: 'テストギフト', diamonds: r.minCoins }),
             ),
           ),
@@ -2083,7 +2083,7 @@ export function createEditor({ api, setMessage }) {
         extra.push(chip(`${coins} コインのギフト`, 'gift', () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: coins, count: 1 })));
       }
       for (const r of (e.rules ?? []).filter((r) => r.gifts?.length).slice(0, 2)) {
-        extra.push(chip(r.gifts[0], 'gift', () => api('/api/simulate', { kind: 'gift', giftName: r.gifts[0], diamonds: 1, count: 1 })));
+        extra.push(chip(giftLabel(r.gifts[0]), 'gift', () => api('/api/simulate', { kind: 'gift', giftName: r.gifts[0], diamonds: 1, count: 1 })));
       }
       if (e.followSeconds > 0) extra.push(chip('フォロー', 'user-plus', () => api('/api/simulate', { kind: 'follow' })));
       if (e.likeEvery > 0) extra.push(chip(`いいね ×${e.likeEvery}`, 'heart', () => api('/api/simulate', { kind: 'like', count: e.likeEvery })));
@@ -2105,7 +2105,7 @@ export function createEditor({ api, setMessage }) {
         chip('HP を戻す', 'heart-pulse', b('heal')),
         chip('次のボス', 'skip-forward', b('next')),
         chip('1体目からやり直す', 'rotate-ccw', () => confirm('1体目のボスからやり直しますか？') && b('reset')()),
-        chip('テストギフト（Rose ×10）', 'gift', () => api('/api/simulate', { kind: 'gift', giftName: e.gifts?.[0] ?? 'Rose', count: 10, diamonds: 1 })),
+        chip(`テストギフト（${giftLabel(e.gifts?.[0] ?? 'Rose')} ×10）`, 'gift', () => api('/api/simulate', { kind: 'gift', giftName: e.gifts?.[0] ?? 'Rose', count: 10, diamonds: 1 })),
         ...(e.damageFrom?.includes('likes') ? [chip('いいね ×50', 'heart', () => api('/api/simulate', { kind: 'like', count: 50 }))] : []),
       );
     } else if (tab === 'rush') {
@@ -2246,7 +2246,7 @@ export function createEditor({ api, setMessage }) {
       idEl.className = 'num';
       idEl.textContent = g.id;
       const name = document.createElement('span');
-      name.textContent = g.name ?? '';
+      name.textContent = g.name ? giftLabel({ id: g.id, name: g.name }) : '';
       const acts = document.createElement('span');
       acts.className = 'hint';
       acts.textContent = g.actions.join('・');

@@ -1,5 +1,6 @@
+import { giftLabel } from '/widgets/lib/overlay.js';
+
 // 「かんたん」モードの中身。
-import { giftNameJa } from '/widgets/lib/gift-names.js';
 // iPhone の設定のように、まとまりごとの一覧 → 押すと中に入る、という形にする:
 //   ホーム（画面に出しているものの一覧）→ ウィジェット1つの設定（まとまりごとの行）
 // 細かい項目・YAML は「くわしく」モード（今までのフォーム）で触る。
@@ -269,7 +270,7 @@ export const UNITS = {
 
 const EVENT = { gift: 'ギフト', follow: 'フォロー', share: 'シェア' };
 const METRIC = { follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト', shares: 'シェア', comments: 'コメント', viewers: '視聴者', coins: 'コイン' };
-const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).map(giftNameJa).join('・') + (list.length > 2 ? ' ほか' : '') : fallback);
+const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).map((name) => giftLabel(name)).join('・') + (list.length > 2 ? ' ほか' : '') : fallback);
 
 // ホームの一覧に出す、今の設定のひとこと（1件目の設定から作る）
 const SUMMARY = {
