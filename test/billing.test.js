@@ -1,8 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import express from 'express';
+import { ControlEvent, WebcastEvent } from 'tiktok-live-connector';
 import { Hub } from '../src/hub.js';
 import { makeEvent } from '../src/demo.js';
 import { Tenants } from '../src/tenants.js';
@@ -37,11 +41,13 @@ test('支払った日の終わり（日本時間）までが支払い済み。�
   assert.equal(computeStatus(entry, end + 1), 'past_due');
   assert.equal(computeStatus(entry, end + GRACE_MS - 1), 'past_due');
   assert.equal(computeStatus(entry, end + GRACE_MS), 'suspended');
-  assert.equal(blocksOverlay(entry, { now: end + 1 }), false);
-  assert.equal(blocksOverlay(entry, { now: end + GRACE_MS }), true);
-  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS - 1 }), true);
-  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS }), false);
-  assert.equal(allowsNewConnection(entry, { live: true, now: end + GRACE_MS }), true);
+  assert.equal(blocksOverlay(entry, { now: end + 1, enforcement: true }), false);
+  assert.equal(blocksOverlay(entry, { now: end + GRACE_MS, enforcement: true }), true);
+  assert.equal(blocksOverlay(entry, { now: end + GRACE_MS }), false);
+  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS - 1, enforcement: true }), true);
+  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS, enforcement: true }), false);
+  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS }), true);
+  assert.equal(allowsNewConnection(entry, { live: true, now: end + GRACE_MS, enforcement: true }), true);
   const manual = { status: 'past_due', pastDueAt: 1_000_000 };
   assert.equal(computeStatus(manual, 1_000_000 + GRACE_MS - 1), 'past_due');
   assert.equal(computeStatus(manual, 1_000_000 + GRACE_MS), 'suspended');
@@ -105,14 +111,16 @@ test('停止の配信画面だけ止め、5000円プランだけの機能は別�
   const paid = { plan: 'yen2000', paidUntil: future };
   const suspended = { plan: 'yen2000', paidUntil: past };
   const opts = { enforcement: true, premiumFeatures: premium };
-  assert.equal(blocksOverlay(suspended), true);
-  assert.equal(blocksOverlay({ free: true, plan: 'yen2000', paidUntil: past }), false);
-  assert.equal(blocksOverlay(null), false);
-  assert.equal(blocksOverlay({ status: 'past_due', pastDueAt: Date.now() }), false);
-  assert.equal(allowsNewConnection(suspended, { live: false }), false);
-  assert.equal(allowsNewConnection(suspended, { live: true }), true);
-  assert.equal(allowsNewConnection({ status: 'past_due', pastDueAt: Date.now() }, { live: false }), true);
-  assert.equal(allowsFeature(suspended, 'alerts', { enforcement: false, premiumFeatures: premium }), false);
+  assert.equal(blocksOverlay(suspended, { enforcement: true }), true);
+  assert.equal(blocksOverlay(suspended), false);
+  assert.equal(blocksOverlay({ free: true, plan: 'yen2000', paidUntil: past }, { enforcement: true }), false);
+  assert.equal(blocksOverlay(null, { enforcement: true }), false);
+  assert.equal(blocksOverlay({ status: 'past_due', pastDueAt: Date.now() }, { enforcement: true }), false);
+  assert.equal(allowsNewConnection(suspended, { live: false, enforcement: true }), false);
+  assert.equal(allowsNewConnection(suspended, { live: false }), true);
+  assert.equal(allowsNewConnection(suspended, { live: true, enforcement: true }), true);
+  assert.equal(allowsNewConnection({ status: 'past_due', pastDueAt: Date.now() }, { live: false, enforcement: true }), true);
+  assert.equal(allowsFeature(suspended, 'alerts', { enforcement: false, premiumFeatures: premium }), true);
   assert.equal(allowsFeature(paid, 'alerts', opts), true);
   assert.equal(allowsFeature(paid, 'bosses', opts), false);
   assert.equal(allowsFeature(paid, 'boss', opts), false);
@@ -133,7 +141,8 @@ test('停止の配信画面だけ止め、5000円プランだけの機能は別�
   assert.equal(widgetPageBlocked({ entry: paid, feature: null, ...opts }), false);
   assert.equal(widgetPageBlocked({ entry: paid, feature: 'bosses', ...opts }), true);
   assert.equal(widgetPageBlocked({ entry: paid, feature: 'alerts', ...opts }), false);
-  assert.equal(widgetPageBlocked({ entry: suspended, feature: 'alerts', enforcement: false, premiumFeatures: premium }), true);
+  assert.equal(widgetPageBlocked({ entry: suspended, feature: 'alerts', enforcement: false, premiumFeatures: premium }), false);
+  assert.equal(widgetPageBlocked({ entry: suspended, feature: 'alerts', enforcement: true, premiumFeatures: premium }), true);
   assert.equal(overlayMessageAllowed({ role: 'obs', blocked: true, type: 'event' }), false);
   assert.equal(overlayMessageAllowed({ role: 'obs', blocked: true, type: 'hello' }), true);
   assert.equal(overlayMessageAllowed({ role: 'obs', blocked: true, type: 'entitlements' }), true);
@@ -197,21 +206,41 @@ test('紹介コードは双方の月額×倍率を残高に足し、1か月分�
   assert.equal(again.enforcement(), true);
 });
 
-test('壊れた支払いファイルは読み込みでは直さず、記録が無い人は止めない', () => {
+test('壊れた支払いファイルは読み込みでは直さない。オフなら通す。オンなら止め、配信中は切らない', () => {
   const dir = tmp();
   const file = path.join(dir, 'billing.json');
   fs.writeFileSync(file, '{');
   const store = new BillingStore({ dir, env: { TW_BILLING: 'on' } });
   assert.equal(fs.readFileSync(file, 'utf8'), '{');
+  assert.equal(store.corrupt, true);
   assert.equal(store.account('anyone'), null);
-  assert.equal(store.isOverlayBlocked('anyone'), false);
-  assert.equal(store.widgetBlocked('anyone', 'bosses'), false);
   assert.equal(store.clientView('anyone').status, 'trial');
-  assert.equal(store.clientView('anyone').overlay, true);
   assert.equal(store.clientView('anyone').show, true);
-  assert.equal(store.allowsConnection('anyone', { live: false }), true);
+  assert.equal(store.clientView('anyone').overlay, false);
+  assert.equal(store.isOverlayBlocked('anyone'), true);
+  assert.equal(store.widgetBlocked('anyone', 'bosses'), true);
+  assert.equal(store.widgetBlocked('anyone', null), true);
+  assert.equal(store.isFeatureAllowed('anyone', 'alerts'), false);
+  assert.equal(store.allowsConnection('anyone', { live: false }), false);
   assert.equal(store.allowsConnection('anyone', { live: true }), true);
+
+  const offDir = tmp();
+  const offFile = path.join(offDir, 'billing.json');
+  fs.writeFileSync(offFile, '{');
+  const off = new BillingStore({ dir: offDir, env: {} });
+  assert.equal(fs.readFileSync(offFile, 'utf8'), '{');
+  assert.equal(off.corrupt, true);
+  assert.equal(off.enforcement(), false);
+  assert.equal(off.clientView('anyone').status, 'trial');
+  assert.equal(off.clientView('anyone').overlay, true);
+  assert.equal(off.isOverlayBlocked('anyone'), false);
+  assert.equal(off.widgetBlocked('anyone', 'bosses'), false);
+  assert.equal(off.isFeatureAllowed('anyone', 'bosses'), true);
+  assert.equal(off.allowsConnection('anyone', { live: false }), true);
+  assert.equal(off.allowsConnection('anyone', { live: true }), true);
+
   const quiet = new BillingStore({ dir: tmp(), env: {} });
+  assert.equal(quiet.corrupt, false);
   assert.equal(quiet.clientView('anyone').status, 'trial');
   assert.equal(quiet.clientView('anyone').show, false);
   assert.equal(quiet.isOverlayBlocked('anyone'), false);
@@ -364,6 +393,7 @@ test('画面の文言は、停止でも配信にエラーを出さない', () =>
   assert.doesNotMatch(locked, /お支払い/);
   assert.match(admin, /プラン・支払い/);
   assert.match(adminJs, /変更の履歴/);
+  assert.match(adminJs, /オフの間は誰も止まりません/);
   assert.match(adminJs, /お試しの終わり/);
   assert.match(server, /widgetBlocked\(tenant\.id, feature\)/);
   assert.match(server, /overlayMessageAllowed/);
@@ -458,6 +488,7 @@ test('停止にしても配信中の接続は切らない。止まっている�
   const dir = tmp();
   const tenants = new Tenants({ dir, env: {} });
   const a = tenants.create({ name: '配信中' });
+  tenants.updateBillingSettings({ enforcement: true });
   const rt = tenants.runtime(a.id);
   let connects = 0;
   rt.tiktok.connect = async () => { connects += 1; };
@@ -481,6 +512,145 @@ test('停止にしても配信中の接続は切らない。止まっている�
     assert.equal(connects, 1);
     assert.equal(rt.hub.status.mode, 'idle');
   } finally {
+    await tenants.close(a.id);
+    clearInterval(tenants.timer);
+    clearInterval(tenants.rentalTimer);
+  }
+});
+
+test('確認スイッチがオフなら期限切れも停止も止めない。オンなら止め、配信中とお知らせは残す', () => {
+  const now = Date.parse('2026-10-14T12:00:00+09:00');
+  const expired = { status: 'active', plan: 'flat2000', paidUntil: '2026-09-14' };
+  const suspended = { status: 'suspended', plan: 'flat2000', paidUntil: future };
+  const premium = ['boss'];
+  assert.equal(computeStatus(expired, now), 'suspended');
+  assert.equal(computeStatus(suspended, now), 'suspended');
+  for (const entry of [expired, suspended]) {
+    assert.equal(blocksOverlay(entry, { now, enforcement: false }), false);
+    assert.equal(allowsNewConnection(entry, { live: false, now, enforcement: false }), true);
+    assert.equal(allowsNewConnection(entry, { live: true, now, enforcement: false }), true);
+    assert.equal(allowsFeature(entry, 'alerts', { now, enforcement: false, premiumFeatures: premium }), true);
+    assert.equal(allowsFeature(entry, 'bosses', { now, enforcement: false, premiumFeatures: premium }), true);
+    assert.equal(widgetPageBlocked({ entry, feature: 'alerts', now, enforcement: false, premiumFeatures: premium }), false);
+    assert.equal(blocksOverlay(entry, { now, enforcement: true }), true);
+    assert.equal(allowsNewConnection(entry, { live: false, now, enforcement: true }), false);
+    assert.equal(allowsNewConnection(entry, { live: true, now, enforcement: true }), true);
+    assert.equal(allowsFeature(entry, 'alerts', { now, enforcement: true, premiumFeatures: premium }), false);
+    assert.equal(widgetPageBlocked({ entry, feature: null, now, enforcement: true, premiumFeatures: premium }), true);
+  }
+  assert.equal(trialNotice({ status: 'trial', trialEndsAt: '2026-11-01' }, now), true);
+
+  const dir = tmp();
+  const store = new BillingStore({ dir, env: { TW_BILLING: 'on', TW_ENV: 'dev' } });
+  store.setGlobal({ enforcement: false, premiumFeatures: premium });
+  store.setAccount('old', expired);
+  store.setAccount('stop', suspended);
+  store.setAccount('soon', { status: 'trial', trialEndsAt: '2026-11-01', plan: 'flat2000' });
+  store.setAccount('due', { status: 'active', plan: 'flat2000', paidUntil: '2026-10-10' });
+  for (const id of ['old', 'stop']) {
+    const view = store.clientView(id, now);
+    assert.equal(view.status, 'suspended');
+    assert.equal(view.show, true);
+    assert.equal(view.overlay, true);
+    assert.equal(store.isOverlayBlocked(id, now), false);
+    assert.equal(store.allowsConnection(id, { live: false, now }), true);
+    assert.equal(store.allowsConnection(id, { live: true, now }), true);
+    assert.equal(store.isFeatureAllowed(id, 'bosses', now), true);
+    assert.equal(store.widgetBlocked(id, 'alerts', now), false);
+  }
+  assert.equal(store.clientView('soon', now).trialNotice, true);
+  assert.equal(store.clientView('soon', now).status, 'trial');
+  assert.equal(store.clientView('due', now).status, 'past_due');
+  assert.equal(store.clientView('due', now).overlay, true);
+  assert.equal(store.adminView('old', now).status, 'suspended');
+  assert.equal(store.adminView('stop', now).statusLabel, '停止');
+
+  store.setGlobal({ enforcement: true });
+  for (const id of ['old', 'stop']) {
+    const view = store.clientView(id, now);
+    assert.equal(view.status, 'suspended');
+    assert.equal(view.suspended, true);
+    assert.equal(view.show, true);
+    assert.equal(view.overlay, false);
+    assert.equal(store.isOverlayBlocked(id, now), true);
+    assert.equal(store.allowsConnection(id, { live: false, now }), false);
+    assert.equal(store.allowsConnection(id, { live: true, now }), true);
+    assert.equal(store.isFeatureAllowed(id, 'alerts', now), false);
+    assert.equal(store.widgetBlocked(id, null, now), true);
+  }
+  assert.equal(store.clientView('soon', now).trialNotice, true);
+  assert.equal(store.clientView('soon', now).overlay, true);
+  assert.equal(store.clientView('due', now).status, 'past_due');
+  assert.equal(store.isOverlayBlocked('due', now), false);
+  assert.equal(store.allowsConnection('due', { live: false, now }), true);
+});
+
+test('停止中の connecting は、直前まで live だった再接続だけ通し、未接続と配信終了は新しい接続', async () => {
+  const dir = tmp();
+  const tenants = new Tenants({ dir, env: {} });
+  tenants.updateBillingSettings({ enforcement: true });
+  const a = tenants.create({ name: '再接続' });
+  const rt = tenants.runtime(a.id);
+  rt.tiktok.gifts.refresh = async () => ({ refreshed: false, gifts: [] });
+  rt.tiktok.jitter = 0;
+  rt.tiktok.retryDelays = [30];
+  const conns = [];
+  rt.tiktok.createConnection = () => {
+    const conn = new EventEmitter();
+    conn.connect = async () => ({ roomId: `room-${conns.length}` });
+    conn.disconnect = async () => {};
+    conns.push(conn);
+    return conn;
+  };
+  const app = express();
+  app.use(express.json());
+  app.use(rt.router);
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const post = async (urlPath, body) => {
+    const res = await fetch(`http://127.0.0.1:${port}${urlPath}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    });
+    return { status: res.status, data: await res.json() };
+  };
+  const waitFor = async (fn, ms = 1000) => {
+    const start = Date.now();
+    while (Date.now() - start < ms) {
+      if (fn()) return true;
+      await new Promise((resolve) => setTimeout(resolve, 15));
+    }
+    return false;
+  };
+  try {
+    tenants.updateBilling(a.id, { status: 'suspended' });
+    rt.hub.setStatus({ mode: 'connecting', username: 'newuser', message: '未接続から' });
+    const blocked = await post('/api/connect', { username: 'newuser' });
+    assert.equal(blocked.status, 403);
+    assert.equal(conns.length, 0);
+
+    tenants.updateBilling(a.id, { status: 'active', paidUntil: future });
+    rt.hub.setStatus({ mode: 'idle', username: null, message: '' });
+    const started = await post('/api/connect', { username: 'liveuser' });
+    assert.equal(started.status, 200);
+    assert.equal(rt.hub.status.mode, 'live');
+    assert.equal(conns.length, 1);
+
+    tenants.updateBilling(a.id, { status: 'suspended' });
+    assert.equal(rt.hub.status.mode, 'live');
+    conns[0].emit(ControlEvent.DISCONNECTED, 'socket hang up');
+    assert.equal(rt.hub.status.mode, 'connecting');
+    assert.equal(await waitFor(() => conns.length >= 2 && rt.hub.status.mode === 'live'), true);
+
+    const before = conns.length;
+    conns.at(-1).emit(WebcastEvent.STREAM_END);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(conns.length, before);
+    assert.equal(rt.hub.status.mode, 'ended');
+  } finally {
+    await new Promise((resolve) => server.close(() => resolve()));
     await tenants.close(a.id);
     clearInterval(tenants.timer);
     clearInterval(tenants.rentalTimer);

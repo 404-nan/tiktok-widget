@@ -1,6 +1,10 @@
 // 配信者ごとのプランと支払い。決済サービスは使わず、状態・期限・プランを手で入れる。
-// 記録が無い配信者はお試し（配信も配信画面も止めない）。停止のときだけ、新しい接続を始めず配信画面を出さない。
-// 5000円プランだけの機能を限るのは、今までどおり TW_BILLING=on か管理画面でオンのときだけ。
+// 確認スイッチ（enforcement）は全体の非常停止。
+// オフ（初期値・未設定）: 状態や日付に関係なく、配信画面・新しい接続・機能・ウィジェットは全部許可する。停止と書いてあっても止めない。
+// オン: 停止（手で止めた、または支払い待ちが7日を過ぎた）のとき、新しい接続を始めず配信画面を出さない。配信中の接続は切らない。
+// 5000円プランだけの機能を限るのも、スイッチがオンのときだけ。
+// 状態の計算、管理画面の表示、有料化のお知らせ、支払い待ちの案内は、スイッチがオフでも今までどおり出す。
+// 支払いファイルが壊れていてスイッチがオンのときだけ止める。ファイルが無いときと、判定が例外のときは通す。
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -196,13 +200,17 @@ export function monthDiscount(entry) {
   return { price, discount, due: price - discount, creditAfter: credit - discount };
 }
 
-export function blocksOverlay(entry, { now = Date.now() } = {}) {
-  return safely('配信画面を止める判定', () => computeStatus(entry, now) === 'suspended', false);
+export function blocksOverlay(entry, { now = Date.now(), enforcement = false } = {}) {
+  return safely('配信画面を止める判定', () => {
+    if (!enforcement) return false;
+    return computeStatus(entry, now) === 'suspended';
+  }, false);
 }
 
-/** 新しい配信接続を始めてよいか。配信中（live）は止めない。例外のときは通す */
-export function allowsNewConnection(entry, { live = false, now = Date.now() } = {}) {
+/** 新しい配信接続を始めてよいか。オフのときはいつも許可。オンでも配信中（live）は止めない */
+export function allowsNewConnection(entry, { live = false, now = Date.now(), enforcement = false } = {}) {
   return safely('配信接続の判定', () => {
+    if (!enforcement) return true;
     if (live) return true;
     return computeStatus(entry, now) !== 'suspended';
   }, true);
@@ -219,25 +227,25 @@ export function isPremiumOnly(feature, premiumFeatures = []) {
 }
 
 /**
- * 5000円プランだけの機能か。強制がオフ、または記録が無い（お試し）なら今までどおり使える。
- * 停止のときは、どの機能も配信画面に出さない
+ * 機能を配信画面に出してよいか。オフ（初期値）のときは状態に関係なく許可。
+ * オンで停止のときは、どの機能も出さない。5000円プランだけの機能は、オンのときだけ限る。
  */
 export function allowsFeature(entry, feature, { enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
   return safely('機能の判定', () => {
-    if (computeStatus(entry, now) === 'suspended') return false;
     if (!enforcement) return true;
+    if (computeStatus(entry, now) === 'suspended') return false;
     if (!isPremiumOnly(feature, premiumFeatures)) return true;
     if (!entry?.plan) return true;
     return canonicalPlan(entry.plan) === 'flat5000';
   }, true);
 }
 
-/** ウィジェットの HTML を空白にするか。停止中は確認のオン/オフに関係なく出さない */
+/** ウィジェットの HTML を空白にするか。オフのときは出さない判定をしない */
 export function widgetPageBlocked({ entry = null, feature = null, enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
   return safely('ウィジェットの判定', () => {
-    if (blocksOverlay(entry, { now })) return true;
     if (!enforcement) return false;
-    if (feature && !allowsFeature(entry, feature, { enforcement, premiumFeatures, now })) return true;
+    if (blocksOverlay(entry, { now, enforcement: true })) return true;
+    if (feature && !allowsFeature(entry, feature, { enforcement: true, premiumFeatures, now })) return true;
     return false;
   }, false);
 }
@@ -273,12 +281,22 @@ export class BillingStore {
     this.env = env;
     this.file = path.join(dir, 'billing.json');
     this.data = { enforcement: null, multiplier: 1.5, premiumFeatures: [], accounts: {} };
+    this.corrupt = false;
     this.load();
   }
 
   load() {
+    this.corrupt = false;
+    let raw = '';
     try {
-      const d = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+      raw = fs.readFileSync(this.file, 'utf8');
+    } catch (err) {
+      // ファイルが無いときはお試しのまま。無いファイルは読み込みでは作らない
+      if (err?.code !== 'ENOENT') this.corrupt = true;
+      return this.data;
+    }
+    try {
+      const d = JSON.parse(raw);
       this.data = {
         enforcement: d.enforcement === true ? true : d.enforcement === false ? false : null,
         multiplier: d.multiplier === 2 ? 2 : 1.5,
@@ -286,7 +304,9 @@ export class BillingStore {
         accounts: d.accounts && typeof d.accounts === 'object' && !Array.isArray(d.accounts) ? d.accounts : {},
       };
     } catch {
-      // ファイルが無い・壊れているときは無料提供のまま。壊れたファイルは読み込みでは上書きしない
+      // 壊れたファイルは読み込みでは上書きしない。スイッチがオンのときだけ、中身が読めないので止める
+      this.corrupt = true;
+      this.data = { enforcement: null, multiplier: 1.5, premiumFeatures: [], accounts: {} };
     }
     return this.data;
   }
@@ -381,7 +401,7 @@ export class BillingStore {
         monthlyPrice: monthlyPriceYen(entry),
         credit: Math.max(0, Math.round(Number(entry?.credit) || 0)),
         code: entry?.code ?? '',
-        overlay: !blocksOverlay(entry, { now }),
+        overlay: !(enforcement && this.corrupt) && !blocksOverlay(entry, { now, enforcement }),
       };
     }, {
       show: false,
@@ -402,30 +422,49 @@ export class BillingStore {
     });
   }
 
+  /** スイッチがオンで、ファイルが壊れているときは中身が読めないので止める。配信中は切らない */
+  #stoppedByFile(live = false) {
+    if (!this.corrupt || !this.enforcement()) return false;
+    return live !== true;
+  }
+
   isOverlayBlocked(id, now = Date.now()) {
-    return safely('配信画面の判定', () => blocksOverlay(this.account(id), { now }), false);
+    return safely('配信画面の判定', () => {
+      if (this.#stoppedByFile()) return true;
+      return blocksOverlay(this.account(id), { now, enforcement: this.enforcement() });
+    }, false);
   }
 
   allowsConnection(id, { live = false, now = Date.now() } = {}) {
-    return safely('配信接続の判定', () => allowsNewConnection(this.account(id), { live, now }), true);
+    return safely('配信接続の判定', () => {
+      if (live) return allowsNewConnection(this.account(id), { live: true, now, enforcement: this.enforcement() });
+      if (this.#stoppedByFile(false)) return false;
+      return allowsNewConnection(this.account(id), { live: false, now, enforcement: this.enforcement() });
+    }, true);
   }
 
   isFeatureAllowed(id, feature, now = Date.now()) {
-    return safely('機能の判定', () => allowsFeature(this.account(id), feature, {
-      enforcement: this.enforcement(),
-      premiumFeatures: this.data.premiumFeatures,
-      now,
-    }), true);
+    return safely('機能の判定', () => {
+      if (this.#stoppedByFile()) return false;
+      return allowsFeature(this.account(id), feature, {
+        enforcement: this.enforcement(),
+        premiumFeatures: this.data.premiumFeatures,
+        now,
+      });
+    }, true);
   }
 
   widgetBlocked(id, feature, now = Date.now()) {
-    return safely('ウィジェットの判定', () => widgetPageBlocked({
-      entry: this.account(id),
-      feature,
-      enforcement: this.enforcement(),
-      premiumFeatures: this.data.premiumFeatures,
-      now,
-    }), false);
+    return safely('ウィジェットの判定', () => {
+      if (this.#stoppedByFile()) return true;
+      return widgetPageBlocked({
+        entry: this.account(id),
+        feature,
+        enforcement: this.enforcement(),
+        premiumFeatures: this.data.premiumFeatures,
+        now,
+      });
+    }, false);
   }
 
   setGlobal(patch = {}) {

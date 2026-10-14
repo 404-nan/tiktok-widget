@@ -30,6 +30,12 @@ export function bundledGifts() {
   return BUNDLED.list.map((g) => ({ ...g, diamonds: BUNDLED.coins.has(g.id) ? BUNDLED.coins.get(g.id) : null }));
 }
 
+/** gift-coins.json の1個あたりのコイン。表に無いときは null（0 にはしない） */
+export function bundledCoinCount(id) {
+  const key = String(id ?? '').trim();
+  return key && BUNDLED.coins.has(key) ? BUNDLED.coins.get(key) : null;
+}
+
 const nameKey = (value) => text(value).toLocaleLowerCase().replace(/\s+/g, '');
 
 export function bundledNameJa(gift) {

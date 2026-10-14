@@ -629,8 +629,8 @@ function billingDetail() {
   const enforcement = el('select');
   enforcement.setAttribute('aria-label', '支払いの確認');
   enforcement.append(new Option('初期値（本番はオフ、開発はオン）', '', false, settings.enforcement == null));
-  enforcement.append(new Option('オン（5000円プラン以外は選んだ機能を止める）', 'on', false, settings.enforcement === true));
-  enforcement.append(new Option('オフ（機能は止めない）', 'off', false, settings.enforcement === false));
+  enforcement.append(new Option('オン（停止と7日の猶予）', 'on', false, settings.enforcement === true));
+  enforcement.append(new Option('オフ（誰も止めない）', 'off', false, settings.enforcement === false));
   const multiplier = el('select');
   multiplier.setAttribute('aria-label', '紹介の倍率');
   multiplier.append(new Option('1.5倍', '1.5', false, settings.multiplier !== 2));
@@ -660,8 +660,8 @@ function billingDetail() {
     el(
       'div',
       { className: 'note-form' },
-      el('p', { className: 'sub', textContent: settings.effective ? '5000円プラン以外は、下で選んだ機能を止めています。停止にした配信者は、このスイッチに関係なく新しい接続を始めず、配信画面も出ません。' : '機能の制限はオフです。停止にした配信者だけ、新しい接続を始めず、配信画面も出ません。' }),
-      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払いの確認' }), enforcement),
+      el('p', { className: 'sub', textContent: settings.effective ? 'オンです。停止の配信者は新しい接続を始めず、配信画面も出ません。支払い待ちは7日です。5000円プラン以外は、下で選んだ機能を止めます。' : 'オフです。配信も機能も止めていません。状態とお知らせは、これまでどおり出します。' }),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払いの確認' }), el('div', { className: 'enforcement-row' }, enforcement, el('span', { className: 'hint', textContent: 'オフの間は誰も止まりません' }))),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '紹介の倍率' }), multiplier),
       el('div', { className: 'field' }, el('span', { className: 'field-label', textContent: '5000円プランだけの機能' }), flagBox),
       el('p', { className: 'sub', textContent: '空のままだと、まだ決めていません。5%プランと2000円プランは同じ機能です。' }),

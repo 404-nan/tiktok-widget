@@ -66,8 +66,32 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  */
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true }) {
   const hub = new Hub();
+  // connecting は「直前まで live だった再接続」だけ配信中。未接続・配信終了のあとは新しい接続。
+  // 再接続が一度失敗して error になっても、配信終了か手動切断までは同じ配信の続きとみなす。
+  let reconnectFromLive = false;
+  hub.on('status', (status, prev) => {
+    const mode = status?.mode;
+    const before = prev?.mode;
+    if (mode === 'live') reconnectFromLive = true;
+    else if (mode === 'idle' || mode === 'ended' || mode === 'demo') reconnectFromLive = false;
+    else if (mode === 'connecting' && (before === 'idle' || before === 'ended' || before === 'demo')) reconnectFromLive = false;
+    else if (mode === 'connecting' && before === 'live') reconnectFromLive = true;
+  });
+  const streamLive = () => {
+    const mode = hub.status.mode;
+    if (mode === 'live') return true;
+    return reconnectFromLive && (mode === 'connecting' || mode === 'error');
+  };
+  const mayConnect = (live) => {
+    try {
+      return connectionAllowed({ live: Boolean(live) }) !== false;
+    } catch (err) {
+      console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
+      return true;
+    }
+  };
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
-  const tiktok = new TikTokSource(hub, giftCatalog);
+  const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()) });
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
   const minecraft = new Minecraft(hub);
@@ -92,15 +116,6 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const auto = new Map();
   let currentAutoId = null;
   // 停止中でも、すでに配信へつながっている接続は切らない。止まっているときだけ新しい接続を始めない
-  const streamLive = () => hub.status.mode === 'live' || hub.status.mode === 'connecting';
-  const mayConnect = (live) => {
-    try {
-      return connectionAllowed({ live: Boolean(live) }) !== false;
-    } catch (err) {
-      console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
-      return true;
-    }
-  };
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
   const applyEngines = (config) => {

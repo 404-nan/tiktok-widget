@@ -209,6 +209,9 @@
 }
 .lul-tenant + .lul-tenant, .admin-note + .admin-note, .admin-key + .admin-key { border-top: 1px solid var(--border); }
 .form-card .field { gap: var(--s-2); }
+.enforcement-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.enforcement-row select { flex: 1 1 240px; width: auto; min-width: 0; }
+.enforcement-row .hint { flex: none; }
 
 /* 横に並ぶ入力欄は同じ幅（ボタンの行 .btn-row は /dashboard/style.css） */
 .field-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: center; gap: var(--s-2); }

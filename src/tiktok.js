@@ -55,7 +55,7 @@ export class TikTokSource {
   // retryDelays: 再接続までの待ち（ミリ秒）。既定は 5, 10, 20, 40, 60 秒で頭打ち
   // jitter: 待ちのばらつき。0.2 なら ±20%。テストでは 0 にすると待ちが固定になる
   // watchdogMs: 何もイベントが来ないときに切り直すまでの時間。既定は 3 分
-  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs } = {}) {
+  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed } = {}) {
     this.hub = hub;
     this.gifts = gifts;
     this.connection = null;
@@ -69,12 +69,24 @@ export class TikTokSource {
     this.retryDelays = Array.isArray(retryDelays) && retryDelays.length ? retryDelays : RETRY_DELAYS;
     this.jitter = jitter ?? JITTER;
     this.watchdogMs = watchdogMs ?? WATCHDOG_MS;
+    this.connectionAllowed = typeof connectionAllowed === 'function' ? connectionAllowed : () => true;
     this.createConnection = createConnection ?? ((username, signApiKey) => new TikTokLiveConnection(username, connectionOptions(signApiKey)));
+  }
+
+  // 停止中の新しい接続は始めない。判定が落ちたときは止めない
+  #allowed() {
+    try {
+      return this.connectionAllowed() !== false;
+    } catch (err) {
+      console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
+      return true;
+    }
   }
 
   async connect(username, { signApiKey } = {}) {
     const name = String(username ?? '').replace(/^@/, '').trim();
     if (!name) throw new Error('ユーザー名を入力してください');
+    if (!this.#allowed()) throw new Error('お支払いの確認が取れていません。LuLにご連絡ください');
     // 前の接続を片づける処理は stay を消さない。消すのは手動の disconnect() だけ
     if (this.username && (this.connection || this.retryTimer || this.connected)) {
       log(`@${this.username} から切断しました（接続し直し）`);
@@ -235,6 +247,7 @@ export class TikTokSource {
   // stay が真のあいだは、待ちの上限に達しても止めずに繰り返す
   #scheduleRetry(reason = '') {
     if (!this.stay || !this.username) return;
+    if (!this.#allowed()) return;
     clearTimeout(this.retryTimer);
     const base = this.retryDelays[Math.min(this.retry, this.retryDelays.length - 1)];
     this.retry += 1;
@@ -247,6 +260,7 @@ export class TikTokSource {
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null;
       if (!this.stay || this.username !== scheduledFor) return;
+      if (!this.#allowed()) return;
       this.#open({ reconnect: true, reason: why }).catch((err) => {
         if (this.stay && this.username === scheduledFor) this.#scheduleRetry(err.message);
       });

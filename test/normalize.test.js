@@ -41,6 +41,44 @@ test('ギフト: 旧形式 (giftDetails)', () => {
   assert.equal(e.totalDiamonds, 2);
 });
 
+test('コインが無いギフトは gift-coins.json で補い、イベントにある数は変えない', () => {
+  const filled = normalizeGift({
+    giftId: '5338',
+    repeatCount: 1,
+    repeatEnd: 1,
+    gift: { id: '5338', name: '任意の名前', type: 2 },
+  });
+  assert.equal(filled.gift.diamonds, 5000);
+  assert.equal(filled.totalDiamonds, 5000);
+
+  const kept = normalizeGift({
+    giftId: '5338',
+    repeatCount: 2,
+    repeatEnd: 1,
+    gift: { id: '5338', name: '任意の名前', type: 2, diamondCount: 8 },
+  });
+  assert.equal(kept.gift.diamonds, 8);
+  assert.equal(kept.totalDiamonds, 16);
+
+  const zero = normalizeGift({
+    giftId: '5338',
+    repeatCount: 1,
+    repeatEnd: 1,
+    gift: { id: '5338', name: '任意の名前', type: 2, diamondCount: 0 },
+  });
+  assert.equal(zero.gift.diamonds, 0);
+  assert.equal(zero.totalDiamonds, 0);
+
+  const unknown = normalizeGift({
+    giftId: '999999',
+    repeatCount: 1,
+    repeatEnd: 1,
+    gift: { id: '999999', name: '表に無い', type: 2 },
+  });
+  assert.equal(unknown.gift.diamonds, 0);
+  assert.equal(unknown.totalDiamonds, 0);
+});
+
 test('いいね・視聴者: 文字列の数値も読む', () => {
   assert.deepEqual(normalizeLike({ user, count: 5, total: '1200' }).total, 1200);
   assert.equal(normalizeLike({ user, likeCount: 3, totalLikeCount: 10 }).count, 3);
