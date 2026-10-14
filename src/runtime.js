@@ -29,6 +29,7 @@ import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
+import { GachaViewers } from './gacha-viewers.js';
 import { SlotEngine } from './slot.js';
 import { RelayStopEngine } from './relay-stop.js';
 import { Peka } from './peka.js';
@@ -146,6 +147,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
   const omikuji = new Gacha(hub, { bus, name: 'omikuji' });
+  const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
   const slot = new SlotEngine(hub, { bus });
   const relayStop = new RelayStopEngine(hub, { slot });
   const peka = new Peka(hub);
@@ -163,6 +165,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const push = new PushButtonEngine(hub, {
     onResult: ({ id: pushId, actions, result }) => runActions(actions, actionDeps(), { source: 'push', pushId, result }),
   });
+  bus.on('gacha.reveal', ({ tier, trigger }) => runActions(tier?.actions, actionDeps(), { source: 'gacha', tierId: tier?.id, trigger }));
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
@@ -170,6 +173,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     throne.onEvent(e);
     mediaAlerts.onEvent(e);
     giftSounds.onEvent(e);
+    gachaViewers.onEvent(e);
     gacha.onEvent(e);
     omikuji.onEvent(e);
     const relay = relayStop.onEvent(e);
@@ -220,6 +224,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
     omikuji.setConfig(config.omikuji);
+    gachaViewers.setConfig(config.gacha);
     slot.setConfig(config.slots);
     relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
     peka.setConfig(config.peka);
@@ -234,6 +239,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     push.setConfig(entitled('pushButtons') ? config.pushButtons : {});
   };
   hub.on('config', applyEngines);
+  hub.on('status', (status, previous) => gachaViewers.onStatus(status, previous));
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
   hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
   // ボスを討伐したら、設定にあるルーレットを回し、Minecraft にコマンドを送る
@@ -778,6 +784,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'おみくじはオフです' });
         return res.json({ ok: true, omikuji: started });
       }
+      if (body.target === 'gacha-viewer') {
+        const name = String(body.name || 'テスト視聴者').trim() || 'テスト視聴者';
+        const started = gachaViewers.devSpin({ id: `dev_${name}`, name }, body.paid === true);
+        if (!started.ok) return res.status(400).json({ ...started, error: started.error || '回せませんでした' });
+        return res.json({ ok: true, gacha: started, viewers: gachaViewers.list() });
+      }
       if (body.target === 'slot') {
         const started = slot.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
         if (!started) return res.status(400).json({ error: 'スロットはオフです' });
@@ -799,6 +811,20 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
   r.get('/api/omikuji', (_req, res) => res.json(omikuji.snapshot()));
+  r.get('/api/gacha-viewers', (_req, res) => res.json(gachaViewers.snapshot()));
+  r.post('/api/gacha-viewers/reset-free', (_req, res) => {
+    gachaViewers.resetFree();
+    res.json({ ok: true, viewers: gachaViewers.list() });
+  });
+  r.post('/api/gacha-viewers/:id/adjust', (req, res) => {
+    try {
+      const viewer = gachaViewers.adjust(req.params.id, Number(req.body?.amount), req.body?.type === 'free' ? 'free' : 'paid');
+      if (!viewer) return res.status(404).json({ error: '視聴者が見つかりません' });
+      return res.json({ ok: true, viewer });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  });
   r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
   r.get('/api/relay-stop', (_req, res) => res.json(relayStop.snapshot()));
   r.get('/api/peka', (_req, res) => res.json(peka.snapshot()));
@@ -1142,6 +1168,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       swarm.close();
       gacha.close();
       omikuji.close();
+      gachaViewers.close();
       slot.close();
       relayStop.close();
       ootori.close();

@@ -595,11 +595,21 @@ SCHEMA.gacha = {
   desc:
     '高額ギフトなどで回すガチャ。待機 → 回転 → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
     'きっかけ: gifts のギフト / minCoins 以上のギフト / ルーレットなどの gacha.start。' +
-    'pity が 1 以上のとき、pity 対象のレアリティがそれ回出なければ次は確定。URL は /widgets/gacha.html',
+    '無料回は視聴者ごとに管理し、有料回は対象ギフトで回数をためてコメントで使う。pity が 1 以上のとき、pity 対象のレアリティがそれ回出なければ次は確定。景品は演出・特典のみで換金できない。URL は /widgets/gacha.html',
   fields: {
     enabled: bool(true, 'ガチャを使う'),
     minCoins: num(0, 'この合計コイン以上のギフトで回す（0 で金額では回さない）', { min: 0 }),
     gifts: list([], 'このギフトID（または名前）で回す'),
+    freePerReset: num(1, '1人あたりの無料回数', { min: 0, max: 999 }),
+    resetMode: oneOf(['stream', 'daily'], 'stream', '無料回数のリセット。stream は配信ごと、daily は日本時間0時'),
+    freeRequires: oneOf(['none', 'follow'], 'none', '無料回数の条件。follow はフォロー済みだけ'),
+    paidRule: {
+      type: 'gachaPaidRule',
+      default: { gifts: [], minCoins: 100, spinsPerCoins: 100 },
+      desc: '有料回数をためるギフト。対象ギフトまたは最低コインに合ったギフトから、spinsPerCoins コインごとに1回ためる',
+    },
+    command: str('!ガチャ', '有料回を使うコメント（完全一致）'),
+    cooldownSec: num(5, '同じ視聴者が続けて回せる最短間隔（秒）', { min: 0, max: 3600 }),
     rollMs: num(3000, '回転しているミリ秒', { min: 0, max: 60000 }),
     revealMs: num(2500, '結果を出しているミリ秒', { min: 0, max: 60000 }),
     doneMs: num(1200, '終了表示のミリ秒', { min: 0, max: 60000 }),
@@ -607,11 +617,11 @@ SCHEMA.gacha = {
     tiers: {
       type: 'gachaTiers',
       default: [
-        { id: 'common', label: 'ふつう', weight: 70, pity: false },
-        { id: 'rare', label: 'レア', weight: 25, pity: false },
-        { id: 'legend', label: '激アツ', weight: 5, pity: true },
+        { id: 'common', label: 'ふつう', weight: 70, pity: false, actions: [] },
+        { id: 'rare', label: 'レア', weight: 25, pity: false, actions: [] },
+        { id: 'legend', label: '激アツ', weight: 5, pity: true, actions: [] },
       ],
-      desc: 'レアリティ。id / label / weight（当たりやすさ）/ pity（true なら天井の対象。1つだけ）',
+      desc: 'レアリティ。id / label / weight（当たりやすさ）/ pity（true なら天井の対象。1つだけ）/ actions（当選時の既存の動作。カットイン用の再生もここ）',
     },
   },
 };
@@ -642,7 +652,8 @@ SCHEMA.omikuji = {
     },
   },
 };
-delete SCHEMA.omikuji.fields.pity;
+// pity と、視聴者ごとの無料回・有料回（ガチャだけの仕組み）はおみくじでは使わない
+for (const key of ['pity', 'freePerReset', 'resetMode', 'freeRequires', 'paidRule', 'command', 'cooldownSec']) delete SCHEMA.omikuji.fields[key];
 SCHEMA.peka = {
   kind: 'object',
   page: 'peka',

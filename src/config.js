@@ -81,6 +81,8 @@ function checkValue(field, value, where, issues) {
       return checkSoundRules(value, where, issues);
     case 'gachaTiers':
       return checkGachaTiers(value, where, issues, where.startsWith('omikuji') ? 'omikuji' : 'gacha');
+    case 'gachaPaidRule':
+      return checkGachaPaidRule(value, where, issues);
     case 'slotTrigger':
       return checkSlotTrigger(value, where, issues);
     case 'slotPayouts':
@@ -329,6 +331,22 @@ function checkSoundRules(value, where, issues) {
 }
 
 const TIER_ID = /^[A-Za-z0-9_-]+$/;
+function checkGachaPaidRule(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.gacha.fields.paidRule.default);
+  if (value == null) return fallback;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    issues.errors.push(`${where}: { gifts: [...], minCoins: 100, spinsPerCoins: 100 } の形で書いてください`);
+    return fallback;
+  }
+  const out = {
+    gifts: value.gifts == null ? [] : checkValue({ type: 'list', default: [] }, value.gifts, `${where}.gifts`, issues),
+    minCoins: value.minCoins == null ? 100 : checkValue({ type: 'number', default: 100, min: 0 }, value.minCoins, `${where}.minCoins`, issues),
+    spinsPerCoins: value.spinsPerCoins == null ? 100 : checkValue({ type: 'number', default: 100, min: 1 }, value.spinsPerCoins, `${where}.spinsPerCoins`, issues),
+  };
+  for (const key of Object.keys(value)) if (!['gifts', 'minCoins', 'spinsPerCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  return out;
+}
+
 function checkGachaTiers(value, where, issues, section = 'gacha') {
   const fallback = structuredClone(SCHEMA[section].fields.tiers.default);
   if (value == null) return fallback;
@@ -341,8 +359,8 @@ function checkGachaTiers(value, where, issues, section = 'gacha') {
   return value.map((raw, i) => {
     const at = `${where}[${i}]`;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      issues.errors.push(`${at}: { id, label, weight } で書いてください`);
-      return { id: `tier${i}`, label: '？', weight: 1, pity: false };
+      issues.errors.push(`${at}: { id, label, weight, actions } で書いてください`);
+      return { id: `tier${i}`, label: '？', weight: 1, pity: false, actions: [] };
     }
     const id = String(raw.id ?? `tier${i}`).trim();
     if (!TIER_ID.test(id)) issues.errors.push(`${at}.id: 英数字と - _ だけにしてください`);
@@ -355,9 +373,10 @@ function checkGachaTiers(value, where, issues, section = 'gacha') {
     const pity = wantPity && !pitySeen;
     if (wantPity && pitySeen) issues.warnings.push(`${at}.pity: 天井の対象は1つだけ使います（先のものを使います）`);
     if (pity) pitySeen = true;
-    const known = ['id', 'label', 'weight', 'pity'];
+    const actions = raw.actions == null ? [] : checkActions(raw.actions, `${at}.actions`, issues);
+    const known = ['id', 'label', 'weight', 'pity', 'actions'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
-    return { id: TIER_ID.test(id) ? id : `tier${i}`, label, weight: weight > 0 ? weight : 1, pity };
+    return { id: TIER_ID.test(id) ? id : `tier${i}`, label, weight: weight > 0 ? weight : 1, pity, actions };
   });
 }
 

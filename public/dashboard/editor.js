@@ -11,6 +11,7 @@ import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 import { giftPicker } from './gift-picker.js';
 import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gift-sounds-form.js';
+import { gachaViewersView } from './gacha-viewers-form.js';
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 import { renderRouletteUrls as renderRouletteUrlBox } from './roulette-urls.js';
 import { createTemplatesView } from './templates.js';
@@ -35,6 +36,8 @@ const ENUM_LABELS = {
   normal: '普通', bold: '太字',
   stripe: '縞・標準', invert: '縞・反転', thick: '縞・枠太',
   'mode.hp': '固定HP', 'mode.rank-gap': '上の人とのコイン差',
+  'resetMode.stream': '配信ごと', 'resetMode.daily': '日本時間の0時',
+  'freeRequires.none': '条件なし', 'freeRequires.follow': 'フォローした人だけ',
   'rankSource.manual': '手入力', 'rankSource.live': '配信の順位（無ければ手入力）',
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
   'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない',
@@ -69,6 +72,8 @@ const LABELS = {
   'mediaAlerts.enabled': 'メディア通知を使う', 'gacha.enabled': 'ガチャを使う',
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
+  'gacha.freePerReset': '1人の無料回数', 'gacha.resetMode': '無料回数のリセット', 'gacha.freeRequires': '無料回数の条件',
+  'gacha.paidRule': '有料回数のたまり方', 'gacha.command': '回すコメント', 'gacha.cooldownSec': '同じ人の間隔',
   'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔', 'slots.idleMode': '待機中の表示',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
@@ -108,7 +113,7 @@ const BASIC = {
   rush: ['enabled', 'gifts', 'enterCoins', 'duration', 'extendMinCoins', 'extendSeconds', 'maxSeconds', 'text', 'enterText'],
   mediaAlerts: ['enabled', 'rules'],
   giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
-  gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
+  gacha: ['enabled', 'minCoins', 'gifts', 'freePerReset', 'resetMode', 'freeRequires', 'paidRule', 'command', 'cooldownSec', 'pity', 'tiers'],
   omikuji: ['enabled', 'minCoins', 'gifts', 'tiers'],
   slots: ['enabled', 'trigger', 'look', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
@@ -875,6 +880,7 @@ export function createEditor({ api, setMessage }) {
         rules: () => (isObj(tab) ? payload.config[tab]?.rules : []) ?? [],
       }));
     }
+    if (tab === 'gacha') form.append(gachaViewersView({ api, setMessage, dev: devMode }));
     renderActions();
     updateUrl(true);
   }
@@ -916,7 +922,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   // かんたんでは、短い項目は「呼び名 | 入れるところ」の1行に、長い項目は呼び名の下に置く
-  const WIDE_TYPES = ['list', 'items', 'rules', 'actions', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'slotPayouts'];
+  const WIDE_TYPES = ['list', 'items', 'rules', 'actions', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'gachaPaidRule', 'slotPayouts'];
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
@@ -925,6 +931,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   function buildField(key, field, value) {
+    if (field.type === 'gachaPaidRule') return gachaPaidRuleEditor(key, value);
     if (field.type === 'slotTrigger') {
       const wrap = document.createElement('div');
       wrap.className = 'field items-field';
@@ -1292,6 +1299,106 @@ export function createEditor({ api, setMessage }) {
     return wrap;
   }
 
+  function gachaPaidRuleEditor(key, value) {
+    const current = {
+      gifts: Array.isArray(value?.gifts) ? [...value.gifts] : [],
+      minCoins: value?.minCoins ?? 100,
+      spinsPerCoins: value?.spinsPerCoins ?? 100,
+    };
+    const wrap = document.createElement('div');
+    wrap.className = 'field items-field wide gacha-paid';
+    const head = document.createElement('span');
+    head.className = 'field-label';
+    head.textContent = labelText(key);
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = '対象のギフトか、最低コイン以上のギフトで回数がたまります。このコインごとに1回で、端数は次に繰り越しません。';
+    const commit = (delay = 400) => save(key, {
+      gifts: current.gifts,
+      minCoins: Math.max(0, Number(current.minCoins) || 0),
+      spinsPerCoins: Math.max(1, Number(current.spinsPerCoins) || 100),
+    }, delay);
+    const giftControl = giftPicker({ value: current.gifts, gifts, onChange: (names) => { current.gifts = names; commit(0); } });
+    const grid = document.createElement('div');
+    grid.className = 'gacha-paid-grid';
+    const coinField = document.createElement('label');
+    coinField.className = 'field';
+    const coins = document.createElement('input');
+    coins.type = 'number';
+    coins.min = '0';
+    coins.step = '1';
+    coins.value = current.minCoins;
+    coins.setAttribute('aria-label', '最低コイン');
+    coins.addEventListener('input', () => {
+      const n = Number(coins.value);
+      if (coins.value !== '' && Number.isFinite(n)) current.minCoins = n;
+      commit();
+    });
+    coinField.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: '最低コイン' }), coins);
+    const perField = document.createElement('label');
+    perField.className = 'field';
+    const per = document.createElement('input');
+    per.type = 'number';
+    per.min = '1';
+    per.step = '1';
+    per.value = current.spinsPerCoins;
+    per.setAttribute('aria-label', '何コインで1回');
+    per.addEventListener('input', () => {
+      const n = Number(per.value);
+      if (per.value !== '' && Number.isFinite(n)) current.spinsPerCoins = n;
+      commit();
+    });
+    perField.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: '何コインで1回' }), per);
+    grid.append(coinField, perField);
+    wrap.append(head, hint, giftControl, grid);
+    return wrap;
+  }
+
+  const TIER_ACTIONS = [
+    ['timer.add', 'タイマーを足す・減らす'],
+    ['wins.add', 'WIN数を足す・減らす'],
+    ['rush.start', 'RUSHを始める'],
+    ['media.play', 'メディアを再生'],
+    ['sound.play', '効果音を鳴らす'],
+    ['boss.damage', 'ボスにダメージ'],
+    ['boss.heal', 'ボスを回復'],
+    ['gacha.start', 'ガチャを回す'],
+  ];
+  const tierActionReady = (a) => {
+    if (!a?.type) return false;
+    if (a.id != null && a.id !== '' && !/^[A-Za-z0-9_-]+$/.test(String(a.id))) return false;
+    if (a.type === 'timer.add') return Number.isFinite(Number(a.seconds)) && Number(a.seconds) !== 0;
+    if (a.type === 'wins.add') return Number.isInteger(Number(a.n)) && Number(a.n) !== 0;
+    if (a.type === 'media.play') return String(a.mediaId || '').trim() !== '';
+    if (a.type === 'sound.play') {
+      if (!String(a.mediaId || '').trim()) return false;
+      if (a.volume != null && a.volume !== '' && !(Number(a.volume) >= 0 && Number(a.volume) <= 100)) return false;
+      return true;
+    }
+    if (a.type === 'boss.damage' || a.type === 'boss.heal') return Number(a.amount) > 0;
+    return a.type === 'rush.start' || a.type === 'gacha.start';
+  };
+  const tierActionClean = (a) => {
+    const out = { type: a.type };
+    if (a.id) out.id = String(a.id);
+    if (a.type === 'timer.add') out.seconds = Number(a.seconds);
+    else if (a.type === 'wins.add') out.n = Number(a.n);
+    else if (a.type === 'media.play') out.mediaId = String(a.mediaId).trim();
+    else if (a.type === 'sound.play') {
+      out.mediaId = String(a.mediaId).trim();
+      if (a.volume != null && a.volume !== '') out.volume = Number(a.volume);
+    } else if (a.type === 'boss.damage' || a.type === 'boss.heal') out.amount = Number(a.amount);
+    return out;
+  };
+  const tierActionPlaceholder = (type) => {
+    if (type === 'timer.add') return '秒（マイナスで減らす）';
+    if (type === 'wins.add') return '数（マイナスで減らす）';
+    if (type === 'media.play') return 'メディアID';
+    if (type === 'sound.play') return '音声のID';
+    if (type === 'boss.damage' || type === 'boss.heal') return '量';
+    return '';
+  };
+
   function gachaTiersEditor(value) {
     const wrap = document.createElement('div');
     wrap.className = 'field items-field';
@@ -1300,7 +1407,7 @@ export function createEditor({ api, setMessage }) {
     head.textContent = 'レアリティと当たりやすさ';
     const hint = document.createElement('p');
     hint.className = 'hint';
-    hint.textContent = '割合は、当たりやすさの合計に対する割合です。天井の対象は1つだけです。';
+    hint.textContent = '割合は、当たりやすさの合計に対する割合です。天井の対象は1つだけです。当たったときの動作は、カットイン用の再生など既存の動作を紐付けます。';
     const list = document.createElement('div');
     list.className = 'items';
     let rows = (Array.isArray(value) && value.length ? value : [{ id: 'common', label: 'ふつう', weight: 1, pity: false }]).map((t) => ({
@@ -1308,6 +1415,7 @@ export function createEditor({ api, setMessage }) {
       label: t.label ?? '',
       weight: t.weight ?? 1,
       pity: t.pity === true,
+      actions: Array.isArray(t.actions) ? t.actions.map((a) => ({ ...a })) : [],
     }));
 
     const pct = (part, total) => {
@@ -1322,7 +1430,10 @@ export function createEditor({ api, setMessage }) {
         const pity = t.pity === true && !pityUsed;
         if (pity) pityUsed = true;
         const weight = Number(t.weight);
-        return { id, label: String(t.label || id).trim() || id, weight: weight > 0 ? weight : 1, pity };
+        const actions = (t.actions || []).filter(tierActionReady).map(tierActionClean);
+        const tier = { id, label: String(t.label || id).trim() || id, weight: weight > 0 ? weight : 1, pity };
+        if (actions.length) tier.actions = actions;
+        return tier;
       });
       save('tiers', tiers, delay);
     };
@@ -1385,6 +1496,109 @@ export function createEditor({ api, setMessage }) {
           commit(0);
         });
         pity.append(pityInput, '天井の対象');
+        const actionsBox = document.createElement('div');
+        actionsBox.className = 'field';
+        actionsBox.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: '当たったときの動作' }));
+        const actionList = document.createElement('div');
+        actionList.className = 'items';
+        const paintActions = () => {
+          actionList.replaceChildren(...(t.actions || []).map((a, index) => {
+            const line = document.createElement('div');
+            line.className = 'item-row';
+            const type = document.createElement('select');
+            type.setAttribute('aria-label', '動作の種類');
+            for (const [choice, text] of TIER_ACTIONS) type.append(new Option(text, choice));
+            type.value = a.type || 'timer.add';
+            const valueInput = document.createElement('input');
+            valueInput.setAttribute('aria-label', '動作の値');
+            const volumeInput = document.createElement('input');
+            volumeInput.type = 'number';
+            volumeInput.min = '0';
+            volumeInput.max = '100';
+            volumeInput.step = '1';
+            volumeInput.placeholder = '音量（空なら100）';
+            volumeInput.setAttribute('aria-label', '効果音の音量');
+            const idInput = document.createElement('input');
+            idInput.placeholder = '対象の名前（空なら全部）';
+            idInput.setAttribute('aria-label', '対象の名前');
+            idInput.value = a.id ?? '';
+            const sync = () => {
+              const needsValue = a.type !== 'rush.start' && a.type !== 'gacha.start';
+              const needsId = a.type === 'timer.add' || a.type === 'wins.add' || a.type === 'boss.damage' || a.type === 'boss.heal';
+              valueInput.hidden = !needsValue;
+              volumeInput.hidden = a.type !== 'sound.play';
+              idInput.hidden = !needsId;
+              valueInput.placeholder = tierActionPlaceholder(a.type);
+              valueInput.type = a.type === 'media.play' || a.type === 'sound.play' ? 'text' : 'number';
+              if (a.type === 'timer.add') valueInput.value = a.seconds ?? '';
+              else if (a.type === 'wins.add') valueInput.value = a.n ?? '';
+              else if (a.type === 'media.play' || a.type === 'sound.play') valueInput.value = a.mediaId ?? '';
+              else if (a.type === 'boss.damage' || a.type === 'boss.heal') valueInput.value = a.amount ?? '';
+              else valueInput.value = '';
+              volumeInput.value = a.volume ?? '';
+            };
+            type.addEventListener('change', () => {
+              a.type = type.value;
+              delete a.seconds;
+              delete a.n;
+              delete a.mediaId;
+              delete a.amount;
+              delete a.volume;
+              sync();
+              commit(0);
+            });
+            valueInput.addEventListener('input', () => {
+              const text = valueInput.value.trim();
+              if (a.type === 'media.play' || a.type === 'sound.play') a.mediaId = text;
+              else if (a.type === 'timer.add') a.seconds = text === '' ? '' : Number(text);
+              else if (a.type === 'wins.add') a.n = text === '' ? '' : Number(text);
+              else if (a.type === 'boss.damage' || a.type === 'boss.heal') a.amount = text === '' ? '' : Number(text);
+              commit();
+            });
+            volumeInput.addEventListener('input', () => {
+              const text = volumeInput.value.trim();
+              if (text === '') delete a.volume;
+              else a.volume = Number(text);
+              commit();
+            });
+            idInput.addEventListener('input', () => {
+              const text = idInput.value.trim();
+              if (text) a.id = text;
+              else delete a.id;
+              commit();
+            });
+            const actionButtons = document.createElement('div');
+            actionButtons.className = 'btn-row';
+            const delAction = document.createElement('button');
+            delAction.type = 'button';
+            delAction.className = 'btn pressable';
+            delAction.textContent = '削除';
+            delAction.addEventListener('click', () => {
+              t.actions.splice(index, 1);
+              paintActions();
+              commit(0);
+            });
+            actionButtons.append(delAction);
+            sync();
+            line.append(type, valueInput, volumeInput, idInput, actionButtons);
+            return line;
+          }));
+        };
+        const addActions = document.createElement('div');
+        addActions.className = 'btn-row';
+        const addAction = document.createElement('button');
+        addAction.type = 'button';
+        addAction.className = 'btn pressable';
+        addAction.textContent = '動作追加';
+        addAction.addEventListener('click', () => {
+          if (!Array.isArray(t.actions)) t.actions = [];
+          t.actions.push({ type: 'media.play', mediaId: '' });
+          paintActions();
+          commit(0);
+        });
+        addActions.append(addAction);
+        paintActions();
+        actionsBox.append(actionList, addActions);
         const buttons = document.createElement('div');
         buttons.className = 'btn-row';
         const del = document.createElement('button');
@@ -1398,7 +1612,7 @@ export function createEditor({ api, setMessage }) {
           commit(0);
         });
         buttons.append(del);
-        row.append(id, label, weight, pity, buttons);
+        row.append(id, label, weight, pity, actionsBox, buttons);
         return row;
       }));
       updateOdds();
@@ -1413,7 +1627,7 @@ export function createEditor({ api, setMessage }) {
       let n = rows.length + 1;
       let id = `tier${n}`;
       while (rows.some((r) => r.id === id)) id = `tier${++n}`;
-      rows.push({ id, label: '新しい段階', weight: 10, pity: false });
+      rows.push({ id, label: '新しい段階', weight: 10, pity: false, actions: [] });
       draw();
       commit(0);
     });
