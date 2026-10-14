@@ -198,6 +198,9 @@
   overflow: hidden;
 }
 .lul-list:empty, .admin-note-list:empty, .admin-key-list:empty { display: none; }
+.form-card > .admin-key-list { border: 0; border-radius: 0; background: none; }
+.form-card > p.hint, .admin-key-list > p.hint { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); }
+.form-card > p.hint + .admin-key-list > p.hint { padding-top: 0; }
 .form-card > h3 { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; line-height: 1.6; }
 
 /* カードの中の行: どれも同じ内側余白、行の間は線1本 */

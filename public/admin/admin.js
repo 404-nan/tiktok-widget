@@ -863,6 +863,7 @@ function aiTokensDetail() {
       });
       revealedToken = issued.value;
       await load();
+      renderDetail(true);
       message('トークンを発行しました。値はこの画面に一度だけ出します');
     } catch (err) {
       message(err.message, true);
@@ -906,8 +907,8 @@ function aiTokensDetail() {
     el('div', { className: 'key-meta' }, el('strong', { textContent: item.path || '課金' }), el('span', { className: 'hint', textContent: '承認待ち' })),
     el('p', { className: 'hint', textContent: `${item.tenant || '全体'}　${JSON.stringify(item.value)}` }),
     el('div', { className: 'btn-row' },
-      button('承認する', () => act(() => api(`/ai-approvals/${item.id}/approve`), '承認して反映しました')(), { cls: 'btn primary' }),
-      button('却下する', () => act(() => api(`/ai-approvals/${item.id}/reject`), '申請を却下しました')()),
+      button('承認する', () => act(() => api(`/ai-approvals/${item.id}/approve`, {}, 'POST'), '承認して反映しました')(), { cls: 'btn primary' }),
+      button('却下する', () => act(() => api(`/ai-approvals/${item.id}/reject`, {}, 'POST'), '申請を却下しました')()),
     ),
   ));
 
