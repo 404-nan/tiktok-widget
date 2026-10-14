@@ -164,8 +164,11 @@ editor
   .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
   .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
 
+// WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）
+setInterval(() => api('/api/status').then((s) => s.status && renderStatus(s.status)).catch(() => {}), 5000);
 api('/api/status')
-  .then(({ recent }) => {
+  .then(({ recent, status }) => {
+    if (status) renderStatus(status);
     for (const e of [...recent].reverse()) addLog(e, { animate: false });
   })
   .catch(() => {});

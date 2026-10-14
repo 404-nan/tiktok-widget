@@ -252,6 +252,16 @@ setInterval(() => {
   if (sessions.find((s) => s.id === current)?.live) load();
 }, 30_000);
 
+// WebSocket が通らない環境（プロキシ・古い内蔵ブラウザ）でも接続の状態を出す
+const showStatus = (status) => {
+  if (!status) return;
+  $('status').dataset.mode = status.mode;
+  $('statusText').textContent = statusText(status);
+};
+const pollStatus = () => api('/api/status').then((s) => showStatus(s.status)).catch(() => {});
+pollStatus();
+setInterval(pollStatus, 5000);
+
 connect({
   hello(status) {
     $('status').dataset.mode = status.mode;
