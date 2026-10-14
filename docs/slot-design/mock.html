@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1180">
+<title>スロット演出 モック</title>
+<style>
+/* 書体は node_modules の fontsource から読む（リポジトリ直下で開いたとき）。無ければ下の代わりの書体になる */
+@import url("../../node_modules/@fontsource/dela-gothic-one/index.css");
+@import url("../../node_modules/@fontsource/zen-kaku-gothic-new/700.css");
+@import url("../../node_modules/@fontsource/zen-kaku-gothic-new/900.css");
+
+:root {
+  --sumi: #111113;
+  --shiro: #F6F5F1;
+  --aka: #D8121B;
+  --koaka: #B00D16;
+  --kin: #FFC53D;
+  --usukin: #FFE08A;
+  --keshi: #3A3A40;
+  --nibi: #C9C9D1;
+  --f-ja: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --f-slam: "Dela Gothic One", "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+/* ページ（モックの台紙） */
+html, body { margin: 0; background: #1B1B1F; color: var(--shiro); font-family: var(--f-ja); }
+.page { width: 1080px; padding: 32px 48px 64px; }
+.page-title { margin: 0 0 32px; font-size: 28px; font-weight: 900; }
+.shot { margin: 0 0 48px; }
+.shot figcaption { margin: 0 0 12px; font-size: 24px; font-weight: 700; }
+.stage { position: relative; width: 1080px; height: 600px; overflow: hidden; background: #3C4350; outline: 2px solid #5A6270; }
+
+/* ===== 筐体（1032×480・上から 8px に置き、下 112px は空ける） ===== */
+.cab {
+  position: absolute; left: 24px; top: 8px;
+  box-sizing: border-box; width: 1032px; height: 480px; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--aka); border: 8px solid var(--kin); border-radius: 16px;
+  box-shadow: 0 0 0 4px var(--sumi);
+}
+
+/* 上の帯: 状況のひと言（左）＋送った人（右。左下はコメント欄に隠れやすい） */
+.band { box-sizing: border-box; height: 96px; display: flex; border: 4px solid var(--sumi); border-radius: 8px; overflow: hidden; }
+.who { box-sizing: border-box; width: 320px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: var(--shiro); color: var(--sumi); border-left: 4px solid var(--sumi); }
+.avatar { box-sizing: border-box; width: 60px; height: 60px; flex: none; display: grid; place-items: center; background: var(--kin); border: 4px solid var(--sumi); border-radius: 6px; font-size: 30px; font-weight: 900; }
+.who-text { display: flex; flex-direction: column; min-width: 0; }
+.name { font-size: 34px; line-height: 1.15; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gift { font-size: 26px; line-height: 1.2; font-weight: 700; color: var(--koaka); }
+.call { position: relative; flex: 1; display: grid; place-items: center; overflow: hidden; background: var(--sumi); }
+.call-text { position: relative; font-family: var(--f-slam); font-size: 60px; line-height: 1; letter-spacing: .04em; }
+.queue { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); padding: 4px 10px; background: var(--aka); color: var(--shiro); border: 3px solid var(--shiro); border-radius: 6px; font-size: 26px; font-weight: 900; }
+
+/* リール窓 */
+.window { position: relative; box-sizing: border-box; height: 332px; padding: 12px 28px; background: var(--sumi); border-radius: 10px; }
+.reels { display: flex; gap: 24px; }
+.reel { position: relative; box-sizing: border-box; width: 296px; height: 288px; overflow: hidden; background: var(--shiro); border: 6px solid #2A2A30; border-radius: 4px; }
+.reel::after { content: ""; position: absolute; left: 0; right: 0; top: 92px; height: 92px; box-sizing: border-box; border-top: 4px solid var(--aka); border-bottom: 4px solid var(--aka); pointer-events: none; }
+.strip { will-change: transform; }
+.cell { height: 92px; display: flex; align-items: center; justify-content: center; }
+.cell.win { background: var(--kin); }
+.sym { width: 76px; height: 76px; display: block; }
+.mark { position: absolute; top: 144px; width: 0; height: 0; border-top: 12px solid transparent; border-bottom: 12px solid transparent; }
+.mark--l { left: 6px; border-left: 16px solid var(--aka); }
+.mark--r { right: 6px; border-right: 16px solid var(--aka); }
+.lamps { display: flex; gap: 24px; margin-top: 8px; }
+.lamp { width: 296px; height: 12px; border-radius: 6px; background: var(--keshi); }
+.lamp.on { background: var(--kin); }
+
+/* 回転中: 1周 6コマ=552px を下向きに流す */
+.reel.spin { background: #E9E7DF; }
+.reel.spin .strip { animation: spin 240ms linear infinite; }
+.reel.spin .sym { transform: scaleY(1.4); opacity: .55; }
+.reel.d1 .strip { animation-delay: -80ms; }
+.reel.d2 .strip { animation-delay: -160ms; }
+.reel.slow .strip { animation-duration: 600ms; }
+@keyframes spin { from { transform: translateY(-552px); } to { transform: translateY(0); } }
+
+/* 状態ごと */
+.cab--spin .call-text { color: var(--kin); }
+
+.cab--reach .call { animation: reach-band 400ms steps(1) infinite; }
+.cab--reach .call-text { font-size: 64px; animation: reach-text 400ms steps(1) infinite; }
+.cab--reach .mark--l { border-left-color: var(--kin); }
+.cab--reach .mark--r { border-right-color: var(--kin); }
+.reel.slow { outline: 6px solid var(--kin); animation: reach-reel 400ms steps(1) infinite; }
+@keyframes reach-band { 0% { background: var(--kin); } 50% { background: var(--aka); } }
+@keyframes reach-text { 0% { color: var(--koaka); } 50% { color: var(--shiro); } }
+@keyframes reach-reel { 0% { outline-color: var(--kin); } 50% { outline-color: var(--aka); } }
+
+.cab--small .call { background: var(--aka); }
+.cab--small .call-text { color: var(--shiro); text-shadow: 0 5px 0 var(--sumi); }
+
+.cab--jackpot { animation: cab-flash 500ms steps(1) infinite; }
+.cab--jackpot .call { background: var(--kin); }
+.cab--jackpot .call-text { font-size: 72px; color: var(--koaka); }
+.cab--jackpot .mark--l { border-left-color: var(--kin); }
+.cab--jackpot .mark--r { border-right-color: var(--kin); }
+.burst { position: absolute; left: 50%; top: 50%; width: 1200px; height: 1200px; margin: -600px 0 0 -600px; fill: var(--usukin); animation: burst 6000ms linear infinite; }
+@keyframes cab-flash { 0% { border-color: var(--kin); } 50% { border-color: var(--shiro); } }
+@keyframes burst { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.cab--lose .call-text { font-family: var(--f-ja); font-weight: 900; font-size: 52px; color: var(--nibi); }
+
+/* ===== 待機（小表示 376×112・右下。筐体の下端にそろえる） ===== */
+.mini {
+  position: absolute; right: 24px; bottom: 112px;
+  box-sizing: border-box; width: 376px; height: 112px; padding: 0 14px;
+  display: flex; align-items: center; gap: 14px;
+  background: var(--aka); border: 6px solid var(--kin); border-radius: 12px;
+  box-shadow: 0 0 0 4px var(--sumi);
+  animation: mini-lamp 2000ms steps(1) infinite;
+}
+.mini-reels { display: flex; gap: 6px; }
+.mini-reel { box-sizing: border-box; width: 48px; height: 72px; display: grid; place-items: center; background: var(--shiro); border: 4px solid var(--sumi); border-radius: 4px; }
+.mini-reel svg { width: 36px; height: 36px; }
+.mini-text { margin: 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 32px; font-weight: 900; line-height: 1.15; color: var(--shiro); text-shadow: 0 3px 0 var(--sumi); }
+.mini-gift { box-sizing: border-box; max-width: 100%; padding: 0 8px; background: var(--sumi); color: var(--kin); border-radius: 4px; text-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@keyframes mini-lamp { 0% { border-color: var(--kin); } 50% { border-color: var(--shiro); } }
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- 7: 赤・墨の太縁・金の内線 -->
+  <symbol id="s-7" viewBox="0 0 100 100">
+    <path d="M16 10 H86 V28 L56 92 H30 L59 32 H34 V40 H16 Z" fill="#D8121B" stroke="#111113" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M24 18 H78" stroke="#FFC53D" stroke-width="5" stroke-linecap="round" fill="none"/>
+  </symbol>
+  <!-- BAR: 墨の板に白抜き文字（線で描く） -->
+  <symbol id="s-bar" viewBox="0 0 100 100">
+    <rect x="6" y="26" width="88" height="48" rx="6" fill="#111113" stroke="#FFC53D" stroke-width="5"/>
+    <g fill="none" stroke="#F6F5F1" stroke-width="6" stroke-linejoin="round" stroke-linecap="square">
+      <path d="M18 38 V62 H28 Q35 62 35 56 Q35 50 28 50 H18 M18 50 H27 Q33 50 33 44 Q33 38 27 38 H18"/>
+      <path d="M41 62 L50 38 L59 62 M44 54 H56"/>
+      <path d="M66 62 V38 H76 Q83 38 83 44.5 Q83 51 76 51 H66 M74 51 L83 62"/>
+    </g>
+  </symbol>
+  <!-- ベル: 金・墨の太縁 -->
+  <symbol id="s-bell" viewBox="0 0 100 100">
+    <circle cx="50" cy="83" r="9" fill="#FFC53D" stroke="#111113" stroke-width="5"/>
+    <path d="M50 14 C31 14 27 32 27 48 C27 60 22 66 15 74 H85 C78 66 73 60 73 48 C73 32 69 14 50 14 Z" fill="#FFC53D" stroke="#111113" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M38 30 C35 36 35 44 35 52" stroke="#F6F5F1" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <circle cx="50" cy="11" r="5" fill="#111113"/>
+  </symbol>
+  <!-- スイカ: 緑の玉に濃緑のしま -->
+  <symbol id="s-suika" viewBox="0 0 100 100">
+    <circle cx="50" cy="52" r="40" fill="#1E9E4A" stroke="#111113" stroke-width="6"/>
+    <g fill="none" stroke="#0B4F26" stroke-width="6" stroke-linejoin="round">
+      <path d="M50 13 L44 24 L54 34 L44 46 L54 58 L44 70 L50 91"/>
+      <path d="M30 18 L26 30 L34 42 L26 54 L34 66 L28 82"/>
+      <path d="M70 18 L74 30 L66 42 L74 54 L66 66 L72 82"/>
+    </g>
+  </symbol>
+  <!-- チェリー: 赤い実ふたつ・緑の柄 -->
+  <symbol id="s-cherry" viewBox="0 0 100 100">
+    <path d="M30 64 C34 44 46 26 64 12 M70 62 C68 44 66 28 64 12" fill="none" stroke="#111113" stroke-width="10" stroke-linecap="round"/>
+    <path d="M30 64 C34 44 46 26 64 12 M70 62 C68 44 66 28 64 12" fill="none" stroke="#1E9E4A" stroke-width="4" stroke-linecap="round"/>
+    <path d="M64 12 C74 6 88 10 92 20 C80 24 70 22 64 12 Z" fill="#1E9E4A" stroke="#111113" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="28" cy="72" r="18" fill="#D8121B" stroke="#111113" stroke-width="5"/>
+    <circle cx="70" cy="72" r="18" fill="#D8121B" stroke="#111113" stroke-width="5"/>
+    <circle cx="22" cy="66" r="4.5" fill="#F6F5F1"/>
+    <circle cx="64" cy="66" r="4.5" fill="#F6F5F1"/>
+  </symbol>
+  <!-- リプレイ: 青い板に白い回る矢印 -->
+  <symbol id="s-replay" viewBox="0 0 100 100">
+    <rect x="10" y="10" width="80" height="80" rx="16" fill="#1F5FD6" stroke="#111113" stroke-width="6"/>
+    <path d="M70 44 A21 21 0 1 0 66 66" fill="none" stroke="#F6F5F1" stroke-width="9" stroke-linecap="round"/>
+    <path d="M58 40 L76 46 L78 27 Z" fill="#F6F5F1" stroke="#F6F5F1" stroke-width="3" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<main class="page">
+  <h1 class="page-title">スロット演出 モック（1080×600・6状態）</h1>
+  <figure class="shot">
+    <figcaption>1. 待機（小表示）</figcaption>
+    <div class="stage stage--idle">
+    <aside class="mini" aria-label="スロット">
+      <div class="mini-reels"><span class="mini-reel"><svg viewBox="0 0 100 100"><use href="#s-7"/></svg></span><span class="mini-reel"><svg viewBox="0 0 100 100"><use href="#s-7"/></svg></span><span class="mini-reel"><svg viewBox="0 0 100 100"><use href="#s-7"/></svg></span></div>
+      <p class="mini-text"><b class="mini-gift">バラ</b><span>で回せ！</span></p>
+    </aside>
+    </div>
+  </figure>
+  <figure class="shot">
+    <figcaption>2. 回転中</figcaption>
+    <div class="stage stage--spin">
+    <section class="cab cab--spin" aria-label="スロット">
+      <header class="band">
+        <div class="call"><span class="call-text">回転！</span><span class="queue">あと2回</span></div>
+        <div class="who"><span class="avatar" aria-hidden="true">ゆ</span><span class="who-text"><b class="name">ゆうと</b><span class="gift">バラ ×1</span></span></div>
+      </header>
+      <div class="window">
+        <span class="mark mark--l" aria-hidden="true"></span><span class="mark mark--r" aria-hidden="true"></span>
+        <div class="reels"><div class="reel spin"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div></div></div><div class="reel spin d1"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div></div></div><div class="reel spin d2"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div></div></div></div>
+        <div class="lamps"><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i></div>
+      </div>
+    </section>
+    </div>
+  </figure>
+  <figure class="shot">
+    <figcaption>3. リーチ</figcaption>
+    <div class="stage stage--reach">
+    <section class="cab cab--reach" aria-label="スロット">
+      <header class="band">
+        <div class="call"><span class="call-text">リーチ！</span></div>
+        <div class="who"><span class="avatar" aria-hidden="true">ゆ</span><span class="who-text"><b class="name">ゆうと</b><span class="gift">バラ ×1</span></span></div>
+      </header>
+      <div class="window">
+        <span class="mark mark--l" aria-hidden="true"></span><span class="mark mark--r" aria-hidden="true"></span>
+        <div class="reels"><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div></div></div><div class="reel spin slow"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div></div></div></div>
+        <div class="lamps"><i class="lamp on"></i><i class="lamp on"></i><i class="lamp"></i></div>
+      </div>
+    </section>
+    </div>
+  </figure>
+  <figure class="shot">
+    <figcaption>4. 小当り</figcaption>
+    <div class="stage stage--small">
+    <section class="cab cab--small" aria-label="スロット">
+      <header class="band">
+        <div class="call"><span class="call-text">小当たり</span></div>
+        <div class="who"><span class="avatar" aria-hidden="true">ゆ</span><span class="who-text"><b class="name">ゆうと</b><span class="gift">バラ ×1</span></span></div>
+      </header>
+      <div class="window">
+        <span class="mark mark--l" aria-hidden="true"></span><span class="mark mark--r" aria-hidden="true"></span>
+        <div class="reels"><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell win"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell win"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell win"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div></div></div></div>
+        <div class="lamps"><i class="lamp on"></i><i class="lamp on"></i><i class="lamp on"></i></div>
+      </div>
+    </section>
+    </div>
+  </figure>
+  <figure class="shot">
+    <figcaption>5. 大当り</figcaption>
+    <div class="stage stage--jackpot">
+    <section class="cab cab--jackpot" aria-label="スロット">
+      <header class="band">
+        <div class="call"><svg class="burst" viewBox="-600 -600 1200 1200" aria-hidden="true"><polygon points="0,0 -60,-600 60,-600" transform="rotate(0)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(30)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(60)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(90)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(120)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(150)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(180)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(210)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(240)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(270)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(300)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(330)"/></svg><span class="call-text">大当たり</span></div>
+        <div class="who"><span class="avatar" aria-hidden="true">ゆ</span><span class="who-text"><b class="name">ゆうと</b><span class="gift">バラ ×1</span></span></div>
+      </header>
+      <div class="window">
+        <span class="mark mark--l" aria-hidden="true"></span><span class="mark mark--r" aria-hidden="true"></span>
+        <div class="reels"><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div><div class="cell win"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div><div class="cell win"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell win"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div></div></div></div>
+        <div class="lamps"><i class="lamp on"></i><i class="lamp on"></i><i class="lamp on"></i></div>
+      </div>
+    </section>
+    </div>
+  </figure>
+  <figure class="shot">
+    <figcaption>6. はずれ</figcaption>
+    <div class="stage stage--lose">
+    <section class="cab cab--lose" aria-label="スロット">
+      <header class="band">
+        <div class="call"><span class="call-text">はずれ</span></div>
+        <div class="who"><span class="avatar" aria-hidden="true">ゆ</span><span class="who-text"><b class="name">ゆうと</b><span class="gift">バラ ×1</span></span></div>
+      </header>
+      <div class="window">
+        <span class="mark mark--l" aria-hidden="true"></span><span class="mark mark--r" aria-hidden="true"></span>
+        <div class="reels"><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="ベル"><use href="#s-bell"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="リプレイ"><use href="#s-replay"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="スイカ"><use href="#s-suika"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div></div></div><div class="reel"><div class="strip"><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="7"><use href="#s-7"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="BAR"><use href="#s-bar"/></svg></div><div class="cell"><svg class="sym" viewBox="0 0 100 100" role="img" aria-label="チェリー"><use href="#s-cherry"/></svg></div></div></div></div>
+        <div class="lamps"><i class="lamp on"></i><i class="lamp on"></i><i class="lamp on"></i></div>
+      </div>
+    </section>
+    </div>
+  </figure>
+</main>
+</body>
+</html>
