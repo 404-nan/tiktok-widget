@@ -295,13 +295,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
 
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
   // 名前だけの控えはコインが無いので、分かっている数（diamond_count など）を id で埋める
-  r.get('/api/gifts', (_req, res) => {
+  function readGifts() {
     const seen = [...hub.seenGifts.values()].map((g) => ({ ...g, seen: true }));
     const saved = giftCatalog.list();
     const known = mergeGiftCatalog([DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), saved, seen]);
     const names = new Set(known.map((g) => String(g.name ?? '').toLocaleLowerCase()));
     const extra = bundledGifts().filter((g) => g.name && !names.has(g.name.toLocaleLowerCase()));
-    res.json(mergeGiftCatalog([known, extra]));
+    return mergeGiftCatalog([known, extra]);
+  }
+  r.get('/api/gifts', (_req, res) => {
+    res.json(readGifts());
   });
 
   // AI から使うための案内（1人で使うときだけ。配信者ごとの URL では出さない）
@@ -490,12 +493,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json({ ok: true, demo: demo.running });
   });
   r.post('/api/simulate', (req, res) => {
-    if (process.env.TW_ENV !== 'dev') return res.status(403).json({ error: 'テスト送信は開発環境でだけ使えます' });
-    const event = makeEvent(req.body?.kind, req.body ?? {});
-    if (!event) return res.status(400).json({ error: '不明なイベント種類です' });
-    hub.publish({ ...event, test: true });
-    // 配信中のテストは画面に出るだけ（数は変わらない）
-    res.json({ ok: true, visualOnly: hub.status.mode === 'live' });
+    const out = simulateEvent(req.body);
+    res.status(out.status).json(out.body);
   });
   // 開発用。ルーレットの動作・ボス・メディア・ガチャを、配信イベントを作らずに試す
   r.post('/api/dev/trigger', (req, res) => {
@@ -564,53 +563,90 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.post('/api/control', (req, res) => {
     const { target, action, data } = req.body ?? {};
-    if (!target || !action) return res.status(400).json({ error: 'target と action が必要です' });
-    // ルーレットは何が当たるかをサーバーで決める
-    if (target === 'roulette' && action === 'spin') {
-      const spin = roulette.spin(data?.id ?? null);
-      return spin ? res.json({ ok: true, spin }) : res.status(404).json({ error: 'ルーレットの設定がありません' });
-    }
-    if (target === 'roulette' && action === 'reset') roulette.clear();
-    // RUSH はサーバーで状態を持つ
-    if (target === 'rush') {
-      if (!entitled('rush')) return res.status(403).json({ error: 'RUSH は管理者が使えるようにすると使えます' });
-      const out = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
-      return res.json({ ok: true, rush: out ?? rush.snapshot() });
-    }
-    // WIN 数もサーバーで持つ
-    if (target === 'wins') {
-      try {
-        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'wins') : data?.id || null;
-        return res.json({ ok: true, wins: wins.apply(id, String(action), data?.value) });
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    }
-    // 延長タイマーもサーバーで持つ（data: { id, seconds } か { id, minutes }）
-    if (target === 'timer') {
-      try {
-        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'timers') : data?.id || null;
-        return res.json({ ok: true, timers: timer.apply(id, String(action), timerSeconds(data ?? {})) });
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    }
-    // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
-    if (target === 'boss') {
-      try {
-        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
-        return res.json({ ok: true, boss: boss.apply(id, String(action), data?.value) });
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    }
-    hub.control(String(target), String(action), data ?? {});
-    res.json({ ok: true });
+    const out = performControl(target, action, data);
+    res.status(out.status).json(out.body);
   });
   r.post('/api/reset', (_req, res) => {
     hub.reset();
     res.json({ ok: true });
   });
+
+  // テスト送信。開発環境以外は拒否する（画面の API と AI 用 API で同じ）
+  function simulateEvent(body) {
+    if (process.env.TW_ENV !== 'dev') return { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } };
+    const event = makeEvent(body?.kind, body ?? {});
+    if (!event) return { status: 400, body: { error: '不明なイベント種類です' } };
+    hub.publish({ ...event, test: true });
+    // 配信中のテストは画面に出るだけ（数は変わらない）
+    return { status: 200, body: { ok: true, visualOnly: hub.status.mode === 'live' } };
+  }
+
+  // ルーレット・タイマー・WIN数・ボス・RUSH。画面の /api/control と AI 用 API で同じ
+  function performControl(target, action, data = {}) {
+    if (!target || !action) return { status: 400, body: { error: 'target と action が必要です' } };
+    // ルーレットは何が当たるかをサーバーで決める
+    if (target === 'roulette' && action === 'spin') {
+      const spin = roulette.spin(data?.id ?? null);
+      return spin ? { status: 200, body: { ok: true, spin } } : { status: 404, body: { error: 'ルーレットの設定がありません' } };
+    }
+    if (target === 'roulette' && action === 'reset') roulette.clear();
+    // RUSH はサーバーで状態を持つ
+    if (target === 'rush') {
+      if (action === 'status') return { status: 200, body: { ok: true, rush: rush.snapshot() } };
+      if (!entitled('rush')) return { status: 403, body: { error: 'RUSH は管理者が使えるようにすると使えます' } };
+      const out = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
+      return { status: 200, body: { ok: true, rush: out ?? rush.snapshot() } };
+    }
+    // WIN 数もサーバーで持つ
+    if (target === 'wins') {
+      try {
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'wins') : data?.id || null;
+        return { status: 200, body: { ok: true, wins: wins.apply(wid, String(action), data?.value) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    // 延長タイマーもサーバーで持つ（data: { id, seconds } か { id, minutes }）
+    if (target === 'timer') {
+      try {
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'timers') : data?.id || null;
+        return { status: 200, body: { ok: true, timers: timer.apply(wid, String(action), timerSeconds(data ?? {})) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
+    if (target === 'boss') {
+      try {
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
+        return { status: 200, body: { ok: true, boss: boss.apply(wid, String(action), data?.value) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    hub.control(String(target), String(action), data ?? {});
+    return { status: 200, body: { ok: true } };
+  }
+
+  const configVersion = () => crypto.createHash('sha256').update(store.readText()).digest('hex');
+  // 配信中（live）と、つなぎ直し中（connecting）は AI からの変更を止める対象
+  const aiLive = () => {
+    const mode = hub.status?.mode;
+    return mode === 'live' || mode === 'connecting';
+  };
+  function previewConfig(op, configPath, value) {
+    const beforeText = store.readText();
+    const change = op === 'delete' ? { op: 'delete', path: configPath } : { op, path: configPath, value };
+    const next = cfg.applyChanges(beforeText, [change]);
+    return {
+      ok: Boolean(next.ok),
+      errors: next.errors ?? [],
+      warnings: next.warnings ?? [],
+      text: next.text,
+      config: next.config ?? null,
+      configVersion: crypto.createHash('sha256').update(beforeText).digest('hex'),
+    };
+  }
 
   return {
     id,
@@ -646,6 +682,37 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       applyConfigResult(result);
       return result;
     },
+    readText() {
+      return store.readText();
+    },
+    readIssues() {
+      return { errors: [...lastIssues.errors], warnings: [...lastIssues.warnings] };
+    },
+    configVersion,
+    previewConfig,
+    replaceConfig(text) {
+      const result = store.replaceText(text);
+      applyConfigResult(result);
+      return result;
+    },
+    readStatus() {
+      return { status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null };
+    },
+    readHistory(sessionId) {
+      if (sessionId) return history.get(sessionId);
+      return history.list();
+    },
+    readGifts,
+    readWins() { return wins.snapshot(); },
+    readTimer() { return timer.snapshot(); },
+    readBoss() { return boss.snapshot(); },
+    readRush() { return rush.snapshot(); },
+    readWidgets(base) {
+      return hub.config ? cfg.widgetList(hub.config, base) : [];
+    },
+    performControl,
+    simulateEvent,
+    aiLive,
     /** 豪華な演出のオン/オフが変わったとき: 仕組みに反映し、開いている画面に読み込み直してもらう */
     entitlementsChanged() {
       if (hub.config) applyEngines(hub.config);
@@ -653,6 +720,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     },
     async close() {
       unwatch();
+      roulette.clear();
       demo.stop();
       await tiktok.disconnect().catch(() => {});
       history.end();

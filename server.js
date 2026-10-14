@@ -17,6 +17,9 @@ import { ApiKeyStore } from './src/api-keys.js';
 import { adminGuard } from './src/admin-auth.js';
 import { createAi } from './src/ai.js';
 import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
+import { AiTokenStore } from './src/ai-tokens.js';
+import { createAiControl } from './src/ai-api.js';
+import { createAiMcpHandler } from './src/ai-mcp.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -118,6 +121,9 @@ admin.get('/tenants', (req, res) => {
     keys: apiKeys.list(),
     notes: notes.list(),
     billing: tenants.billing.globalView(),
+    aiTokens: aiControl.tokens.list(),
+    aiAudit: aiControl.recent(20),
+    aiApprovals: aiControl.pending(),
   });
 });
 admin.get('/lul', (req, res) => res.json({ tenants: tenants.list().map((t) => tenantView(req, t)), features: FEATURES }));
@@ -280,7 +286,41 @@ admin.put('/ai', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+// 外部 AI のトークン。値は発行時だけ返し、ファイルには照合用の要約だけを残す。
+const aiTokens = new AiTokenStore({ dir: DATA_DIR });
+const aiControl = createAiControl({
+  dataDir: DATA_DIR,
+  tokens: aiTokens,
+  resolveTenant(id) {
+    if (id === 'local') {
+      if (!local) return null;
+      return { id: 'local', runtime: local, widgetBase: null };
+    }
+    const tenant = tenants.get(id);
+    if (!tenant) return null;
+    if (!tenant.enabled) return { disabled: true };
+    return {
+      id: tenant.id,
+      runtime: tenants.runtime(tenant.id),
+      widgetBaseFor: (req) => `${origin(req)}/t/${tenant.obsKey}`,
+      getWidgets: () => [...(tenants.get(id)?.widgets ?? [])],
+      setWidgets: (list) => tenants.update(id, { widgets: list }),
+      getTemplate: () => tenants.get(id)?.template ?? null,
+      setTemplate: (template) => tenants.setTemplate(id, template),
+    };
+  },
+  applyBilling({ global, tenant, patch }) {
+    if (global) return tenants.updateBillingSettings(patch);
+    if (!tenants.get(tenant)) throw new Error('その配信者は見つかりません');
+    return tenants.updateBilling(tenant, patch);
+  },
+});
+aiControl.mountAdmin(admin);
 app.use('/admin/api', admin);
+
+// 外部の AI（Bearer トークン）。接続・切断・再起動・トークン発行・配信者の削除はここには無い。
+app.use('/ai/v1', aiControl.router);
+app.use('/ai/mcp', createAiMcpHandler(aiControl));
 
 // --- 短い URL と 4桁の数字（/d/<短いID>） ---
 // 正しい数字かクッキーがあれば、今までのダッシュボードの URL（/t/<鍵>/dashboard/）へ送る

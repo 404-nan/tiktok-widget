@@ -22,7 +22,7 @@ detailBody.className = 'detail-body';
 $('detail').append(detailBody);
 
 // カードを縦に並べるページ（見出しはカードの外、中の項目は線で区切った行）
-const CARD_PAGES = ['lul', 'notes', 'keys', 'billing'];
+const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'ai-tokens'];
 
 async function api(path, body, method) {
   const res = await fetch(`/admin/api${path}`, {
@@ -822,6 +822,103 @@ function keysDetail() {
   return [el('div', { className: 'detail-head' }, el('h2', { textContent: 'API キー' }), el('p', { className: 'sub', textContent: 'キーの値は最初の8文字と末尾4文字だけ表示します。環境変数のキーは読み取り専用です。' })), el('section', { className: 'form-card' }, el('h3', { textContent: 'API キーを追加' }), addForm), el('div', { className: 'admin-key-list' }, ...rows)];
 }
 
+const AI_SCOPES = [
+  ['read', '読む'],
+  ['write', '設定を変える'],
+  ['operate', '操作する'],
+  ['test', 'テスト送信'],
+  ['admin', '配信者の設定'],
+];
+const AI_SCOPE_LABEL = Object.fromEntries(AI_SCOPES);
+let revealedToken = null;
+
+function aiTokensDetail() {
+  const name = el('input', { placeholder: '名前（例: 設定係）', required: true, autocomplete: 'off' });
+  const tenants = el('input', { placeholder: '配信者の id。カンマで複数。* で全員', required: true, autocomplete: 'off' });
+  const days = el('input', { type: 'number', min: '1', max: '366', value: '30' });
+  days.setAttribute('aria-label', '有効な日数');
+  const scopeBoxes = AI_SCOPES.map(([id, label]) => {
+    const input = el('input', { type: 'checkbox', value: id });
+    if (id === 'read') input.checked = true;
+    return el('label', {}, input, label);
+  });
+  const form = el('form', { className: 'key-form stack' });
+  form.append(
+    el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '名前' }), name),
+    el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '使える配信者' }), tenants),
+    el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '有効な日数' }), days, el('span', { className: 'hint', textContent: '初めは30日です。' })),
+    el('div', { className: 'flag-row' }, ...scopeBoxes),
+    el('div', { className: 'btn-row' }, button('発行する', () => form.requestSubmit(), { cls: 'btn primary' })),
+  );
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const scopes = scopeBoxes.map((label) => label.querySelector('input')).filter((input) => input.checked).map((input) => input.value);
+    try {
+      const issued = await api('/ai-tokens', {
+        name: name.value,
+        tenants: tenants.value.split(',').map((item) => item.trim()).filter(Boolean),
+        scopes,
+        days: Number(days.value || 30),
+      });
+      revealedToken = issued.value;
+      await load();
+      message('トークンを発行しました。値はこの画面に一度だけ出します');
+    } catch (err) {
+      message(err.message, true);
+    }
+  });
+
+  const revealedInput = revealedToken ? el('input', { readOnly: true, value: revealedToken, spellcheck: false }) : null;
+  const revealed = revealedToken
+    ? el('div', { className: 'admin-key' },
+      el('p', { className: 'form-message', textContent: 'この値は今だけ表示します。控えてください。あとから見ることはできません。' }),
+      revealedInput,
+      el('div', { className: 'btn-row' },
+        button('コピー', () => { copyText(revealedToken, revealedInput); message('コピーしました'); }, { cls: 'btn primary' }),
+        button('閉じる', () => { revealedToken = null; renderDetail(true); }),
+      ))
+    : null;
+
+  const rows = (data.aiTokens ?? []).map((token) => {
+    const when = String(token.expiresAt || '').slice(0, 10);
+    const scopes = (token.scopes ?? []).map((scope) => AI_SCOPE_LABEL[scope] || scope).join('、');
+    return el('article', { className: 'admin-key' },
+      el('div', { className: 'key-meta' }, el('strong', { textContent: token.name }), el('span', { className: 'hint', textContent: `${when} まで` })),
+      el('p', { className: 'hint', textContent: `配信者: ${(token.tenants ?? []).join('、') || 'なし'}　権限: ${scopes}` }),
+      el('div', { className: 'btn-row' }, button('失効させる', () => {
+        if (!confirm(`${token.name} を失効させますか？この値ではもう操作できません。`)) return;
+        act(() => api(`/ai-tokens/${token.id}`, undefined, 'DELETE'), 'トークンを失効させました')();
+      })),
+    );
+  });
+
+  const auditRows = (data.aiAudit ?? []).map((entry) => {
+    const when = String(entry.ts || '').slice(0, 16).replace('T', ' ');
+    const result = entry.ok ? (entry.dryRun ? '確認のみ' : '成功') : (entry.error || '失敗');
+    return el('article', { className: 'admin-key' },
+      el('div', { className: 'key-meta' }, el('strong', { textContent: entry.tool || '操作' }), el('span', { className: 'hint', textContent: when })),
+      el('p', { className: 'hint', textContent: `${entry.tenant || '配信者なし'}　${result}` }),
+    );
+  });
+
+  const approvalRows = (data.aiApprovals ?? []).map((item) => el('article', { className: 'admin-key' },
+    el('div', { className: 'key-meta' }, el('strong', { textContent: item.path || '課金' }), el('span', { className: 'hint', textContent: '承認待ち' })),
+    el('p', { className: 'hint', textContent: `${item.tenant || '全体'}　${JSON.stringify(item.value)}` }),
+    el('div', { className: 'btn-row' },
+      button('承認する', () => act(() => api(`/ai-approvals/${item.id}/approve`), '承認して反映しました')(), { cls: 'btn primary' }),
+      button('却下する', () => act(() => api(`/ai-approvals/${item.id}/reject`), '申請を却下しました')()),
+    ),
+  ));
+
+  return [
+    el('div', { className: 'detail-head' }, el('h2', { textContent: 'AIトークン' }), el('p', { className: 'sub', textContent: 'AI が設定を読んだり変えたりするときの合言葉です。値そのものは保存しません。' })),
+    el('section', { className: 'form-card' }, el('h3', { textContent: 'トークンを発行' }), form, revealed),
+    el('section', { className: 'form-card' }, el('h3', { textContent: '発行済み' }), el('div', { className: 'admin-key-list' }, ...(rows.length ? rows : [el('p', { className: 'hint', textContent: 'まだありません' })]))),
+    el('section', { className: 'form-card' }, el('h3', { textContent: '承認待ちの課金' }), el('div', { className: 'admin-key-list' }, ...(approvalRows.length ? approvalRows : [el('p', { className: 'hint', textContent: '承認待ちはありません' })]))),
+    el('section', { className: 'form-card' }, el('h3', { textContent: '最近の操作' }), el('p', { className: 'hint', textContent: '新しい20件です。トークンの値は残りません。' }), el('div', { className: 'admin-key-list' }, ...(auditRows.length ? auditRows : [el('p', { className: 'hint', textContent: 'まだありません' })]))),
+  ];
+}
+
 function renderShell() {
   const tenants = page === 'tenants';
   $('tenantListPanel').hidden = !tenants;
@@ -860,6 +957,10 @@ function renderDetail(force = false) {
   }
   if (page === 'keys') {
     detailBody.replaceChildren(...keysDetail());
+    return;
+  }
+  if (page === 'ai-tokens') {
+    detailBody.replaceChildren(...aiTokensDetail());
     return;
   }
   if (page === 'billing') {

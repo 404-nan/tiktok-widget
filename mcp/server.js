@@ -7,20 +7,28 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import * as admin from '../src/admin.js';
 import { giftDisplayName } from '../src/gift-display.js';
+import { AI_MCP_INSTRUCTIONS, registerAiTools, callAiHttp } from '../src/ai-mcp.js';
+
+// TW_AI_TOKEN と TW_SERVER があるときは /ai/v1 を呼ぶ。無ければ今までの1人用のまま。
+const remote = Boolean(process.env.TW_AI_TOKEN && process.env.TW_SERVER);
 
 const server = new McpServer(
   { name: 'tiktok-widget', version: '0.2.0' },
   {
-    instructions: [
-      'TikTok LIVE 配信用ウィジェット（ギフト通知・ギフト瓶・ルーレット・目標バー・カウンター）の設定を扱う。',
-      '設定は config.yaml。書き換えると開いているウィジェットに自動で反映される。',
-      '初めて使うときは get_config_reference で書き方を確認してから、get_config で今の設定を見ること。',
-      '小さな変更は set_config / merge_config（コメントが残る）、大きな作り直しは replace_config を使う。',
-      '保存前に検証され、エラーがあれば保存されずに理由が返るので、それを直して再度呼ぶ。',
-      '変えたら test_event や spin_roulette で動きを確かめ、list_widget_urls で OBS に入れる URL を伝える。',
-    ].join('\n'),
+    instructions: remote
+      ? AI_MCP_INSTRUCTIONS
+      : [
+          'TikTok LIVE 配信用ウィジェット（ギフト通知・ギフト瓶・ルーレット・目標バー・カウンター）の設定を扱う。',
+          '設定は config.yaml。書き換えると開いているウィジェットに自動で反映される。',
+          '初めて使うときは get_config_reference で書き方を確認してから、get_config で今の設定を見ること。',
+          '小さな変更は set_config / merge_config（コメントが残る）、大きな作り直しは replace_config を使う。',
+          '保存前に検証され、エラーがあれば保存されずに理由が返るので、それを直して再度呼ぶ。',
+          '変えたら test_event や spin_roulette で動きを確かめ、list_widget_urls で OBS に入れる URL を伝える。',
+        ].join('\n'),
   },
 );
+
+if (!remote) {
 
 const text = (t) => ({ content: [{ type: 'text', text: typeof t === 'string' ? t : JSON.stringify(t, null, 2) }] });
 const fail = (err) => ({ content: [{ type: 'text', text: `失敗しました: ${err.message ?? err}` }], isError: true });
@@ -304,5 +312,11 @@ server.registerTool(
     return text({ status, counts, topGifters: topGifters.slice(0, 5).map((g) => ({ name: g.user.name, coins: g.diamonds })) });
   }),
 );
+
+}
+
+if (remote) {
+  registerAiTools(server, (tool, args) => callAiHttp(process.env.TW_SERVER, process.env.TW_AI_TOKEN, tool, args));
+}
 
 await server.connect(new StdioServerTransport());
