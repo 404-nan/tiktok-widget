@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
   'public/dashboard/dev-features.js',
+  'public/dashboard/dash-style.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
 ];
