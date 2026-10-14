@@ -1,0 +1,35 @@
+# 古い形式の設定（架空）。新しい項目（メディア通知・ガチャ・順位差ボス）は書いていない。
+theme:
+  mode: dark
+  accent: "#FF4F1F"
+
+alerts:
+  default:
+    events: [gift, follow]
+    minCoins: 1
+    bigCoins: 100
+    position: top
+    align: left
+
+chats:
+  default:
+    style: telop
+    maxItems: 8
+
+goals:
+  default:
+    title: フォロー目標
+    metric: follows
+    goal: 100
+
+roulettes:
+  default:
+    title: モカのルーレット
+    items:
+      - { label: 当たり, weight: 1 }
+      - { label: はずれ, weight: 3 }
+
+cutins:
+  default:
+    text: ようこそ
+    duration: 4
