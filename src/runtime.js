@@ -64,7 +64,7 @@ const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/ap
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true }) {
   const hub = new Hub();
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
   const tiktok = new TikTokSource(hub, giftCatalog);
@@ -91,6 +91,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
   let currentAutoId = null;
+  // 停止中でも、すでに配信へつながっている接続は切らない。止まっているときだけ新しい接続を始めない
+  const streamLive = () => hub.status.mode === 'live' || hub.status.mode === 'connecting';
+  const mayConnect = (live) => {
+    try {
+      return connectionAllowed({ live: Boolean(live) }) !== false;
+    } catch (err) {
+      console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
+      return true;
+    }
+  };
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
   const applyEngines = (config) => {
@@ -415,6 +425,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.post('/api/connect', async (req, res) => {
     const username = String(req.body?.username ?? '').trim();
     if (!username) return res.status(400).json({ error: 'ユーザー名を入力してください' });
+    if (!mayConnect(streamLive())) {
+      return res.status(403).json({ error: 'お支払いの確認が取れていません。LuLにご連絡ください' });
+    }
     demo.stop();
     const handle = username.replace(/^@/, '').trim();
     // 成功しても、配信前で失敗しても、切るまでは再接続を続ける
@@ -585,6 +598,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     autoConnect({ handle, slot, now = Date.now() }) {
       const state = auto.get(slot.id) ?? { attempts: 0, lastAttempt: 0, manuallyStopped: false };
       auto.set(slot.id, state);
+      if (!mayConnect(streamLive())) return false;
       if (!shouldAutoConnect({ now, slot, status: hub.status, ...state })) return false;
       state.attempts += 1;
       state.lastAttempt = now;

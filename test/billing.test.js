@@ -8,7 +8,10 @@ import { makeEvent } from '../src/demo.js';
 import { Tenants } from '../src/tenants.js';
 import {
   BillingStore,
+  GRACE_MS,
+  TRIAL_NOTICE_MS,
   allowsFeature,
+  allowsNewConnection,
   blocksOverlay,
   computeStatus,
   enforcementOn,
@@ -18,6 +21,7 @@ import {
   overlayMessageAllowed,
   paidUntilEnd,
   referralCreditYen,
+  trialNotice,
   widgetPageBlocked,
 } from '../src/billing.js';
 
@@ -25,16 +29,35 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'tw-billing-'));
 const future = '2099-01-01';
 const past = '2000-01-01';
 
-test('支払った日の終わり（日本時間）までが支払い済みで、翌日は未払い', () => {
+test('支払った日の終わり（日本時間）までが支払い済み。過ぎたら7日は支払い待ち、その後は停止', () => {
   const end = paidUntilEnd('2026-10-14');
   assert.equal(new Date(end).toISOString(), '2026-10-14T14:59:59.999Z');
   const entry = { plan: 'yen2000', paidUntil: '2026-10-14' };
   assert.equal(computeStatus(entry, end), 'active');
-  assert.equal(computeStatus(entry, end + 1), 'unpaid');
-  assert.equal(computeStatus({ free: true, plan: 'yen2000', paidUntil: past }), 'free');
-  assert.equal(computeStatus(null), 'free');
-  assert.equal(computeStatus({}), 'free');
-  assert.equal(computeStatus({ plan: 'yen2000' }), 'unpaid');
+  assert.equal(computeStatus(entry, end + 1), 'past_due');
+  assert.equal(computeStatus(entry, end + GRACE_MS - 1), 'past_due');
+  assert.equal(computeStatus(entry, end + GRACE_MS), 'suspended');
+  assert.equal(blocksOverlay(entry, { now: end + 1 }), false);
+  assert.equal(blocksOverlay(entry, { now: end + GRACE_MS }), true);
+  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS - 1 }), true);
+  assert.equal(allowsNewConnection(entry, { live: false, now: end + GRACE_MS }), false);
+  assert.equal(allowsNewConnection(entry, { live: true, now: end + GRACE_MS }), true);
+  const manual = { status: 'past_due', pastDueAt: 1_000_000 };
+  assert.equal(computeStatus(manual, 1_000_000 + GRACE_MS - 1), 'past_due');
+  assert.equal(computeStatus(manual, 1_000_000 + GRACE_MS), 'suspended');
+  assert.equal(computeStatus({ status: 'past_due' }), 'past_due');
+  assert.equal(computeStatus({ status: 'active', paidUntil: '2026-10-14' }, end + 1), 'past_due');
+  assert.equal(computeStatus({ status: 'active', paidUntil: '2026-10-14' }, end + GRACE_MS), 'suspended');
+  assert.equal(computeStatus({ status: 'suspended', paidUntil: future }), 'suspended');
+  assert.equal(computeStatus({ status: 'trial', trialEndsAt: past, paidUntil: past }), 'trial');
+  assert.equal(computeStatus({ free: true, plan: 'yen2000', paidUntil: past }), 'trial');
+  assert.equal(computeStatus({ free: true, status: 'suspended', paidUntil: future }), 'suspended');
+  assert.equal(computeStatus(null), 'trial');
+  assert.equal(computeStatus(undefined), 'trial');
+  assert.equal(computeStatus({}), 'trial');
+  assert.equal(computeStatus({ plan: 'yen2000' }), 'trial');
+  assert.equal(blocksOverlay(null), false);
+  assert.equal(allowsNewConnection(null, { live: false }), true);
   assert.equal(computeStatus({ plan: 'percent5', paidUntil: future }, Date.parse('2026-10-14T00:00:00Z')), 'active');
   assert.equal(normalizeDate('2026-11-30'), '2026-11-30');
   assert.equal(normalizeDate('2024-02-29'), '2024-02-29');
@@ -77,14 +100,19 @@ test('月額は手入力が優先。5%プランは金額が無いと 0。紹介�
   assert.deepEqual(monthDiscount({ plan: 'percent5', credit: 500 }), { price: 0, discount: 0, due: 0, creditAfter: 500 });
 });
 
-test('未払いの配信画面だけ止め、5000円プランだけの機能は別名でも同じ。ルーレット全体にはしない', () => {
+test('停止の配信画面だけ止め、5000円プランだけの機能は別名でも同じ。ルーレット全体にはしない', () => {
   const premium = ['boss', 'gacha', 'media', 'rouletteLinks'];
   const paid = { plan: 'yen2000', paidUntil: future };
+  const suspended = { plan: 'yen2000', paidUntil: past };
   const opts = { enforcement: true, premiumFeatures: premium };
-  assert.equal(blocksOverlay({ plan: 'yen2000', paidUntil: past }, { enforcement: true }), true);
-  assert.equal(blocksOverlay({ plan: 'yen2000', paidUntil: past }, { enforcement: false }), false);
-  assert.equal(blocksOverlay({ free: true, plan: 'yen2000', paidUntil: past }, { enforcement: true }), false);
-  assert.equal(blocksOverlay(null, { enforcement: true }), false);
+  assert.equal(blocksOverlay(suspended), true);
+  assert.equal(blocksOverlay({ free: true, plan: 'yen2000', paidUntil: past }), false);
+  assert.equal(blocksOverlay(null), false);
+  assert.equal(blocksOverlay({ status: 'past_due', pastDueAt: Date.now() }), false);
+  assert.equal(allowsNewConnection(suspended, { live: false }), false);
+  assert.equal(allowsNewConnection(suspended, { live: true }), true);
+  assert.equal(allowsNewConnection({ status: 'past_due', pastDueAt: Date.now() }, { live: false }), true);
+  assert.equal(allowsFeature(suspended, 'alerts', { enforcement: false, premiumFeatures: premium }), false);
   assert.equal(allowsFeature(paid, 'alerts', opts), true);
   assert.equal(allowsFeature(paid, 'bosses', opts), false);
   assert.equal(allowsFeature(paid, 'boss', opts), false);
@@ -105,7 +133,7 @@ test('未払いの配信画面だけ止め、5000円プランだけの機能は�
   assert.equal(widgetPageBlocked({ entry: paid, feature: null, ...opts }), false);
   assert.equal(widgetPageBlocked({ entry: paid, feature: 'bosses', ...opts }), true);
   assert.equal(widgetPageBlocked({ entry: paid, feature: 'alerts', ...opts }), false);
-  assert.equal(widgetPageBlocked({ entry: { plan: 'yen2000', paidUntil: past }, feature: 'alerts', enforcement: false, premiumFeatures: premium }), false);
+  assert.equal(widgetPageBlocked({ entry: suspended, feature: 'alerts', enforcement: false, premiumFeatures: premium }), true);
   assert.equal(overlayMessageAllowed({ role: 'obs', blocked: true, type: 'event' }), false);
   assert.equal(overlayMessageAllowed({ role: 'obs', blocked: true, type: 'hello' }), true);
   assert.equal(overlayMessageAllowed({ role: 'obs', blocked: true, type: 'entitlements' }), true);
@@ -178,10 +206,15 @@ test('壊れた支払いファイルは読み込みでは直さず、記録が�
   assert.equal(store.account('anyone'), null);
   assert.equal(store.isOverlayBlocked('anyone'), false);
   assert.equal(store.widgetBlocked('anyone', 'bosses'), false);
-  assert.equal(store.clientView('anyone').status, 'free');
+  assert.equal(store.clientView('anyone').status, 'trial');
+  assert.equal(store.clientView('anyone').overlay, true);
   assert.equal(store.clientView('anyone').show, true);
+  assert.equal(store.allowsConnection('anyone', { live: false }), true);
+  assert.equal(store.allowsConnection('anyone', { live: true }), true);
   const quiet = new BillingStore({ dir: tmp(), env: {} });
+  assert.equal(quiet.clientView('anyone').status, 'trial');
   assert.equal(quiet.clientView('anyone').show, false);
+  assert.equal(quiet.isOverlayBlocked('anyone'), false);
 });
 
 test('未払いの配信画面には集計もイベントも流さず、読み込み直しだけ届く', () => {
@@ -224,17 +257,36 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
 
   tenants.updateBillingSettings({ enforcement: true, multiplier: 1.5, premiumFeatures: ['boss', 'gacha', 'media', 'rouletteLinks'] });
   tenants.updateBilling(a.id, { plan: 'yen2000' });
-  assert.equal(tenants.billing.adminView(a.id).status, 'unpaid');
-  assert.equal(tenants.info(a.id).billing.overlay, false);
+  assert.equal(tenants.billing.adminView(a.id).status, 'trial');
+  assert.equal(tenants.billing.adminView(a.id).plan, 'flat2000');
+  assert.equal(tenants.info(a.id).billing.overlay, true);
   assert.equal(tenants.info(a.id).billing.enforcement, true);
   assert.deepEqual(tenants.info(a.id).widgets, widgets);
   assert.equal(tenants.entitled(a.id, 'alerts'), true);
   assert.equal(tenants.entitled(a.id, 'cutins'), false);
+  assert.equal(tenants.billing.widgetBlocked(a.id, null), false);
+  assert.equal(tenants.billing.widgetBlocked(a.id, 'alerts'), false);
+  assert.equal(tenants.info(a.id).billing.limited.includes('alerts'), false);
+  assert.equal(tenants.billing.isFeatureAllowed(a.id, 'bosses'), false);
+  assert.equal(fs.readFileSync(tenants.file).equals(before), true);
+  assert.equal(fs.readFileSync(yamlPath, 'utf8'), yaml);
+
+  tenants.updateBilling(a.id, { status: 'suspended' });
+  assert.equal(tenants.billing.adminView(a.id).status, 'suspended');
+  assert.equal(tenants.info(a.id).billing.overlay, false);
   assert.equal(tenants.billing.widgetBlocked(a.id, null), true);
   assert.equal(tenants.billing.widgetBlocked(a.id, 'alerts'), true);
   assert.ok(tenants.info(a.id).billing.limited.includes('alerts'));
+  assert.equal(tenants.billing.allowsConnection(a.id, { live: false }), false);
+  assert.equal(tenants.billing.allowsConnection(a.id, { live: true }), true);
   assert.equal(fs.readFileSync(tenants.file).equals(before), true);
   assert.equal(fs.readFileSync(yamlPath, 'utf8'), yaml);
+
+  tenants.updateBilling(a.id, { status: 'past_due' });
+  assert.equal(tenants.billing.adminView(a.id).status, 'past_due');
+  assert.equal(tenants.billing.isOverlayBlocked(a.id), false);
+  assert.equal(tenants.billing.allowsConnection(a.id, { live: false }), true);
+  tenants.updateBilling(a.id, { status: '' });
 
   tenants.updateBilling(a.id, { paidUntil: future });
   assert.equal(tenants.billing.isOverlayBlocked(a.id), false);
@@ -252,7 +304,7 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
   assert.equal(tenants.billing.isFeatureAllowed(a.id, 'bosses'), true);
   assert.equal(tenants.billing.widgetBlocked(a.id, 'bosses'), false);
   tenants.updateBilling(a.id, { free: true, paidUntil: past, plan: 'yen2000' });
-  assert.equal(tenants.billing.adminView(a.id).status, 'free');
+  assert.equal(tenants.billing.adminView(a.id).status, 'trial');
   assert.equal(tenants.billing.isOverlayBlocked(a.id), false);
   assert.equal(tenants.billing.isFeatureAllowed(a.id, 'bosses'), false);
   assert.equal(fs.readFileSync(yamlPath, 'utf8'), yaml);
@@ -295,18 +347,142 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
   assert.deepEqual(again.info(a.id).widgets, widgets);
 });
 
-test('画面の文言は、未払いでも配信にエラーを出さない', () => {
+test('画面の文言は、停止でも配信にエラーを出さない', () => {
   const app = fs.readFileSync(new URL('../public/dashboard/app.js', import.meta.url), 'utf8');
   const all = fs.readFileSync(new URL('../public/widgets/all.html', import.meta.url), 'utf8');
   const locked = fs.readFileSync(new URL('../public/widgets/locked.html', import.meta.url), 'utf8');
   const admin = fs.readFileSync(new URL('../public/admin/index.html', import.meta.url), 'utf8');
+  const adminJs = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.url), 'utf8');
   const server = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
-  assert.match(app, /お支払いの確認が取れていないため、配信画面のウィジェットを止めています。設定は残っています。管理者に連絡してください。/);
+  assert.match(app, /お支払いの確認が取れていません。LuLにご連絡ください/);
+  assert.match(app, /有料化のお知らせ/);
   assert.match(app, /現金にはできません/);
   assert.match(app, /紹介コード:/);
   assert.match(all, /billing\?\.overlay === false/);
+  assert.doesNotMatch(all, /お支払いの確認が取れていません/);
   assert.doesNotMatch(locked, /エラー/);
+  assert.doesNotMatch(locked, /お支払い/);
   assert.match(admin, /プラン・支払い/);
+  assert.match(adminJs, /変更の履歴/);
+  assert.match(adminJs, /お試しの終わり/);
   assert.match(server, /widgetBlocked\(tenant\.id, feature\)/);
   assert.match(server, /overlayMessageAllowed/);
+  assert.match(server, /判定に失敗したので通します/);
+});
+
+test('お試し終了の30日前から、お試しのあいだだけ有料化のお知らせを出す', () => {
+  const end = paidUntilEnd('2026-11-30');
+  const entry = { status: 'trial', trialEndsAt: '2026-11-30' };
+  assert.equal(trialNotice(entry, end - TRIAL_NOTICE_MS - 1), false);
+  assert.equal(trialNotice(entry, end - TRIAL_NOTICE_MS), true);
+  assert.equal(trialNotice(entry, end + 1), true);
+  assert.equal(computeStatus(entry, end + 1), 'trial');
+  assert.equal(trialNotice({ status: 'active', paidUntil: future, trialEndsAt: '2026-11-30' }, end - 1), false);
+  assert.equal(trialNotice({ status: 'trial' }, end), false);
+  assert.equal(trialNotice(null), false);
+});
+
+test('状態・期限・プラン・メモの変更だけ履歴に残し、同じ支払い待ちでは猶予の起点を動かさない', () => {
+  const dir = tmp();
+  const store = new BillingStore({ dir, env: {} });
+  store.setAccount('a', { plan: 'pct5', status: 'trial', trialEndsAt: '2026-12-31', paidUntil: '2026-12-01', note: 'はじめ' });
+  assert.equal(store.adminView('a').history.length, 1);
+  assert.equal(store.adminView('a').plan, 'pct5');
+  store.setAccount('a', { monthlyPrice: 1000 });
+  assert.equal(store.adminView('a').history.length, 1);
+  store.setAccount('a', { status: 'past_due' });
+  const view = store.adminView('a');
+  assert.equal(view.status, 'past_due');
+  assert.equal(view.history.length, 2);
+  assert.equal(view.history[1].changes.status.before, 'trial');
+  assert.equal(view.history[1].changes.status.after, 'past_due');
+  const raw = JSON.parse(fs.readFileSync(store.file, 'utf8'));
+  const at = raw.accounts.a.pastDueAt;
+  assert.equal(Number.isFinite(at), true);
+  store.setAccount('a', { status: 'past_due' });
+  const again = JSON.parse(fs.readFileSync(store.file, 'utf8'));
+  assert.equal(again.accounts.a.pastDueAt, at);
+  assert.equal(store.adminView('a').history.length, 2);
+  store.setAccount('a', { plan: 'yen2000', note: '更新', trialEndsAt: '2027-01-15' });
+  const last = store.adminView('a').history.at(-1);
+  assert.equal(last.changes.plan.before, 'pct5');
+  assert.equal(last.changes.plan.after, 'flat2000');
+  assert.equal(last.changes.note.after, '更新');
+  assert.equal(last.changes.trialEndsAt.after, '2027-01-15');
+  assert.equal(store.adminView('a').plan, 'flat2000');
+});
+
+test('古いプラン名は読み込みでは書き換えない', () => {
+  const dir = tmp();
+  const file = path.join(dir, 'billing.json');
+  fs.writeFileSync(file, JSON.stringify({ accounts: { a: { plan: 'yen5000', paidUntil: future, status: 'active' } } }));
+  const before = fs.readFileSync(file, 'utf8');
+  const store = new BillingStore({ dir, env: {} });
+  assert.equal(fs.readFileSync(file, 'utf8'), before);
+  assert.equal(store.adminView('a').plan, 'flat5000');
+  assert.equal(store.adminView('a').status, 'active');
+  store.setGlobal({ enforcement: true, premiumFeatures: ['boss'] });
+  assert.equal(store.isFeatureAllowed('a', 'bosses'), true);
+  assert.match(fs.readFileSync(file, 'utf8'), /yen5000/);
+});
+
+test('判定が例外でも止めずに通し、ログに残す', () => {
+  const boom = new Proxy({ status: 'suspended' }, { get() { throw new Error('壊れた記録'); } });
+  const warnings = [];
+  const orig = console.warn;
+  console.warn = (...args) => warnings.push(args.map(String).join(' '));
+  try {
+    assert.equal(blocksOverlay(boom), false);
+    assert.equal(allowsNewConnection(boom, { live: false }), true);
+    assert.equal(allowsNewConnection(boom, { live: true }), true);
+    assert.equal(widgetPageBlocked({ entry: boom, feature: 'alerts', enforcement: true, premiumFeatures: ['alerts'] }), false);
+    assert.equal(allowsFeature(boom, 'alerts', { enforcement: true, premiumFeatures: ['alerts'] }), true);
+    assert.equal(trialNotice(boom), false);
+    const store = new BillingStore({ dir: tmp(), env: { TW_BILLING: 'on' } });
+    store.account = () => { throw new Error('読めない'); };
+    assert.equal(store.isOverlayBlocked('a'), false);
+    assert.equal(store.allowsConnection('a', { live: false }), true);
+    assert.equal(store.widgetBlocked('a', 'alerts'), false);
+    assert.equal(store.isFeatureAllowed('a', 'alerts'), true);
+    const view = store.clientView('a');
+    assert.equal(view.status, 'trial');
+    assert.equal(view.overlay, true);
+    assert.equal(view.suspended, false);
+  } finally {
+    console.warn = orig;
+  }
+  assert.match(warnings.join('\n'), /通します/);
+});
+
+test('停止にしても配信中の接続は切らない。止まっているときだけ新しい接続を始めない', async () => {
+  const dir = tmp();
+  const tenants = new Tenants({ dir, env: {} });
+  const a = tenants.create({ name: '配信中' });
+  const rt = tenants.runtime(a.id);
+  let connects = 0;
+  rt.tiktok.connect = async () => { connects += 1; };
+  try {
+    rt.hub.setStatus({ mode: 'live', username: 'liveuser', message: '' });
+    tenants.updateBilling(a.id, { status: 'suspended' });
+    assert.equal(rt.hub.status.mode, 'live');
+    assert.equal(tenants.billing.isOverlayBlocked(a.id), true);
+    assert.equal(tenants.billing.allowsConnection(a.id, { live: true }), true);
+    assert.equal(tenants.billing.allowsConnection(a.id, { live: false }), false);
+    const now = Date.now();
+    const slot = { id: 'slot-1', start: now - 1000, end: now + 60_000 };
+    assert.equal(rt.autoConnect({ handle: 'liveuser', slot, now }), false);
+    assert.equal(connects, 0);
+    rt.hub.setStatus({ mode: 'idle', username: null, message: '' });
+    assert.equal(rt.hub.status.mode, 'idle');
+    assert.equal(rt.autoConnect({ handle: 'liveuser', slot, now }), false);
+    assert.equal(connects, 0);
+    tenants.updateBilling(a.id, { status: 'active', paidUntil: future });
+    assert.equal(rt.autoConnect({ handle: 'liveuser', slot, now }), true);
+    assert.equal(connects, 1);
+    assert.equal(rt.hub.status.mode, 'idle');
+  } finally {
+    await tenants.close(a.id);
+    clearInterval(tenants.timer);
+    clearInterval(tenants.rentalTimer);
+  }
 });

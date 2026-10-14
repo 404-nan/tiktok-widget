@@ -4,6 +4,7 @@
 
 import { EventEmitter } from 'node:events';
 import { publicConfig } from './config.js';
+import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
@@ -150,15 +151,18 @@ export class Hub extends EventEmitter {
     const s = this.state;
     switch (e.kind) {
       case 'gift': {
-        if (e.gift.name && !String(e.user.id).startsWith('demo_')) {
-          const { id, name, nameJa, diamonds, image } = e.gift;
-          this.seenGifts.set(String(id || name), { id, name, nameJa: nameJa ?? null, diamonds, image });
+        const gift = e.gift ?? {};
+        const coins = eventCoinTotal(e);
+        const count = finiteCount(gift.count);
+        if (gift.name && !String(e.user?.id ?? '').startsWith('demo_')) {
+          const { id, name, nameJa, image } = gift;
+          this.seenGifts.set(String(id || name), { id, name, nameJa: nameJa ?? null, diamonds: coinCount(gift), image });
         }
-        s.gifts += e.gift.count;
-        s.diamonds += e.totalDiamonds;
+        s.gifts = addCoins(s.gifts, count);
+        s.diamonds = addCoins(s.diamonds, coins);
         const row = this.#row(this.gifters, e.user, { diamonds: 0, gifts: 0 });
-        row.diamonds += e.totalDiamonds;
-        row.gifts += e.gift.count;
+        row.diamonds = addCoins(row.diamonds, coins);
+        row.gifts = addCoins(row.gifts, count);
         s.topGifters = top(this.gifters, 'diamonds');
         break;
       }
@@ -193,8 +197,13 @@ export class Hub extends EventEmitter {
   }
 }
 
+const finiteCount = (v) => {
+  const n = coinCount({ diamondCount: v });
+  return n == null ? 0 : n;
+};
+
 const top = (map, field) =>
   [...map.values()]
-    .sort((a, b) => b[field] - a[field])
+    .sort((a, b) => finiteCount(b[field]) - finiteCount(a[field]))
     .slice(0, RANKING_SIZE)
-    .map((r) => ({ ...r }));
+    .map((r) => ({ ...r, [field]: finiteCount(r[field]) }));

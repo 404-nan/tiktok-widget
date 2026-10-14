@@ -235,7 +235,7 @@ admin.put('/notes/:id', (req, res) => {
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 admin.delete('/notes/:id', (req, res) => res.json({ ok: notes.remove(req.params.id) }));
-// プランと支払い。決済はせず、支払った日までと無料提供を手で入れる
+// プランと支払い。決済はせず、状態・期限・プランを手で入れる
 admin.put('/billing', (req, res) => {
   try {
     res.json({ ok: true, billing: tenants.updateBillingSettings(req.body ?? {}) });
@@ -319,6 +319,14 @@ app.post('/d/:sid', (req, res) => {
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
+function billingAllows(fn, fallback) {
+  try {
+    return fn();
+  } catch (err) {
+    console.warn(`[billing] 判定に失敗したので通します: ${err?.message ?? err}`);
+    return fallback;
+  }
+}
 const tenantStatic = express.static(PUBLIC);
 app.use('/t/:key', (req, res, next) => {
   const found = tenants.byKey(req.params.key);
@@ -337,10 +345,10 @@ app.use('/t/:key', (req, res, next) => {
   if (role === 'obs' && (p === '/widgets' || p === '/widgets/')) {
     return res.type('text/plain; charset=utf-8').send('OBS 用の土台 URL です。ダッシュボードで各ウィジェットの URL をコピーして OBS に貼ってください');
   }
-  // 未払い、またはプランに含まれないウィジェットは、何も出さないページにする（配信画面にエラーは出さない）
+  // 停止中、またはプランに含まれないウィジェットは、何も出さないページにする（配信画面にエラーは出さない）
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
   const feature = page && featureOfPage(page);
-  if (page && /\.html$/i.test(page) && tenants.billing.widgetBlocked(tenant.id, feature)) return res.sendFile(lockedPage);
+  if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return res.sendFile(lockedPage);
   if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
   const rt = tenants.runtime(tenant.id);
   tenantStatic(req, res, () => rt.router(req, res, next));
@@ -388,7 +396,7 @@ server.on('upgrade', (req, socket, head) => {
     ws.role = role;
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
-    const overlayBlocked = () => tenantId != null && tenants.billing.isOverlayBlocked(tenantId);
+    const overlayBlocked = () => billingAllows(() => tenantId != null && tenants.billing.isOverlayBlocked(tenantId), false);
     // 未払いの OBS 用接続は、配信に映るものを流さない。読み込み直しだけは届ける
     ws.quiet = role === 'obs' && overlayBlocked();
     ws.allowMessage = (msg) => overlayMessageAllowed({ role, blocked: overlayBlocked(), type: msg?.type });

@@ -1,16 +1,37 @@
-// 配信者ごとのプランと支払い。決済サービスは使わず、支払った日までを手で入れる。
-// 記録が無い配信者は無料提供（配信画面は止めない）。強制は TW_BILLING=on か、管理画面でオンにしたときだけ。
+// 配信者ごとのプランと支払い。決済サービスは使わず、状態・期限・プランを手で入れる。
+// 記録が無い配信者はお試し（配信も配信画面も止めない）。停止のときだけ、新しい接続を始めず配信画面を出さない。
+// 5000円プランだけの機能を限るのは、今までどおり TW_BILLING=on か管理画面でオンのときだけ。
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
 export const PLANS = [
-  { id: 'percent5', label: '5%プラン', price: null },
-  { id: 'yen2000', label: '2000円プラン', price: 2000 },
-  { id: 'yen5000', label: '5000円プラン', price: 5000 },
+  { id: 'pct5', label: '5%プラン', price: null },
+  { id: 'flat2000', label: '2000円プラン', price: 2000 },
+  { id: 'flat5000', label: '5000円プラン', price: 5000 },
 ];
-const PLAN_IDS = new Set(PLANS.map((p) => p.id));
-export const STATUS_LABEL = { active: '支払い済み', free: '無料提供', unpaid: '未払い' };
+// 以前の保存名。読み込みでは新しい名前と同じものとして扱う（ファイルは読み込みでは書き換えない）
+const PLAN_ALIAS = {
+  pct5: 'pct5',
+  percent5: 'pct5',
+  flat2000: 'flat2000',
+  yen2000: 'flat2000',
+  flat5000: 'flat5000',
+  yen5000: 'flat5000',
+};
+const STATUS_IDS = new Set(['trial', 'active', 'past_due', 'suspended']);
+export const GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+export const TRIAL_NOTICE_MS = 30 * 24 * 60 * 60 * 1000;
+export const STATUS_LABEL = {
+  trial: 'お試し',
+  active: '支払い済み',
+  past_due: '支払い待ち',
+  suspended: '停止',
+  free: '無料提供',
+  unpaid: '未払い',
+};
+const HISTORY_FIELDS = ['status', 'trialEndsAt', 'paidUntil', 'plan', 'note'];
+const DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 
 // 5000円プランだけにできる機能。管理画面の名前と、短い別名の両方を受ける
 const FLAG_GROUPS = [
@@ -22,9 +43,29 @@ const FLAG_GROUPS = [
 ];
 const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
 
-const planOf = (id) => PLANS.find((p) => p.id === id) ?? null;
+export function canonicalPlan(value) {
+  const id = PLAN_ALIAS[String(value ?? '').trim()];
+  return id ?? null;
+}
 
-/** 環境変数と管理画面のどちらで、未払いの配信画面を止めるか */
+export function canonicalStatus(value) {
+  const status = String(value ?? '').trim();
+  return STATUS_IDS.has(status) ? status : null;
+}
+
+const planOf = (id) => PLANS.find((p) => p.id === canonicalPlan(id)) ?? null;
+
+/** 判定が落ちたら止めない。ログだけ残す */
+export function safely(label, fn, fallback) {
+  try {
+    return fn();
+  } catch (err) {
+    console.warn(`[billing] ${label}に失敗したので通します: ${err?.message ?? err}`);
+    return fallback;
+  }
+}
+
+/** 環境変数と管理画面のどちらで、5000円プランだけの機能を限るか */
 export function enforcementOn({ setting = null, env = process.env } = {}) {
   if (setting === true || setting === 'on') return true;
   if (setting === false || setting === 'off') return false;
@@ -58,15 +99,60 @@ export function normalizeDate(value) {
 }
 
 /**
- * active: 支払った日までが来ていない。free: 無料提供。unpaid: それ以外でプランがある。
- * 記録が無い、プランも日付も無いときは free（今までの配信を止めない）
+ * trial: お試し（記録が無い人もここ。止めない）
+ * active: 支払った日までが来ていない
+ * past_due: 期限を過ぎてから7日以内
+ * suspended: 手で停止、または支払い待ちの7日が過ぎた
+ * 状態を手で入れているときはそれが優先。無料提供（free）は、状態が空の古い記録だけお試しにする。
+ * お試しの期限を過ぎても、自動では止めない。
  */
 export function computeStatus(entry, now = Date.now()) {
-  if (!entry || typeof entry !== 'object') return 'free';
-  if (entry.free === true) return 'free';
-  const until = paidUntilEnd(entry.paidUntil);
-  if (until == null) return entry.plan ? 'unpaid' : 'free';
-  return until >= now ? 'active' : 'unpaid';
+  if (!entry || typeof entry !== 'object') return 'trial';
+  const explicit = canonicalStatus(entry.status);
+  if (explicit === 'suspended') return 'suspended';
+  if (entry.free === true && explicit == null) return 'trial';
+  if (explicit === 'trial') return 'trial';
+
+  const paidEnd = paidUntilEnd(entry.paidUntil);
+  if (explicit === 'past_due') {
+    const since = graceStart(entry, paidEnd);
+    if (since == null) return 'past_due';
+    return now < since + GRACE_MS ? 'past_due' : 'suspended';
+  }
+  if (explicit === 'active' || (explicit == null && paidEnd != null)) {
+    if (paidEnd == null || paidEnd >= now) return 'active';
+    return now < paidEnd + GRACE_MS ? 'past_due' : 'suspended';
+  }
+  return 'trial';
+}
+
+export const effectiveStatus = computeStatus;
+
+/** 支払い待ちが始まった時刻。手で入れた時刻、無ければ支払った日の終わり */
+function graceStart(entry, paidEnd = paidUntilEnd(entry?.paidUntil)) {
+  const at = Number(entry?.pastDueAt);
+  if (Number.isFinite(at)) return at;
+  if (paidEnd != null) return paidEnd;
+  const statusAt = Number(entry?.statusAt);
+  if (Number.isFinite(statusAt)) return statusAt;
+  return null;
+}
+
+/** お試し終了の30日前から、お試しのあいだ出す */
+export function trialNotice(entry, now = Date.now()) {
+  return safely('有料化のお知らせの判定', () => {
+    if (computeStatus(entry, now) !== 'trial') return false;
+    const end = paidUntilEnd(entry?.trialEndsAt);
+    if (end == null) return false;
+    return now >= end - TRIAL_NOTICE_MS;
+  }, false);
+}
+
+function graceUntilDay(entry, now = Date.now()) {
+  if (computeStatus(entry, now) !== 'past_due') return '';
+  const since = graceStart(entry);
+  if (since == null) return '';
+  return DAY_FMT.format(new Date(since + GRACE_MS));
 }
 
 /** 紹介や割引に使う月額（円）。手入力がプランの金額より優先。5%プランは手入力が無いと 0 */
@@ -110,8 +196,16 @@ export function monthDiscount(entry) {
   return { price, discount, due: price - discount, creditAfter: credit - discount };
 }
 
-export function blocksOverlay(entry, { enforcement = false, now = Date.now() } = {}) {
-  return Boolean(enforcement) && computeStatus(entry, now) === 'unpaid';
+export function blocksOverlay(entry, { now = Date.now() } = {}) {
+  return safely('配信画面を止める判定', () => computeStatus(entry, now) === 'suspended', false);
+}
+
+/** 新しい配信接続を始めてよいか。配信中（live）は止めない。例外のときは通す */
+export function allowsNewConnection(entry, { live = false, now = Date.now() } = {}) {
+  return safely('配信接続の判定', () => {
+    if (live) return true;
+    return computeStatus(entry, now) !== 'suspended';
+  }, true);
 }
 
 function namesFor(feature) {
@@ -125,23 +219,40 @@ export function isPremiumOnly(feature, premiumFeatures = []) {
 }
 
 /**
- * 5000円プランだけの機能か。強制がオフ、または記録が無い（無料扱い）なら今までどおり使える。
- * 未払いのときは、どの機能も配信画面に出さない
+ * 5000円プランだけの機能か。強制がオフ、または記録が無い（お試し）なら今までどおり使える。
+ * 停止のときは、どの機能も配信画面に出さない
  */
 export function allowsFeature(entry, feature, { enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
-  if (!enforcement) return true;
-  if (computeStatus(entry, now) === 'unpaid') return false;
-  if (!isPremiumOnly(feature, premiumFeatures)) return true;
-  if (!entry?.plan) return true;
-  return entry.plan === 'yen5000';
+  return safely('機能の判定', () => {
+    if (computeStatus(entry, now) === 'suspended') return false;
+    if (!enforcement) return true;
+    if (!isPremiumOnly(feature, premiumFeatures)) return true;
+    if (!entry?.plan) return true;
+    return canonicalPlan(entry.plan) === 'flat5000';
+  }, true);
 }
 
-/** ウィジェットの HTML を空白にするか。feature が無いページ（全部まとめて）は未払いのときだけ */
+/** ウィジェットの HTML を空白にするか。停止中は確認のオン/オフに関係なく出さない */
 export function widgetPageBlocked({ entry = null, feature = null, enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
-  if (!enforcement) return false;
-  if (blocksOverlay(entry, { enforcement, now })) return true;
-  if (feature && !allowsFeature(entry, feature, { enforcement, premiumFeatures, now })) return true;
-  return false;
+  return safely('ウィジェットの判定', () => {
+    if (blocksOverlay(entry, { now })) return true;
+    if (!enforcement) return false;
+    if (feature && !allowsFeature(entry, feature, { enforcement, premiumFeatures, now })) return true;
+    return false;
+  }, false);
+}
+
+function recordBillingChange(cur, before) {
+  const changes = {};
+  for (const key of HISTORY_FIELDS) {
+    const prev = before[key] ?? null;
+    const next = cur[key] ?? null;
+    if (prev !== next) changes[key] = { before: prev, after: next };
+  }
+  if (!Object.keys(changes).length) return;
+  if (!Array.isArray(cur.history)) cur.history = [];
+  cur.history.push({ at: new Date().toISOString(), changes });
+  if (cur.history.length > 50) cur.history.splice(0, cur.history.length - 50);
 }
 
 /** 未払いの配信画面には、読み込み直し以外のメッセージを流さない */
@@ -225,62 +336,96 @@ export class BillingStore {
     const status = computeStatus(this.account(id), now);
     const plan = planOf(entry.plan);
     return {
-      plan: entry.plan ?? null,
+      plan: canonicalPlan(entry.plan),
       planLabel: plan?.label ?? '',
       free: entry.free === true,
       paidUntil: typeof entry.paidUntil === 'string' ? entry.paidUntil : '',
+      trialEndsAt: typeof entry.trialEndsAt === 'string' ? entry.trialEndsAt : '',
+      note: typeof entry.note === 'string' ? entry.note : '',
       monthlyPrice: entry.monthlyPrice ?? null,
       price: monthlyPriceYen(entry),
       credit: Math.max(0, Math.round(Number(entry.credit) || 0)),
       code: entry.code ?? '',
       referredBy: entry.referredBy ?? null,
       status,
-      statusLabel: STATUS_LABEL[status],
+      storedStatus: canonicalStatus(entry.status),
+      statusLabel: STATUS_LABEL[status] ?? '',
+      graceUntil: this.account(id) ? graceUntilDay(entry, now) : '',
+      trialNotice: trialNotice(this.account(id), now),
+      history: Array.isArray(entry.history) ? entry.history.slice(-50) : [],
       discount: monthDiscount(entry),
     };
   }
 
-  /** 配信者のダッシュボード向け。show が偽のときはカードを出さない（本番で記録が無い人） */
+  /** 配信者のダッシュボード向け。show が偽のときはカードを出さない（記録が無く、伝えることも無い人） */
   clientView(id, now = Date.now()) {
-    const entry = this.account(id);
-    const enforcement = this.enforcement();
-    const status = computeStatus(entry, now);
-    const plan = planOf(entry?.plan);
-    return {
-      show: enforcement || entry != null,
-      enforcement,
-      status,
-      statusLabel: STATUS_LABEL[status],
-      plan: entry?.plan ?? null,
-      planLabel: plan?.label ?? '',
-      paidUntil: typeof entry?.paidUntil === 'string' ? entry.paidUntil : '',
-      monthlyPrice: monthlyPriceYen(entry),
-      credit: Math.max(0, Math.round(Number(entry?.credit) || 0)),
-      code: entry?.code ?? '',
-      overlay: !blocksOverlay(entry, { enforcement, now }),
-    };
-  }
-
-  isOverlayBlocked(id, now = Date.now()) {
-    return blocksOverlay(this.account(id), { enforcement: this.enforcement(), now });
-  }
-
-  isFeatureAllowed(id, feature, now = Date.now()) {
-    return allowsFeature(this.account(id), feature, {
-      enforcement: this.enforcement(),
-      premiumFeatures: this.data.premiumFeatures,
-      now,
+    return safely('表示の判定', () => {
+      const entry = this.account(id);
+      const enforcement = this.enforcement();
+      const status = computeStatus(entry, now);
+      const plan = planOf(entry?.plan);
+      const notice = trialNotice(entry, now);
+      const suspended = status === 'suspended';
+      return {
+        show: enforcement || entry != null || suspended || notice,
+        enforcement,
+        status,
+        statusLabel: STATUS_LABEL[status] ?? '',
+        plan: canonicalPlan(entry?.plan),
+        planLabel: plan?.label ?? '',
+        paidUntil: typeof entry?.paidUntil === 'string' ? entry.paidUntil : '',
+        trialEndsAt: typeof entry?.trialEndsAt === 'string' ? entry.trialEndsAt : '',
+        note: typeof entry?.note === 'string' ? entry.note : '',
+        trialNotice: notice,
+        suspended,
+        monthlyPrice: monthlyPriceYen(entry),
+        credit: Math.max(0, Math.round(Number(entry?.credit) || 0)),
+        code: entry?.code ?? '',
+        overlay: !blocksOverlay(entry, { now }),
+      };
+    }, {
+      show: false,
+      enforcement: false,
+      status: 'trial',
+      statusLabel: STATUS_LABEL.trial,
+      plan: null,
+      planLabel: '',
+      paidUntil: '',
+      trialEndsAt: '',
+      note: '',
+      trialNotice: false,
+      suspended: false,
+      monthlyPrice: 0,
+      credit: 0,
+      code: '',
+      overlay: true,
     });
   }
 
+  isOverlayBlocked(id, now = Date.now()) {
+    return safely('配信画面の判定', () => blocksOverlay(this.account(id), { now }), false);
+  }
+
+  allowsConnection(id, { live = false, now = Date.now() } = {}) {
+    return safely('配信接続の判定', () => allowsNewConnection(this.account(id), { live, now }), true);
+  }
+
+  isFeatureAllowed(id, feature, now = Date.now()) {
+    return safely('機能の判定', () => allowsFeature(this.account(id), feature, {
+      enforcement: this.enforcement(),
+      premiumFeatures: this.data.premiumFeatures,
+      now,
+    }), true);
+  }
+
   widgetBlocked(id, feature, now = Date.now()) {
-    return widgetPageBlocked({
+    return safely('ウィジェットの判定', () => widgetPageBlocked({
       entry: this.account(id),
       feature,
       enforcement: this.enforcement(),
       premiumFeatures: this.data.premiumFeatures,
       now,
-    });
+    }), false);
   }
 
   setGlobal(patch = {}) {
@@ -313,10 +458,27 @@ export class BillingStore {
 
   setAccount(id, patch = {}) {
     const cur = { ...(this.data.accounts[id] ?? {}) };
+    const before = {};
+    for (const key of HISTORY_FIELDS) before[key] = cur[key] ?? null;
+    const prevStatus = canonicalStatus(cur.status);
     if ('plan' in patch) {
       if (patch.plan == null || patch.plan === '') delete cur.plan;
-      else if (!PLAN_IDS.has(patch.plan)) throw new Error('プランは 5%プラン、2000円プラン、5000円プラン のどれかです');
-      else cur.plan = patch.plan;
+      else {
+        const plan = canonicalPlan(patch.plan);
+        if (!plan) throw new Error('プランは 5%プラン、2000円プラン、5000円プラン のどれかです');
+        cur.plan = plan;
+      }
+    }
+    if ('status' in patch) {
+      if (patch.status == null || patch.status === '') delete cur.status;
+      else {
+        const status = canonicalStatus(patch.status);
+        if (!status) throw new Error('状態は お試し、支払い済み、支払い待ち、停止 のどれかです');
+        cur.status = status;
+        cur.statusAt = Date.now();
+        if (status === 'past_due' && prevStatus !== 'past_due') cur.pastDueAt = Date.now();
+        if (status !== 'past_due') delete cur.pastDueAt;
+      }
     }
     if ('free' in patch) cur.free = Boolean(patch.free);
     if ('paidUntil' in patch) {
@@ -327,6 +489,18 @@ export class BillingStore {
         cur.paidUntil = day;
       }
     }
+    if ('trialEndsAt' in patch) {
+      if (patch.trialEndsAt == null || patch.trialEndsAt === '') delete cur.trialEndsAt;
+      else {
+        const day = normalizeDate(patch.trialEndsAt);
+        if (!day) throw new Error('お試しの終わりは 2026-11-30 のような日付です');
+        cur.trialEndsAt = day;
+      }
+    }
+    if ('note' in patch) {
+      if (patch.note == null || String(patch.note).trim() === '') delete cur.note;
+      else cur.note = String(patch.note).trim().slice(0, 500);
+    }
     if ('monthlyPrice' in patch) {
       if (patch.monthlyPrice == null || patch.monthlyPrice === '') delete cur.monthlyPrice;
       else {
@@ -335,6 +509,7 @@ export class BillingStore {
         cur.monthlyPrice = Math.round(n);
       }
     }
+    recordBillingChange(cur, before);
     this.data.accounts[id] = cur;
     this.save();
     return this.adminView(id);

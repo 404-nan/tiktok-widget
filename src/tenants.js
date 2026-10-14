@@ -378,6 +378,7 @@ export class Tenants {
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,
       ai: this.ai,
       notes: this.notes,
+      connectionAllowed: ({ live } = {}) => this.billing.allowsConnection(id, { live }),
     });
     this.runtimes.set(id, rt);
     return rt;

@@ -63,6 +63,34 @@ export function coinCount(gift) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** 集計に足すコイン。欠損・undefined・NaN・壊れた文字は 0。"1,000" は 1000 */
+export function addCoins(current, add) {
+  const base = coinCount({ diamondCount: current });
+  const extra = coinCount({ diamondCount: add });
+  return (base ?? 0) + (extra ?? 0);
+}
+
+/**
+ * 1回のギフトで足すコイン。
+ * totalDiamonds が数（または "1,000" のような文字）ならそれ。
+ * 無ければ 1個あたり × 個数。欠損・undefined・壊れた値は 0（NaN にしない）
+ */
+export function eventCoinTotal(event) {
+  const direct = event?.totalDiamonds;
+  if (direct != null && direct !== '') {
+    const n = coinCount({ diamondCount: direct });
+    if (n != null) return n;
+  }
+  const gift = event?.gift;
+  const each = coinCount(gift);
+  if (each == null) return 0;
+  const rawCount = gift?.count;
+  if (rawCount == null || rawCount === '') return each;
+  const count = coinCount({ diamondCount: rawCount });
+  if (count == null) return 0;
+  return each * Math.max(0, count);
+}
+
 /** 画面に出すコイン。数なら「5000 コイン」、分からなければ「? コイン」（NaN にはしない） */
 export function coinText(diamonds) {
   if (diamonds == null || diamonds === '') return '? コイン';

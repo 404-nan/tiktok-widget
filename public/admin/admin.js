@@ -619,9 +619,9 @@ const FLAG_ALIASES = {
 function billingDetail() {
   const settings = data.billing ?? { enforcement: null, effective: false, multiplier: 1.5, premiumFeatures: [], plans: [] };
   const plans = settings.plans?.length ? settings.plans : [
-    { id: 'percent5', label: '5%プラン', price: null },
-    { id: 'yen2000', label: '2000円プラン', price: 2000 },
-    { id: 'yen5000', label: '5000円プラン', price: 5000 },
+    { id: 'pct5', label: '5%プラン', price: null },
+    { id: 'flat2000', label: '2000円プラン', price: 2000 },
+    { id: 'flat5000', label: '5000円プラン', price: 5000 },
   ];
   const selected = new Set(settings.premiumFeatures ?? []);
   const features = Object.entries(data.features ?? {});
@@ -629,8 +629,8 @@ function billingDetail() {
   const enforcement = el('select');
   enforcement.setAttribute('aria-label', '支払いの確認');
   enforcement.append(new Option('初期値（本番はオフ、開発はオン）', '', false, settings.enforcement == null));
-  enforcement.append(new Option('オン（未払いの配信画面を止める）', 'on', false, settings.enforcement === true));
-  enforcement.append(new Option('オフ（止めない）', 'off', false, settings.enforcement === false));
+  enforcement.append(new Option('オン（5000円プラン以外は選んだ機能を止める）', 'on', false, settings.enforcement === true));
+  enforcement.append(new Option('オフ（機能は止めない）', 'off', false, settings.enforcement === false));
   const multiplier = el('select');
   multiplier.setAttribute('aria-label', '紹介の倍率');
   multiplier.append(new Option('1.5倍', '1.5', false, settings.multiplier !== 2));
@@ -660,7 +660,7 @@ function billingDetail() {
     el(
       'div',
       { className: 'note-form' },
-      el('p', { className: 'sub', textContent: settings.effective ? 'いまは支払いの確認がオンです。未払いの配信画面は止まります。' : 'いまは支払いの確認がオフです。配信画面は今までどおり出ます。' }),
+      el('p', { className: 'sub', textContent: settings.effective ? '5000円プラン以外は、下で選んだ機能を止めています。停止にした配信者は、このスイッチに関係なく新しい接続を始めず、配信画面も出ません。' : '機能の制限はオフです。停止にした配信者だけ、新しい接続を始めず、配信画面も出ません。' }),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払いの確認' }), enforcement),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '紹介の倍率' }), multiplier),
       el('div', { className: 'field' }, el('span', { className: 'field-label', textContent: '5000円プランだけの機能' }), flagBox),
@@ -671,30 +671,77 @@ function billingDetail() {
   );
   const rows = (data.tenants ?? []).map((t) => tenantBillingCard(t, plans));
   return [
-    el('div', { className: 'detail-head' }, el('h2', { textContent: 'プラン・支払い' }), el('p', { className: 'sub', textContent: '配信者ごとのプランと、支払った日までを手で入れます。割引は次の月の料金から引き、現金では渡しません。' })),
+    el('div', { className: 'detail-head' }, el('h2', { textContent: 'プラン・支払い' }), el('p', { className: 'sub', textContent: '配信者の状態・期限・プランを手で入れます。決済サービスにはつなぎません。' })),
     globalCard,
     el('div', { className: 'admin-note-list' }, ...rows),
   ];
 }
 
+const BILLING_STATUS = [['trial', 'お試し'], ['active', '支払い済み'], ['past_due', '支払い待ち'], ['suspended', '停止']];
+const BILLING_LABELS = { status: '状態', trialEndsAt: 'お試しの終わり', paidUntil: '支払った日まで', plan: 'プラン', note: 'メモ' };
+const PLAN_TEXT = { pct5: '5%プラン', flat2000: '2000円プラン', flat5000: '5000円プラン', percent5: '5%プラン', yen2000: '2000円プラン', yen5000: '5000円プラン' };
+
+function billingValueText(key, value) {
+  if (value == null || value === '') return 'なし';
+  if (key === 'status') {
+    for (let i = 0; i < BILLING_STATUS.length; i++) if (BILLING_STATUS[i][0] === value) return BILLING_STATUS[i][1];
+  }
+  if (key === 'plan') return PLAN_TEXT[value] || String(value);
+  return String(value);
+}
+
+function billingHistory(billing) {
+  const items = Array.isArray(billing.history) ? billing.history : [];
+  const rows = [];
+  const keys = ['status', 'plan', 'trialEndsAt', 'paidUntil', 'note'];
+  for (let i = items.length - 1; i >= 0 && rows.length < 8; i--) {
+    const changes = items[i].changes || {};
+    const parts = [];
+    for (let k = 0; k < keys.length; k++) {
+      const key = keys[k];
+      if (!changes[key]) continue;
+      parts.push(`${BILLING_LABELS[key]}を${billingValueText(key, changes[key].after)}に変更`);
+    }
+    if (!parts.length) continue;
+    const when = String(items[i].at || '').slice(0, 16).replace('T', ' ');
+    rows.push(el('p', { className: 'sub', textContent: `${when} ${parts.join('、')}` }));
+  }
+  return el('div', {}, el('p', { className: 'sub', textContent: '変更の履歴' }), ...(rows.length ? rows : [el('p', { className: 'sub', textContent: '変更の履歴はまだありません' })]));
+}
+
 function tenantBillingCard(t, plans) {
   const b = t.billing ?? {};
   const yen = (n) => `${Number(n || 0).toLocaleString('ja-JP')}円`;
+  const shownStatus = b.storedStatus || b.status || 'trial';
+  const status = el('select');
+  status.setAttribute('aria-label', `${t.name}の状態`);
+  for (let i = 0; i < BILLING_STATUS.length; i++) {
+    const item = BILLING_STATUS[i];
+    status.append(new Option(item[1], item[0], false, shownStatus === item[0]));
+  }
   const plan = el('select');
   plan.setAttribute('aria-label', `${t.name}のプラン`);
   plan.append(new Option('未設定', '', false, !b.plan));
   for (const item of plans) plan.append(new Option(item.label, item.id, false, b.plan === item.id));
   const free = el('input', { type: 'checkbox' });
-  free.checked = Boolean(b.free);
+  free.checked = Boolean(b.free) && shownStatus !== 'suspended';
+  const trialEnds = el('input', { type: 'date', value: b.trialEndsAt || '' });
+  trialEnds.setAttribute('aria-label', `${t.name}のお試しの終わり`);
   const until = el('input', { type: 'date', value: b.paidUntil || '' });
   until.setAttribute('aria-label', `${t.name}の支払った日まで`);
+  const note = el('input', { type: 'text', value: b.note || '', maxLength: 500 });
+  note.setAttribute('aria-label', `${t.name}のメモ`);
   const price = el('input', { type: 'number', min: '0', step: '1', value: b.monthlyPrice == null ? '' : String(b.monthlyPrice), placeholder: '空ならプランの金額' });
   price.setAttribute('aria-label', `${t.name}の月額`);
   const save = button('保存', () => {
+    const stopping = status.value === 'suspended';
     act(() => api(`/tenants/${t.id}/billing`, {
+      status: free.checked && !stopping ? 'trial' : status.value,
       plan: plan.value || null,
-      free: free.checked,
+      free: stopping ? false : free.checked,
       paidUntil: until.value || null,
+      trialEndsAt: trialEnds.value || null,
+      note: note.value,
       monthlyPrice: price.value === '' ? null : Number(price.value),
     }, 'PUT'), `${t.name}のプランを保存しました`)();
   }, { cls: 'btn primary' });
@@ -719,15 +766,24 @@ function tenantBillingCard(t, plans) {
   return el(
     'article',
     { className: 'admin-note' },
-    el('div', { className: 'lul-tenant-head' }, el('h3', { textContent: t.name }), el('span', { className: 'hint', textContent: `${b.statusLabel || '無料提供'}・割引残高 ${yen(b.credit)}` })),
+    el('div', { className: 'lul-tenant-head' }, el('h3', { textContent: t.name }), el('span', { className: 'hint', textContent: `${b.statusLabel || 'お試し'}・割引残高 ${yen(b.credit)}` })),
+    b.graceUntil ? el('p', { className: 'sub', textContent: `支払い待ちの猶予は ${b.graceUntil} までです。` }) : null,
     el('p', { className: 'sub', textContent: `次の月: ${yen(discount.price)}のうち ${yen(discount.discount)}が割引（残る支払額 ${yen(discount.due)}）` }),
     el('div', { className: 'field-row' },
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '状態' }), status),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'プラン' }), plan),
+    ),
+    el('div', { className: 'field-row' },
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'お試しの終わり' }), trialEnds),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払った日まで' }), until),
+    ),
+    el('div', { className: 'field-row' },
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'メモ' }), note),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '月額（円）' }), price),
     ),
     el('label', { className: 'row' }, free, el('span', { textContent: '無料提供' })),
     el('div', { className: 'btn-row' }, save),
+    billingHistory(b),
     codeLine,
     b.referredBy
       ? el('p', { className: 'sub', textContent: '紹介コードは適用済みです。' })
