@@ -28,6 +28,7 @@ import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 import { giftNamesDocument } from './gift-display.js';
+import { isDevEnv } from './env.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -193,7 +194,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
     res.json({ ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) });
   });
-  r.get('/api/env', (_req, res) => res.json({ dev: process.env.TW_ENV === 'dev', environment: process.env.TW_ENV === 'dev' ? 'dev' : 'prod' }));
+  r.get('/api/env', (req, res) => {
+    const dev = isDevEnv(req);
+    res.json({ dev, environment: dev ? 'dev' : 'prod' });
+  });
   r.get('/api/notes', (_req, res) => res.json({ notes: notes?.list?.() ?? [] }));
   r.put('/api/me/widgets', (req, res) => {
     if (!setWidgets) return res.status(400).json({ error: '1人で使うときは選べません（全部使えます）' });
@@ -493,12 +497,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json({ ok: true, demo: demo.running });
   });
   r.post('/api/simulate', (req, res) => {
-    const out = simulateEvent(req.body);
+    const out = simulateEvent(req.body, req);
     res.status(out.status).json(out.body);
   });
   // 開発用。ルーレットの動作・ボス・メディア・ガチャを、配信イベントを作らずに試す
   r.post('/api/dev/trigger', (req, res) => {
-    if (process.env.TW_ENV !== 'dev') return res.status(403).json({ error: 'テスト送信は開発環境でだけ使えます' });
+    if (!isDevEnv(req)) return res.status(403).json({ error: 'テスト送信は開発環境でだけ使えます' });
     const body = req.body ?? {};
     try {
       if (body.target === 'roulette-action') {
@@ -572,8 +576,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
 
   // テスト送信。開発環境以外は拒否する（画面の API と AI 用 API で同じ）
-  function simulateEvent(body) {
-    if (process.env.TW_ENV !== 'dev') return { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } };
+  function simulateEvent(body, req) {
+    if (!isDevEnv(req)) return { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } };
     const event = makeEvent(body?.kind, body ?? {});
     if (!event) return { status: 400, body: { error: '不明なイベント種類です' } };
     hub.publish({ ...event, test: true });

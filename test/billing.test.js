@@ -83,9 +83,22 @@ test('支払いの確認は、保存したオン/オフが環境変数より優�
   assert.equal(enforcementOn({ setting: null, env: { TW_BILLING: 'off', TW_ENV: 'dev' } }), false);
   assert.equal(enforcementOn({ setting: null, env: { TW_BILLING: '0' } }), false);
   assert.equal(enforcementOn({ setting: null, env: { TW_BILLING: 'false' } }), false);
-  assert.equal(enforcementOn({ setting: null, env: { TW_ENV: 'dev' } }), true);
-  assert.equal(enforcementOn({ setting: null, env: {} }), false);
-  assert.equal(enforcementOn({ setting: null, env: { TW_ENV: 'production' } }), false);
+  const saved = { TW_ENV: process.env.TW_ENV, PORT: process.env.PORT };
+  try {
+    process.env.TW_ENV = 'dev';
+    process.env.PORT = '3940';
+    assert.equal(enforcementOn({ setting: null, env: {} }), true);
+    process.env.PORT = '3939';
+    assert.equal(enforcementOn({ setting: null, env: { TW_ENV: 'dev' } }), false);
+    delete process.env.TW_ENV;
+    process.env.PORT = '3940';
+    assert.equal(enforcementOn({ setting: null, env: { TW_ENV: 'dev' } }), false);
+  } finally {
+    if (saved.TW_ENV === undefined) delete process.env.TW_ENV;
+    else process.env.TW_ENV = saved.TW_ENV;
+    if (saved.PORT === undefined) delete process.env.PORT;
+    else process.env.PORT = saved.PORT;
+  }
 });
 
 test('月額は手入力が優先。5%プランは金額が無いと 0。紹介の割引は月額×倍率', () => {

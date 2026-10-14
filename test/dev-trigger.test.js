@@ -31,6 +31,7 @@ test('開発用トリガーは本番で 403、開発ではボス・ガチャ・�
   const runtime = createRuntime({ id: 'test', store: createStore(path.join(dir, 'config.yaml')), dataDir: dir, mediaDirs: [dir] });
   const { server, port } = await listen(runtime);
   const before = process.env.TW_ENV;
+  const beforePort = process.env.PORT;
   const post = (body) => fetch(`http://127.0.0.1:${port}/api/dev/trigger`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -42,6 +43,7 @@ test('開発用トリガーは本番で 403、開発ではボス・ガチャ・�
     assert.equal(denied.status, 403);
     assert.match(await denied.text(), /テスト送信は開発環境でだけ使えます/);
     process.env.TW_ENV = 'dev';
+    process.env.PORT = '3940';
     const gacha = await post({ target: 'gacha' });
     assert.equal(gacha.status, 200);
     const gachaBody = await gacha.json();
@@ -62,6 +64,8 @@ test('開発用トリガーは本番で 403、開発ではボス・ガチャ・�
   } finally {
     if (before === undefined) delete process.env.TW_ENV;
     else process.env.TW_ENV = before;
+    if (beforePort === undefined) delete process.env.PORT;
+    else process.env.PORT = beforePort;
     await close(server, runtime);
   }
 });
@@ -71,8 +75,10 @@ test('メディアのアップロード・再生・確認と、OBS は読む・a
   const runtime = createRuntime({ id: 'test', store: createStore(path.join(dir, 'config.yaml')), dataDir: dir, mediaDirs: [dir] });
   const { server, port } = await listen(runtime);
   const before = process.env.TW_ENV;
+  const beforePort = process.env.PORT;
   try {
     process.env.TW_ENV = 'dev';
+    process.env.PORT = '3940';
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
     const uploaded = await fetch(`http://127.0.0.1:${port}/api/media-alerts?name=花.png`, {
       method: 'POST',
@@ -103,6 +109,8 @@ test('メディアのアップロード・再生・確認と、OBS は読む・a
   } finally {
     if (before === undefined) delete process.env.TW_ENV;
     else process.env.TW_ENV = before;
+    if (beforePort === undefined) delete process.env.PORT;
+    else process.env.PORT = beforePort;
     await close(server, runtime);
   }
 

@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import { reference } from './config.js';
 import { AI_ROUTES } from './ai-api.js';
+import { isDevEnv } from './env.js';
 
 export const AI_MCP_INSTRUCTIONS = [
   'TikTok LIVE 配信用ウィジェットの設定を、サーバーの AI 用 API 経由で扱う。',
@@ -239,7 +240,7 @@ export function registerAiTools(server, call) {
 
 export function createAiMcpHandler(control) {
   return async (req, res) => {
-    if (process.env.TW_ENV !== 'dev') {
+    if (!isDevEnv(req)) {
       res.status(404).json({ error: 'この入口は開発環境でだけ開きます' });
       return;
     }

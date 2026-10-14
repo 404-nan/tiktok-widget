@@ -8,13 +8,19 @@ import { History } from '../src/history.js';
 
 function withEnv(value, fn) {
   const before = process.env.TW_ENV;
+  const beforePort = process.env.PORT;
   if (value === undefined) delete process.env.TW_ENV;
   else process.env.TW_ENV = value;
+  if (value === 'dev') process.env.PORT = '3940';
   try {
     return fn();
   } finally {
     if (before === undefined) delete process.env.TW_ENV;
     else process.env.TW_ENV = before;
+    if (value === 'dev') {
+      if (beforePort === undefined) delete process.env.PORT;
+      else process.env.PORT = beforePort;
+    }
   }
 }
 

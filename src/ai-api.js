@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import express from 'express';
 import * as cfg from './config.js';
 import { publicToken } from './ai-tokens.js';
+import { isDevEnv } from './env.js';
 
 const WRITE_LIMIT = 30;
 const WRITE_WINDOW_MS = 60_000;
@@ -250,12 +251,12 @@ function redactArgs(args, tokenValue) {
   return out;
 }
 
-function isProd() {
-  return process.env.TW_ENV !== 'dev';
+function isProd(req) {
+  return !isDevEnv(req);
 }
 
-function staleVersion(args, version, live) {
-  if (!isProd() || args.baseVersion === version) return null;
+function staleVersion(args, version, live, req) {
+  if (!isProd(req) || args.baseVersion === version) return null;
   return { status: 409, body: { error: '設定の版が違います。読み直してからやり直してください', configVersion: version, live } };
 }
 
@@ -448,10 +449,10 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (!target) return finish(tool, context, { status: 404, body: { error: 'その配信者は見つかりません' } });
     if (target.disabled) return finish(tool, context, { status: 403, body: { error: 'この配信者の利用は止められています' } });
     const runtime = target.runtime;
-    if (spec.test && process.env.TW_ENV !== 'dev') {
+    if (spec.test && !isDevEnv(context.req)) {
       return finish(tool, context, { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } });
     }
-    if (spec.mutate && isProd() && !writesOpen()) {
+    if (spec.mutate && isProd(context.req) && !writesOpen()) {
       return finish(tool, context, { status: 403, body: { error: '本番では、読み取り以外は止められています' } });
     }
     if (spec.mutate && !takeSlot(token.id, now())) {
@@ -497,7 +498,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       const changes = [...data.changes].reverse().map(publicChange);
       return finish(tool, context, { status: 200, body: { changes } });
     }
-    if (tool === 'undo') return finish(tool, context, undoChange(runtime, target, tenantId, args.changeId, token.id));
+    if (tool === 'undo') return finish(tool, context, undoChange(runtime, target, tenantId, args.changeId, token.id, context.req));
     if (spec.op || spec.billing) return finish(tool, context, writeConfig(runtime, target, context, spec, args));
     if (spec.operate) return finish(tool, context, operate(runtime, tenantId, tool, args, context));
     if (spec.test) return finish(tool, context, runtime.simulateEvent(args));
@@ -558,8 +559,8 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     const body = { ok: preview.ok, dryRun: ctx.dryRun, diff, validation, live, configVersion: version };
     if (!preview.ok) return { status: 422, body: { ...body, error: preview.errors[0] ?? '設定を確認できません' } };
     if (ctx.dryRun) return { status: 200, body };
-    if (isProd() && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true, configVersion: version } };
-    const stale = staleVersion(args, version, live);
+    if (isProd(ctx.req) && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true, configVersion: version } };
+    const stale = staleVersion(args, version, live, ctx.req);
     if (stale) return stale;
     const applied = op === 'delete' ? runtime.deleteConfig(configPath) : op === 'merge' ? runtime.mergeConfig(configPath, args.value) : runtime.setConfig(configPath, args.value);
     if (!applied.ok) return { status: 422, body: { ...body, ok: false, validation: { ok: false, errors: applied.errors ?? [], warnings: applied.warnings ?? [] }, error: applied.errors?.[0] ?? '保存できません' } };
@@ -616,7 +617,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       if (tool === 'boss') return { status: 200, body: { ok: true, boss: runtime.readBoss(), live, configVersion: version } };
       return { status: 200, body: { ok: true, rush: runtime.readRush(), live, configVersion: version } };
     }
-    if (isProd() && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true, configVersion: version } };
+    if (isProd(ctx.req) && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true, configVersion: version } };
     let out;
     if (tool === 'spin_roulette') out = runtime.performControl('roulette', 'spin', { id: args.id });
     else if (tool === 'timer') out = runtime.performControl('timer', action, { id: args.id, seconds: args.seconds, minutes: args.minutes, value: args.value });
@@ -636,7 +637,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     const runtime = target.runtime;
     const live = runtime.aiLive();
     const version = runtime.configVersion();
-    if (!ctx.dryRun && isProd() && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true } };
+    if (!ctx.dryRun && isProd(ctx.req) && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true } };
     if (tool === 'tenant_widgets') {
       if (!Array.isArray(args.widgets)) return { status: 400, body: { error: 'widgets を一覧で送ってください' } };
       if (typeof target.setWidgets !== 'function') return { status: 400, body: { error: 'この配信者のウィジェットは選べません' } };
@@ -644,7 +645,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       if (ctx.dryRun) {
         return { status: 200, body: { ok: true, dryRun: true, diff: { path: 'widgets', op: 'set', before, after: args.widgets }, validation: { ok: true, errors: [], warnings: [] }, live, configVersion: version } };
       }
-      const stale = staleVersion(args, version, live);
+      const stale = staleVersion(args, version, live, ctx.req);
       if (stale) return stale;
       target.setWidgets(args.widgets);
       const after = typeof target.getWidgets === 'function' ? target.getWidgets() : args.widgets;
@@ -656,7 +657,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (ctx.dryRun) {
       return { status: 200, body: { ok: true, dryRun: true, diff: { path: 'template', op: 'set', before, after: args.template ?? null }, validation: { ok: true, errors: [], warnings: [] }, live, configVersion: version } };
     }
-    const stale = staleVersion(args, version, live);
+    const stale = staleVersion(args, version, live, ctx.req);
     if (stale) return stale;
     try {
       target.setTemplate(args.template);
@@ -687,7 +688,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     return changeId;
   }
 
-  function undoChange(runtime, target, tenantId, changeId, tokenId) {
+  function undoChange(runtime, target, tenantId, changeId, tokenId, req) {
     if (!changeId) return { status: 400, body: { error: 'changeId が必要です' } };
     const book = loadUndo(tenantId);
     const owned = (row) => row?.tokenId === tokenId;
@@ -701,7 +702,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (!owned(change)) return { status: 403, body: { error: 'この変更は別のトークンが作ったので取り消せません' } };
     if (change.undoable === false) return { status: 400, body: { error: 'ルーレットを回すなどの操作は取り消せません' } };
     const live = runtime.aiLive();
-    if (isProd() && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true } };
+    if (isProd(req) && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true } };
     if (change.kind === 'widgets' || change.path === 'widgets') {
       const current = typeof target.getWidgets === 'function' ? target.getWidgets() : null;
       if (JSON.stringify(current ?? null) !== JSON.stringify(change.after?.value ?? null)) {

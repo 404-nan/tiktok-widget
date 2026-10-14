@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { isDevEnv } from './env.js';
 
 export const PLANS = [
   { id: 'pct5', label: '5%プラン', price: null },
@@ -76,7 +77,7 @@ export function enforcementOn({ setting = null, env = process.env } = {}) {
   const flag = String(env?.TW_BILLING ?? '').trim().toLowerCase();
   if (flag === 'on' || flag === '1' || flag === 'true') return true;
   if (flag === 'off' || flag === '0' || flag === 'false') return false;
-  return env?.TW_ENV === 'dev';
+  return isDevEnv();
 }
 
 /** YYYY-MM-DD はその日の終わり（日本時間）まで有効。壊れた値は null */

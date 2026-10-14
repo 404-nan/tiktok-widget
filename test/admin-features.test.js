@@ -71,15 +71,19 @@ test('テスト送信 API は開発環境以外で 403、開発環境では Hub 
   const port = server.address().port;
   const send = async () => fetch(`http://127.0.0.1:${port}/api/simulate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'gift', senderName: 'テストさん', giftName: 'Rose', count: 1 }) });
   const before = process.env.TW_ENV;
+  const beforePort = process.env.PORT;
   try {
     delete process.env.TW_ENV;
     assert.equal((await send()).status, 403);
     process.env.TW_ENV = 'dev';
+    process.env.PORT = '3940';
     assert.equal((await send()).status, 200);
     assert.equal(runtime.hub.recent[0].user.name, 'テストさん');
   } finally {
     if (before === undefined) delete process.env.TW_ENV;
     else process.env.TW_ENV = before;
+    if (beforePort === undefined) delete process.env.PORT;
+    else process.env.PORT = beforePort;
     server.closeAllConnections?.();
     await new Promise((resolve) => server.close(resolve));
     await runtime.close();

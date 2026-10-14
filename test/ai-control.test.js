@@ -154,13 +154,16 @@ test('禁止パスは表記ゆれと中身も拒否し、普通の項目は通�
 });
 
 test('AI のトークンと安全柵', { concurrency: false }, async (t) => {
-  const previousEnv = { TW_ENV: process.env.TW_ENV, TW_AI_WRITE: process.env.TW_AI_WRITE };
+  const previousEnv = { TW_ENV: process.env.TW_ENV, TW_AI_WRITE: process.env.TW_AI_WRITE, PORT: process.env.PORT };
   process.env.TW_ENV = 'dev';
   process.env.TW_AI_WRITE = 'on';
+  process.env.PORT = '3940';
   const ctx = await boot();
   t.after(() => {
     if (previousEnv.TW_ENV === undefined) delete process.env.TW_ENV;
     else process.env.TW_ENV = previousEnv.TW_ENV;
+    if (previousEnv.PORT === undefined) delete process.env.PORT;
+    else process.env.PORT = previousEnv.PORT;
     if (previousEnv.TW_AI_WRITE === undefined) delete process.env.TW_AI_WRITE;
     else process.env.TW_AI_WRITE = previousEnv.TW_AI_WRITE;
     return ctx.close();

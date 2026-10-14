@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
+import { isDevEnv } from './env.js';
 
 /** 1時間あたりのコイン。時間が 0 以下、またはコインが数でないときは 0（NaN や Infinity にしない） */
 export function coinsPerHour(coins, durationMs) {
@@ -167,12 +168,12 @@ export class History {
     hub.on('status', (status) => this.#onStatus(status));
     hub.on('event', (e) => {
       // 開発環境で配信前に押したテスト送信は、デモの配信として記録する
-      if (process.env.TW_ENV === 'dev' && e.test && !this.current) this.current = new Session({ username: null, demo: true });
+      if (isDevEnv() && e.test && !this.current) this.current = new Session({ username: null, demo: true });
       // 本番の配信中に押したテスト送信は記録しない
       if (this.current && (this.current.demo || !String(e.user?.id ?? '').startsWith('demo_'))) this.current.record(e);
     });
     hub.on('roulette', (r) => {
-      if (process.env.TW_ENV === 'dev' && r?.trigger?.test && !this.current) this.current = new Session({ username: null, demo: true });
+      if (isDevEnv() && r?.trigger?.test && !this.current) this.current = new Session({ username: null, demo: true });
       this.current?.recordRoulette(r);
     });
     hub.on('minecraft', (log) => {
