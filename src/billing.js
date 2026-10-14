@@ -42,6 +42,7 @@ const FLAG_GROUPS = [
   ['bosses', 'boss'],
   ['gacha'],
   ['mediaAlerts', 'media'],
+  ['giftSounds', 'sounds'],
   ['rouletteLinks'],
   ['roulettes'],
 ];

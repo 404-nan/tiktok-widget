@@ -10,6 +10,7 @@ const files = [
   'public/dashboard/dev-features.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
+  'public/widgets/sounds.js',
 ];
 
 function loadAcorn() {

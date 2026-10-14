@@ -10,7 +10,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'gacha']],
+  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -36,6 +36,7 @@ export const INFO = {
   timers: { icon: 'timer', desc: 'ギフトで延びる残り時間（耐久配信）' },
   bosses: { icon: 'skull', desc: 'みんなのギフトでボスの HP を削って倒す。上の人とのコイン差にもできる' },
   mediaAlerts: { icon: 'clapperboard', desc: 'ギフトやフォローで、動画・音声・画像を出す' },
+  giftSounds: { icon: 'volume-2', desc: 'ギフトごとに効果音を重ねて鳴らす' },
   gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
@@ -203,6 +204,13 @@ export const SIMPLE = {
       { title: '再生のきっかけ', fields: ['rules'] },
     ],
   },
+  giftSounds: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      { title: '音量', fields: ['masterVolume', 'maxSeconds', 'maxConcurrent'] },
+      { title: 'ルール', fields: ['rules'] },
+    ],
+  },
   gacha: {
     groups: [
       { title: '使う', fields: ['enabled'] },
@@ -254,6 +262,7 @@ export const SIMPLE_LABELS = {
   'bosses.name': 'ボスの名前', 'bosses.hp': '最大 HP', 'bosses.hpScale': '次のボスの HP', 'bosses.image': 'ボスの画像', 'bosses.damageFrom': 'ダメージにするもの', 'bosses.defeatText': '倒したときの文字',
   'bosses.mode': 'HPの出し方', 'bosses.rankSource': '相手コインの出どころ', 'bosses.rivalCoins': '相手のコイン',
   'mediaAlerts.enabled': 'メディア通知を使う', 'mediaAlerts.rules': '再生のきっかけ',
+  'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   'cutins.gifts': 'このギフトなら必ず出す', 'cutins.redText': '赤の文字', 'cutins.goldText': '金の文字', 'cutins.rainbowText': '虹の文字', 'cutins.sound': '効果音',
   'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
@@ -288,6 +297,7 @@ const SUMMARY = {
   imageCutins: (e) => `${e.minCoins} コインから${e.photo ? '' : '・写真なし'}`,
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
+  giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),

@@ -23,6 +23,7 @@ import { BossEngine } from './boss.js';
 import { createEventBus } from './events.js';
 import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
+import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
@@ -40,7 +41,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'gacha', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -58,7 +59,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-names$/];
+const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -105,12 +106,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   const bus = createEventBus();
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
+  const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
   boss.setBus(bus);
-  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, boss, gacha, bus });
+  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
   bindRouletteActions(hub, bus, actionDeps);
   hub.on('event', (e) => {
     mediaAlerts.onEvent(e);
+    giftSounds.onEvent(e);
     gacha.onEvent(e);
   });
   let lastIssues = { errors: [], warnings: [] };
@@ -128,6 +131,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
     mediaAlerts.setConfig(config.mediaAlerts);
+    giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
   };
   hub.on('config', applyEngines);
@@ -183,6 +187,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (req.role !== 'obs') return next();
     if (req.method === 'GET' && (req.path.startsWith('/media/') || OBS_ALLOWED.some((re) => re.test(req.path)))) return next();
     if (req.method === 'POST' && /^\/api\/media-alerts\/(ack|autoplay)$/.test(req.path)) return next();
+    if (req.method === 'POST' && /^\/api\/gift-sounds\/(ack|autoplay)$/.test(req.path)) return next();
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
   });
 
@@ -516,6 +521,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return res.status(400).json({ error: 'action は damage か heal です' });
       }
       if (body.target === 'media') return res.json({ ok: true, media: mediaAlerts.play(body.mediaId, { source: 'dev' }) });
+      if (body.target === 'gift-sound') {
+        const count = Number(body.count) || 1;
+        if (!Number.isInteger(count) || count < 1 || count > 4) return res.status(400).json({ error: 'count は 1 から 4 です' });
+        const sounds = [];
+        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(body.mediaId, { volume: body.volume, source: 'dev' }));
+        return res.json({ ok: true, sounds, giftSounds: giftSounds.snapshot() });
+      }
       if (body.target === 'gacha') {
         const started = gacha.start({ kind: 'dev', source: 'dev' });
         if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
@@ -553,6 +565,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     } catch (err) {
       res.status(404).json({ error: err.message });
     }
+  });
+  r.get('/api/gift-sounds', (_req, res) => res.json(giftSounds.snapshot()));
+  r.post('/api/gift-sounds/ack', (req, res) => {
+    res.json({ ok: giftSounds.ack(req.body?.token) });
+  });
+  r.post('/api/gift-sounds/autoplay', (req, res) => {
+    res.json({ ok: true, autoplay: giftSounds.reportAutoplay({ muted: req.body?.muted === true }) });
   });
   r.get('/api/media-alerts/:id/file', (req, res) => {
     const info = mediaAlerts.fileInfo(req.params.id);
@@ -659,6 +678,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       clearInterval(history.timer);
       timer.close();
       gacha.close();
+      giftSounds.close();
       boss.flush();
     },
   };

@@ -28,8 +28,8 @@ const map = {
   bosses: ['boss', [720, 260]], counters: ['counter', [560, 220]], rankings: ['ranking', [420, 416]],
   roulettes: ['roulette', [600, 680]],
 };
-const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx']);
-const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx' };
+const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx', 'giftSounds']);
+const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx', giftSounds: 'sounds' };
 const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット' };
 
 const pageUrl = (page, id, extra = '') => {
@@ -106,6 +106,13 @@ function render(config, me = {}) {
   }
   for (const section of full) {
     if (!active(section, config, me)) continue;
+    if (section === 'giftSounds') {
+      if (config.giftSounds?.enabled === false) continue;
+      const key = 'giftSounds:main';
+      wanted.add(key);
+      setFrame(key, pageUrl('sounds', null), 0, 0, 1, [1080, 1920], 1);
+      continue;
+    }
     const entries = section === 'winsFx' ? Object.entries(config.wins ?? {}) : Object.entries(config[section] ?? {});
     entries.forEach(([id, entry]) => {
       if (section !== 'winsFx' && entry.enabled === false) return;

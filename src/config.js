@@ -71,6 +71,8 @@ function checkValue(field, value, where, issues) {
       return checkCommands(value ?? [], where, issues);
     case 'mediaRules':
       return checkMediaRules(value, where, issues);
+    case 'soundRules':
+      return checkSoundRules(value, where, issues);
     case 'gachaTiers':
       return checkGachaTiers(value, where, issues);
     default:
@@ -180,6 +182,35 @@ function checkMediaRules(value, where, issues) {
       issues.warnings.push(`${at}: きっかけ（gifts / minCoins / events）がないので再生されません`);
     }
     const known = ['gifts', 'minCoins', 'events', 'mediaId'];
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return rule;
+  });
+}
+
+function checkSoundRules(value, where, issues) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    issues.errors.push(`${where}: 一覧で書いてください`);
+    return [];
+  }
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    const rule = { volume: 100 };
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { mediaId, gifts / minCoins / events, volume } で書いてください`);
+      return rule;
+    }
+    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
+    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: ['follow', 'share'] }, raw.events, `${at}.events`, issues);
+    if (raw.volume != null && raw.volume !== '') rule.volume = checkValue({ type: 'number', default: 100, min: 0, max: 100 }, raw.volume, `${at}.volume`, issues);
+    const mediaId = String(raw.mediaId ?? '').trim();
+    if (!mediaId) issues.errors.push(`${at}: mediaId が必要です`);
+    else rule.mediaId = mediaId;
+    if (!rule.gifts?.length && !(rule.minCoins > 0) && !rule.events?.length) {
+      issues.warnings.push(`${at}: きっかけ（gifts / minCoins / events）がないので鳴りません`);
+    }
+    const known = ['gifts', 'minCoins', 'events', 'mediaId', 'volume'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return rule;
   });
@@ -668,7 +699,7 @@ export function reference() {
     '',
     `場所: ${CONFIG_PATH}`,
     '',
-    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / gacha など。',
+    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / giftSounds / gacha など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
     'ギフト名は TikTok の英語名・日本語名・ID のどれでも書けます。画面には TikTok の日本語名を出します。list_gifts で確認できます。',
