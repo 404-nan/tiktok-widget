@@ -70,6 +70,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const minecraft = new Minecraft(hub);
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
+  // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
+  roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
