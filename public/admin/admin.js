@@ -831,7 +831,100 @@ const AI_SCOPES = [
   ['admin', '配信者の設定'],
 ];
 const AI_SCOPE_LABEL = Object.fromEntries(AI_SCOPES);
+const AI_PATH_LABEL = {
+  'billing.plan': 'プラン',
+  'billing.status': '状態',
+  'billing.paidUntil': '支払った日まで',
+  'billing.trialEndsAt': 'お試しの終わり',
+  'billing.multiplier': '紹介の倍率',
+  'billing.note': 'メモ',
+  'billing.free': '無料提供',
+  'billing.monthlyPrice': '月額（円）',
+  'billing.premiumFeatures': '5000円プランだけの機能',
+};
+const AI_VALUE_LABEL = {
+  flat2000: '2000円プラン',
+  pct5: '売上5%プラン',
+  flat5000: '5000円プラン',
+  percent5: '売上5%プラン',
+  yen2000: '2000円プラン',
+  yen5000: '5000円プラン',
+  trial: 'お試し',
+  active: '支払い済み',
+  past_due: '支払い待ち',
+  suspended: '停止',
+};
+const AI_TOOL_LABEL = {
+  get_status: '状態を見た',
+  get_config: '設定を見た',
+  validate_config: '設定を確かめた',
+  get_history: '履歴を見た',
+  list_widget_urls: 'ウィジェットのURLを見た',
+  list_gifts: 'ギフトを見た',
+  list_changes: '変更を見た',
+  set_config: '設定を変えた',
+  merge_config: '設定を一部変えた',
+  delete_config: '設定を消した',
+  spin_roulette: 'ルーレットを回した',
+  timer: 'タイマーを動かした',
+  wins: '勝ち数を動かした',
+  boss: 'ボスを動かした',
+  rush: 'ラッシュを動かした',
+  test_event: 'テストを送った',
+  tenant_widgets: 'ウィジェットを変えた',
+  tenant_template: 'テンプレートを変えた',
+  undo: '元に戻した',
+  request_billing_change: '課金の変更を申請した',
+};
 let revealedToken = null;
+
+function japanTime(iso) {
+  const ms = Date.parse(iso || '');
+  if (!Number.isFinite(ms)) return String(iso || '');
+  try {
+    const fmt = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    return fmt.format(new Date(ms));
+  } catch (err) {
+    const shifted = new Date(ms + 9 * 60 * 60 * 1000);
+    const pad = (n) => (n < 10 ? '0' : '') + n;
+    return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())} ${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
+  }
+}
+
+function streamerName(id) {
+  if (!id) return '';
+  const found = (data?.tenants || []).find((t) => t.id === id);
+  return found && found.name ? found.name : id;
+}
+
+function aiPathText(path) {
+  if (!path) return '課金';
+  return AI_PATH_LABEL[path] || path;
+}
+
+function aiValueText(value) {
+  if (value == null || value === '') return 'なし';
+  if (typeof value === 'string') return AI_VALUE_LABEL[value] || value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(aiValueText).join('、');
+  if (typeof value === 'object') {
+    const parts = [];
+    for (const key of Object.keys(value)) {
+      const label = AI_PATH_LABEL[`billing.${key}`] || key;
+      parts.push(`${label}: ${aiValueText(value[key])}`);
+    }
+    return parts.join('、') || 'なし';
+  }
+  return String(value);
+}
 
 function aiTokensDetail() {
   const name = el('input', { placeholder: '名前（例: 設定係）', required: true, autocomplete: 'off' });
@@ -886,7 +979,7 @@ function aiTokensDetail() {
     const scopes = (token.scopes ?? []).map((scope) => AI_SCOPE_LABEL[scope] || scope).join('、');
     return el('article', { className: 'admin-key' },
       el('div', { className: 'key-meta' }, el('strong', { textContent: token.name }), el('span', { className: 'hint', textContent: `${when} まで` })),
-      el('p', { className: 'hint', textContent: `配信者: ${(token.tenants ?? []).join('、') || 'なし'}　権限: ${scopes}` }),
+      el('p', { className: 'hint', textContent: `配信者: ${(token.tenants ?? []).map(streamerName).join('、') || 'なし'}　権限: ${scopes}` }),
       el('div', { className: 'btn-row' }, button('失効させる', () => {
         if (!confirm(`${token.name} を失効させますか？この値ではもう操作できません。`)) return;
         act(() => api(`/ai-tokens/${token.id}`, undefined, 'DELETE'), 'トークンを失効させました')();
@@ -895,17 +988,18 @@ function aiTokensDetail() {
   });
 
   const auditRows = (data.aiAudit ?? []).map((entry) => {
-    const when = String(entry.ts || '').slice(0, 16).replace('T', ' ');
+    const when = japanTime(entry.ts);
     const result = entry.ok ? (entry.dryRun ? '確認のみ' : '成功') : (entry.error || '失敗');
+    const who = entry.tenant ? streamerName(entry.tenant) : '配信者なし';
     return el('article', { className: 'admin-key' },
-      el('div', { className: 'key-meta' }, el('strong', { textContent: entry.tool || '操作' }), el('span', { className: 'hint', textContent: when })),
-      el('p', { className: 'hint', textContent: `${entry.tenant || '配信者なし'}　${result}` }),
+      el('div', { className: 'key-meta' }, el('strong', { textContent: AI_TOOL_LABEL[entry.tool] || entry.tool || '操作' }), el('span', { className: 'hint', textContent: when })),
+      el('p', { className: 'hint', textContent: `${who}　${result}` }),
     );
   });
 
   const approvalRows = (data.aiApprovals ?? []).map((item) => el('article', { className: 'admin-key' },
-    el('div', { className: 'key-meta' }, el('strong', { textContent: item.path || '課金' }), el('span', { className: 'hint', textContent: '承認待ち' })),
-    el('p', { className: 'hint', textContent: `${item.tenant || '全体'}　${JSON.stringify(item.value)}` }),
+    el('div', { className: 'key-meta' }, el('strong', { textContent: aiPathText(item.path) }), el('span', { className: 'hint', textContent: '承認待ち' })),
+    el('p', { className: 'hint', textContent: `${item.tenant ? streamerName(item.tenant) : '全体'}　${aiValueText(item.value)}` }),
     el('div', { className: 'btn-row' },
       button('承認する', () => act(() => api(`/ai-approvals/${item.id}/approve`, {}, 'POST'), '承認して反映しました')(), { cls: 'btn primary' }),
       button('却下する', () => act(() => api(`/ai-approvals/${item.id}/reject`, {}, 'POST'), '申請を却下しました')()),
