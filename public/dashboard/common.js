@@ -137,6 +137,11 @@ export function setupPanels() {
 // --- テーマ ---
 
 export function setupTheme() {
+  // ダッシュボードで見た目の案（data-style）を選んでいるときは、明るさも案が決める
+  if (document.documentElement.dataset.style) {
+    $('themeBtn').hidden = true;
+    return;
+  }
   const apply = (t) => (document.documentElement.dataset.theme = t);
   apply(store.get('theme', 'dark'));
   $('themeBtn').addEventListener('click', () => {

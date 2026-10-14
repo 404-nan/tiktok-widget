@@ -437,6 +437,7 @@ export function createEditor({ api, setMessage }) {
     const brand = topbar.querySelector('.brand') || document.querySelector('.brand');
     const nav = $('nav');
     const themeBtn = $('themeBtn');
+    const styleSwitch = $('styleSwitch');
     const connection = $('connectionSection');
     const desktop = window.matchMedia('(min-width: 900px)').matches;
     const used = usedSections();
@@ -473,12 +474,12 @@ export function createEditor({ api, setMessage }) {
       head.append(brand);
       const footer = document.createElement('div');
       footer.className = 'side-footer';
-      footer.append(nav, themeBtn);
+      footer.append(nav, styleSwitch, themeBtn);
       side.replaceChildren(head, connection, menu, footer);
     } else {
       const col = document.querySelector('.col');
       topbar.prepend(brand);
-      topbar.append(nav, themeBtn);
+      topbar.append(nav, themeBtn, styleSwitch);
       col.prepend(connection);
       side.replaceChildren(menu);
     }
@@ -490,7 +491,7 @@ export function createEditor({ api, setMessage }) {
     const topbar = document.querySelector('.topbar');
     const col = document.querySelector('.col');
     topbar.prepend(document.querySelector('.brand'));
-    topbar.append($('nav'), $('themeBtn'));
+    topbar.append($('nav'), $('themeBtn'), $('styleSwitch'));
     col.prepend($('connectionSection'));
   }
 
