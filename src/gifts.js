@@ -5,7 +5,7 @@ import path from 'node:path';
 const DAY = 24 * 60 * 60 * 1000;
 
 // TikTok の gift/list（webcast_language=ja-JP）で取った日本語名の控え。取得できないときに ID→英語名の順で引く
-let BUNDLED = { byId: new Map(), byName: new Map(), list: [] };
+let BUNDLED = { byId: new Map(), byName: new Map(), coins: new Map(), list: [] };
 try {
   const raw = JSON.parse(fs.readFileSync(new URL('./gift-names-ja.json', import.meta.url), 'utf8'));
   for (const [id, [en, ja]] of Object.entries(raw.names ?? {})) {
@@ -17,8 +17,18 @@ try {
     }
   }
 } catch {}
-/** 控えにある全ギフト（コイン数・画像はなし）。一覧を網羅するための補い */
-export function bundledGifts() { return BUNDLED.list.map((g) => ({ ...g })); }
+try {
+  // 公開 gift/list の diamond_count。名前の対応表とは別に置く（名前の形は変えない）
+  const raw = JSON.parse(fs.readFileSync(new URL('./gift-coins.json', import.meta.url), 'utf8'));
+  for (const [id, n] of Object.entries(raw.coins ?? {})) {
+    const coins = coinCount({ diamonds: n });
+    if (coins != null) BUNDLED.coins.set(String(id), coins);
+  }
+} catch {}
+/** 控えにある全ギフト。コインが分かっているものは数、無いものは null（画面では「? コイン」） */
+export function bundledGifts() {
+  return BUNDLED.list.map((g) => ({ ...g, diamonds: BUNDLED.coins.has(g.id) ? BUNDLED.coins.get(g.id) : null }));
+}
 
 const nameKey = (value) => text(value).toLocaleLowerCase().replace(/\s+/g, '');
 
@@ -41,6 +51,33 @@ export function giftMatches(gift, values) {
   return values.some((value) => keys.includes(nameKey(value)));
 }
 
+/**
+ * 1個あたりのコイン。TikTok の一覧は diamond_count、配信イベントは diamondCount、
+ * テスト用は diamonds / coins。文字列の "5000" も数にする。無い・壊れているときは null（0 や NaN にしない）
+ */
+export function coinCount(gift) {
+  if (gift == null || typeof gift !== 'object') return null;
+  const raw = gift.diamonds ?? gift.diamond_count ?? gift.diamondCount ?? gift.coins ?? gift.coin_count ?? gift.coinCount;
+  if (raw == null || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, '').trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 画面に出すコイン。数なら「5000 コイン」、分からなければ「? コイン」（NaN にはしない） */
+export function coinText(diamonds) {
+  if (diamonds == null || diamonds === '') return '? コイン';
+  const n = Number(diamonds);
+  if (!Number.isFinite(n)) return '? コイン';
+  return `${n} コイン`;
+}
+
+const goodCoins = (n) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null);
+
+/** 先に入っている正のコインを残し、無いときだけあとの一覧で埋める */
+function preferCoins(prev, next) {
+  return goodCoins(prev) ?? goodCoins(next) ?? (Number.isFinite(prev) ? prev : (Number.isFinite(next) ? next : null));
+}
+
 export function normalizeGiftRecord(gift) {
   const id = text(gift?.id ?? gift?.giftId);
   const name = text(gift?.name ?? gift?.giftName);
@@ -49,9 +86,39 @@ export function normalizeGiftRecord(gift) {
     id,
     name,
     nameJa: text(gift?.nameJa) || bundledNameJa(gift) || null,
-    diamonds: Number(gift?.diamonds ?? gift?.diamond_count ?? 0) || 0,
+    diamonds: coinCount(gift),
     image: gift?.image ?? gift?.icon ?? null,
   };
+}
+
+/**
+ * テスト送信などのギフト一覧。id が同じものは1つにまとめ、コインのキーが違う・片方にしか無いときも数を落とさない。
+ * lists: ギフトの配列を、優先したい順に並べる
+ */
+export function mergeGiftCatalog(lists) {
+  const byId = new Map();
+  for (const list of lists) {
+    for (const item of list ?? []) {
+      const row = normalizeGiftRecord(item);
+      if (!row) continue;
+      const prev = byId.get(row.id);
+      if (!prev) {
+        byId.set(row.id, { ...row, seen: Boolean(item?.seen), icon: item?.icon ?? null });
+        continue;
+      }
+      byId.set(row.id, {
+        ...prev,
+        ...row,
+        name: row.name || prev.name,
+        nameJa: row.nameJa || prev.nameJa || null,
+        image: row.image || prev.image || null,
+        icon: item?.icon || prev.icon || null,
+        seen: Boolean(prev.seen || item?.seen),
+        diamonds: preferCoins(prev.diamonds, row.diamonds),
+      });
+    }
+  }
+  return [...byId.values()];
 }
 
 export class GiftCatalog {
@@ -89,7 +156,9 @@ export class GiftCatalog {
       const gift = normalizeGiftRecord(item);
       if (!gift) continue;
       const old = this.records.get(gift.id);
-      this.records.set(gift.id, { ...old, ...gift, nameJa: gift.nameJa ?? old?.nameJa ?? null });
+      // 新しい一覧にコインがあればそれで更新し、無い再取得では前の数を残す
+      const diamonds = preferCoins(gift.diamonds, old?.diamonds);
+      this.records.set(gift.id, { ...old, ...gift, diamonds, nameJa: gift.nameJa ?? old?.nameJa ?? null, image: gift.image ?? old?.image ?? null });
       count++;
     }
     if (count) { this.updatedAt = now; this.save(); }

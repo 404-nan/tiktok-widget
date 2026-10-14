@@ -86,7 +86,9 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
         b.type = 'button';
         b.className = 'gift-picker-option pressable';
         b.disabled = selected.includes(g.name);
-        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: g.diamonds == null ? '' : `${g.diamonds} コイン` }));
+        const coins = Number(g.diamonds);
+        const coinLabel = g.diamonds == null || g.diamonds === '' || !Number.isFinite(coins) ? '? コイン' : `${coins} コイン`;
+        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: coinLabel }));
         b.addEventListener('click', () => choose(g.name));
         list.append(b);
       }

@@ -75,12 +75,23 @@ function renderState(state) {
 
 // --- テスト送信 ---
 
+// コインが数でない（一覧に金額が無い）ときは NaN にせず「? コイン」
+function coinText(diamonds) {
+  if (diamonds == null || diamonds === '') return '? コイン';
+  const n = Number(diamonds);
+  if (!Number.isFinite(n)) return '? コイン';
+  return `${fmt(n)} コイン`;
+}
+
 async function setupSimulate() {
   const gifts = await api('/api/gifts').catch(() => []);
   for (const g of gifts) {
     const opt = document.createElement('option');
     opt.value = g.name;
-    opt.textContent = `${giftLabel(g)}（${fmt(g.diamonds)} コイン）`;
+    const coins = Number(g.diamonds);
+    opt.dataset.diamonds = Number.isFinite(coins) ? String(coins) : '';
+    if (g.id) opt.dataset.id = String(g.id);
+    opt.textContent = `${giftLabel(g)}（${coinText(g.diamonds)}）`;
     $('giftSelect').append(opt);
   }
   for (const btn of document.querySelectorAll('[data-sim]')) {
@@ -88,9 +99,12 @@ async function setupSimulate() {
       const kind = btn.dataset.sim;
       const body = { kind };
       if (kind === 'gift') {
+        const selected = $('giftSelect').selectedOptions[0];
         body.giftName = $('giftSelect').value;
         body.count = Number($('giftCount').value) || 1;
         body.senderName = $('senderName').value.trim() || 'テストさん';
+        if (selected && selected.dataset.id) body.giftId = selected.dataset.id;
+        if (selected && selected.dataset.diamonds !== '') body.diamonds = Number(selected.dataset.diamonds);
       } else if (kind === 'like') {
         body.count = 20;
         body.senderName = $('senderName').value.trim() || 'テストさん';

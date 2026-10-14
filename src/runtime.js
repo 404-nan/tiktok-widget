@@ -26,7 +26,7 @@ import { MediaAlerts } from './media-alerts.js';
 import { Gacha } from './gacha.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
-import { GiftCatalog, bundledGifts } from './gifts.js';
+import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -262,14 +262,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
 
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
+  // 名前だけの控えはコインが無いので、分かっている数（diamond_count など）を id で埋める
   r.get('/api/gifts', (_req, res) => {
     const seen = [...hub.seenGifts.values()].map((g) => ({ ...g, seen: true }));
     const saved = giftCatalog.list();
-    const known = [...DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), ...saved, ...seen];
+    const known = mergeGiftCatalog([DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), saved, seen]);
     const names = new Set(known.map((g) => String(g.name ?? '').toLocaleLowerCase()));
-    const extra = bundledGifts().filter((g) => !names.has(g.name.toLocaleLowerCase()));
-    res.json([...known, ...extra]
-      .filter((g, i, all) => all.findIndex((x) => String(x.id) === String(g.id)) === i));
+    const extra = bundledGifts().filter((g) => g.name && !names.has(g.name.toLocaleLowerCase()));
+    res.json(mergeGiftCatalog([known, extra]));
   });
 
   // AI から使うための案内（1人で使うときだけ。配信者ごとの URL では出さない）
