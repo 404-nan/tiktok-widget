@@ -85,7 +85,7 @@ export async function api(path, body, method) {
   return data;
 }
 
-export { statusText } from './status-text.js';
+export { statusText, createStatusGate } from './status-text.js';
 
 // --- パネルの塗り（なめらかな角） ---
 

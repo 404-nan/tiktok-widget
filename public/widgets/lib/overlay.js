@@ -20,18 +20,42 @@ let configSelector = null; // 設定のどこが変わったら読み込み直�
 let configSnapshot = null;
 
 let giftNamesPromise = null;
-/** ギフト名の対応表を読み、画面の表示名を日本語にする。一度読めば次は待たない */
+let giftNamesRetry = null;
+
+function clearGiftNamesRetry() {
+  if (giftNamesRetry == null) return;
+  clearTimeout(giftNamesRetry);
+  giftNamesRetry = null;
+}
+
+function scheduleGiftNamesRetry() {
+  if (giftNamesRetry != null || globalThis.__twGiftNamesReady) return;
+  giftNamesRetry = setTimeout(() => {
+    giftNamesRetry = null;
+    ensureGiftNames();
+  }, 3000);
+  if (giftNamesRetry && typeof giftNamesRetry.unref === 'function') giftNamesRetry.unref();
+}
+
+/** ギフト名の対応表を読み、画面の表示名を日本語にする。失敗したら取得済みにせず取り直す */
 export function ensureGiftNames() {
   if (globalThis.__twGiftNamesReady) return Promise.resolve();
   if (typeof fetch !== 'function') return Promise.resolve();
-  giftNamesPromise ??= fetch('/api/gift-names')
-    .then((res) => (res.ok ? res.json() : null))
+  if (giftNamesPromise) return giftNamesPromise;
+  giftNamesPromise = fetch('/api/gift-names')
+    .then((res) => {
+      if (!res.ok) throw new Error('gift-names');
+      return res.json();
+    })
     .then((data) => {
-      if (data && typeof globalThis.installGiftNames === 'function') globalThis.installGiftNames(data);
-      globalThis.__twGiftNamesReady = true;
+      if (!data || typeof globalThis.installGiftNames !== 'function') throw new Error('gift-names');
+      globalThis.installGiftNames(data);
+      if (!globalThis.__twGiftNamesReady) throw new Error('gift-names');
+      clearGiftNamesRetry();
     })
     .catch(() => {
-      globalThis.__twGiftNamesReady = true;
+      giftNamesPromise = null;
+      scheduleGiftNamesRetry();
     });
   return giftNamesPromise;
 }

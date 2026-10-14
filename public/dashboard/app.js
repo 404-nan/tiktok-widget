@@ -1,7 +1,7 @@
 import { connect, fmt, icon, giftLabel, BASE, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
-import { $, store, api, setupChrome, statusText } from './common.js';
+import { $, store, api, setupChrome, statusText, createStatusGate } from './common.js';
 
 // --- 接続状態 ---
 
@@ -287,22 +287,38 @@ editor
   .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
   .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
 
-// WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）
-setInterval(() => api('/api/status').then((s) => s.status && renderStatus(s.status)).catch(() => {}), 5000);
+// WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）。
+// 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
+const statusGate = createStatusGate();
+
+function applyPolledStatus(status, ticket) {
+  if (!statusGate.acceptPoll(ticket)) return;
+  if (status) renderStatus(status);
+}
+
+function pollStatus() {
+  const ticket = statusGate.startPoll();
+  api('/api/status').then((s) => applyPolledStatus(s.status, ticket)).catch(() => {});
+}
+
+setInterval(pollStatus, 5000);
+const bootTicket = statusGate.startPoll();
 api('/api/status')
   .then(({ recent, status }) => {
-    if (status) renderStatus(status);
+    applyPolledStatus(status, bootTicket);
     for (const e of [...recent].reverse()) addLog(e, { animate: false });
   })
   .catch(() => {});
 
 connect({
   hello(status, state) {
+    statusGate.markReceived();
     renderStatus(status);
     editor.onStatus(status);
     renderState(state);
   },
   status(status) {
+    statusGate.markReceived();
     renderStatus(status);
     editor.onStatus(status);
   },

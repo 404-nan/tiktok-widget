@@ -1,7 +1,7 @@
 // 配信の統計・履歴。/api/history の一覧と1回分の記録から作る。
 
 import { connect, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
-import { $, api, store, setupChrome, statusText } from '/dashboard/common.js';
+import { $, api, store, setupChrome, statusText, createStatusGate } from '/dashboard/common.js';
 import { columnChart, lineChart, fmtNum } from '/dashboard/charts.js';
 
 setupChrome('history');
@@ -257,24 +257,32 @@ setInterval(() => {
   if (live || (env.dev && current == null)) load();
 }, env.dev ? 5_000 : 30_000);
 
-// WebSocket が通らない環境（プロキシ・古い内蔵ブラウザ）でも接続の状態を出す
+// WebSocket が通らない環境（プロキシ・古い内蔵ブラウザ）でも接続の状態を出す。
+// 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
+const statusGate = createStatusGate();
 const showStatus = (status) => {
   if (!status) return;
   $('status').dataset.mode = status.mode;
   $('statusText').textContent = statusText(status);
 };
-const pollStatus = () => api('/api/status').then((s) => showStatus(s.status)).catch(() => {});
+const pollStatus = () => {
+  const ticket = statusGate.startPoll();
+  api('/api/status').then((s) => {
+    if (!statusGate.acceptPoll(ticket)) return;
+    showStatus(s.status);
+  }).catch(() => {});
+};
 pollStatus();
 setInterval(pollStatus, 5000);
 
 connect({
   hello(status) {
-    $('status').dataset.mode = status.mode;
-    $('statusText').textContent = statusText(status);
+    statusGate.markReceived();
+    showStatus(status);
   },
   status(status) {
-    $('status').dataset.mode = status.mode;
-    $('statusText').textContent = statusText(status);
+    statusGate.markReceived();
+    showStatus(status);
     setTimeout(load, 500); // 配信の始まり・終わりで一覧が変わる
   },
 });
