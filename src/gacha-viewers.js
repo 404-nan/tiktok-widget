@@ -96,6 +96,34 @@ export class GachaViewerStore {
     return this.data;
   }
 
+  /** 最後に無料回を戻した配信の roomId（再起動しても覚えておく）。 */
+  #roomFile() {
+    return this.file ? `${this.file.replace(/\.json$/, '')}-room.json` : null;
+  }
+
+  lastRoomId() {
+    const file = this.#roomFile();
+    if (!file) return this.memRoomId ?? null;
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return raw && raw.roomId != null ? String(raw.roomId) : null;
+    } catch {
+      return this.memRoomId ?? null;
+    }
+  }
+
+  setLastRoomId(roomId) {
+    this.memRoomId = String(roomId);
+    const file = this.#roomFile();
+    if (!file) return;
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const tmp = `${file}.tmp-${process.pid}`;
+      fs.writeFileSync(tmp, `${JSON.stringify({ roomId: String(roomId), at: this.now() })}\n`, { mode: 0o600 });
+      fs.renameSync(tmp, file);
+    } catch {}
+  }
+
   changed() {
     this.#touch();
   }
@@ -213,6 +241,16 @@ export class GachaViewers {
     else if (mode === 'connecting' && (before === 'idle' || before === 'ended' || before === 'demo')) this.#continuing = false;
 
     if (mode !== 'live' || before === 'live') return;
+    // roomId が分かるときは「本当に新しい配信か」で決める。再起動後の再接続（同じ room）では戻さない。
+    const roomId = status?.roomId != null && String(status.roomId) !== '' ? String(status.roomId) : null;
+    if (roomId && typeof this.store.lastRoomId === 'function') {
+      this.#continuing = true;
+      if (this.store.lastRoomId() === roomId) return;
+      this.store.setLastRoomId(roomId);
+      this.followers.clear();
+      if (this.config.resetMode === 'stream') this.resetFree();
+      return;
+    }
     const continuing = this.#continuing && before !== 'idle' && before !== 'ended' && before !== 'demo';
     this.#continuing = true;
     if (continuing) return;
