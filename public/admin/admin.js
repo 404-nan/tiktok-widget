@@ -729,6 +729,14 @@ function tenantBillingCard(t, plans) {
   trialEnds.setAttribute('aria-label', `${t.name}のお試しの終わり`);
   const until = el('input', { type: 'date', value: b.paidUntil || '' });
   until.setAttribute('aria-label', `${t.name}の支払った日まで`);
+  const dateWrap = (input) => {
+    const empty = el('span', { className: 'date-empty', textContent: '未設定' });
+    const sync = () => { empty.hidden = Boolean(input.value); };
+    input.addEventListener('input', sync);
+    input.addEventListener('change', sync);
+    sync();
+    return el('span', { className: 'date-wrap' }, input, empty);
+  };
   const note = el('input', { type: 'text', value: b.note || '', maxLength: 500 });
   note.setAttribute('aria-label', `${t.name}のメモ`);
   const price = el('input', { type: 'number', min: '0', step: '1', value: b.monthlyPrice == null ? '' : String(b.monthlyPrice), placeholder: '空ならプランの金額' });
@@ -745,23 +753,22 @@ function tenantBillingCard(t, plans) {
       monthlyPrice: price.value === '' ? null : Number(price.value),
     }, 'PUT'), `${t.name}のプランを保存しました`)();
   }, { cls: 'btn primary' });
-  const codeLine = b.code
-    ? el('p', { className: 'sub', textContent: `紹介コード: ${b.code}` })
-    : el('div', { className: 'btn-row loose' }, button('紹介コードを作る', () => act(() => api(`/tenants/${t.id}/billing/code`, {}, 'POST'), '紹介コードを作りました')()));
+  const codeLine = b.code ? el('p', { className: 'sub', textContent: `紹介コード: ${b.code}` }) : null;
   const useCode = el('input', { placeholder: '相手の紹介コード', value: '' });
   useCode.setAttribute('aria-label', `${t.name}に適用する紹介コード`);
   if (b.referredBy) useCode.disabled = true;
+  const makeCode = b.code ? null : button('紹介コードを作る', () => act(() => api(`/tenants/${t.id}/billing/code`, {}, 'POST'), '紹介コードを作りました')(), { cls: 'btn' });
   const apply = button('コードを適用', () => {
     if (!useCode.value.trim()) return message('紹介コードを入れてください', true);
     if (!confirm('この紹介コードを適用します。双方の割引残高が増えます。現金にはなりません。')) return;
     act(() => api(`/tenants/${t.id}/referral`, { code: useCode.value.trim() }, 'POST'), '紹介コードを適用しました')();
-  }, { cls: 'btn primary' });
+  }, { cls: 'btn' });
   if (b.referredBy) apply.disabled = true;
   const discount = b.discount ?? { price: 0, discount: 0, due: 0 };
   const use = button('1か月分の割引を残高から引く', () => {
     if (!confirm('残高から1か月分の割引を引きます。現金にはなりません。')) return;
     act(() => api(`/tenants/${t.id}/billing/credit`, {}, 'POST'), '割引を残高から引きました')();
-  });
+  }, { cls: 'btn' });
   if (!discount.discount) use.disabled = true;
   return el(
     'article',
@@ -774,8 +781,8 @@ function tenantBillingCard(t, plans) {
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'プラン' }), plan),
     ),
     el('div', { className: 'field-row' },
-      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'お試しの終わり' }), trialEnds),
-      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払った日まで' }), until),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'お試しの終わり' }), dateWrap(trialEnds)),
+      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払った日まで' }), dateWrap(until)),
     ),
     el('div', { className: 'field-row' },
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'メモ' }), note),
@@ -787,8 +794,8 @@ function tenantBillingCard(t, plans) {
     codeLine,
     b.referredBy
       ? el('p', { className: 'sub', textContent: '紹介コードは適用済みです。' })
-      : el('div', {}, el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '相手の紹介コード' }), useCode), el('div', { className: 'btn-row loose' }, apply)),
-    el('div', { className: 'btn-row loose' }, use),
+      : el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '相手の紹介コード' }), useCode),
+    el('div', { className: 'btn-row referral-actions' }, makeCode, apply, use),
   );
 }
 

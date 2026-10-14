@@ -1,0 +1,65 @@
+{
+  "tenants": [
+    {
+      "id": "rh-asagiri",
+      "name": "朝霧モカ",
+      "tiktokId": "",
+      "key": "rhownerasagiri0000000001",
+      "obsKey": "rhobsasagiri000000000001",
+      "shortId": "asagiri",
+      "pin": "2468",
+      "pinVer": 1,
+      "enabled": true,
+      "widgets": ["alerts", "chats", "goals", "roulettes", "cutins"],
+      "premium": {
+        "cutins": { "until": null },
+        "roulettes": { "until": null }
+      },
+      "template": "custom",
+      "guideDone": true,
+      "stayConnected": null,
+      "createdAt": 1700000000000
+    },
+    {
+      "id": "rh-ramune",
+      "name": "港のラムネ",
+      "tiktokId": "",
+      "key": "rhownerramune00000000001",
+      "obsKey": "rhobsramune0000000000001",
+      "shortId": "ramune2",
+      "pin": "1357",
+      "pinVer": 1,
+      "enabled": true,
+      "widgets": ["alerts", "chats", "goals"],
+      "premium": {
+        "wins": { "until": null }
+      },
+      "template": null,
+      "guideDone": false,
+      "stayConnected": null,
+      "createdAt": 1700001000000
+    },
+    {
+      "id": "rh-yuki",
+      "name": "紙飛行機のユキ",
+      "tiktokId": "",
+      "key": "rhowneryuki0000000000001",
+      "obsKey": "rhobsyuki000000000000001",
+      "shortId": "kamiyuki",
+      "pin": "8080",
+      "pinVer": 1,
+      "enabled": true,
+      "widgets": ["alerts", "goals", "roulettes"],
+      "access": {},
+      "template": "custom",
+      "guideDone": false,
+      "stayConnected": null,
+      "createdAt": 1700002000000
+    }
+  ],
+  "global": {
+    "premium": {
+      "goals": { "until": null }
+    }
+  }
+}

@@ -228,6 +228,27 @@
 .flag-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .flag-row label { display: flex; align-items: center; gap: 6px; font-size: 15px; line-height: 1.6; }
 /* プランの操作は文言が長い。104px のマスに押し込むとはみ出す */
+.date-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.date-wrap input { flex: 1 1 auto; min-width: 0; }
+.date-empty { flex: none; color: var(--text-secondary); font-size: 14px; line-height: 1.4; }
+.detail.card-page .referral-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.detail.card-page .referral-actions > .btn {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  white-space: normal;
+  line-height: 1.35;
+  font-size: 14px;
+}
 .detail.card-page .btn-row.loose { display: flex; flex-wrap: wrap; }
 .detail.card-page .btn-row.loose > .btn,
 .detail.card-page .btn-row.loose > .chip {

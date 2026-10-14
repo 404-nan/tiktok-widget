@@ -1,0 +1,23 @@
+{
+  "id": "20260101-120000-fixture",
+  "username": "kamihikouki",
+  "demo": true,
+  "startedAt": 1767268800000,
+  "endedAt": 1767272400000,
+  "totals": {
+    "coins": "たくさん",
+    "gifts": 2,
+    "likes": 0,
+    "follows": 0,
+    "shares": 0,
+    "comments": 0,
+    "peakViewers": 3
+  },
+  "timeline": [
+    { "t": 0, "coins": "NaN", "gifts": 1, "likes": 0, "follows": 0, "comments": 0, "viewers": 3 }
+  ],
+  "gifters": [
+    { "name": "架空の視聴者", "coins": "1,000", "gifts": "二" }
+  ],
+  "coinsPerHour": null
+}
