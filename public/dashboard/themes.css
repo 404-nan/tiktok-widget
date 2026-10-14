@@ -459,6 +459,37 @@ html[data-style=a] .style-switch-btns { background: var(--color-surface-hover); 
   html[data-style] body[data-mode=simple] .side-footer .nav { gap: var(--s-1); padding: 0; border: 0; background: none; box-shadow: none; }
   html[data-style] body[data-mode=simple] .side-footer .nav a { min-height: var(--side-item-h); padding: 0 var(--s-3); gap: var(--s-3); border: 0; border-radius: var(--radius-input); }
   html[data-style] body[data-mode=simple] .side-footer .style-switch-label { padding: 0 var(--s-3); }
+  /* メニューが入りきらないとき: 下端に透けない帯を重ねて「下にまだあります」と出す。
+     途中で切れた項目は帯で隠れる。一番下まで流すと帯は消える（editor.js） */
+  html[data-style] body[data-mode=simple] .side-menu { grid-row: 3; grid-column: 1; }
+  html[data-style] body[data-mode=simple] .side-footer { grid-row: 4; }
+  html[data-style] body[data-mode=simple] .side-more-hint {
+    grid-row: 3;
+    grid-column: 1;
+    align-self: end;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    height: var(--side-item-h);
+    padding: var(--s-2) var(--s-3) 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-surface);
+    color: var(--color-text-tertiary);
+    font-size: 14px;
+    text-align: left;
+  }
+  html[data-style=b] body[data-mode=simple] .side-more-hint { background: var(--color-page); }
+  html[data-style] body[data-mode=simple] .side-more-hint > span { display: flex; align-items: center; gap: var(--s-1); }
+  html[data-style] body[data-mode=simple] .side-more-hint .icon { --size: 16px; }
+  html[data-style] body[data-mode=simple] .side-more-hint[hidden] { display: none; }
+  /* 帯の線が区切りになるので、帯が出ている間は下の区切り線を出さない（線が2本並ばないように） */
+  html[data-style] body[data-mode=simple] .side.has-more .side-footer { box-shadow: none; }
+}
+.side-more-hint { display: none; }
+@media (hover: hover) {
+  html[data-style] body[data-mode=simple] .side-more-hint.pressable:hover { color: var(--color-text-primary); }
 }
 html[data-style] .side-label { margin: var(--s-4) var(--s-3) var(--s-1); font-size: 14px; color: var(--color-text-tertiary); }
 html[data-style] .side-item {
@@ -482,6 +513,10 @@ html[data-style] .side-item[aria-current=true]::before { left: 0; top: var(--s-2
   /* 設定とプレビューのカードは同じ幅 */
   html[data-style] body[data-mode=simple] .widget-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--card-gap); margin-top: 0; }
   html[data-style] body[data-mode=simple] .shell-main { gap: var(--card-gap); }
+  /* 見本のカードの上端を、左の1枚目のカードの上端にそろえる。
+     左は区画見出し（行の高さ --s-5）と間隔（--s-2）のぶん下から始まるので、右も同じだけ下げる */
+  html[data-style] body[data-mode=simple] .settings > .sgroup > .sgroup-title { line-height: var(--s-5); }
+  html[data-style] body[data-mode=simple] .widget-body > .preview-col { margin-top: calc(var(--s-5) + var(--s-2)); }
 }
 html[data-style] .detail { gap: var(--s-4); }
 html[data-style] .settings { gap: var(--card-gap); }
@@ -669,6 +704,16 @@ html[data-style=c] .preview::after { background: rgba(0, 0, 0, .6); }
   html[data-style] .topbar .style-switch-label { display: flex; align-items: baseline; gap: var(--s-2); }
   html[data-style] .topbar .style-switch-label strong { font-size: 14px; }
   html[data-style] body[data-mode=simple] .topbar { border-radius: 0; }
+  /* 見た目の切り替えは上のバーに入れず、ページの一番下に置く（上のバーはブランドとページの切り替えの2段だけ） */
+  html[data-style] body[data-mode=simple] main > .style-switch {
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-4) var(--s-6);
+    background: var(--color-surface);
+    box-shadow: inset 0 1px 0 var(--color-border);
+  }
+  html[data-style=b] body[data-mode=simple] main > .style-switch { background: var(--color-page); }
+  html[data-style] main > .style-switch .style-switch-label { display: flex; align-items: baseline; gap: var(--s-2); }
+  html[data-style] main > .style-switch .style-switch-label strong { font-size: 14px; }
   html[data-style] body[data-mode=simple] .col > #connectionSection { padding: var(--s-4); box-shadow: inset 0 -1px 0 var(--color-border); background: var(--color-surface); }
   html[data-style=b] body[data-mode=simple] .col > #connectionSection { background: var(--color-page); }
   html[data-style] body[data-mode=simple] #connectForm { gap: var(--s-3); }

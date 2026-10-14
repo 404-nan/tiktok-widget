@@ -430,6 +430,7 @@ export function createEditor({ api, setMessage }) {
     return w.id && names.length > 1 ? `${base} ${names.indexOf(w.id) + 1}` : base;
   };
 
+  let sideObserver = null;
   // サイドバー: いつも出ていて、押すと右が切り替わる（スマホでは横に流れるボタンの列になる）
   function renderNav() {
     const side = $('side');
@@ -475,11 +476,38 @@ export function createEditor({ api, setMessage }) {
       const footer = document.createElement('div');
       footer.className = 'side-footer';
       footer.append(nav, styleSwitch, themeBtn);
-      side.replaceChildren(head, connection, menu, footer);
+      // メニューが入りきらないときは、下端に「下にまだあります」を重ねる（一番下まで流すと消える）
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'side-more-hint pressable';
+      const moreLabel = document.createElement('span');
+      moreLabel.append(Object.assign(document.createElement('span'), { textContent: '下にまだあります' }), icon('chevron-down'));
+      more.append(moreLabel);
+      more.addEventListener('click', () => menu.scrollBy({ top: menu.clientHeight - more.offsetHeight, behavior: 'smooth' }));
+      const updateMore = () => {
+        more.hidden = menu.scrollTop + menu.clientHeight >= menu.scrollHeight - 1;
+        side.classList.toggle('has-more', !more.hidden);
+        if (more.hidden) return;
+        // 帯の上で項目が途中で切れないように、切れる項目ごと帯で隠す（線はいつも項目の境目に来る）
+        more.style.height = '';
+        const bottom = menu.getBoundingClientRect().bottom;
+        const edge = bottom - more.offsetHeight;
+        const cut = [...menu.children].find((el) => { const r = el.getBoundingClientRect(); return r.top < edge && r.bottom > edge; });
+        if (cut) more.style.height = `${Math.ceil(bottom - cut.getBoundingClientRect().top)}px`;
+      };
+      menu.addEventListener('scroll', updateMore, { passive: true });
+      sideObserver?.disconnect();
+      sideObserver = new ResizeObserver(updateMore);
+      sideObserver.observe(menu);
+      side.replaceChildren(head, connection, menu, more, footer);
     } else {
       const col = document.querySelector('.col');
+      sideObserver?.disconnect();
+      side.classList.remove('has-more');
       topbar.prepend(brand);
-      topbar.append(nav, themeBtn, styleSwitch);
+      topbar.append(nav, themeBtn);
+      // スマホでは見た目の切り替えをページの一番下へ（上のバーを低くする。めったに触らないもの）
+      document.querySelector('main').append(styleSwitch);
       col.prepend(connection);
       side.replaceChildren(menu);
     }
