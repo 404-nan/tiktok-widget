@@ -33,6 +33,18 @@ async function callServer(pathname, { method = 'GET', body } = {}) {
   return data;
 }
 
+async function destinationIsHosted() {
+  try {
+    const res = await fetch(`${SERVER}/api/me`);
+    if (res.status === 404) return true;
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return data?.mode === 'tenant';
+  } catch {
+    return false;
+  }
+}
+
 /** 設定を検証した結果（エラーと警告）を文字にする */
 export function describeResult(result) {
   const lines = [];
@@ -119,6 +131,7 @@ export async function testEvent(kind, opts = {}) {
 
 export async function spinRoulette(id) {
   refuseLocalOperation();
+  if (await destinationIsHosted()) throw new Error(localGuardReason);
   await callServer('/api/control', { method: 'POST', body: { target: 'roulette', action: 'spin', data: id ? { id } : {} } });
   return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
 }

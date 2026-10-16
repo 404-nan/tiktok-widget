@@ -86,6 +86,7 @@ try {
       report(admin.mergeConfig(args[0], parseValue(args[1])));
       break;
     case 'unset':
+      if (!args[0]) throw new Error('unset は path が必要です。使い方: tw unset <path>');
       report(admin.deleteConfig(args[0]));
       break;
     case 'validate': {
