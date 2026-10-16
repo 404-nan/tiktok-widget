@@ -17,7 +17,7 @@ TikTok LIVE 配信者向けの演出ツール。OBS / TikTok LIVE Studio のブ�
 - `config.yaml` と `data/` は読むのも最小限、書き換え禁止(本番・配信者の実データ)
 - ギフト名は日本語で出す。決まりは `docs/gift-names.md`
 - テストは常に緑。テストを通すためにテストを弱くしない、消さない
-- 作業用ブランチ(`dev/<件名>`)にだけコミットする。main / next / release* に push しない。PR まで
+- 作業用ブランチ(`dev/<件名>`)にだけコミットする。本体(既定ブランチ `claude/tiktok-widgets-2qpqbk`)/ next / release* に push しない。PR まで
 - 開発かどうかは環境変数で決める(`TW_DEV=1` か `TW_ENV=dev`)。Host が `widget.lul.works` なら常に本番扱い
 
 ## 守られているファイル(`.claude/hooks/guard.mjs` が止める)
@@ -27,7 +27,7 @@ TikTok LIVE 配信者向けの演出ツール。OBS / TikTok LIVE Studio のブ�
 | `config.yaml`、`data/` | 実データ |
 | `test/acceptance/` | 受け入れテストは実装したAIとは別のAI(Codex)とめにくんだけが書く |
 | `test/visual/**/*-snapshots/` と `--update-snapshots` | 見本画像はめにくんが承認したものだけ |
-| main / next / release* への push、`--force` | 本体は PR とブランチ保護で守る |
+| 本体 / main / next / release* への push、`--force` | 本体は PR とブランチ保護で守る |
 | 作業場所の外への `rm -rf` | ほかの作業場所や実データを消さない |
 
 ## 作業の流れ

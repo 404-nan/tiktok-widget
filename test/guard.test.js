@@ -66,6 +66,7 @@ test('main・next・release への push と強制 push を止める', () => {
   assert.ok(bash('git push --delete origin dev/x'));
   assert.ok(bash('git push --all origin'));
   assert.ok(bash('npm test && git push origin main'));
+  assert.ok(bash('git push origin HEAD:claude/tiktok-widgets-2qpqbk'));
 });
 
 test('作業場所の外を消す rm -r を止める', () => {
