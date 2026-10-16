@@ -1,16 +1,8 @@
 // 開発環境かどうか。どれか判定できない、または例外のときは本番（false）。
-// 待ち受けポートの既定は server.js の listen と同じ 3939。
+// 判定は環境変数だけで行う（TW_DEV=1 か TW_ENV=dev）。ポートでは決めない（作業場所ごとに空いているポートで動かすため）。
+// 本番は TW_DEV・TW_ENV を付けずに動かす。Host が本番ドメインなら環境変数に関係なく本番扱い。
 
-const DEFAULT_PORT = 3939;
 const PROD_HOST = 'widget.lul.works';
-
-function listenPort() {
-  const raw = process.env.PORT;
-  if (raw == null || String(raw).trim() === '') return DEFAULT_PORT;
-  const port = Number(String(raw).trim());
-  if (!Number.isInteger(port) || port < 0) return null;
-  return port;
-}
 
 function hostName(req) {
   const raw = typeof req.get === 'function' ? req.get('host') : (req.headers?.host ?? req.headers?.Host);
@@ -26,12 +18,10 @@ function hostName(req) {
   return host || null;
 }
 
-/** TW_ENV=dev かつ待ち受けが 3939 以外かつ、req があるときは Host が本番ドメインでないときだけ true */
+/** TW_DEV=1 か TW_ENV=dev のとき、かつ req があるときは Host が本番ドメインでないときだけ true */
 export function isDevEnv(req) {
   try {
-    if (process.env.TW_ENV !== 'dev') return false;
-    const port = listenPort();
-    if (port == null || port === DEFAULT_PORT) return false;
+    if (process.env.TW_DEV !== '1' && process.env.TW_ENV !== 'dev') return false;
     if (req != null) {
       const host = hostName(req);
       if (host == null || host === PROD_HOST) return false;

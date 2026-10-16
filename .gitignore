@@ -7,3 +7,7 @@ data/
 .wrangler/
 .dev.vars
 media/uploads/
+.dev/
+artifacts/
+test-results/
+playwright-report/

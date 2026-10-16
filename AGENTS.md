@@ -13,7 +13,7 @@ TikTok LIVE 配信者向けの演出ツール。OBS / TikTok LIVE Studio のブ�
 ## 決まり
 
 - 画面の文言は日本語
-- `public/widgets/` の公開 JS は ES5(OBS の古いブラウザで動かすため)
+- 新しく足す公開 JS(`public/widgets/` の `<script>` で読むもの)は ES5。OBS の古いブラウザで動かすため。対象は `test/es5-public.test.js` の一覧に足す
 - `config.yaml` と `data/` は読むのも最小限、書き換え禁止(本番・配信者の実データ)
 - ギフト名は日本語で出す。決まりは `docs/gift-names.md`
 - テストは常に緑。テストを通すためにテストを弱くしない、消さない

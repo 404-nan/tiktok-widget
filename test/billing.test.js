@@ -88,8 +88,9 @@ test('支払いの確認は、保存したオン/オフが環境変数より優�
     process.env.TW_ENV = 'dev';
     process.env.PORT = '3940';
     assert.equal(enforcementOn({ setting: null, env: {} }), true);
+    // 開発かどうかはポートでは決めない（TW_ENV=dev ならポートが 3939 でも開発）
     process.env.PORT = '3939';
-    assert.equal(enforcementOn({ setting: null, env: { TW_ENV: 'dev' } }), false);
+    assert.equal(enforcementOn({ setting: null, env: {} }), true);
     delete process.env.TW_ENV;
     process.env.PORT = '3940';
     assert.equal(enforcementOn({ setting: null, env: { TW_ENV: 'dev' } }), false);
