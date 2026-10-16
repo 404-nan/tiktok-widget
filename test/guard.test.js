@@ -99,3 +99,18 @@ test('フックとして動かすと、止めるときは終了コード 2、通
 test('protectedPath は作業場所の外の .dev は守る側に倒す', () => {
   assert.ok(protectedPath('/other/.dev/config.yaml', cwd));
 });
+
+test('受け入れテストを書く係(TW_GUARD_ROLE=acceptance)だけは test/acceptance/ に書ける。ほかの守りはそのまま', () => {
+  const before = process.env.TW_GUARD_ROLE;
+  process.env.TW_GUARD_ROLE = 'acceptance';
+  try {
+    assert.equal(write('test/acceptance/gacha-name.test.js'), null);
+    assert.ok(write('config.yaml'));
+    assert.ok(write('test/visual/widgets.spec.mjs-snapshots/cutin-tate.png'));
+    assert.ok(bash('git push origin main'));
+  } finally {
+    if (before === undefined) delete process.env.TW_GUARD_ROLE;
+    else process.env.TW_GUARD_ROLE = before;
+  }
+  assert.ok(write('test/acceptance/gacha-name.test.js'));
+});

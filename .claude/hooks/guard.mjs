@@ -6,6 +6,7 @@
 //   - --update-snapshots、npm run shot:approve
 //   - main / next / release* への git push、--force 系
 //   - 作業場所の外を消す rm -r
+// 受け入れテストを書く係として起動した Claude(環境変数 TW_GUARD_ROLE=acceptance)だけは test/acceptance/ に書ける。
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +28,7 @@ export function protectedPath(file, cwd) {
   if (base === 'config.yaml') return `${file} は設定の実データです(config.yaml は書き換え禁止)`;
   if (/(^|\/)[^/]*-data(\/|$)/.test(abs)) return `${file} は実データの置き場です`;
   if (!outside && (r === 'data' || r.startsWith('data/'))) return `${file} は実データです(data/ は書き換え禁止)`;
-  if (!outside && r.startsWith('test/acceptance/') && base !== '.gitkeep') return `${file} は受け入れテストです。書くのは実装したAIとは別のAI(Codex)とめにくんだけ`;
+  if (!outside && r.startsWith('test/acceptance/') && base !== '.gitkeep' && process.env.TW_GUARD_ROLE !== 'acceptance') return `${file} は受け入れテストです。書くのは実装したAIとは別のAI(Codex)とめにくんだけ`;
   if (!outside && /^test\/visual\/.*-snapshots(\/|$)/.test(r)) return `${file} は見本画像です。見本にするのはめにくんの npm run shot:approve だけ`;
   return null;
 }

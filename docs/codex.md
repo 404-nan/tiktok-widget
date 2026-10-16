@@ -10,6 +10,7 @@ Codex は実装係・受け入れテスト係・レビュー係のどれにも�
 動かし方:
 - レビュー: `codex exec --sandbox read-only "<依頼文>"`
 - 受け入れテスト・実装: 作業場所(worktree)の中だけ書ける設定で `codex exec --sandbox workspace-write -C <worktree> "<依頼文>"`
+- Claude が受け入れテストを書くとき(A列)は、実装とは別のプロセスで `TW_GUARD_ROLE=acceptance claude -p --model sonnet "<依頼文>"` として起動する。この環境変数があるときだけフックが test/acceptance/ への書き込みを通す
 - Codex には Claude Code のフックが効かない。守るファイルは CI(`.github/workflows/check.yml`)とブランチ保護・CODEOWNERS で止める
 
 ## 受け入れテストを書く依頼(実装より先)
