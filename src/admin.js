@@ -8,6 +8,14 @@ import { DEMO_GIFTS } from './demo.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 
 export const SERVER = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
+const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(path.dirname(cfg.CONFIG_PATH), 'data'));
+
+const localGuardReason = '本番（マルチテナント）ではローカルモードの操作は使えません。代わりに TW_SERVER と TW_AI_TOKEN を付けて /ai/v1 を使うリモートモードを利用してください。';
+const isHosted = () => process.env.TW_HOSTED === '1' || fs.existsSync(path.join(DATA_DIR, 'tenants.json'));
+const refused = () => ({ ok: false, errors: [localGuardReason], warnings: [] });
+const refuseLocalOperation = () => {
+  if (isHosted()) throw new Error(localGuardReason);
+};
 
 async function callServer(pathname, { method = 'GET', body } = {}) {
   let res;
@@ -43,10 +51,10 @@ export function getConfig(p) {
   return { path: p, value: value ?? null, errors, warnings };
 }
 
-export const setConfig = (p, value) => cfg.setValue(p, value);
-export const mergeConfig = (p, value) => cfg.mergeValue(p, value);
-export const deleteConfig = (p) => cfg.deleteValue(p);
-export const replaceConfig = (yaml) => cfg.replaceText(yaml);
+export const setConfig = (p, value) => isHosted() ? refused() : cfg.setValue(p, value);
+export const mergeConfig = (p, value) => isHosted() ? refused() : cfg.mergeValue(p, value);
+export const deleteConfig = (p) => isHosted() ? refused() : cfg.deleteValue(p);
+export const replaceConfig = (yaml) => isHosted() ? refused() : cfg.replaceText(yaml);
 export const reference = () => cfg.reference();
 
 export function validate() {
@@ -104,11 +112,13 @@ export async function addMediaFromUrl(url, name) {
 
 /** テスト用のイベントを送る（サーバーが必要） */
 export async function testEvent(kind, opts = {}) {
+  refuseLocalOperation();
   await callServer('/api/simulate', { method: 'POST', body: { kind, ...opts } });
   return `${kind} を送りました`;
 }
 
 export async function spinRoulette(id) {
+  refuseLocalOperation();
   await callServer('/api/control', { method: 'POST', body: { target: 'roulette', action: 'spin', data: id ? { id } : {} } });
   return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
 }
