@@ -1,5 +1,6 @@
 // tiktok-live-connector が返す生データ（protobuf v3 由来）を、ウィジェットが扱いやすい形にそろえる。
 // ライブラリのバージョンによってフィールド名が変わるので、旧形式（giftDetails / profilePicture など）も見る。
+import { bundledCoinCount, coinCount } from './gifts.js';
 
 const firstUrl = (...images) => {
   for (const img of images) {
@@ -13,6 +14,12 @@ const toNumber = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+/** ギフト1個のコイン。オブジェクトなら各キー、生の値ならその数。読めなければ null */
+function pickCoins(gift) {
+  if (gift == null || gift === '') return null;
+  return coinCount(typeof gift === 'object' ? gift : { diamondCount: gift });
+}
 
 export function normalizeUser(u) {
   if (!u) return { id: '', name: '名無し', avatar: null };
@@ -36,7 +43,10 @@ export function normalizeGift(data, catalog = null) {
   const streakable = type === 1;
   if (streakable && !data.repeatEnd) return null;
 
-  const diamonds = toNumber(g?.diamondCount ?? d?.diamondCount ?? x?.diamond_count);
+  // イベントにコインがあればそれを使う（0 もそのまま）。無いときだけ gift-coins.json で補い、表にも無ければ 0
+  const giftId = String(data.giftId ?? g?.id ?? d?.id ?? x?.id ?? '');
+  const known = pickCoins(g) ?? pickCoins(d) ?? pickCoins(x);
+  const diamonds = known ?? bundledCoinCount(giftId) ?? 0;
   const count = Math.max(1, toNumber(data.repeatCount) || 1);
   const gift = {
     kind: 'gift',

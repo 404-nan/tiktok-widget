@@ -1,5 +1,5 @@
 // 画面に出すギフト名。判定（ID・英語名・日本語名の一致）には使わない。
-// 引き方: GiftID → 英語名（大文字小文字は無視）→ そのまま。表は src/gift-names-ja.json。
+// 引き方: GiftID → 英語名（大文字小文字と空白は無視）→ nameJa → そのまま。表は src/gift-names-ja.json。
 import fs from 'node:fs';
 
 let raw = { names: {} };
@@ -15,7 +15,7 @@ for (const [id, pair] of Object.entries(raw.names ?? {})) {
   const ja = text(pair?.[1]);
   if (!ja) continue;
   byId.set(String(id), ja);
-  const key = en.toLowerCase();
+  const key = compact(en);
   if (key && !byName.has(key)) {
     byName.set(key, ja);
     list.push({ id: String(id), name: en, nameJa: ja });
@@ -24,6 +24,11 @@ for (const [id, pair] of Object.entries(raw.names ?? {})) {
 
 function text(v) {
   return v == null ? '' : String(v).trim();
+}
+
+/** Heart Me と HeartMe を同じ英語名として引く */
+function compact(v) {
+  return text(v).toLowerCase().replace(/\s+/g, '');
 }
 
 /** ブラウザへ渡す対応表（{ names: { id: [英語, 日本語] } }） */
@@ -42,12 +47,12 @@ export function lookupGiftJa(gift) {
   if (typeof gift === 'string' || typeof gift === 'number') {
     const rawName = text(gift);
     if (!rawName) return null;
-    return byId.get(rawName) ?? byName.get(rawName.toLowerCase()) ?? null;
+    return byId.get(rawName) ?? byName.get(compact(rawName)) ?? null;
   }
   const id = text(gift.id ?? gift.giftId);
   if (id && byId.has(id)) return byId.get(id);
   const name = text(gift.name ?? gift.giftName);
-  if (name && byName.has(name.toLowerCase())) return byName.get(name.toLowerCase());
+  if (name && byName.has(compact(name))) return byName.get(compact(name));
   return null;
 }
 
@@ -67,7 +72,7 @@ export function giftOverlayText(gift) {
 }
 
 /**
- * ルーレットの下の案内。「ドーナッツ / 100コイン以上のギフトでガチャ」
+ * ルーレットの下の案内。「ドーナツ / 100コイン以上のギフトでガチャ」
  * format はコイン数の表示（ウィジェットの fmt を渡せる）
  */
 export function rouletteTriggerText(r, format = (n) => String(n)) {

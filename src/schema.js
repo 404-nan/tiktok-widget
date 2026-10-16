@@ -259,6 +259,9 @@ export const SCHEMA = {
     fields: {
       ...placementFields(5, 39),
       name: str('魔王', 'ボスの名前（1体目）'),
+      mode: oneOf(['hp', 'rank-gap'], 'hp', 'hp は固定HP。rank-gap は一つ上の人とのコイン差をHPにする（自分のコインが増えると減り、相手のコインが増えると増える）'),
+      rankSource: oneOf(['manual', 'live'], 'manual', 'rank-gap の相手コインの出どころ。live は配信の順位。取れなければ manual の目標コインを使う'),
+      rivalCoins: num(0, 'rank-gap の相手コイン（手入力の目標。API でも変えられる）。自分のコインとの差がHP', { min: 0 }),
       hp: num(10000, '1体目の最大 HP', { min: 1 }),
       hpScale: num(1.5, '倒すたびに次のボスの HP を何倍にするか（1 で同じ）', { min: 1, max: 10 }),
       image: str('', 'ボスの画像（media/ のファイルか URL）。空なら図形の鬼を描く'),
@@ -343,7 +346,8 @@ export const SCHEMA = {
           'rushWeight は RUSH 中の当たりやすさ（0 以上の数。書かなければ weight と同じ。rushOdds が true のときだけ使う）。' +
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入',
+          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。' +
+          'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start。id を書くとそのタイマー・WIN数・ボスだけ',
       },
     },
   },
@@ -426,6 +430,137 @@ SCHEMA.rush = {
     enterText: str('RUSH突入', '突入のときの文字'),
     sound: bool(true, '効果音'),
     volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
+SCHEMA.mediaAlerts = {
+  kind: 'object',
+  page: 'media',
+  title: 'メディア通知',
+  size: () => [640, 360],
+  desc:
+    'ギフト・フォロー・ルーレットの動作で、動画・音声・画像を順番に再生する。' +
+    'ファイルは配信者のデータの alert-media に置く。URL は /widgets/media.html',
+  fields: {
+    enabled: bool(true, 'メディア通知を使う'),
+    rules: {
+      type: 'mediaRules',
+      default: [],
+      desc:
+        '再生のきっかけ。上から順に、合ったものを全部再生待ちに入れる。' +
+        '条件: gifts（ギフトIDか名前）/ minCoins（この合計コイン以上）/ events（follow）。' +
+        'mediaId はアップロードしたメディアのID。条件が無いルールは再生しない',
+    },
+  },
+};
+
+SCHEMA.giftSounds = {
+  kind: 'object',
+  page: 'sounds',
+  title: 'ギフト別サウンド',
+  size: () => [1080, 1920],
+  desc:
+    'ギフト・フォロー・シェアで効果音を重ねて鳴らす。音源はメディア通知に入れた音声を使う。' +
+    '上から順に見て、最初に合ったルールだけ鳴らす。同時に鳴らせる数と、鳴らし終わるまでの待ちには上限がある。' +
+    'URL は /widgets/sounds.html',
+  fields: {
+    enabled: bool(true, 'ギフト別サウンドを使う'),
+    masterVolume: num(80, '全体の音量（0〜100）。ルールの音量と掛けて鳴らす', { min: 0, max: 100 }),
+    maxSeconds: num(8, '1回の再生を止める秒数', { min: 1, max: 30 }),
+    maxConcurrent: num(3, '同時に鳴らす数', { min: 1, max: 5 }),
+    rules: {
+      type: 'soundRules',
+      default: [],
+      desc:
+        '鳴らすルール。上から順に、最初に合った1つだけ鳴らす。' +
+        '条件: gifts（ギフトIDか名前）/ minCoins（この合計コイン以上）/ events（follow, share）。' +
+        'mediaId は音声のID。volume は 0〜100（全体の音量と掛ける）。条件が無いルールは鳴らさない',
+    },
+  },
+};
+
+SCHEMA.gacha = {
+  kind: 'object',
+  page: 'gacha',
+  title: 'ガチャ',
+  size: () => [640, 360],
+  desc:
+    '高額ギフトなどで回すガチャ。待機 → 回転 → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
+    'きっかけ: gifts のギフト / minCoins 以上のギフト / ルーレットなどの gacha.start。' +
+    '無料回は視聴者ごとに管理し、有料回は対象ギフトで回数をためてコメントで使う。pity が 1 以上のとき、pity 対象のレアリティがそれ回出なければ次は確定。景品は演出・特典のみで換金できない。URL は /widgets/gacha.html',
+  fields: {
+    enabled: bool(true, 'ガチャを使う'),
+    minCoins: num(0, 'この合計コイン以上のギフトで回す（0 で金額では回さない）', { min: 0 }),
+    gifts: list([], 'このギフトID（または名前）で回す'),
+    freePerReset: num(1, '1人あたりの無料回数', { min: 0, max: 999 }),
+    resetMode: oneOf(['stream', 'daily'], 'stream', '無料回数のリセット。stream は配信ごと、daily は日本時間0時'),
+    freeRequires: oneOf(['none', 'follow'], 'none', '無料回数の条件。follow はフォロー済みだけ'),
+    paidRule: {
+      type: 'gachaPaidRule',
+      default: { gifts: [], minCoins: 100, spinsPerCoins: 100 },
+      desc: '有料回数をためるギフト。対象ギフトまたは最低コインに合ったギフトから、spinsPerCoins コインごとに1回ためる',
+    },
+    command: str('!ガチャ', '有料回を使うコメント（完全一致）'),
+    cooldownSec: num(5, '同じ視聴者が続けて回せる最短間隔（秒）', { min: 0, max: 3600 }),
+    rollMs: num(3000, '回転しているミリ秒', { min: 0, max: 60000 }),
+    revealMs: num(2500, '結果を出しているミリ秒', { min: 0, max: 60000 }),
+    doneMs: num(1200, '終了表示のミリ秒', { min: 0, max: 60000 }),
+    pity: num(0, 'この回数、当たり（pity: true のレアリティ）が出なかったら次は確定（0 で無効）', { min: 0, max: 999 }),
+    tiers: {
+      type: 'gachaTiers',
+      default: [
+        { id: 'common', label: 'ふつう', weight: 70, pity: false, actions: [] },
+        { id: 'rare', label: 'レア', weight: 25, pity: false, actions: [] },
+        { id: 'legend', label: '激アツ', weight: 5, pity: true, actions: [] },
+      ],
+      desc: 'レアリティ。id / label / weight（当たりやすさ）/ pity（true なら天井の対象。1つだけ）/ actions（当選時の既存の動作。カットイン用の再生もここ）',
+    },
+  },
+};
+
+SCHEMA.slots = {
+  kind: 'object',
+  page: 'slot',
+  title: 'スロット',
+  size: () => [1080, 600],
+  desc:
+    'ギフトで回る3リールのスロット。結果はサーバーで先に決まり、画面はリーチ・ニアミス・復活を含む開示演出だけを行う。' +
+    '景品は演出・特典のみで、賭博・現金の表現は使わない。URL は /widgets/slot.html',
+  fields: {
+    enabled: bool(true, 'スロットを使う'),
+    trigger: {
+      type: 'slotTrigger',
+      default: { gifts: ['5655'], minCoins: 0 },
+      desc: '回すきっかけ。gifts のギフト、または minCoins 以上のギフト',
+    },
+    symbols: {
+      type: 'items',
+      default: [
+        { label: 'チェリー', weight: 25 },
+        { label: 'ベル', weight: 20 },
+        { label: 'スイカ', weight: 20 },
+        { label: 'リプレイ', weight: 20 },
+        { label: 'BAR', weight: 10 },
+        { label: '7', weight: 5 },
+      ],
+      desc:
+        '絵柄と出現の重み。絵は 7 / BAR / ベル / スイカ / チェリー / リプレイ の 6 種（さくらんぼ→チェリー、スター→BAR に読み替え。' +
+        'ほかの名前は空いている絵を割り当てる）。payouts の symbols にはここで書いた絵柄名を使う',
+    },
+    payouts: {
+      type: 'slotPayouts',
+      default: [
+        { id: 'lose', text: 'はずれ', tier: 'lose', weight: 70, symbols: [] },
+        { id: 'small', text: '小当たり', tier: 'small', weight: 20, symbols: ['チェリー', 'チェリー', 'ベル'] },
+        { id: 'big', text: '大当たり', tier: 'big', weight: 9, symbols: ['ベル', 'ベル', 'ベル'] },
+        { id: 'jackpot', text: 'ジャックポット', tier: 'jackpot', weight: 1, symbols: ['7', '7', '7'] },
+      ],
+      desc: '役ごとの重み、表示文、当たり絵柄、当選時の actions',
+    },
+    revivalRate: num(20, '当たりのうち復活演出で見せる割合（0〜100）', { min: 0, max: 100 }),
+    nearMissRate: num(30, '外れのうちニアミス演出にする割合（0〜100）', { min: 0, max: 100 }),
+    reelStopMs: num(700, 'リール1本が止まる間隔（ミリ秒）', { min: 100, max: 10000 }),
+    idleMode: oneOf(['small', 'hide'], 'small', '回していないとき。small 右下に小さく「（ギフト名）で回せ！」を出す / hide 何も出さない'),
   },
 };
 

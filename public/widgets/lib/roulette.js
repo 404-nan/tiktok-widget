@@ -85,8 +85,9 @@ export function pickWeighted(items) {
 
 export function hintFor(r) {
   if (r.hint) return r.hint;
-  const build = globalThis.rouletteTriggerText;
-  if (typeof build === 'function') return build(r, fmt);
+  if (globalThis.__twGiftNamesReady && typeof globalThis.rouletteTriggerText === 'function') {
+    return globalThis.rouletteTriggerText(r, fmt);
+  }
   const parts = [];
   const gifts = r.gifts ?? [];
   if (gifts.length) parts.push(gifts.map((name) => giftLabel(name)).join('・'));

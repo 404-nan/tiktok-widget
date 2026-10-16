@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
+import { checkActions } from './actions.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const CONFIG_PATH = path.resolve(process.env.TW_CONFIG || path.join(root, 'config.yaml'));
@@ -68,9 +69,66 @@ function checkValue(field, value, where, issues) {
     case 'commands':
       // Minecraft のコマンドの一覧（ボス討伐のときに送るものなど）
       return checkCommands(value ?? [], where, issues);
+    case 'mediaRules':
+      return checkMediaRules(value, where, issues);
+    case 'soundRules':
+      return checkSoundRules(value, where, issues);
+    case 'gachaTiers':
+      return checkGachaTiers(value, where, issues);
+    case 'gachaPaidRule':
+      return checkGachaPaidRule(value, where, issues);
+    case 'slotTrigger':
+      return checkSlotTrigger(value, where, issues);
+    case 'slotPayouts':
+      return checkSlotPayouts(value, where, issues);
     default:
       return value;
   }
+}
+
+function checkSlotTrigger(value, where, issues) {
+  if (value == null) return { gifts: [], minCoins: 0 };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    issues.errors.push(`${where}: { gifts: [...], minCoins: 100 } のように書いてください`);
+    return { gifts: [], minCoins: 0 };
+  }
+  const out = {
+    gifts: value.gifts == null ? [] : checkValue({ type: 'list', default: [] }, value.gifts, `${where}.gifts`, issues),
+    minCoins: value.minCoins == null ? 0 : checkValue({ type: 'number', default: 0, min: 0 }, value.minCoins, `${where}.minCoins`, issues),
+  };
+  for (const key of Object.keys(value)) if (!['gifts', 'minCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  return out;
+}
+
+function checkSlotPayouts(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.slots.fields.payouts.default);
+  if (value == null) return fallback;
+  if (!Array.isArray(value) || value.length === 0) {
+    issues.errors.push(`${where}: 役を1つ以上、一覧で書いてください`);
+    return fallback;
+  }
+  const ids = new Set();
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { id, text, tier, weight, symbols, actions } で書いてください`);
+      return { id: `role${i}`, text: '？', tier: 'lose', weight: 1, symbols: [], actions: [] };
+    }
+    const id = String(raw.id ?? `role${i}`).trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) issues.errors.push(`${at}.id: 英数字と - _ だけにしてください`);
+    if (ids.has(id)) issues.errors.push(`${at}.id: 同じ id が重なっています`);
+    ids.add(id);
+    const tier = ['lose', 'small', 'big', 'jackpot'].includes(raw.tier) ? raw.tier : 'lose';
+    if (!['lose', 'small', 'big', 'jackpot'].includes(raw.tier)) issues.errors.push(`${at}.tier: lose / small / big / jackpot のどれかにしてください`);
+    const weight = Number(raw.weight ?? 1);
+    if (!(weight > 0)) issues.errors.push(`${at}.weight: 0 より大きい数にしてください`);
+    const symbols = raw.symbols == null ? [] : checkValue({ type: 'list', default: [] }, raw.symbols, `${at}.symbols`, issues);
+    const actions = raw.actions == null ? [] : checkActions(raw.actions, `${at}.actions`, issues);
+    const text = String(raw.text ?? raw.label ?? id).trim() || id;
+    const known = ['id', 'text', 'label', 'tier', 'weight', 'symbols', 'actions'];
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return { id: /^[A-Za-z0-9_-]+$/.test(id) ? id : `role${i}`, text, tier, weight: weight > 0 ? weight : 1, symbols, actions };
+  });
 }
 
 function checkItems(value, where, issues) {
@@ -110,7 +168,11 @@ function checkItems(value, where, issues) {
     if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
     checkSuperStream(raw, item, at, issues);
     if (raw.rush != null) item.rush = raw.rush === true || raw.rush === 'true';
-    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush'];
+    if (raw.actions != null) {
+      const actions = checkActions(raw.actions, `${at}.actions`, issues);
+      if (actions.length) item.actions = actions;
+    }
+    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'actions'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });
@@ -145,6 +207,113 @@ function checkRules(value, where, issues) {
       if (![...RULE_MATCH, ...RULE_SET].includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     }
     return rule;
+  });
+}
+
+function checkMediaRules(value, where, issues) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    issues.errors.push(`${where}: 一覧で書いてください`);
+    return [];
+  }
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    const rule = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { mediaId, gifts / minCoins / events } で書いてください`);
+      return rule;
+    }
+    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
+    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: ['follow'] }, raw.events, `${at}.events`, issues);
+    const mediaId = String(raw.mediaId ?? '').trim();
+    if (!mediaId) issues.errors.push(`${at}: mediaId が必要です`);
+    else rule.mediaId = mediaId;
+    if (!rule.gifts?.length && !(rule.minCoins > 0) && !rule.events?.length) {
+      issues.warnings.push(`${at}: きっかけ（gifts / minCoins / events）がないので再生されません`);
+    }
+    const known = ['gifts', 'minCoins', 'events', 'mediaId'];
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return rule;
+  });
+}
+
+function checkSoundRules(value, where, issues) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    issues.errors.push(`${where}: 一覧で書いてください`);
+    return [];
+  }
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    const rule = { volume: 100 };
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { mediaId, gifts / minCoins / events, volume } で書いてください`);
+      return rule;
+    }
+    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
+    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: ['follow', 'share'] }, raw.events, `${at}.events`, issues);
+    if (raw.volume != null && raw.volume !== '') rule.volume = checkValue({ type: 'number', default: 100, min: 0, max: 100 }, raw.volume, `${at}.volume`, issues);
+    const mediaId = String(raw.mediaId ?? '').trim();
+    if (!mediaId) issues.errors.push(`${at}: mediaId が必要です`);
+    else rule.mediaId = mediaId;
+    if (!rule.gifts?.length && !(rule.minCoins > 0) && !rule.events?.length) {
+      issues.warnings.push(`${at}: きっかけ（gifts / minCoins / events）がないので鳴りません`);
+    }
+    const known = ['gifts', 'minCoins', 'events', 'mediaId', 'volume'];
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return rule;
+  });
+}
+
+const TIER_ID = /^[A-Za-z0-9_-]+$/;
+function checkGachaPaidRule(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.gacha.fields.paidRule.default);
+  if (value == null) return fallback;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    issues.errors.push(`${where}: { gifts: [...], minCoins: 100, spinsPerCoins: 100 } の形で書いてください`);
+    return fallback;
+  }
+  const out = {
+    gifts: value.gifts == null ? [] : checkValue({ type: 'list', default: [] }, value.gifts, `${where}.gifts`, issues),
+    minCoins: value.minCoins == null ? 100 : checkValue({ type: 'number', default: 100, min: 0 }, value.minCoins, `${where}.minCoins`, issues),
+    spinsPerCoins: value.spinsPerCoins == null ? 100 : checkValue({ type: 'number', default: 100, min: 1 }, value.spinsPerCoins, `${where}.spinsPerCoins`, issues),
+  };
+  for (const key of Object.keys(value)) if (!['gifts', 'minCoins', 'spinsPerCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  return out;
+}
+
+function checkGachaTiers(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.gacha.fields.tiers.default);
+  if (value == null) return fallback;
+  if (!Array.isArray(value) || value.length === 0) {
+    issues.errors.push(`${where}: レアリティを1つ以上書いてください`);
+    return fallback;
+  }
+  const ids = new Set();
+  let pitySeen = false;
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { id, label, weight, actions } で書いてください`);
+      return { id: `tier${i}`, label: '？', weight: 1, pity: false, actions: [] };
+    }
+    const id = String(raw.id ?? `tier${i}`).trim();
+    if (!TIER_ID.test(id)) issues.errors.push(`${at}.id: 英数字と - _ だけにしてください`);
+    if (ids.has(id)) issues.errors.push(`${at}.id: 同じ id が重なっています`);
+    ids.add(id);
+    const label = String(raw.label ?? id).trim() || id;
+    const weight = Number(raw.weight ?? 1);
+    if (!(weight > 0)) issues.errors.push(`${at}.weight: 0 より大きい数にしてください`);
+    const wantPity = raw.pity === true || raw.pity === 'true';
+    const pity = wantPity && !pitySeen;
+    if (wantPity && pitySeen) issues.warnings.push(`${at}.pity: 天井の対象は1つだけ使います（先のものを使います）`);
+    if (pity) pitySeen = true;
+    const actions = raw.actions == null ? [] : checkActions(raw.actions, `${at}.actions`, issues);
+    const known = ['id', 'label', 'weight', 'pity', 'actions'];
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return { id: TIER_ID.test(id) ? id : `tier${i}`, label, weight: weight > 0 ? weight : 1, pity, actions };
   });
 }
 
@@ -598,7 +767,7 @@ export function reference() {
     '',
     `場所: ${CONFIG_PATH}`,
     '',
-    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses など。',
+    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / giftSounds / gacha / slots など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
     'ギフト名は TikTok の英語名・日本語名・ID のどれでも書けます。画面には TikTok の日本語名を出します。list_gifts で確認できます。',

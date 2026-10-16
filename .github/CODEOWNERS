@@ -1,0 +1,6 @@
+# ここに書いた場所の変更は、めにくんのレビューが要る(main のブランチ保護で必須にする)
+/test/acceptance/ @404-nan
+/test/visual/ @404-nan
+/.claude/ @404-nan
+/AGENTS.md @404-nan
+/.github/ @404-nan

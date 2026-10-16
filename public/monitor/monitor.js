@@ -1,7 +1,7 @@
 // 配信中モニター。WebSocket で届くイベントと、サーバーの配信記録（/api/status・/api/history）から作る。
 
 import { connect, icon, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
-import { $, api, setupChrome, statusText } from '/dashboard/common.js';
+import { $, api, setupChrome, statusText, createStatusGate } from '/dashboard/common.js';
 import { columnChart, fmtNum } from '/dashboard/charts.js';
 
 setupChrome('monitor');
@@ -10,6 +10,8 @@ let config = null;
 let session = null; // 今の配信の記録（サーバーの History）
 let state = null;
 let localCoins = 0; // 次の同期までに届いたギフトのコイン（すぐ数字に出すため）
+const statusGate = createStatusGate();
+let syncing = false;
 
 const timeFmt = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
@@ -58,9 +60,14 @@ function renderElapsed() {
 }
 
 async function syncSession() {
+  if (syncing) return;
+  syncing = true;
+  const ticket = statusGate.startPoll();
   try {
     const st = await api('/api/status');
-    renderStatus(st.status);
+    // 待っている間に WebSocket か、より新しいポーリングがあれば、この返事では上書きしない
+    if (!statusGate.acceptPoll(ticket)) return;
+    if (st.status) renderStatus(st.status);
     if (st.session?.id !== session?.id) {
       session = st.session;
       syncTimeline();
@@ -70,7 +77,11 @@ async function syncSession() {
     localCoins = 0;
     renderMinecraftStatus(st.minecraft);
     renderNumbers();
-  } catch {}
+  } catch {
+    // 取れないときは前の表示のまま
+  } finally {
+    syncing = false;
+  }
 }
 
 async function syncTimeline() {
@@ -485,6 +496,7 @@ setInterval(syncTimeline, 20000);
 
 connect({
   hello(status, st) {
+    statusGate.markReceived();
     renderStatus(status);
     state = st;
     renderNumbers();
@@ -492,6 +504,7 @@ connect({
     renderRanking();
   },
   status(status) {
+    statusGate.markReceived();
     renderStatus(status);
     syncSession();
   },

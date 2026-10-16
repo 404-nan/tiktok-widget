@@ -1,4 +1,5 @@
 // ギフト名を一覧から選ぶ共通部品。保存する値は今までどおり名前の配列。
+import { giftLabel } from '../widgets/lib/overlay.js';
 
 let giftListPromise;
 
@@ -19,14 +20,9 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
   let selected = [...new Set(value.filter(Boolean))];
   let all = sortGifts(gifts);
   const label = (g) => {
-    const fn = globalThis.giftDisplayName;
-    if (typeof fn === 'function') {
-      const shown = fn(g);
-      if (shown && shown !== 'Gift') return shown;
-      if (shown === 'Gift' && (g == null || g === '')) return '';
-    }
-    if (g && typeof g === 'object') return g.nameJa || g.name || g.id || '';
-    return g == null ? '' : String(g);
+    if (g == null || g === '') return '';
+    const shown = giftLabel(g);
+    return shown && shown !== 'Gift' ? shown : '';
   };
   const byValue = (value) => all.find((g) => [g.name, g.nameJa, g.id].filter(Boolean).some((v) => String(v).toLocaleLowerCase() === String(value).toLocaleLowerCase()));
   let open = false;
@@ -95,7 +91,9 @@ export function giftPicker({ value = [], gifts = [], onChange }) {
         b.type = 'button';
         b.className = 'gift-picker-option pressable';
         b.disabled = selected.includes(g.name);
-        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: g.diamonds == null ? '' : `${g.diamonds} コイン` }));
+        const coins = Number(g.diamonds);
+        const coinLabel = g.diamonds == null || g.diamonds === '' || !Number.isFinite(coins) ? '? コイン' : `${coins} コイン`;
+        b.append(Object.assign(document.createElement('span'), { textContent: label(g) }), Object.assign(document.createElement('small'), { textContent: coinLabel }));
         b.addEventListener('click', () => choose(g.name));
         list.append(b);
       }

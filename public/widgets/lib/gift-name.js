@@ -1,5 +1,5 @@
 // 画面に出すギフト名（Chromium 103 / LIVE Studio 向けの素のスクリプト）。
-// 上の src/gift-display.js と同じ引き方: GiftID → 英語名（大文字小文字は無視）→ そのまま。
+// 上の src/gift-display.js と同じ引き方: GiftID → 英語名（大文字小文字と空白は無視）→ そのまま。
 // 対応表は installGiftNames で渡す（/api/gift-names）。トップレベル await・.at・replaceAll は使わない。
 (function (root) {
   var byId = {};
@@ -7,6 +7,10 @@
 
   function trim(v) {
     return String(v == null ? '' : v).replace(/^\s+|\s+$/g, '');
+  }
+
+  function compact(v) {
+    return trim(v).toLowerCase().replace(/\s+/g, '');
   }
 
   function installGiftNames(data) {
@@ -22,9 +26,10 @@
       var ja = trim(pair[1]);
       if (!ja) continue;
       byId[String(id)] = ja;
-      var key = en.toLowerCase();
+      var key = compact(en);
       if (key && !byName[key]) byName[key] = ja;
     }
+    root.__twGiftNamesReady = true;
   }
 
   function lookup(gift) {
@@ -38,7 +43,7 @@
       if (byId[name]) return byId[name];
     }
     if (id && byId[id]) return byId[id];
-    var key = name.toLowerCase();
+    var key = compact(name);
     if (key && byName[key]) return byName[key];
     return '';
   }

@@ -584,6 +584,10 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
 
 /* --- かんたん / くわしく --- */
 [data-mode=simple] [data-adv], [data-mode=advanced] [data-simple] { display: none !important; }
+[data-dev-only] { display: none; }
+body[data-dev=true] [data-dev-only] { display: grid; }
+
+/* 更新のお知らせ・テスト送信の見た目は、いちばん下の「上のカード」にまとめてある */
 .segmented.mode { flex: none; }
 [data-mode=simple] .layout { grid-template-columns: 1fr; max-width: 1080px; }
 [data-mode=simple] .topbar { max-width: 1080px; }
@@ -773,7 +777,7 @@ textarea.yaml { min-height: 420px; tab-size: 2; white-space: pre; }
   }
   [data-mode=simple] .col { gap: 0; }
   [data-mode=simple] .col > #connectionSection {
-    padding: 14px 16px;
+    padding: var(--s-4);
     border-radius: 0;
     box-shadow: inset 0 -1px 0 var(--stroke-secondary);
   }
@@ -1046,3 +1050,369 @@ input, select, textarea, .btn, .chip, .side-item, .field-label { font-size: max(
 .widgets > .panel-bg { display: none; } /* 透けなくしたので、高さの合わない下地を出さない */
 @media (max-width: 520px) { #actions > .chip:first-of-type { grid-column: 1 / -1; } }
 .topbar > .panel-bg { background: var(--page); box-shadow: none; } /* 上の帯は背景と同じ色（下の中身と重なっても段にならない） */
+
+/* ============================================================
+   1ページ目「OBSに入れるURL」（かんたん・PC/スマホ共通）
+   ルール: 余白は 4/8/12/16/24/32/48 の目盛りだけ。
+   中身は1本の列（最大幅を固定）。カードは全部同じ幅・同じ内側余白・同じ間隔。
+   色はアクセント1色。グラデーション・ぼかし・強い影は使わない。
+   ============================================================ */
+:root {
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --col: 840px;          /* 中身の列の幅 */
+  --card-pad-x: var(--s-5);
+  --card-pad-y: var(--s-4);
+  --card-gap: var(--s-5); /* カード同士の間隔＝一番上の余白 */
+  --card-radius: 10px;
+  --surface: #1F1F23;
+  --border: rgba(255, 255, 255, .10);
+  --accent: #FF5A2B;
+  --btn-w: 104px; --btn-h: 40px;
+}
+[data-theme=light] { --surface: #FFFFFF; --border: rgba(0, 0, 0, .10); --accent: #D9411A; }
+
+[data-mode=simple] body, body[data-mode=simple] { background: var(--page); }
+body[data-mode=simple] .side { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface); }
+
+/* 列 */
+body[data-mode=simple] #cards:not([hidden]) {
+  display: grid;
+  gap: var(--card-gap);
+  width: 100%;
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: var(--card-gap) 0 var(--s-7);
+}
+body[data-mode=simple] #cards > * { width: 100%; margin: 0; min-width: 0; }
+
+/* 見出し（カードではない。下の間隔はカード間隔と同じ） */
+body[data-mode=simple] #cards > .view-title { gap: var(--s-2); padding: 0; }
+body[data-mode=simple] #cards > .view-title h3 { font-size: 24px; line-height: 1.3; letter-spacing: -.01em; }
+body[data-mode=simple] #cards > .view-title .desc { font-size: 15px; color: var(--text-secondary); max-width: none; }
+
+/* カード（見本・URL一覧） */
+body[data-mode=simple] #cards > .sample-control,
+body[data-mode=simple] #cards > .sgroup {
+  display: grid;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: none;
+  overflow: hidden;
+}
+body[data-mode=simple] #cards > .sample-control { padding: var(--card-pad-y) var(--card-pad-x); gap: var(--s-2); }
+body[data-mode=simple] #cards > .sample-control > .check {
+  flex-direction: row; justify-content: space-between; align-items: center;
+  min-height: var(--btn-h); padding: 0; font-size: 15px; font-weight: 600;
+}
+body[data-mode=simple] #cards > .sample-control > .check input[type=checkbox]:checked { background: var(--accent); }
+body[data-mode=simple] #cards > .sample-control > .hint { margin: 0; font-size: 14px; color: var(--text-secondary); }
+
+body[data-mode=simple] #cards > .sgroup > .sgroup-title {
+  margin: 0;
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border-bottom: 1px solid var(--border);
+  font-size: 15px; font-weight: 600; opacity: 1; letter-spacing: 0; color: var(--text-primary);
+}
+body[data-mode=simple] #cards > .sgroup > .sgroup-body { border-radius: 0; background: transparent; box-shadow: none; }
+body[data-mode=simple] #cards .sgroup-body > * + * { box-shadow: none; border-top: 1px solid var(--border); }
+
+/* 行：全部同じ高さ・同じ並び */
+body[data-mode=simple] #cards .url-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) var(--btn-w) var(--btn-w);
+  gap: var(--s-4);
+  height: 72px;
+  padding: 0 var(--card-pad-x);
+}
+body[data-mode=simple] #cards .url-item .srow-title { font-size: 15px; font-weight: 600; }
+body[data-mode=simple] #cards .url-item .srow-sub { font-size: 14px; }
+
+/* ボタン：同じ大きさで横に並べる */
+body[data-mode=simple] #cards .url-item > .chip {
+  width: var(--btn-w); height: var(--btn-h); min-height: 0; padding: 0;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; box-shadow: none; font-size: 14px; font-weight: 500;
+}
+body[data-mode=simple] #cards .url-item > .chip:hover { background: var(--hover-wash); }
+body[data-mode=simple] #cards .url-item > .chip:first-of-type { background: var(--text-primary); color: var(--text-primary-on); border-color: transparent; }
+
+body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; padding: 0; font-size: 14px; color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* PC：サイドバーと列の間も同じ目盛り */
+@media (min-width: 900px) {
+  body[data-mode=simple] .layout { max-width: none; padding: 0 var(--s-6) 0 calc(248px + var(--s-6)); }
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { max-width: var(--col); margin-left: auto !important; margin-right: auto !important; width: 100%; }
+  body[data-mode=simple] .side { gap: var(--s-4); padding: var(--s-5) var(--s-4); }
+  body[data-mode=simple] .side-item[aria-current=true]::before { background: var(--accent); }
+}
+
+/* スマホ：列は画面いっぱい、左右の余白はカード間隔と同じ */
+@media (max-width: 899px) {
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { padding-left: var(--s-4); padding-right: var(--s-4); }
+  body[data-mode=simple] #cards:not([hidden]) { gap: var(--s-4); padding-top: var(--s-4); }
+  body[data-mode=simple] #cards { --card-pad-x: var(--s-4); --btn-w: 72px; }
+  body[data-mode=simple] #cards .url-item { grid-template-columns: minmax(0, 1fr) var(--btn-w) var(--btn-w); gap: var(--s-2); }
+  body[data-mode=simple] #cards .url-item > .icon { display: none; }
+  body[data-mode=simple] #cards .url-item > .chip .icon { display: none; }
+}
+
+/* ============================================================
+   上のカード（プラン・更新のお知らせ・テスト送信・動作確認用の画面）と、開発の札
+   1ページ目と同じ決まり: 下の中身と同じ列・同じ幅・同じ内側余白・同じ間隔。
+   中の項目は箱にせず、線で区切った行にする。
+   ============================================================ */
+.top-cards {
+  display: grid;
+  grid-template-columns: minmax(0, var(--col));
+  justify-content: center;
+  padding: 0 var(--s-4);
+}
+/* 上の余白はカードが持つ（カードが1枚も出ていないときは、何も足さない） */
+.top-cards > .notes-panel,
+.top-cards > .plan-panel,
+.top-cards > .dev-panel {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0;
+  min-width: 0;
+  margin: var(--card-gap) 0 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: none;
+  overflow: hidden;
+}
+.top-cards > .notes-panel,
+.top-cards > .plan-panel { display: grid; }
+.plan-body { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+.top-cards input, .top-cards select { border-radius: var(--s-2); }
+
+/* カードの見出しの行 */
+.notes-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border-bottom: 1px solid var(--border);
+}
+.notes-head h2 { margin-right: auto; font-size: 15px; font-weight: 600; line-height: 1.6; }
+.notes-head .hint { font-size: 14px; color: var(--text-secondary); }
+.notes-head .text-btn,
+.dev-panel > .stack > .text-btn { justify-self: start; margin: 0; padding: 0; font-size: 14px; color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* 札（未読の数・開発）: 塗らずに線だけ */
+.badge, .dev-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: var(--s-5);
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--s-1);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dev-badge { border-color: var(--accent); }
+
+/* お知らせ: 1件1行 */
+.notes-list { display: grid; grid-template-columns: minmax(0, 1fr); }
+.note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--card-pad-y) var(--card-pad-x);
+}
+.note + .note { border-top: 1px solid var(--border); }
+.note h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; }
+.note time { font-size: 14px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.note-body { grid-column: 1 / -1; margin: 0; font-size: 15px; color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* テスト送信: 入力欄は同じ幅、ボタンは同じ大きさで横に並べる */
+.dev-panel > .stack { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--card-pad-y) var(--card-pad-x); }
+.dev-send-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) var(--btn-w);
+  align-items: center;
+  gap: var(--s-2);
+}
+.dev-send-row > * { min-width: 0; }
+.dev-send-row > .count-input { width: 100%; }
+
+/* ボタンの行: 同じ大きさのマス目に並べる。入りきらない分は、同じ大きさのまま次の行に回す
+   （1つ1行に広げて積まない・横にはみ出さない） */
+.btn-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--btn-w));
+  gap: var(--s-2);
+  min-width: 0;
+}
+.btn-row > .btn,
+.btn-row > .chip,
+.dev-send-row > .btn {
+  gap: var(--s-1);
+  width: var(--btn-w);
+  height: var(--btn-h);
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--s-2);
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.btn-row > .btn.primary,
+.dev-send-row > .btn.primary { background: var(--text-primary); color: var(--text-primary-on); border-color: transparent; }
+/* 同じ幅に文字が入りきるよう、テスト送信のボタンは文字だけにする */
+.dev-panel .btn-row .icon, .dev-send-row > .btn .icon { display: none; }
+
+/* ギフト別サウンド: 音量は横に伸び、720px でも文字が切れない */
+.sound-rules,
+.sound-rules .item-row,
+.sound-rules .field,
+.sound-volume { min-width: 0; max-width: 100%; }
+.sound-rules .hint,
+.sound-rules .desc { overflow-wrap: anywhere; }
+.sound-volume {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5em;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+}
+.sound-volume input[type=range] {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--text-primary);
+}
+.sound-volume-value { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* 動作確認用の画面: 1つ1行（枠の中を動かして全体を見る） */
+.dev-preview-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+.dev-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--card-pad-y) var(--card-pad-x);
+}
+.dev-preview + .dev-preview { border-top: 1px solid var(--border); }
+.dev-preview h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; }
+/* 背景が透けているウィジェットは、白ではなくページの色の上に見せる
+   （color-scheme を合わせないと、ブラウザーが枠の中を白で塗る） */
+.dev-preview-frame { max-height: 320px; overflow: auto; background: var(--page); }
+.dev-preview-frame iframe { display: block; border: 0; background: transparent; color-scheme: normal; }
+
+/* ガチャの視聴者: 余白は同じ目盛り。ボタンは同じ大きさで横に並べ、720px でも文字を切らない */
+.gacha-viewers,
+.gacha-paid,
+.gacha-paid .field,
+.gacha-viewer,
+.gacha-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+.gacha-viewers {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+}
+.gacha-viewers-head,
+.gacha-viewers-tools,
+.gacha-viewer,
+.gacha-viewer-empty {
+  padding: var(--s-3) var(--s-4);
+}
+.gacha-viewers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.gacha-viewers-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.gacha-viewers-head .hint { margin: 0; }
+.gacha-viewers-tools {
+  display: grid;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+.gacha-viewer { display: grid; gap: var(--s-2); }
+.gacha-viewer + .gacha-viewer { border-top: 1px solid var(--border); }
+.gacha-viewer-name,
+.gacha-viewer-meta,
+.gacha-viewers-status {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.gacha-viewer-name { font-size: 16px; font-weight: 600; line-height: 1.6; }
+.gacha-viewer-meta { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
+.gacha-viewers-status { padding: 0 var(--s-4) var(--s-3); }
+.gacha-viewers-status:empty { display: none; }
+.gacha-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+.gacha-actions > .btn,
+.gacha-viewers .gacha-reset {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  min-width: 0;
+  padding: 0 var(--s-2);
+  white-space: nowrap;
+}
+.gacha-viewers .gacha-reset { white-space: normal; }
+.gacha-paid { display: grid; gap: var(--s-2); }
+.gacha-paid-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+@media (max-width: 420px) {
+  .gacha-paid-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* PC: 左のサイドバーの分だけ右に寄せて、下の中身と同じ列に置く。
+   いちばん上の余白は、どの画面でもカードの間隔と同じ */
+@media (min-width: 900px) {
+  body[data-mode=simple] .top-cards { padding: 0 var(--s-6) 0 calc(248px + var(--s-6)); }
+  body[data-mode=simple] .widgets { padding-top: var(--card-gap); }
+  body[data-mode=simple] #cards:not([hidden]) { padding-top: 0; }
+}
+
+/* スマホ: 間隔と内側余白を1段せまくする（1ページ目と同じ）。
+   ボタンは少し細くして、390px の画面で1行に3つ並ぶようにする */
+@media (max-width: 899px) {
+  .top-cards { --card-gap: var(--s-4); --card-pad-x: var(--s-4); --btn-w: 96px; }
+}
+/* スマホ: ギフトは1行まるごと、名前と個数は同じ幅で並べる */
+@media (max-width: 600px) {
+  .dev-send-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dev-send-row > .grow { grid-column: 1 / -1; }
+  .dev-send-row > .btn { justify-self: start; }
+}

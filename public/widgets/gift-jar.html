@@ -245,7 +245,7 @@
       data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     } catch {}
     data.slice(-p.maxItems).forEach((g, i) => {
-      setTimeout(() => drop({ name: giftLabel({ name: g.n }), image: g.i, icon: g.c, diamonds: g.d }, { fast: true }), i * 12);
+      setTimeout(() => drop({ name: giftLabel({ name: g.n }) || g.n, image: g.i, icon: g.c, diamonds: g.d }, { fast: true }), i * 12);
     });
   }
 

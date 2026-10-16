@@ -1,9 +1,10 @@
 /* 管理画面: 配信者が増えても伸びないように、左に1人1行の一覧、右に選んだ人の詳細 */
-.admin { display: grid; gap: 16px; max-width: 1280px; margin: 0 auto; padding: 0 16px 48px; }
+/* 列はどれも minmax(0, 1fr)（中身の幅で列が広がって、画面からはみ出さないように） */
+.admin { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1280px; margin: 0 auto; padding: 0 16px 48px; }
 .login { max-width: 520px; width: 100%; justify-self: center; margin-top: 12vh; }
 .back-button { justify-self: start; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-#main { display: grid; gap: 16px; }
+#main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 
 /* 人数: 1枚のパネルを線で仕切る */
 .admin .kpis { grid-template-columns: repeat(4, 1fr); }
@@ -47,7 +48,7 @@
 .empty { padding: 24px 16px; }
 
 /* --- 右の詳細 --- */
-.detail { padding: 20px; display: grid; gap: 16px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+.detail { padding: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
 @media (max-width: 1024px) { .detail { position: relative; top: 0; max-height: none; } }
 .detail h2 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
 .detail .sub { margin: 0; font-size: 14px; color: var(--text-secondary); }
@@ -87,11 +88,11 @@
 
 .danger { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* 右上のお知らせ */
-.toast { position: fixed; right: 20px; bottom: 20px; margin: 0; padding: 10px 16px; border-radius: var(--r-pill); background: var(--glass-solid); box-shadow: var(--shadow), var(--bevel); font-size: 14px; opacity: 0; translate: 0 8px; filter: blur(3px); transition: opacity var(--settle-time) var(--fade), translate var(--settle-time) var(--fade), filter var(--settle-time) var(--fade); pointer-events: none; }
-.toast.show { opacity: 1; translate: 0 0; filter: none; }
+/* 右下のお知らせ（ぼかし・影は使わず、線で区切る） */
+.toast { position: fixed; right: var(--s-5); bottom: var(--s-5); margin: 0; padding: var(--s-2) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); font-size: 14px; opacity: 0; translate: 0 8px; transition: opacity var(--settle-time) var(--fade), translate var(--settle-time) var(--fade); pointer-events: none; }
+.toast.show { opacity: 1; translate: 0 0; }
 .toast.error { color: var(--error); }
-@media (prefers-reduced-motion: reduce) { .toast { translate: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .toast { translate: none; } }
 .group-item { display: grid; gap: 4px; }
 
 /* スマホ: 状態は名前の下に回し、人数は2列 */
@@ -116,7 +117,8 @@
 
 /* 管理画面は、PC では左の項目を見せたまま右だけ切り替える */
 .topbar { display: none; }
-.admin { max-width: none; margin: 0; padding: 0 32px 48px 264px; }
+/* いちばん上の余白は、カード同士の間隔と同じ（最初のカードを上の端に付けない） */
+.admin { max-width: none; margin: 0; padding: var(--card-gap) var(--s-6) var(--s-7) calc(216px + var(--s-7)); }
 .admin-shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
 .admin-side { position: fixed; inset: 0 auto 0 0; z-index: 10; display: flex; flex-direction: column; gap: 2px; width: 216px; min-height: 100vh; padding: 20px 12px; background: var(--glass-solid); box-shadow: 1px 0 0 var(--stroke-secondary); }
 .admin-brand { padding: 4px 10px 24px; }
@@ -125,20 +127,27 @@
 .admin-side .side-item { display: flex; align-items: center; width: 100%; min-height: 42px; padding: 0 12px; border: 0; border-radius: var(--r-md); background: transparent; color: var(--text-secondary); text-align: left; font-size: 14px; }
 .admin-side .side-item[aria-current=true] { background: var(--accent-fill); color: var(--text-primary); box-shadow: var(--bevel); }
 .admin-side .side-spacer { flex: 1; min-height: 20px; border-bottom: 1px solid var(--stroke-secondary); margin-bottom: 8px; }
-.admin-content { min-width: 0; display: grid; gap: 16px; max-width: 1280px; width: 100%; }
+.admin-content { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1280px; width: 100%; }
 .admin-content > .kpis { margin: 0; }
 .detail.page-detail { min-height: 420px; }
-.split:has(#tenantListPanel[hidden]) { grid-template-columns: minmax(0, 760px); }
-.split:has(#detail[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.detail-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+/* PC だけ: 一覧を出さないページは、中身の列の幅までにする（スマホはいつも画面いっぱい） */
+@media (min-width: 900px) {
+  .split:has(#tenantListPanel[hidden]) { grid-template-columns: minmax(0, var(--col)); }
+  .split:has(#detail[hidden]) { grid-template-columns: minmax(0, 1fr); }
+}
 .tenant-note { display: block; color: var(--text-tertiary); font-size: 14px; line-height: 1.35; }
 .monitor-url { opacity: .72; transform: scale(.96); transform-origin: left top; }
 .monitor-url .url-label { font-size: 14px; }
 .monitor-url input { min-height: 30px; }
 
 @media (max-width: 899px) {
-  .admin { padding: 0 16px 40px; }
-  .admin-shell { display: block; }
-  .admin-side { position: sticky; top: 0; z-index: 8; flex-direction: row; width: auto; min-height: 0; margin: 0 -16px 16px; padding: 8px 16px; overflow-x: auto; background: var(--glass-solid); box-shadow: inset 0 -1px 0 var(--stroke-secondary); scrollbar-width: none; }
+  /* 上に並ぶ項目の下が、そのまま最初の余白になる（スマホの間隔は1段せまく） */
+  .admin { --card-gap: var(--s-4); --card-pad-x: var(--s-4); padding: 0 var(--s-4) var(--s-7); }
+  .admin-shell { display: block; min-width: 0; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  /* 上に並ぶ項目は、この帯の中だけで横に流す（ページの幅は広げない） */
+  .admin-side { position: sticky; top: 0; z-index: 8; flex-direction: row; width: auto; min-width: 0; max-width: calc(100% + 32px); min-height: 0; margin: 0 -16px 16px; padding: 8px 16px; overflow-x: auto; background: var(--glass-solid); box-shadow: inset 0 -1px 0 var(--stroke-secondary); scrollbar-width: none; }
   .admin-brand { display: none; }
   .admin-side::-webkit-scrollbar { display: none; }
   .admin-side .side-label, .admin-side .side-spacer { display: none; }
@@ -150,4 +159,115 @@
 }
 
 /* 合言葉の画面（左の項目が出ていないとき）は、真ん中に置く */
-@media (min-width: 900px) { .admin:has(#main[hidden]) { padding-left: 32px; } }
+@media (min-width: 900px) { .admin:has(#main[hidden]) { padding-left: var(--s-6); } }
+
+/* ============================================================
+   カードのページ（LuL 管理・更新のお知らせ・API キー・プラン・支払い）
+   ダッシュボードの1ページ目と同じ決まり（余白の目盛り・カードの幅・内側余白・間隔は
+   /dashboard/style.css の変数を使う）。
+   見出しはカードの外。カードは1本の列に同じ幅で並べ、中の項目は箱にせず線で区切った行にする。
+   ============================================================ */
+.detail.card-page {
+  grid-column: 1 / -1;
+  position: static;
+  width: 100%;
+  max-width: var(--col);
+  min-height: 0;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+}
+.detail.card-page > .panel-bg { display: none; }
+.detail.card-page > .detail-body { grid-template-columns: minmax(0, 1fr); gap: var(--card-gap); }
+.detail.card-page .detail-head { gap: var(--s-2); }
+.detail.card-page .detail-head h2 { font-size: 24px; font-weight: 700; line-height: 1.3; letter-spacing: -.01em; }
+.detail.card-page .detail-head .sub { font-size: 15px; }
+.detail.card-page input, .detail.card-page textarea { border-radius: var(--s-2); }
+.detail.card-page input, .detail.card-page textarea, .detail.card-page select { min-width: 0; max-width: 100%; }
+
+/* カード */
+.form-card, .lul-list, .admin-note-list, .admin-key-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+}
+.lul-list:empty, .admin-note-list:empty, .admin-key-list:empty { display: none; }
+.form-card > .admin-key-list { border: 0; border-radius: 0; background: none; }
+.form-card > p.hint, .admin-key-list > p.hint { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); }
+.form-card > p.hint + .admin-key-list > p.hint { padding-top: 0; }
+.form-card > h3 { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; line-height: 1.6; }
+
+/* カードの中の行: どれも同じ内側余白、行の間は線1本 */
+.note-form, .key-form, .lul-tenant, .admin-note, .admin-key {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: var(--card-pad-y) var(--card-pad-x);
+}
+.lul-tenant + .lul-tenant, .admin-note + .admin-note, .admin-key + .admin-key { border-top: 1px solid var(--border); }
+.form-card .field { gap: var(--s-2); }
+.enforcement-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.enforcement-row select { flex: 1 1 240px; width: auto; min-width: 0; }
+.enforcement-row .hint { flex: none; }
+
+/* 横に並ぶ入力欄は同じ幅（ボタンの行 .btn-row は /dashboard/style.css） */
+.field-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: center; gap: var(--s-2); }
+.field-row > * { min-width: 0; }
+
+.lul-tenant { gap: var(--s-4); }
+.lul-tenant h3, .admin-note h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.6; }
+.lul-tenant-head, .key-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
+.lul-tenant-head .hint, .key-meta .hint { margin-left: auto; }
+.lul-setting { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); }
+.lul-setting-head { font-size: 14px; color: var(--text-secondary); }
+.lul-setting textarea { min-height: 120px; font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.admin-key code { color: var(--text-primary); font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.flag-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.flag-row label { display: flex; align-items: center; gap: 6px; font-size: 15px; line-height: 1.6; }
+/* プランの操作は文言が長い。104px のマスに押し込むとはみ出す */
+.date-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.date-wrap input { flex: 1 1 auto; min-width: 0; }
+.date-empty { flex: none; color: var(--text-secondary); font-size: 14px; line-height: 1.4; }
+.detail.card-page .referral-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.detail.card-page .referral-actions > .btn {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  white-space: normal;
+  line-height: 1.35;
+  font-size: 14px;
+}
+.detail.card-page .btn-row.loose { display: flex; flex-wrap: wrap; }
+.detail.card-page .btn-row.loose > .btn,
+.detail.card-page .btn-row.loose > .chip {
+  width: auto;
+  min-width: var(--btn-w);
+  height: auto;
+  min-height: var(--btn-h);
+  padding: 0 16px;
+  font-size: 15px;
+}
+
+/* スマホ: 列は画面いっぱい（決まった幅を持たせない） */
+@media (max-width: 899px) {
+  .detail.card-page { max-width: none; }
+}
+/* スマホ: 入力欄は1つ1行にする（ボタンは横に並べたまま） */
+@media (max-width: 600px) {
+  .field-row { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
+}

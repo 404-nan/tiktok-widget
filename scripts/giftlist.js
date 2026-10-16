@@ -5,6 +5,7 @@
 // 使い方: node scripts/giftlist.js [roomId ...]   （roomId を付けるとその部屋のギフトも足す。無くても約700件取れる）
 import fs from 'node:fs';
 const OUT = new URL('../src/gift-names-ja.json', import.meta.url);
+const COINS = new URL('../src/gift-coins.json', import.meta.url);
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
 async function fetchList(lang, roomId) {
   const q = new URLSearchParams({ aid: '1988', device_platform: 'web', webcast_language: lang, app_language: lang, region: 'JP', priority_region: 'JP' });
@@ -14,9 +15,14 @@ async function fetchList(lang, roomId) {
   return json?.data?.gifts ?? [];
 }
 const rooms = [null, ...process.argv.slice(2)];
-const en = new Map(), ja = new Map();
+const en = new Map(), ja = new Map(), coins = new Map();
 for (const room of rooms) {
-  for (const g of await fetchList('en', room)) if (!en.has(String(g.id))) en.set(String(g.id), g.name);
+  for (const g of await fetchList('en', room)) {
+    const id = String(g.id);
+    if (!en.has(id)) en.set(id, g.name);
+    const n = Number(g.diamond_count ?? g.diamondCount ?? g.coins);
+    if (Number.isFinite(n)) coins.set(id, n);
+  }
   for (const g of await fetchList('ja-JP', room)) if (!ja.has(String(g.id))) ja.set(String(g.id), g.name);
 }
 const old = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')).names ?? {} : {};
@@ -30,4 +36,8 @@ if (ja.size && [...ja.values()].every((n, i, a) => en.get([...ja.keys()][i]) ===
   console.error('日本語名が1件も返っていません（webcast_language=ja-JP になっているか確認）'); process.exit(1);
 }
 fs.writeFileSync(OUT, JSON.stringify({ source: `TikTok webcast gift/list (webcast_language=ja-JP), ${new Date().toISOString().slice(0, 10)}`, names }, null, 0).replace(/\],"/g, '],\n"') + '\n');
-console.log(`en ${en.size} / ja ${ja.size} → 対応表 ${Object.keys(names).length} 件（新規 ${added}）`);
+const oldCoins = fs.existsSync(COINS) ? JSON.parse(fs.readFileSync(COINS, 'utf8')).coins ?? {} : {};
+const nextCoins = { ...oldCoins };
+for (const [id, n] of coins) nextCoins[id] = n;
+fs.writeFileSync(COINS, JSON.stringify({ source: `TikTok webcast gift/list diamond_count, ${new Date().toISOString().slice(0, 10)}`, coins: nextCoins }, null, 2) + '\n');
+console.log(`en ${en.size} / ja ${ja.size} → 対応表 ${Object.keys(names).length} 件（新規 ${added}）、コイン ${Object.keys(nextCoins).length} 件`);

@@ -10,7 +10,12 @@
     "demo": "node server.js --demo",
     "tw": "node bin/tw.js",
     "mcp": "node mcp/server.js",
-    "test": "node --test"
+    "test": "node --test 'test/*.test.js' 'test/acceptance/**/*.test.js'",
+    "check": "npm test",
+    "check:ui": "playwright test",
+    "dev": "node scripts/dev.mjs",
+    "shot": "node scripts/shot.mjs",
+    "shot:approve": "node scripts/shot-approve.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -36,5 +41,9 @@
   },
   "bin": {
     "tw": "bin/tw.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "acorn": "^8.19.0"
   }
 }

@@ -1,0 +1,16 @@
+alerts:
+  default:
+    events: [gift]
+    minCoins: 1
+
+roulettes:
+  default:
+    title: 紙ひこうき
+    items:
+      - { label: 一等, weight: 1 }
+
+goals:
+  default:
+    title: コイン目標
+    metric: diamonds
+    goal: 500

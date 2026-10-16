@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { GiftCatalog, giftMatches, giftDisplayName } from '../src/gifts.js';
+import { GiftCatalog, giftMatches, giftDisplayName, bundledGifts, coinCount, coinText, mergeGiftCatalog } from '../src/gifts.js';
+import { DEMO_GIFTS } from '../src/demo.js';
 import { normalizeGift } from '../src/normalize.js';
 
 test('ギフト一覧を取り込み、保存して、読み直せる', () => {
@@ -48,6 +49,13 @@ test('日本語名が英語名と同じなら nameJa は null', async () => {
   assert.equal(catalog.find('1').nameJa, null);
 });
 
+test('日本語名がないギフトの表示は今までの英語名のまま', () => {
+  const event = normalizeGift({ giftId: 1, gift: { id: 1, name: 'Plain Gift', diamondCount: 1 }, repeatCount: 1 });
+  assert.equal(event.gift.name, 'Plain Gift');
+  assert.equal(event.gift.nameJa, null);
+  assert.equal(giftDisplayName(event.gift), 'Plain Gift');
+});
+
 test('届いたイベントの名前は英語のまま、画面の表示だけ対応表の日本語になる', () => {
   const event = normalizeGift({ giftId: 1, gift: { id: 1, name: 'Rose', diamondCount: 1 }, repeatCount: 1 });
   assert.equal(event.gift.name, 'Rose');
@@ -70,6 +78,55 @@ test('届いたギフトの表示名は日本語の対応表（src/gift-names-ja
   assert.equal(giftDisplayName(event.gift), 'バラ');
   const other = normalizeGift({ giftId: 999999999, gift: { id: 999999999, name: 'Brand New Gift', diamondCount: 1 }, repeatCount: 1 }, catalog);
   assert.equal(giftDisplayName(other.gift), 'Brand New Gift');
+});
+
+test('コインは diamond_count / diamondCount / coins / 文字のどれでも数にし、無ければ null', () => {
+  assert.equal(coinCount({ diamond_count: 5000 }), 5000);
+  assert.equal(coinCount({ diamondCount: '1,000' }), 1000);
+  assert.equal(coinCount({ coins: '20' }), 20);
+  assert.equal(coinCount({ diamonds: 0 }), 0);
+  assert.equal(coinCount({ name: 'Mystery' }), null);
+  assert.equal(coinCount({ diamonds: 'たくさん' }), null);
+  assert.equal(coinText(undefined), '? コイン');
+  assert.equal(coinText(null), '? コイン');
+  assert.equal(coinText(Number.NaN), '? コイン');
+  assert.equal(coinText(5000), '5000 コイン');
+  assert.equal(coinText(0), '0 コイン');
+});
+
+test('コインの無い再取得で、前に分かっていたコインを消さない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  catalog.import([{ id: 5338, name: 'Unicorn Fantasy', diamondCount: '5000' }]);
+  catalog.import([{ id: 5338, name: 'Unicorn Fantasy', nameJa: 'ユニコーン ファンタジー' }]);
+  assert.equal(catalog.find('5338').diamonds, 5000);
+  assert.equal(catalog.find('5338').nameJa, 'ユニコーン ファンタジー');
+});
+
+test('テスト送信用の一覧は、ユニコーン ファンタジー以降も NaN にしない', () => {
+  const known = DEMO_GIFTS.map((g) => ({ ...g }));
+  const names = new Set(known.map((g) => String(g.name).toLocaleLowerCase()));
+  const extra = bundledGifts().filter((g) => g.name && !names.has(g.name.toLocaleLowerCase()));
+  const all = mergeGiftCatalog([
+    known,
+    [{ id: '1', name: 'Rose', diamond_count: '1' }],
+    [{ id: '1', name: 'Rose' }],
+    extra,
+  ]);
+  const start = all.findIndex((g) => g.nameJa === 'ユニコーン ファンタジー');
+  assert.ok(start >= 0);
+  for (const g of all.slice(start)) {
+    const label = coinText(g.diamonds);
+    assert.equal(label.includes('NaN'), false, `${g.id} ${g.nameJa || g.name}`);
+    assert.match(label, /^(\?|\d+) コイン$/);
+  }
+  const uni = all.find((g) => g.id === '5338');
+  assert.equal(uni.diamonds, 5000);
+  assert.equal(coinText(uni.diamonds), '5000 コイン');
+  assert.equal(all.find((g) => g.id === '1').diamonds, 1);
+  const unknown = mergeGiftCatalog([[{ id: '9', name: 'Mystery Gift' }]])[0];
+  assert.equal(unknown.diamonds, null);
+  assert.equal(coinText(unknown.diamonds), '? コイン');
 });
 
 test('対応表は GiftID → [英語名, 日本語名] の形で、日本語名が入っている', () => {

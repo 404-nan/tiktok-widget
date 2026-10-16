@@ -20,10 +20,18 @@ import { RushEngine } from './rush.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
+import { createEventBus } from './events.js';
+import { bindRouletteActions, runActions } from './actions.js';
+import { MediaAlerts } from './media-alerts.js';
+import { GiftSounds } from './gift-sounds.js';
+import { Gacha } from './gacha.js';
+import { GachaViewers } from './gacha-viewers.js';
+import { SlotEngine } from './slot.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
-import { GiftCatalog, bundledGifts } from './gifts.js';
+import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 import { giftNamesDocument } from './gift-display.js';
+import { isDevEnv } from './env.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -36,7 +44,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -54,17 +62,41 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true }) {
   const hub = new Hub();
+  // connecting は「直前まで live だった再接続」だけ配信中。未接続・配信終了のあとは新しい接続。
+  // 再接続が一度失敗して error になっても、配信終了か手動切断までは同じ配信の続きとみなす。
+  let reconnectFromLive = false;
+  hub.on('status', (status, prev) => {
+    const mode = status?.mode;
+    const before = prev?.mode;
+    if (mode === 'live') reconnectFromLive = true;
+    else if (mode === 'idle' || mode === 'ended' || mode === 'demo') reconnectFromLive = false;
+    else if (mode === 'connecting' && (before === 'idle' || before === 'ended' || before === 'demo')) reconnectFromLive = false;
+    else if (mode === 'connecting' && before === 'live') reconnectFromLive = true;
+  });
+  const streamLive = () => {
+    const mode = hub.status.mode;
+    if (mode === 'live') return true;
+    return reconnectFromLive && (mode === 'connecting' || mode === 'error');
+  };
+  const mayConnect = (live) => {
+    try {
+      return connectionAllowed({ live: Boolean(live) }) !== false;
+    } catch (err) {
+      console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
+      return true;
+    }
+  };
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
-  const tiktok = new TikTokSource(hub, giftCatalog);
+  const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()) });
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
   const minecraft = new Minecraft(hub);
@@ -75,9 +107,28 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
+  const bus = createEventBus();
+  const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
+  const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
+  const gacha = new Gacha(hub, { bus });
+  const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
+  const slot = new SlotEngine(hub, { bus });
+  boss.setBus(bus);
+  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
+  bus.on('gacha.reveal', ({ tier, trigger }) => runActions(tier?.actions, actionDeps(), { source: 'gacha', tierId: tier?.id, trigger }));
+  bindRouletteActions(hub, bus, actionDeps);
+  bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
+  hub.on('event', (e) => {
+    mediaAlerts.onEvent(e);
+    giftSounds.onEvent(e);
+    gachaViewers.onEvent(e);
+    gacha.onEvent(e);
+    slot.onEvent(e);
+  });
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
   let currentAutoId = null;
+  // 停止中でも、すでに配信へつながっている接続は切らない。止まっているときだけ新しい接続を始めない
 
   // 設定を仕組みに反映する（使えない豪華な演出は止める）
   const applyEngines = (config) => {
@@ -88,8 +139,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
+    mediaAlerts.setConfig(config.mediaAlerts);
+    giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
+    gacha.setConfig(config.gacha);
+    gachaViewers.setConfig(config.gacha);
+    slot.setConfig(config.slots);
   };
   hub.on('config', applyEngines);
+  hub.on('status', (status, previous) => gachaViewers.onStatus(status, previous));
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
   hub.on('roulette', ({ roulette: r, item, trigger }) => minecraft.onRouletteResult(r, item, trigger));
   // ボスを討伐したら、設定にあるルーレットを回し、Minecraft にコマンドを送る
@@ -123,6 +180,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   function configPayload(req) {
     const defaults = Object.fromEntries(SECTIONS.map((s) => [s, defaultsFor(s)]));
     if (req.role === 'obs') return { config: cfg.publicConfig(hub.config), defaults: cfg.publicConfig(defaults) };
+    const me = info();
+    const widgets = hub.config ? cfg.widgetList(hub.config, widgetBase ? widgetBase(origin(req)) : origin(req)) : [];
+    const visibleWidgets = me.mode === 'tenant' ? widgets.filter((widget) => widget.section === 'all' || (me.widgets ?? []).includes(widget.section)) : widgets;
     return {
       path: store.path,
       yaml: store.readText(),
@@ -130,7 +190,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       defaults,
       errors: lastIssues.errors,
       warnings: lastIssues.warnings,
-      widgets: hub.config ? cfg.widgetList(hub.config, widgetBase ? widgetBase(origin(req)) : origin(req)) : [],
+      widgets: visibleWidgets,
     };
   }
 
@@ -141,6 +201,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.use((req, res, next) => {
     if (req.role !== 'obs') return next();
     if (req.method === 'GET' && (req.path.startsWith('/media/') || OBS_ALLOWED.some((re) => re.test(req.path)))) return next();
+    if (req.method === 'POST' && /^\/api\/media-alerts\/(ack|autoplay)$/.test(req.path)) return next();
+    if (req.method === 'POST' && /^\/api\/gift-sounds\/(ack|autoplay)$/.test(req.path)) return next();
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
   });
 
@@ -151,6 +213,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
     res.json({ ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) });
   });
+  r.get('/api/env', (req, res) => {
+    const dev = isDevEnv(req);
+    res.json({ dev, environment: dev ? 'dev' : 'prod' });
+  });
+  r.get('/api/notes', (_req, res) => res.json({ notes: notes?.list?.() ?? [] }));
   r.put('/api/me/widgets', (req, res) => {
     if (!setWidgets) return res.status(400).json({ error: '1人で使うときは選べません（全部使えます）' });
     const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w) && entitled(w)) : null;
@@ -239,7 +306,6 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     try {
       res.json({ ok: true, response: await minecraft.test(command) });
     } catch (err) {
-      setStayConnected?.(username.replace(/^@/, '').trim()); // 配信前でも、始まったらつながるよう再接続を続ける
       res.status(502).json({ error: err.message });
     }
   });
@@ -251,14 +317,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
 
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
-  r.get('/api/gifts', (_req, res) => {
+  // 名前だけの控えはコインが無いので、分かっている数（diamond_count など）を id で埋める
+  function readGifts() {
     const seen = [...hub.seenGifts.values()].map((g) => ({ ...g, seen: true }));
     const saved = giftCatalog.list();
-    const known = [...DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), ...saved, ...seen];
+    const known = mergeGiftCatalog([DEMO_GIFTS.map((g) => giftCatalog.enrich(g)), saved, seen]);
     const names = new Set(known.map((g) => String(g.name ?? '').toLocaleLowerCase()));
-    const extra = bundledGifts().filter((g) => !names.has(g.name.toLocaleLowerCase()));
-    res.json([...known, ...extra]
-      .filter((g, i, all) => all.findIndex((x) => String(x.id) === String(g.id)) === i));
+    const extra = bundledGifts().filter((g) => g.name && !names.has(g.name.toLocaleLowerCase()));
+    return mergeGiftCatalog([known, extra]);
+  }
+  r.get('/api/gifts', (_req, res) => {
+    res.json(readGifts());
   });
 
   // AI から使うための案内（1人で使うときだけ。配信者ごとの URL では出さない）
@@ -404,19 +473,33 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.post('/api/connect', async (req, res) => {
     const username = String(req.body?.username ?? '').trim();
     if (!username) return res.status(400).json({ error: 'ユーザー名を入力してください' });
+    if (!mayConnect(streamLive())) {
+      return res.status(403).json({ error: 'お支払いの確認が取れていません。LuLにご連絡ください' });
+    }
     demo.stop();
+    const handle = username.replace(/^@/, '').trim();
+    // 成功しても、配信前で失敗しても、切るまでは再接続を続ける
+    const keep = () => {
+      const id = tiktok.username || handle;
+      if (id) setStayConnected?.(id);
+    };
     try {
       await tiktok.connect(username, { signApiKey: req.body?.signApiKey });
       rememberTiktokId?.(tiktok.username);
-      setStayConnected?.(tiktok.username);
+      keep();
       res.json({ ok: true, status: hub.status });
     } catch (err) {
+      keep();
       res.status(502).json({ error: err.message, status: hub.status });
     }
   });
   r.post('/api/disconnect', async (_req, res) => {
     if (currentAutoId && auto.has(currentAutoId)) auto.get(currentAutoId).manuallyStopped = true;
-    await tiktok.disconnect();
+    try {
+      await tiktok.disconnect();
+    } finally {
+      setStayConnected?.(null);
+    }
     demo.stop();
     hub.setStatus({ mode: 'idle', username: null, message: '切断しました' });
     res.json({ ok: true });
@@ -433,61 +516,200 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json({ ok: true, demo: demo.running });
   });
   r.post('/api/simulate', (req, res) => {
-    const event = makeEvent(req.body?.kind, req.body ?? {});
-    if (!event) return res.status(400).json({ error: '不明なイベント種類です' });
-    hub.publish({ ...event, test: true });
-    // 配信中のテストは画面に出るだけ（数は変わらない）
-    res.json({ ok: true, visualOnly: hub.status.mode === 'live' });
+    const out = simulateEvent(req.body, req);
+    res.status(out.status).json(out.body);
+  });
+  // 開発用。ルーレットの動作・ボス・メディア・ガチャを、配信イベントを作らずに試す
+  r.post('/api/dev/trigger', (req, res) => {
+    if (!isDevEnv(req)) return res.status(403).json({ error: 'テスト送信は開発環境でだけ使えます' });
+    const body = req.body ?? {};
+    try {
+      if (body.target === 'roulette-action') {
+        if (!Array.isArray(body.actions) || !body.actions.length) return res.status(400).json({ error: 'actions を一覧で送ってください' });
+        const results = runActions(body.actions, actionDeps(), { source: 'dev' });
+        const bad = results.find((item) => !item.ok);
+        if (bad) return res.status(400).json({ error: bad.error, results });
+        return res.json({ ok: true, results });
+      }
+      if (body.target === 'boss') {
+        const id = body.id || null;
+        if (body.action === 'damage') return res.json({ ok: true, boss: boss.apply(id, 'damage', body.amount) });
+        if (body.action === 'heal') return res.json({ ok: true, boss: boss.healBy(id, body.amount) });
+        return res.status(400).json({ error: 'action は damage か heal です' });
+      }
+      if (body.target === 'media') return res.json({ ok: true, media: mediaAlerts.play(body.mediaId, { source: 'dev' }) });
+      if (body.target === 'gift-sound') {
+        const count = Number(body.count) || 1;
+        if (!Number.isInteger(count) || count < 1 || count > 4) return res.status(400).json({ error: 'count は 1 から 4 です' });
+        const sounds = [];
+        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(body.mediaId, { volume: body.volume, source: 'dev' }));
+        return res.json({ ok: true, sounds, giftSounds: giftSounds.snapshot() });
+      }
+      if (body.target === 'gacha') {
+        const started = gacha.start({ kind: 'dev', source: 'dev' });
+        if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
+        return res.json({ ok: true, gacha: started });
+      }
+      if (body.target === 'gacha-viewer') {
+        const name = String(body.name || 'テスト視聴者').trim() || 'テスト視聴者';
+        const started = gachaViewers.devSpin({ id: `dev_${name}`, name }, body.paid === true);
+        if (!started.ok) return res.status(400).json({ ...started, error: started.error || '回せませんでした' });
+        return res.json({ ok: true, gacha: started, viewers: gachaViewers.list() });
+      }
+      if (body.target === 'slot') {
+        const started = slot.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
+        if (!started) return res.status(400).json({ error: 'スロットはオフです' });
+        return res.json({ ok: true, slot: started });
+      }
+      return res.status(400).json({ error: '不明な target です' });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  });
+  r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
+  r.get('/api/gacha-viewers', (_req, res) => res.json(gachaViewers.snapshot()));
+  r.post('/api/gacha-viewers/reset-free', (_req, res) => {
+    gachaViewers.resetFree();
+    res.json({ ok: true, viewers: gachaViewers.list() });
+  });
+  r.post('/api/gacha-viewers/:id/adjust', (req, res) => {
+    try {
+      const viewer = gachaViewers.adjust(req.params.id, Number(req.body?.amount), req.body?.type === 'free' ? 'free' : 'paid');
+      if (!viewer) return res.status(404).json({ error: '視聴者が見つかりません' });
+      return res.json({ ok: true, viewer });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  });
+  r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
+  r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
+  r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
+    try {
+      const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      let name = 'file';
+      if (typeof req.query?.name === 'string' && req.query.name) name = req.query.name;
+      else if (req.headers['x-filename']) name = String(req.headers['x-filename']);
+      const item = mediaAlerts.addBuffer({ mime, name, buffer: req.body });
+      res.json({ ok: true, item });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  r.post('/api/media-alerts/ack', (req, res) => {
+    res.json({ ok: mediaAlerts.ack(req.body?.token) });
+  });
+  r.post('/api/media-alerts/autoplay', (req, res) => {
+    res.json({ ok: true, autoplay: mediaAlerts.reportAutoplay({ muted: req.body?.muted === true }) });
+  });
+  r.delete('/api/media-alerts/:id', (req, res) => {
+    try {
+      mediaAlerts.remove(req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(404).json({ error: err.message });
+    }
+  });
+  r.get('/api/gift-sounds', (_req, res) => res.json(giftSounds.snapshot()));
+  r.post('/api/gift-sounds/ack', (req, res) => {
+    res.json({ ok: giftSounds.ack(req.body?.token) });
+  });
+  r.post('/api/gift-sounds/autoplay', (req, res) => {
+    res.json({ ok: true, autoplay: giftSounds.reportAutoplay({ muted: req.body?.muted === true }) });
+  });
+  r.get('/api/media-alerts/:id/file', (req, res) => {
+    const info = mediaAlerts.fileInfo(req.params.id);
+    if (!info) return res.status(404).json({ error: 'メディアが見つかりません' });
+    res.type(info.mime);
+    res.sendFile(info.path, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'メディアが見つかりません' });
+    });
   });
   r.post('/api/control', (req, res) => {
     const { target, action, data } = req.body ?? {};
-    if (!target || !action) return res.status(400).json({ error: 'target と action が必要です' });
-    // ルーレットは何が当たるかをサーバーで決める
-    if (target === 'roulette' && action === 'spin') {
-      const spin = roulette.spin(data?.id ?? null);
-      return spin ? res.json({ ok: true, spin }) : res.status(404).json({ error: 'ルーレットの設定がありません' });
-    }
-    if (target === 'roulette' && action === 'reset') roulette.clear();
-    // RUSH はサーバーで状態を持つ
-    if (target === 'rush') {
-      if (!entitled('rush')) return res.status(403).json({ error: 'RUSH は管理者が使えるようにすると使えます' });
-      const out = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
-      return res.json({ ok: true, rush: out ?? rush.snapshot() });
-    }
-    // WIN 数もサーバーで持つ
-    if (target === 'wins') {
-      try {
-        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'wins') : data?.id || null;
-        return res.json({ ok: true, wins: wins.apply(id, String(action), data?.value) });
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    }
-    // 延長タイマーもサーバーで持つ（data: { id, seconds } か { id, minutes }）
-    if (target === 'timer') {
-      try {
-        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'timers') : data?.id || null;
-        return res.json({ ok: true, timers: timer.apply(id, String(action), timerSeconds(data ?? {})) });
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    }
-    // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
-    if (target === 'boss') {
-      try {
-        const id = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
-        return res.json({ ok: true, boss: boss.apply(id, String(action), data?.value) });
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    }
-    hub.control(String(target), String(action), data ?? {});
-    res.json({ ok: true });
+    const out = performControl(target, action, data);
+    res.status(out.status).json(out.body);
   });
   r.post('/api/reset', (_req, res) => {
     hub.reset();
     res.json({ ok: true });
   });
+
+  // テスト送信。開発環境以外は拒否する（画面の API と AI 用 API で同じ）
+  function simulateEvent(body, req) {
+    if (!isDevEnv(req)) return { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } };
+    const event = makeEvent(body?.kind, body ?? {});
+    if (!event) return { status: 400, body: { error: '不明なイベント種類です' } };
+    hub.publish({ ...event, test: true });
+    // 配信中のテストは画面に出るだけ（数は変わらない）
+    return { status: 200, body: { ok: true, visualOnly: hub.status.mode === 'live' } };
+  }
+
+  // ルーレット・タイマー・WIN数・ボス・RUSH。画面の /api/control と AI 用 API で同じ
+  function performControl(target, action, data = {}) {
+    if (!target || !action) return { status: 400, body: { error: 'target と action が必要です' } };
+    // ルーレットは何が当たるかをサーバーで決める
+    if (target === 'roulette' && action === 'spin') {
+      const spin = roulette.spin(data?.id ?? null);
+      return spin ? { status: 200, body: { ok: true, spin } } : { status: 404, body: { error: 'ルーレットの設定がありません' } };
+    }
+    if (target === 'roulette' && action === 'reset') roulette.clear();
+    // RUSH はサーバーで状態を持つ
+    if (target === 'rush') {
+      if (action === 'status') return { status: 200, body: { ok: true, rush: rush.snapshot() } };
+      if (!entitled('rush')) return { status: 403, body: { error: 'RUSH は管理者が使えるようにすると使えます' } };
+      const out = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
+      return { status: 200, body: { ok: true, rush: out ?? rush.snapshot() } };
+    }
+    // WIN 数もサーバーで持つ
+    if (target === 'wins') {
+      try {
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'wins') : data?.id || null;
+        return { status: 200, body: { ok: true, wins: wins.apply(wid, String(action), data?.value) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    // 延長タイマーもサーバーで持つ（data: { id, seconds } か { id, minutes }）
+    if (target === 'timer') {
+      try {
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'timers') : data?.id || null;
+        return { status: 200, body: { ok: true, timers: timer.apply(wid, String(action), timerSeconds(data ?? {})) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    // ボス討伐もサーバーで持つ（damage / defeat / heal / next / set / reset）
+    if (target === 'boss') {
+      try {
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
+        return { status: 200, body: { ok: true, boss: boss.apply(wid, String(action), data?.value) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    hub.control(String(target), String(action), data ?? {});
+    return { status: 200, body: { ok: true } };
+  }
+
+  const configVersion = () => crypto.createHash('sha256').update(store.readText()).digest('hex');
+  // 配信中（live）と、つなぎ直し中（connecting）は AI からの変更を止める対象
+  const aiLive = () => {
+    const mode = hub.status?.mode;
+    return mode === 'live' || mode === 'connecting';
+  };
+  function previewConfig(op, configPath, value) {
+    const beforeText = store.readText();
+    const change = op === 'delete' ? { op: 'delete', path: configPath } : { op, path: configPath, value };
+    const next = cfg.applyChanges(beforeText, [change]);
+    return {
+      ok: Boolean(next.ok),
+      errors: next.errors ?? [],
+      warnings: next.warnings ?? [],
+      text: next.text,
+      config: next.config ?? null,
+      configVersion: crypto.createHash('sha256').update(beforeText).digest('hex'),
+    };
+  }
 
   return {
     id,
@@ -497,6 +719,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     autoConnect({ handle, slot, now = Date.now() }) {
       const state = auto.get(slot.id) ?? { attempts: 0, lastAttempt: 0, manuallyStopped: false };
       auto.set(slot.id, state);
+      if (!mayConnect(streamLive())) return false;
       if (!shouldAutoConnect({ now, slot, status: hub.status, ...state })) return false;
       state.attempts += 1;
       state.lastAttempt = now;
@@ -506,6 +729,55 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return true;
     },
     router: r,
+    getConfig() { return hub.config; },
+    setConfig(p, value) {
+      const result = store.setValue(p, value);
+      applyConfigResult(result);
+      return result;
+    },
+    mergeConfig(p, value) {
+      const result = store.mergeValue(p, value);
+      applyConfigResult(result);
+      return result;
+    },
+    deleteConfig(p) {
+      const result = store.deleteValue(p);
+      applyConfigResult(result);
+      return result;
+    },
+    readText() {
+      return store.readText();
+    },
+    readIssues() {
+      return { errors: [...lastIssues.errors], warnings: [...lastIssues.warnings] };
+    },
+    configVersion,
+    previewConfig,
+    replaceConfig(text) {
+      const result = store.replaceText(text);
+      applyConfigResult(result);
+      return result;
+    },
+    readStatus() {
+      return { status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null };
+    },
+    readHistory(sessionId) {
+      if (sessionId) return history.get(sessionId);
+      return history.list();
+    },
+    readGifts,
+    readWins() { return wins.snapshot(); },
+    readTimer() { return timer.snapshot(); },
+    readBoss() { return boss.snapshot(); },
+    readRush() { return rush.snapshot(); },
+    readWidgets(base) {
+      const list = hub.config ? cfg.widgetList(hub.config, base) : [];
+      const me = info();
+      return me.mode === 'tenant' ? list.filter((widget) => widget.section === 'all' || (me.widgets ?? []).includes(widget.section)) : list;
+    },
+    performControl,
+    simulateEvent,
+    aiLive,
     /** 豪華な演出のオン/オフが変わったとき: 仕組みに反映し、開いている画面に読み込み直してもらう */
     entitlementsChanged() {
       if (hub.config) applyEngines(hub.config);
@@ -513,11 +785,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     },
     async close() {
       unwatch();
+      roulette.clear();
       demo.stop();
       await tiktok.disconnect().catch(() => {});
       history.end();
       clearInterval(history.timer);
       timer.close();
+      gacha.close();
+      gachaViewers.close();
+      slot.close();
+      giftSounds.close();
       boss.flush();
     },
   };

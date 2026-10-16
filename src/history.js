@@ -4,6 +4,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
+import { isDevEnv } from './env.js';
+
+/** 1時間あたりのコイン。時間が 0 以下、またはコインが数でないときは 0（NaN や Infinity にしない） */
+export function coinsPerHour(coins, durationMs) {
+  const parsed = coinCount({ diamondCount: coins });
+  const c = parsed == null ? Number(coins) : parsed;
+  const ms = Number(durationMs);
+  if (!Number.isFinite(c) || c < 0 || !Number.isFinite(ms) || ms <= 0) return 0;
+  const per = (c * 3_600_000) / ms;
+  return Number.isFinite(per) ? per : 0;
+}
+
+const finiteCount = (v) => {
+  const n = coinCount({ diamondCount: v });
+  return n == null ? 0 : n;
+};
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const HISTORY_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'sessions');
@@ -48,21 +65,27 @@ class Session {
     const key = user.id || user.name;
     switch (e.kind) {
       case 'gift': {
-        T.coins += e.totalDiamonds;
-        T.gifts += e.gift.count;
-        m.coins += e.totalDiamonds;
-        m.gifts += e.gift.count;
+        const gift = e.gift ?? {};
+        const coins = eventCoinTotal(e);
+        const count = finiteCount(gift.count);
+        T.coins = addCoins(T.coins, coins);
+        T.gifts = addCoins(T.gifts, count);
+        m.coins = addCoins(m.coins, coins);
+        m.gifts = addCoins(m.gifts, count);
         const g = this.gifters.get(key) ?? { key, name: user.name, avatar: user.avatar, coins: 0, gifts: 0 };
-        g.coins += e.totalDiamonds;
-        g.gifts += e.gift.count;
+        g.coins = addCoins(g.coins, coins);
+        g.gifts = addCoins(g.gifts, count);
         g.name = user.name;
         g.avatar = user.avatar ?? g.avatar;
         this.gifters.set(key, g);
-        const giftKey = String(e.gift.id || e.gift.name);
-        const t = this.giftTypes.get(giftKey) ?? { id: e.gift.id, name: e.gift.name, nameJa: e.gift.nameJa ?? null, image: e.gift.image, icon: e.gift.icon, diamonds: e.gift.diamonds, count: 0, coins: 0 };
-        t.nameJa = e.gift.nameJa ?? t.nameJa ?? null;
-        t.count += e.gift.count;
-        t.coins += e.totalDiamonds;
+        const giftKey = String(gift.id || gift.name || '?');
+        const each = coinCount(gift);
+        const t = this.giftTypes.get(giftKey) ?? { id: gift.id, name: gift.name, nameJa: gift.nameJa ?? null, image: gift.image, icon: gift.icon, diamonds: each ?? 0, count: 0, coins: 0 };
+        t.nameJa = gift.nameJa ?? t.nameJa ?? null;
+        if (each != null) t.diamonds = each;
+        else if (!Number.isFinite(Number(t.diamonds))) t.diamonds = 0;
+        t.count = addCoins(t.count, count);
+        t.coins = addCoins(t.coins, coins);
         this.giftTypes.set(giftKey, t);
         break;
       }
@@ -106,19 +129,21 @@ class Session {
   }
 
   summary() {
+    const durationMs = (this.endedAt ?? Date.now()) - this.startedAt;
     return {
       id: this.id,
       username: this.username,
       demo: this.demo,
       startedAt: this.startedAt,
       endedAt: this.endedAt,
-      durationMs: (this.endedAt ?? Date.now()) - this.startedAt,
+      durationMs,
       totals: { ...this.totals, uniqueGifters: this.gifters.size },
+      coinsPerHour: coinsPerHour(this.totals.coins, durationMs),
     };
   }
 
   toJSON() {
-    const top = (map, field, n) => [...map.values()].sort((a, b) => b[field] - a[field]).slice(0, n);
+    const top = (map, field, n) => [...map.values()].sort((a, b) => finiteCount(b[field]) - finiteCount(a[field])).slice(0, n);
     return {
       ...this.summary(),
       timeline: this.timeline,
@@ -142,10 +167,15 @@ export class History {
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
     hub.on('event', (e) => {
+      // 開発環境で配信前に押したテスト送信は、デモの配信として記録する
+      if (isDevEnv() && e.test && !this.current) this.current = new Session({ username: null, demo: true });
       // 本番の配信中に押したテスト送信は記録しない
       if (this.current && (this.current.demo || !String(e.user?.id ?? '').startsWith('demo_'))) this.current.record(e);
     });
-    hub.on('roulette', (r) => this.current?.recordRoulette(r));
+    hub.on('roulette', (r) => {
+      if (isDevEnv() && r?.trigger?.test && !this.current) this.current = new Session({ username: null, demo: true });
+      this.current?.recordRoulette(r);
+    });
     hub.on('minecraft', (log) => {
       if (!this.current || log.source === 'test') return;
       this.current.minecraft[log.ok ? 'sent' : 'failed'] += 1;

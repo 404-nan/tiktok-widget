@@ -1,0 +1,11 @@
+# 課金ファイルは置かない配信者。通知だけの古い設定。
+alerts:
+  default:
+    events: [gift]
+    minCoins: 1
+
+goals:
+  default:
+    title: いいね目標
+    metric: likes
+    goal: 50

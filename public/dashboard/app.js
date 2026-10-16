@@ -1,7 +1,7 @@
-import { connect, fmt, icon, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
+import { connect, fmt, icon, giftLabel, BASE, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
-import { $, store, api, setupChrome, statusText } from './common.js';
+import { $, store, api, setupChrome, statusText, createStatusGate } from './common.js';
 
 // --- 接続状態 ---
 
@@ -75,12 +75,23 @@ function renderState(state) {
 
 // --- テスト送信 ---
 
+// コインが数でない（一覧に金額が無い）ときは NaN にせず「? コイン」
+function coinText(diamonds) {
+  if (diamonds == null || diamonds === '') return '? コイン';
+  const n = Number(diamonds);
+  if (!Number.isFinite(n)) return '? コイン';
+  return `${fmt(n)} コイン`;
+}
+
 async function setupSimulate() {
   const gifts = await api('/api/gifts').catch(() => []);
   for (const g of gifts) {
     const opt = document.createElement('option');
     opt.value = g.name;
-    opt.textContent = `${giftLabel(g)}（${fmt(g.diamonds)} コイン）`;
+    const coins = Number(g.diamonds);
+    opt.dataset.diamonds = Number.isFinite(coins) ? String(coins) : '';
+    if (g.id) opt.dataset.id = String(g.id);
+    opt.textContent = `${giftLabel(g)}（${coinText(g.diamonds)}）`;
     $('giftSelect').append(opt);
   }
   for (const btn of document.querySelectorAll('[data-sim]')) {
@@ -88,10 +99,15 @@ async function setupSimulate() {
       const kind = btn.dataset.sim;
       const body = { kind };
       if (kind === 'gift') {
+        const selected = $('giftSelect').selectedOptions[0];
         body.giftName = $('giftSelect').value;
         body.count = Number($('giftCount').value) || 1;
+        body.senderName = $('senderName').value.trim() || 'テストさん';
+        if (selected && selected.dataset.id) body.giftId = selected.dataset.id;
+        if (selected && selected.dataset.diamonds !== '') body.diamonds = Number(selected.dataset.diamonds);
       } else if (kind === 'like') {
         body.count = 20;
+        body.senderName = $('senderName').value.trim() || 'テストさん';
       }
       api('/api/simulate', body).catch((e) => setMessage(e.message, true));
     });
@@ -99,6 +115,112 @@ async function setupSimulate() {
   $('resetBtn').addEventListener('click', () => {
     if (confirm('いいね・フォロー・コインなどの集計を 0 に戻します。よろしいですか？')) api('/api/reset', {});
   });
+}
+
+function renderPlan(billing) {
+  const panel = $('planPanel');
+  if (!panel) return;
+  const suspended = Boolean(billing && billing.status === 'suspended');
+  const notice = Boolean(billing && billing.trialNotice);
+  if (!billing || (!billing.show && !suspended && !notice)) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const bits = [billing.planLabel || 'プラン未設定', billing.statusLabel || ''];
+  if (billing.paidUntil && billing.status === 'active') bits.push(`${billing.paidUntil} まで`);
+  if (billing.trialEndsAt && billing.status === 'trial') bits.push(`${billing.trialEndsAt} まで`);
+  $('planStatus').textContent = bits.filter(Boolean).join('・');
+  const lines = [];
+  if (suspended) {
+    lines.push('お支払いの確認が取れていません。LuLにご連絡ください');
+  } else if (notice) {
+    lines.push('有料化のお知らせ');
+  } else if (billing.status === 'trial') {
+    lines.push('お試しの期間です。');
+  } else if (billing.status === 'active') {
+    lines.push('支払い済みの期間は、配信画面が出ます。');
+  } else if (billing.status === 'past_due') {
+    lines.push('支払いの確認を待っています。いまは配信を止めていません。');
+  }
+  if (billing.credit > 0) lines.push(`翌月以降に使える割引: ${fmt(billing.credit)}円（現金にはできません）`);
+  if (billing.code) lines.push(`紹介コード: ${billing.code}`);
+  $('planBody').textContent = lines.join('\n');
+}
+
+async function refreshPlan() {
+  const me = await api('/api/me').catch(() => null);
+  renderPlan(me?.billing);
+}
+
+async function setupNotes() {
+  const me = await api('/api/me').catch(() => null);
+  const notes = (await api('/api/notes').catch(() => ({ notes: [] }))).notes ?? [];
+  if (!notes.length) return;
+  const key = `notesLastRead:${me?.id ?? 'local'}`;
+  const lastRead = store.get(key, '');
+  const unread = lastRead ? notes.findIndex((note) => note.id === lastRead) : notes.length;
+  const unreadCount = unread < 0 ? notes.length : unread;
+  $('notesPanel').hidden = false;
+  $('notesBadge').hidden = unreadCount === 0;
+  $('notesBadge').textContent = unreadCount ? `未読 ${unreadCount}件` : '';
+  $('notesList').replaceChildren(...notes.map((note) => {
+    const item = document.createElement('article');
+    item.className = 'note';
+    const title = document.createElement('h3');
+    title.textContent = note.title;
+    const date = document.createElement('time');
+    date.dateTime = note.date;
+    date.textContent = note.date;
+    const body = document.createElement('p');
+    body.className = 'note-body';
+    body.textContent = note.body;
+    item.append(title, date, body);
+    return item;
+  }));
+  $('notesReadBtn').hidden = unreadCount === 0;
+  $('notesReadBtn').addEventListener('click', () => {
+    store.set(key, notes[0].id);
+    $('notesBadge').hidden = true;
+    $('notesReadBtn').hidden = true;
+  });
+}
+
+async function setupDevTools() {
+  const env = await api('/api/env').catch(() => ({ dev: false }));
+  document.body.dataset.dev = String(Boolean(env.dev));
+  $('devBadge').hidden = !env.dev;
+  if (!env.dev) return;
+  $('testSendPanel').hidden = false;
+  $('devPreviewPanel').hidden = false;
+  await setupSimulate();
+  const previews = [
+    ['ルーレット', `${BASE}/widgets/roulette.html?preview=1`, 600, 680],
+    ['スロット', `${BASE}/widgets/slot.html?preview=1`, 1080, 600],
+    ['RUSH', `${BASE}/widgets/rush.html?preview=1`, 1080, 1920],
+    ['延長タイマー', `${BASE}/widgets/timer.html?preview=1`, 720, 280],
+    ['モニター', `${BASE}/monitor/`, 1280, 900],
+    ['統計', `${BASE}/history/`, 1280, 900],
+  ];
+  $('devPreviewGrid').replaceChildren(...previews.map(([title, src, width, height]) => {
+    const box = document.createElement('article');
+    box.className = 'dev-preview';
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    const frame = document.createElement('div');
+    frame.className = 'dev-preview-frame';
+    frame.style.height = `${Math.min(height, 520)}px`;
+    const iframe = document.createElement('iframe');
+    iframe.title = `${title}の確認画面`;
+    iframe.src = src;
+    iframe.width = String(width);
+    iframe.height = String(height);
+    iframe.style.width = `${width}px`;
+    iframe.style.height = `${height}px`;
+    frame.append(iframe);
+    box.append(heading, frame);
+    return box;
+  }));
 }
 
 // --- イベントログ ---
@@ -154,7 +276,9 @@ setupChrome('settings');
 setupKpis();
 await ensureGiftNames();
 await setupConnect();
-setupSimulate();
+setupNotes();
+refreshPlan();
+setupDevTools();
 clearLog();
 
 const editor = createEditor({ api, setMessage });
@@ -164,22 +288,38 @@ editor
   .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
   .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
 
-// WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）
-setInterval(() => api('/api/status').then((s) => s.status && renderStatus(s.status)).catch(() => {}), 5000);
+// WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）。
+// 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
+const statusGate = createStatusGate();
+
+function applyPolledStatus(status, ticket) {
+  if (!statusGate.acceptPoll(ticket)) return;
+  if (status) renderStatus(status);
+}
+
+function pollStatus() {
+  const ticket = statusGate.startPoll();
+  api('/api/status').then((s) => applyPolledStatus(s.status, ticket)).catch(() => {});
+}
+
+setInterval(pollStatus, 5000);
+const bootTicket = statusGate.startPoll();
 api('/api/status')
   .then(({ recent, status }) => {
-    if (status) renderStatus(status);
+    applyPolledStatus(status, bootTicket);
     for (const e of [...recent].reverse()) addLog(e, { animate: false });
   })
   .catch(() => {});
 
 connect({
   hello(status, state) {
+    statusGate.markReceived();
     renderStatus(status);
     editor.onStatus(status);
     renderState(state);
   },
   status(status) {
+    statusGate.markReceived();
     renderStatus(status);
     editor.onStatus(status);
   },
@@ -199,5 +339,6 @@ connect({
   entitlements: () => {
     editor.onEntitlements();
     ai?.refresh();
+    refreshPlan();
   },
 });

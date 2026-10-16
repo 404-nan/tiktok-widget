@@ -9,10 +9,17 @@ import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
+import { overlayMessageAllowed } from './src/billing.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
+import { NotesStore } from './src/notes.js';
+import { ApiKeyStore } from './src/api-keys.js';
+import { adminGuard } from './src/admin-auth.js';
 import { createAi } from './src/ai.js';
 import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
+import { AiTokenStore } from './src/ai-tokens.js';
+import { createAiControl } from './src/ai-api.js';
+import { createAiMcpHandler } from './src/ai-mcp.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -25,19 +32,22 @@ const HOSTED = process.env.TW_HOSTED === '1';
 const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
 if (vault) await vault.restore();
 
+const notes = new NotesStore({ dir: DATA_DIR });
+
 // 「AI にたのむ」（キーは管理画面で入れたものが data/ai.json、または環境変数 TW_AI_KEY）
 const ai = createAi({ dir: DATA_DIR });
 
 // --- 1人で使うとき（今までどおり config.yaml と data/ を使う） ---
 const local = HOSTED
   ? null
-  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai });
+  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes });
 
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants({ ai });
+const tenants = new Tenants({ ai, notes });
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
+const apiKeys = new ApiKeyStore({ dir: DATA_DIR, signKey });
 
 // 管理画面の合言葉。TW_ADMIN_TOKEN がなければ作って data/admin-token.txt に残す
 const ADMIN_TOKEN_FILE = path.join(DATA_DIR, 'admin-token.txt');
@@ -71,14 +81,14 @@ app.use('/vendor/icons', vendor('lucide-static/icons'));
 
 // --- 管理画面（/admin） ---
 
-const sameToken = (t) => typeof t === 'string' && t.length === ADMIN_TOKEN.length && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(ADMIN_TOKEN));
 const admin = express.Router();
-admin.use((req, res, next) => (sameToken(req.get('x-admin-token')) ? next() : res.status(401).json({ error: '合言葉が違います' })));
+admin.use(adminGuard(ADMIN_TOKEN));
 
 // 前に Cloudflare などがあるときは、そこに届いた URL（X-Forwarded-Host / Proto）を使う
 const origin = (req) => `${req.protocol}://${req.host}`;
 function tenantView(req, t) {
   const rt = tenants.runtimes.get(t.id);
+  const config = rt?.hub.config ?? cfg.createStore(path.join(tenants.dataDir(t.id), 'config.yaml')).load().config;
   return {
     id: t.id,
     name: t.name,
@@ -90,8 +100,15 @@ function tenantView(req, t) {
     rental: tenants.info(t.id).rental,
     shortId: t.shortId,
     pin: t.pin,
+    billing: tenants.billing.adminView(t.id),
     urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
+    settings: {
+      widgets: [...(t.widgets ?? [])],
+      roulettes: config ? cfg.publicConfig({ roulettes: config.roulettes ?? {} }).roulettes : {},
+      timers: config ? cfg.publicConfig({ timers: config.timers ?? {} }).timers : {},
+      rush: config ? cfg.publicConfig({ rush: config.rush ?? {} }).rush : {},
+    },
   };
 }
 admin.get('/tenants', (req, res) => {
@@ -101,17 +118,40 @@ admin.get('/tenants', (req, res) => {
     features: FEATURES,
     signKey: signKey.state(),
     ai: ai.state(),
+    keys: apiKeys.list(),
+    notes: notes.list(),
+    billing: tenants.billing.globalView(),
+    aiTokens: aiControl.tokens.list(),
+    aiAudit: aiControl.recent(20),
+    aiApprovals: aiControl.pending(),
   });
 });
+admin.get('/lul', (req, res) => res.json({ tenants: tenants.list().map((t) => tenantView(req, t)), features: FEATURES }));
 admin.post('/tenants', (req, res) => {
-  const t = tenants.create({ name: req.body?.name });
-  res.json({ ok: true, tenant: tenantView(req, t) });
+  try {
+    const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
+    res.json({ ok: true, tenant: tenantView(req, t) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 admin.patch('/tenants/:id', (req, res) => {
   try {
     res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
   } catch (err) {
     res.status(404).json({ error: err.message });
+  }
+});
+admin.patch('/tenants/:id/settings', (req, res) => {
+  try {
+    const rt = tenants.runtime(req.params.id);
+    const p = req.body?.path;
+    if (p == null || p === '') return res.status(400).json({ error: 'path が必要です' });
+    const result = req.body?.delete ? rt.deleteConfig(p) : req.body?.merge ? rt.mergeConfig(p, req.body?.value) : rt.setConfig(p, req.body?.value);
+    if (!result.ok) return res.status(422).json(result);
+    res.json({ ok: true, tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 admin.post('/tenants/:id/rekey', (req, res) => {
@@ -153,6 +193,91 @@ admin.put('/sign-key', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+admin.get('/keys', (_req, res) => res.json({ keys: apiKeys.list() }));
+admin.get('/api-keys', (_req, res) => res.json({ keys: apiKeys.list() }));
+admin.post('/keys', (req, res) => {
+  try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.post('/api-keys', (req, res) => {
+  try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.patch('/keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.put('/keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.patch('/api-keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.put('/api-keys/:id', (req, res) => {
+  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.delete('/keys/:id', (req, res) => {
+  try { res.json({ ok: apiKeys.remove(req.params.id) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.delete('/api-keys/:id', (req, res) => {
+  try { res.json({ ok: apiKeys.remove(req.params.id) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.get('/notes', (_req, res) => res.json({ notes: notes.list() }));
+admin.post('/notes', (req, res) => {
+  try { res.status(201).json({ ok: true, note: notes.create(req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.patch('/notes/:id', (req, res) => {
+  try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.put('/notes/:id', (req, res) => {
+  try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+admin.delete('/notes/:id', (req, res) => res.json({ ok: notes.remove(req.params.id) }));
+// プランと支払い。決済はせず、状態・期限・プランを手で入れる
+admin.put('/billing', (req, res) => {
+  try {
+    res.json({ ok: true, billing: tenants.updateBillingSettings(req.body ?? {}) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.put('/tenants/:id/billing', (req, res) => {
+  try {
+    res.json({ ok: true, billing: tenants.updateBilling(req.params.id, req.body ?? {}), tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/billing/code', (req, res) => {
+  try {
+    res.json({ ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/referral', (req, res) => {
+  try {
+    const result = tenants.applyReferral(req.params.id, req.body?.code);
+    res.json({ ok: true, ...result, tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+admin.post('/tenants/:id/billing/credit', (req, res) => {
+  try {
+    res.json({ ok: true, discount: tenants.useBillingCredit(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 // 「AI にたのむ」の設定: { key?（空なら消す）, model?, dailyLimit?（配信者1人の1日の回数） }
 admin.put('/ai', (req, res) => {
   try {
@@ -161,7 +286,41 @@ admin.put('/ai', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+// 外部 AI のトークン。値は発行時だけ返し、ファイルには照合用の要約だけを残す。
+const aiTokens = new AiTokenStore({ dir: DATA_DIR });
+const aiControl = createAiControl({
+  dataDir: DATA_DIR,
+  tokens: aiTokens,
+  resolveTenant(id) {
+    if (id === 'local') {
+      if (!local) return null;
+      return { id: 'local', runtime: local, widgetBase: null };
+    }
+    const tenant = tenants.get(id);
+    if (!tenant) return null;
+    if (!tenant.enabled) return { disabled: true };
+    return {
+      id: tenant.id,
+      runtime: tenants.runtime(tenant.id),
+      widgetBaseFor: (req) => `${origin(req)}/t/${tenant.obsKey}`,
+      getWidgets: () => [...(tenants.get(id)?.widgets ?? [])],
+      setWidgets: (list) => tenants.update(id, { widgets: list }),
+      getTemplate: () => tenants.get(id)?.template ?? null,
+      setTemplate: (template) => tenants.setTemplate(id, template),
+    };
+  },
+  applyBilling({ global, tenant, patch }) {
+    if (global) return tenants.updateBillingSettings(patch);
+    if (!tenants.get(tenant)) throw new Error('その配信者は見つかりません');
+    return tenants.updateBilling(tenant, patch);
+  },
+});
+aiControl.mountAdmin(admin);
 app.use('/admin/api', admin);
+
+// 外部の AI（Bearer トークン）。接続・切断・再起動・トークン発行・配信者の削除はここには無い。
+app.use('/ai/v1', aiControl.router);
+app.use('/ai/mcp', createAiMcpHandler(aiControl));
 
 // --- 短い URL と 4桁の数字（/d/<短いID>） ---
 // 正しい数字かクッキーがあれば、今までのダッシュボードの URL（/t/<鍵>/dashboard/）へ送る
@@ -200,6 +359,14 @@ app.post('/d/:sid', (req, res) => {
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
+function billingAllows(fn, fallback) {
+  try {
+    return fn();
+  } catch (err) {
+    console.warn(`[billing] 判定に失敗したので通します: ${err?.message ?? err}`);
+    return fallback;
+  }
+}
 const tenantStatic = express.static(PUBLIC);
 app.use('/t/:key', (req, res, next) => {
   const found = tenants.byKey(req.params.key);
@@ -218,9 +385,10 @@ app.use('/t/:key', (req, res, next) => {
   if (role === 'obs' && (p === '/widgets' || p === '/widgets/')) {
     return res.type('text/plain; charset=utf-8').send('OBS 用の土台 URL です。ダッシュボードで各ウィジェットの URL をコピーして OBS に貼ってください');
   }
-  // 管理者が使えなくしているウィジェットは、何も出さないページにする
+  // 停止中、またはプランに含まれないウィジェットは、何も出さないページにする（配信画面にエラーは出さない）
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
   const feature = page && featureOfPage(page);
+  if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return res.sendFile(lockedPage);
   if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
   const rt = tenants.runtime(tenant.id);
   tenantStatic(req, res, () => rt.router(req, res, next));
@@ -248,12 +416,14 @@ server.on('upgrade', (req, socket, head) => {
   const { pathname } = new URL(req.url, 'http://x');
   let rt = null;
   let role = 'owner';
+  let tenantId = null;
   const m = pathname.match(/^\/t\/([^/]+)\/ws$/);
   if (m) {
     const found = tenants.byKey(m[1]);
     if (found?.tenant.enabled) {
       rt = tenants.runtime(found.tenant.id);
       role = found.role;
+      tenantId = found.tenant.id;
     }
   } else if (pathname === '/ws') {
     rt = local;
@@ -266,6 +436,10 @@ server.on('upgrade', (req, socket, head) => {
     ws.role = role;
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
+    const overlayBlocked = () => billingAllows(() => tenantId != null && tenants.billing.isOverlayBlocked(tenantId), false);
+    // 未払いの OBS 用接続は、配信に映るものを流さない。読み込み直しだけは届ける
+    ws.quiet = role === 'obs' && overlayBlocked();
+    ws.allowMessage = (msg) => overlayMessageAllowed({ role, blocked: overlayBlocked(), type: msg?.type });
     rt.hub.addClient(ws);
   });
 });

@@ -15,12 +15,14 @@ const cases = [
   ['Heart Me', 'ハートミー'],
   ['heart me', 'ハートミー'],
   ['HEART ME', 'ハートミー'],
+  ['HeartMe', 'ハートミー'],
+  [{ name: 'HeartMe' }, 'ハートミー'],
   ['7934', 'ハートミー'],
   [{ id: '7934' }, 'ハートミー'],
   [{ id: '7934', name: 'Something Else', nameJa: '別の名前' }, 'ハートミー'],
-  ['Doughnut', 'ドーナッツ'],
-  ['doughnut', 'ドーナッツ'],
-  [{ id: '5879', name: 'Doughnut' }, 'ドーナッツ'],
+  ['Doughnut', 'ドーナツ'],
+  ['doughnut', 'ドーナツ'],
+  [{ id: '5879', name: 'Doughnut' }, 'ドーナツ'],
   ['Rose', 'バラ'],
   ['rose', 'バラ'],
   [{ id: '5655', name: 'Rose' }, 'バラ'],
@@ -58,13 +60,13 @@ test('判定は英語名・ID のまま（表示だけ変える）', () => {
 test('ルーレットの案内は知っているギフトを日本語だけで出す', () => {
   const rule = { gifts: ['Doughnut'], minCoins: 100, maxCoins: 0, events: [], name: 'ガチャ' };
   const text = rouletteTriggerText(rule);
-  assert.equal(text, 'ドーナッツ / 100コイン以上のギフトでガチャ');
+  assert.equal(text, 'ドーナツ / 100コイン以上のギフトでガチャ');
   assert.doesNotMatch(text, ENGLISH);
   assert.equal(globalThis.rouletteTriggerText(rule), text);
 
   const many = { gifts: ['Heart Me', 'Rose', 'Doughnut'], minCoins: 0, maxCoins: 0, events: ['follow'], name: 'ガチャ' };
   const joined = rouletteTriggerText(many);
-  assert.equal(joined, 'ハートミー・バラ・ドーナッツ / フォローでガチャ');
+  assert.equal(joined, 'ハートミー・バラ・ドーナツ / フォローでガチャ');
   assert.doesNotMatch(joined, ENGLISH);
 
   // 自分で書いた案内文はそのまま
@@ -81,20 +83,20 @@ test('延長タイマーの案内は知っているギフトを日本語だけ�
     ],
   };
   const text = timerTriggerText(timer);
-  assert.equal(text, 'ドーナッツ / ハートミー');
+  assert.equal(text, 'ドーナツ / ハートミー');
   assert.doesNotMatch(text, ENGLISH);
   assert.equal(globalThis.timerTriggerText(timer), text);
 });
 
 test('オーバーレイに出す文（カットイン・ルーレットの案内）に英語のギフト名が残らない', () => {
-  assert.equal(giftOverlayText({ name: 'Doughnut', id: '5879', count: 2 }), 'ドーナッツ ×2');
+  assert.equal(giftOverlayText({ name: 'Doughnut', id: '5879', count: 2 }), 'ドーナツ ×2');
   assert.equal(globalThis.giftOverlayText({ name: 'Heart Me', count: 1 }), 'ハートミー ×1');
 
   const hint = hintFor({ gifts: ['Doughnut', 'Rose'], minCoins: 100, maxCoins: 0, events: [], name: 'ガチャ', hint: '' });
-  assert.equal(hint, 'ドーナッツ・バラ / 100コイン以上のギフトでガチャ');
+  assert.equal(hint, 'ドーナツ・バラ / 100コイン以上のギフトでガチャ');
   assert.doesNotMatch(hint, ENGLISH);
   assert.equal(giftLabel({ id: '7934', name: 'Heart Me' }), 'ハートミー');
-  assert.equal(giftLabel('Doughnut'), 'ドーナッツ');
+  assert.equal(giftLabel('Doughnut'), 'ドーナツ');
 });
 
 test('ブラウザ用スクリプトは古い Chromium でも読める書き方', () => {

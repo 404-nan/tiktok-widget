@@ -85,9 +85,7 @@ export async function api(path, body, method) {
   return data;
 }
 
-const STATUS = { idle: '未接続', connecting: '接続中', live: 'LIVE', demo: 'デモ', error: 'エラー', ended: '配信終了' };
-export const statusText = (status) =>
-  status.username && status.mode === 'live' ? `LIVE · @${status.username}` : STATUS[status.mode] ?? status.mode;
+export { statusText, createStatusGate } from './status-text.js';
 
 // --- パネルの塗り（なめらかな角） ---
 

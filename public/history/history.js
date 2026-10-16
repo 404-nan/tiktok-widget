@@ -1,7 +1,7 @@
 // 配信の統計・履歴。/api/history の一覧と1回分の記録から作る。
 
 import { connect, giftLabel, ensureGiftNames } from '/widgets/lib/overlay.js';
-import { $, api, store, setupChrome, statusText } from '/dashboard/common.js';
+import { $, api, store, setupChrome, statusText, createStatusGate } from '/dashboard/common.js';
 import { columnChart, lineChart, fmtNum } from '/dashboard/charts.js';
 
 setupChrome('history');
@@ -246,30 +246,43 @@ me = await api('/api/me').catch(() => me);
 const historyName = me.mode === 'tenant' ? (me.name || me.tiktokId || '配信者') : (me.tiktokId || '配信');
 $('brandTitle').textContent = `${historyName} の統計`;
 document.title = `${historyName} の統計`;
+const env = await api('/api/env').catch(() => ({ dev: false }));
+// 開発では、まだ選んでいなければテスト送信（デモ記録）を最初から出す。ボタンの選択は renderList が付ける。
+if (env.dev && store.get('history-demo', null) === null) showDemo = true;
 await load();
-// 配信中の記録は少しずつ増えるので、表示中なら読み直す
+// 配信中の記録は少しずつ増えるので、表示中なら読み直す。
+// 開発では、まだ選んでいないときも短い間隔で読み直し、最初のテスト送信をリロードなしで出す。
 setInterval(() => {
-  if (sessions.find((s) => s.id === current)?.live) load();
-}, 30_000);
+  const live = Boolean(sessions.find((s) => s.id === current)?.live);
+  if (live || (env.dev && current == null)) load();
+}, env.dev ? 5_000 : 30_000);
 
-// WebSocket が通らない環境（プロキシ・古い内蔵ブラウザ）でも接続の状態を出す
+// WebSocket が通らない環境（プロキシ・古い内蔵ブラウザ）でも接続の状態を出す。
+// 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
+const statusGate = createStatusGate();
 const showStatus = (status) => {
   if (!status) return;
   $('status').dataset.mode = status.mode;
   $('statusText').textContent = statusText(status);
 };
-const pollStatus = () => api('/api/status').then((s) => showStatus(s.status)).catch(() => {});
+const pollStatus = () => {
+  const ticket = statusGate.startPoll();
+  api('/api/status').then((s) => {
+    if (!statusGate.acceptPoll(ticket)) return;
+    showStatus(s.status);
+  }).catch(() => {});
+};
 pollStatus();
 setInterval(pollStatus, 5000);
 
 connect({
   hello(status) {
-    $('status').dataset.mode = status.mode;
-    $('statusText').textContent = statusText(status);
+    statusGate.markReceived();
+    showStatus(status);
   },
   status(status) {
-    $('status').dataset.mode = status.mode;
-    $('statusText').textContent = statusText(status);
+    statusGate.markReceived();
+    showStatus(status);
     setTimeout(load, 500); // 配信の始まり・終わりで一覧が変わる
   },
 });

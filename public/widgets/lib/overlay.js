@@ -1,4 +1,5 @@
 // ウィジェット共通: 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
+import { giftNameJa } from './gift-names.js';
 import './gift-name.js';
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
@@ -19,18 +20,42 @@ let configSelector = null; // 設定のどこが変わったら読み込み直�
 let configSnapshot = null;
 
 let giftNamesPromise = null;
-/** ギフト名の対応表を読み、画面の表示名を日本語にする。一度読めば次は待たない */
+let giftNamesRetry = null;
+
+function clearGiftNamesRetry() {
+  if (giftNamesRetry == null) return;
+  clearTimeout(giftNamesRetry);
+  giftNamesRetry = null;
+}
+
+function scheduleGiftNamesRetry() {
+  if (giftNamesRetry != null || globalThis.__twGiftNamesReady) return;
+  giftNamesRetry = setTimeout(() => {
+    giftNamesRetry = null;
+    ensureGiftNames();
+  }, 3000);
+  if (giftNamesRetry && typeof giftNamesRetry.unref === 'function') giftNamesRetry.unref();
+}
+
+/** ギフト名の対応表を読み、画面の表示名を日本語にする。失敗したら取得済みにせず取り直す */
 export function ensureGiftNames() {
   if (globalThis.__twGiftNamesReady) return Promise.resolve();
   if (typeof fetch !== 'function') return Promise.resolve();
-  giftNamesPromise ??= fetch('/api/gift-names')
-    .then((res) => (res.ok ? res.json() : null))
+  if (giftNamesPromise) return giftNamesPromise;
+  giftNamesPromise = fetch('/api/gift-names')
+    .then((res) => {
+      if (!res.ok) throw new Error('gift-names');
+      return res.json();
+    })
     .then((data) => {
-      if (data && typeof globalThis.installGiftNames === 'function') globalThis.installGiftNames(data);
-      globalThis.__twGiftNamesReady = true;
+      if (!data || typeof globalThis.installGiftNames !== 'function') throw new Error('gift-names');
+      globalThis.installGiftNames(data);
+      if (!globalThis.__twGiftNamesReady) throw new Error('gift-names');
+      clearGiftNamesRetry();
     })
     .catch(() => {
-      globalThis.__twGiftNamesReady = true;
+      giftNamesPromise = null;
+      scheduleGiftNamesRetry();
     });
   return giftNamesPromise;
 }
@@ -68,7 +93,7 @@ export async function setupWidget(section, fallback = {}) {
   return params({ ...fallback, ...defaults[section], ...entry });
 }
 
-const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', theme: 'ウィジェット' };
+const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット' };
 /** 各ウィジェットの本物の描画関数を、見本モードにも使う。 */
 export function setSampleRenderer(renderer) {
   window.__twSampleRenderer = renderer;
@@ -489,16 +514,34 @@ export function giftNamed(gift, names) {
   return want.includes(String(gift.name).toLowerCase()) || want.includes(String(gift.nameJa ?? '').toLowerCase()) || want.includes(String(gift.id));
 }
 
-/** 画面に出すギフト名。対応表（GiftID → 英語名）を通し、表に無ければ今の名前 */
+/** 対応表をまだ読んでいないときの表示。GiftID → 英語名 → nameJa → 今の名前 */
+function bundledGiftLabel(gift) {
+  if (gift != null && typeof gift === 'object') {
+    const id = String(gift.id ?? gift.giftId ?? '').trim();
+    const name = String(gift.name ?? gift.giftName ?? '').trim();
+    if (id) {
+      const byId = giftNameJa(id);
+      if (byId && byId !== id) return byId;
+    }
+    if (name) {
+      const byName = giftNameJa(name);
+      if (byName && byName !== name) return byName;
+    }
+    const nameJa = String(gift.nameJa ?? '').trim();
+    return nameJa || name || id || 'Gift';
+  }
+  if (gift == null || gift === '') return 'Gift';
+  const named = giftNameJa(gift);
+  return named || 'Gift';
+}
+
+/** 画面に出すギフト名。対応表を読んだあとは GiftID を先にし、表に無ければ今の名前 */
 export function giftLabel(gift) {
-  const fn = globalThis.giftDisplayName;
-  if (typeof fn === 'function') {
-    const name = fn(gift);
+  if (globalThis.__twGiftNamesReady && typeof globalThis.giftDisplayName === 'function') {
+    const name = globalThis.giftDisplayName(gift);
     if (name) return name;
   }
-  if (gift && typeof gift === 'object') return gift.nameJa || gift.name || gift.id || 'Gift';
-  if (gift == null || gift === '') return 'Gift';
-  return String(gift);
+  return bundledGiftLabel(gift);
 }
 
 /** ギフトがトリガー条件（ギフト名/ID の一覧、または最低コイン数）に合うか */

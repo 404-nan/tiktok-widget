@@ -28,9 +28,10 @@ const map = {
   bosses: ['boss', [720, 260]], counters: ['counter', [560, 220]], rankings: ['ranking', [420, 416]],
   roulettes: ['roulette', [600, 680]],
 };
-const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx']);
-const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx' };
-const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット' };
+const objects = new Set(['slots']);
+const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx', 'giftSounds']);
+const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx', giftSounds: 'sounds' };
+const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット', slots: 'スロット' };
 
 const pageUrl = (page, id, extra = '') => {
   const q = new URLSearchParams(extra);
@@ -40,19 +41,22 @@ const pageUrl = (page, id, extra = '') => {
 };
 const entitled = (section, me) => me?.mode !== 'tenant' || (section === 'winsFx' ? me.access?.winsFx?.on : me.access?.[section]?.on !== false);
 const active = (section, config, me) => {
+  if (me?.billing?.overlay === false) return false;
+  if ((me?.billing?.limited ?? []).includes(section)) return false;
   if (!entitled(section, me)) return false;
   if (me?.mode === 'tenant') return me.widgets?.includes(section);
-  if (section === 'rush') return config.rush?.enabled !== false;
+  if (section === 'rush' || section === 'slots') return config[section]?.enabled !== false;
   return section === 'winsFx' ? true : Object.keys(config[section] ?? {}).length > 0 || config[section] != null;
 };
 const sizeFor = (section, entry) => {
+  if (section === 'slots') return [720, 520];
   if (section === 'jars') return { jar: [500, 700], heart: [600, 600], potion: [520, 700] }[entry.shape] ?? [500, 700];
   if (section === 'wins') return entry.style === 'big' ? [380, 400] : [600, 200];
   if (section === 'roulettes') return entry.style === 'strip' ? [820, 330] : [600, 680];
   return map[section]?.[1] ?? [600, 200];
 };
 const place = (section, entry, index) => {
-  const defaults = { alerts: [4, 9], chats: [55, 4], jars: [10, 22], goals: [40, 18], wins: [4, 84], timers: [52, 70], bosses: [5, 39], counters: [4, 55], rankings: [60, 48], roulettes: [40, 43] }[section] ?? [8, 9];
+  const defaults = { alerts: [4, 9], chats: [55, 4], jars: [10, 22], goals: [40, 18], wins: [4, 84], timers: [52, 70], bosses: [5, 39], counters: [4, 55], rankings: [60, 48], roulettes: [40, 43], slots: [18, 40] }[section] ?? [8, 9];
   const scale = Math.max(.2, Math.min(3, Number(entry.posScale) || 1));
   const size = sizeFor(section, entry);
   const maxX = Math.max(0, 100 - size[0] * scale / 1080 * 100);
@@ -102,8 +106,25 @@ function render(config, me = {}) {
       setFrame(key, pageUrl(map[section][0], id), 1080 * x / 100, 1920 * y / 100, scale, size, 2);
     });
   }
+  for (const section of objects) {
+    if (!active(section, config, me) || config[section]?.enabled === false) continue;
+    const key = `${section}:main`;
+    wanted.add(key);
+    const entry = config[section] || {};
+    const [x, y, scale] = place(section, entry, 0);
+    const size = sizeFor(section, entry);
+    if (document.body.classList.contains('preview')) setPlaceholder(key, title[section], 1080 * x / 100, 1920 * y / 100, scale, size);
+    setFrame(key, pageUrl('slot', null), 1080 * x / 100, 1920 * y / 100, scale, size, 2);
+  }
   for (const section of full) {
     if (!active(section, config, me)) continue;
+    if (section === 'giftSounds') {
+      if (config.giftSounds?.enabled === false) continue;
+      const key = 'giftSounds:main';
+      wanted.add(key);
+      setFrame(key, pageUrl('sounds', null), 0, 0, 1, [1080, 1920], 1);
+      continue;
+    }
     const entries = section === 'winsFx' ? Object.entries(config.wins ?? {}) : Object.entries(config[section] ?? {});
     entries.forEach(([id, entry]) => {
       if (section !== 'winsFx' && entry.enabled === false) return;
@@ -120,7 +141,20 @@ async function boot() {
   let currentConfig = data.config ?? {};
   let currentMe = me;
   render(currentConfig, currentMe);
-  connect({ config: (config) => { currentConfig = config; render(currentConfig, currentMe); }, entitlements: (info) => { currentMe = info; render(currentConfig, currentMe); } });
+  connect({
+    config: (config) => { currentConfig = config; render(currentConfig, currentMe); },
+    entitlements: (msg) => {
+      const info = msg && msg.info ? msg.info : msg;
+      currentMe = info || currentMe;
+      if (currentMe?.billing?.overlay === false) {
+        stage.replaceChildren();
+        frameMap.clear();
+        placeholderMap.clear();
+        return;
+      }
+      render(currentConfig, currentMe);
+    },
+  });
 }
 boot().catch(() => {});
 </script>
