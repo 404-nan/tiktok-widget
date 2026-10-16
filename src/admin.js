@@ -34,15 +34,16 @@ async function callServer(pathname, { method = 'GET', body } = {}) {
 }
 
 async function destinationIsHosted() {
+  let res;
   try {
-    const res = await fetch(`${SERVER}/api/me`);
-    if (res.status === 404) return true;
-    if (!res.ok) return false;
-    const data = await res.json().catch(() => null);
-    return data?.mode === 'tenant';
+    res = await fetch(`${SERVER}/api/me`);
   } catch {
-    return false;
+    throw new Error(`サーバー（${SERVER}）に接続できません。先に npm start で起動してください`);
   }
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 404) return true;
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data?.mode === 'tenant';
 }
 
 /** 設定を検証した結果（エラーと警告）を文字にする */
@@ -125,6 +126,7 @@ export async function addMediaFromUrl(url, name) {
 /** テスト用のイベントを送る（サーバーが必要） */
 export async function testEvent(kind, opts = {}) {
   refuseLocalOperation();
+  if (await destinationIsHosted()) throw new Error(localGuardReason);
   await callServer('/api/simulate', { method: 'POST', body: { kind, ...opts } });
   return `${kind} を送りました`;
 }
