@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // 本体は既定ブランチ claude/tiktok-widgets-2qpqbk(main は無い)
-const PROTECTED_BRANCH = /^(main|master|next|release.*|claude/tiktok-widgets-2qpqbk)$/;
+const PROTECTED_BRANCH = /^(main|master|next|release.*|claude\/tiktok-widgets-2qpqbk)$/;
 
 function rel(file, cwd) {
   const abs = path.resolve(cwd, file);
