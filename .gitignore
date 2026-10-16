@@ -11,3 +11,4 @@ media/uploads/
 artifacts/
 test-results/
 playwright-report/
+.lane-impl
