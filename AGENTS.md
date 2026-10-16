@@ -1,8 +1,29 @@
-# ギフト名は日本語で表示する（AI・開発者向けの決まり）
+# tiktok-widget の作業規則
 
-- ギフト名は必ず日本語で表示すること。
-- 名前は GiftID から `src/gift-names-ja.json`（`{ "names": { "<GiftID>": ["英語名", "日本語名"] } }`）で引く。
-- TikTok の公開 gift/list API（`https://webcast.tiktok.com/webcast/gift/list/`）を呼ぶときは `webcast_language=ja-JP` を付けること。`ja` だけだと英語名で返る。
-- 表に無いギフトは今の名前（TikTok から来た名前）のまま表示すること。自分で訳した名前は使わない。
-- 表の作り直し方は `scripts/giftlist.js` の手順を参照（`node scripts/giftlist.js [roomId ...]`。署名・ログイン・有料プランは不要）。
-- 英語名を新しくハードコードしないこと（表示名は対応表から引く）。
+TikTok LIVE 配信用のオーバーレイ、ダッシュボード、管理画面を提供する Node.js アプリです。
+ギフト・コメント・視聴者数などを受け、WebSocket でウィジェットへ配り、設定と履歴を保存します。
+
+## 絶対に守ること
+
+- 画面に出す文字は日本語。ギフト名は `src/gift-names-ja.json` の対応表を GiftID で引く。表にないものは TikTok から来た名前を使い、自分で訳さない。
+- TikTok の gift/list API を呼ぶときは `webcast_language=ja-JP` を付ける。対応表の作り直しは `node scripts/giftlist.js [roomId ...]` を使う。
+- 公開ウィジェットの JavaScript (`public/widgets/`) は ES5。外部 CDN は使わない。
+- `config.yaml` と `data/` は本番の設定・記録。書き換えない。確かめるときは開発サーバーか自分で起こした一時サーバーを使う。
+- `npm test` を常に緑にする。既存のテストの書き方に合わせる。
+- 本番（ポート3939、`widget.lul.works`）に触らない。配信中に再起動・`/reload`・設定変更をしない。
+- `main` や本番のブランチに push しない。作業は `dev/*` などのブランチと worktree で行う。
+- 見た目を変えたら、本番に出す前にオーナーが確認する。
+- 鍵・トークン・配信者の個人情報をコード、ログ、コミットに出さない。
+- 新しい道具・ライブラリ・Minecraft のプラグインは、公式の配布所(npm、PyPI、公式サイト、Hangar・Modrinth・SpigotMC)からだけ入れ、入れる前にオーナーに聞く。GitHub Releases の実行ファイル、フォーク、知らない配布元からは入れない。
+- 操作は開発サーバー(3940)に向けた MCP `tiktok-widget-dev` を使う([操作方法](docs/knowledge/operating.md))。本番に向ける MCP は用意しない。
+
+## 知識
+
+- [目次](docs/knowledge/README.md)
+- [構成とファイルの地図](docs/knowledge/architecture.md)
+- [本番・開発・トンネル](docs/knowledge/environments.md)
+- [開発の流れ](docs/knowledge/dev-flow.md)
+- [操作方法](docs/knowledge/operating.md)
+- [妨害マイクラ](docs/knowledge/minecraft.md)
+- [デザイン判断](docs/knowledge/design.md)
+- [製品の決定記録](docs/knowledge/decisions.md)
