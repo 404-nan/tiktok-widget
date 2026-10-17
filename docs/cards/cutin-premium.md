@@ -1,5 +1,8 @@
 # cutin-premium: カットインにプレミア柄・色の昇格・段階ごとの写真・RUSH 中の格上げを足す
 
+仕事の種類: 作り込み(サーバーの抽選 + 画面の演出 + 設定。発想は IDEAS.md で済み)
+見た目が変わるか: 変わる(柄・昇格・段階の写真・RUSH 中の格上げ。既定の設定では今と同じ。本番の前にオーナーが撮影を見る)
+
 目的: 同じカットインが「毎回ちがう」ものになり、まれに「見たことない!」が出るようにする(docs/IDEAS.md の「このあと足すとよいもの」)。オーナーが気に入っている筆の帯・木炭の縁・文字の質感はそのまま。新しい項目は既定で今と同じ見た目にする。
 
 作るもの: `src/cutin-draw.js`(新。サーバーのくじと結果の決め方)、`public/widgets/lib/cutin-premium.js`(新。ES5。公開側の結果の決め方と柄の絵)、`public/widgets/lib/cutin.js`・`cutin.css`・`cutin-style.js`・`brush.js`・`cutin.html`・`image-cutin.html` の変更、`src/schema.js`・`public/dashboard/simple.js`・`editor.js`・`src/hub.js`・`src/runtime.js` へ少しだけ足す
@@ -21,3 +24,11 @@
 
 作らないもの: ボイス、テスト送信で柄や昇格を指定する口(試すときは割合を 100 にするか、URL に `?premium=1&premiumRate=100` を付ける)、段階ごとの写真の切り抜き(段階の写真は中央で切り抜く)、ギフト通知の RUSH 中の格上げ、昇格の多段(青→緑→赤と1段ずつ)
 証拠: test/acceptance/cutin-premium.test.js、npm test、撮影(`C:/Users/user/lulwork/cutin-premium-shots/`。コミットしない)
+
+## 触ってよいファイル / 触らないファイル / 進め方
+- 新しく作る: `src/cutin-draw.js`、`public/widgets/lib/cutin-premium.js`(ES5)、`test/acceptance/cutin-premium.test.js`
+- 変えてよい(この仕事の持ち物): `public/widgets/cutin.html`、`image-cutin.html`、`public/widgets/lib/cutin.js`、`cutin.css`、`cutin-style.js`、`brush.js`(RUSH も使うので既存の呼び方は変えない)、`src/cutin-style.js`
+- 足すだけ・最小限(共有): `src/hub.js`(publish の中、イベントに id と ts を付けた直後に `this.emit('prepare', e)` を1行。配る前にイベントへ印を付ける口)、`src/runtime.js`(`hub.on('prepare', …)` で gift・follow・share に `cutinDraw` を付け、`rush.state.active` を見て rush を決める)、`src/schema.js`(cutinFields と imageCutins の fields に項目を足す。既存行の並べ替えをしない)、`public/dashboard/simple.js`、`public/dashboard/editor.js`(段階の写真を photo と同じ media 候補つき入力にする)、`test/es5-public.test.js`(files に cutin-premium.js を足す)、`config.example.yaml`(変えない。読み込んで書き戻しても同じ文字のテストがあるため)
+- 触らない: `public/widgets/rush.html`、ほかの cards、`docs/cards/effect-log.md`、本番・開発サーバー
+- 進め方の決まり: ES5(public/widgets)、日本語、CDN なし、秘密なし。筆の帯(brush.js の形)・木炭の縁・文字の質感は壊さない。点滅は1秒3回まで。効果音は WebAudio で合成。既存のテストを書き換えて緑にしない
+- 撮影: ポート 4103 で `node server.js --demo`、`?premium=1&premiumRate=100&promote=1&promoteRate=100` で柄・昇格、段階ごとの写真(media の画像)、RUSH 中を、暗い背景と明るい背景で撮る
