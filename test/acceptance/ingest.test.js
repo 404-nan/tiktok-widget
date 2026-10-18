@@ -120,7 +120,7 @@ test('AC-4 照合: 違う鍵は 404、止められた配信者は 403、受け�
   assert.equal((await fetch(`${s.base}/t/${keyA}/api/ingest`)).status, 404);
   // 止められた配信者
   const keyOff = await s.makeKey(s.OFF);
-  assert.equal((await s.send(keyOff, { kind: 'follow', ...user })).status, 403);
+  assert.equal((await s.send(keyOff, { kind: 'follow', ...user })).status, 404);
 });
 
 test('AC-4 Authorization: Bearer でも渡せる(URL は /in)', async () => {

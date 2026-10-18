@@ -335,6 +335,7 @@ export class Tenants {
   async remove(id) {
     await this.close(id);
     this.data.tenants = this.data.tenants.filter((t) => t.id !== id);
+    this.ingestKeys.delete(id);
     this.#save();
     this.billing.remove(id);
   }

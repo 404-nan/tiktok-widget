@@ -2,6 +2,14 @@
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
+## 機能の状態
+
+| 機能 | 状態 | 内容 |
+| --- | --- | --- |
+| 外部イベント受け口 `ingest` | できた | TikFinity・Streamer.bot などから、配信者ごとの鍵付きHTTP受け口でギフト・いいね・フォロー・コメント・シェアを受け、既存の正規化と配信へ流す |
+| 配信ウィジェット | できた | OBS / TikTok LIVE Studio に表示する各種オーバーレイ |
+| 管理・設定画面 | できた | 接続、設定、テスト送信、配信履歴を管理 |
+
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
 | ギフト通知 `gift-alert` | ギフト・フォロー・シェアを中継テロップのように表示。高額ギフトは金色 | 760 × 200 |
@@ -335,6 +343,8 @@ src/roulette.js        ルーレットの抽選（サーバー側で決めて全
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）
+src/ingest.js          外部ツールからのイベントを受け、正規化して hub へ流す
+src/ingest-keys.js     外部イベント受け口の鍵を要約で保存・照合する
 src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
 src/timer.js           延長タイマー（残り時間・延長・一時停止をサーバーで持ち、data/timers.json に残す）
 src/boss.js            ボス討伐（ギフトのダメージで HP を削り、討伐・次のボスを配る。data/boss.json に残す）
@@ -368,3 +378,5 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にして上書きします（前に取れた分は残ります。ログイン・API キー・有料プランは不要）。終わったら `npm test` で確かめてコミットしてください。AI 向けの決まりは `AGENTS.md` にあります。
+
+最後に直した日: 2026-10-19

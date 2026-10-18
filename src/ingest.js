@@ -6,6 +6,7 @@ const LIMIT = 16 * 1024;
 const MAX_NAME = 40;
 const MAX_COMMENT = 150;
 const MAX_REPEAT = 9999;
+const BODY_REJECTED = Symbol('body rejected');
 
 const text = (value, max = Infinity) => String(value ?? '').trim().slice(0, max);
 const number = (value, fallback = 0) => {
@@ -22,6 +23,9 @@ const firstText = (body, names, max) => {
 };
 
 export class Ingest {
+  #directEvents = [];
+  #directEventStart = 0;
+
   constructor(hub, { dataDir, connectionAllowed = () => true, now = () => Date.now(), keyStore = null } = {}) {
     this.hub = hub;
     this.now = now;
@@ -37,7 +41,10 @@ export class Ingest {
         const at = this.now();
         this.stateData.direct.lastEventAt = at;
         this.pruneDirect(at);
-        this.events.set(this.fingerprint(event.kind, event), { source: 'direct', at });
+        const fingerprint = this.fingerprint(event.kind, event);
+        const record = { source: 'direct', at };
+        this.events.set(fingerprint, record);
+        this.#directEvents.push({ fingerprint, record });
       }
     });
   }
@@ -69,22 +76,19 @@ export class Ingest {
   async readBody(req, res) {
     if (Number(req.headers['content-length'] ?? 0) > LIMIT) {
       this.reject(res, 413, '本文が大きすぎます');
-      return null;
+      req.resume?.();
+      return BODY_REJECTED;
     }
     const chunks = [];
     let size = 0;
-    let oversized = false;
     for await (const chunk of req) {
       size += chunk.length;
       if (size > LIMIT) {
-        oversized = true;
-        continue;
+        this.reject(res, 413, '本文が大きすぎます');
+        req.resume?.();
+        return BODY_REJECTED;
       }
-      if (!oversized) chunks.push(chunk);
-    }
-    if (oversized) {
-      this.reject(res, 413, '本文が大きすぎます');
-      return null;
+      chunks.push(chunk);
     }
     const raw = Buffer.concat(chunks).toString('utf8');
     try {
@@ -94,16 +98,23 @@ export class Ingest {
         : JSON.parse(raw || '{}');
     } catch {
       this.reject(res, 400, '本文の形式が正しくありません');
-      return null;
+      return BODY_REJECTED;
     }
   }
 
   async handle(req, res, key) {
-    if (!this.accepts(key)) return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
+    if (!this.accepts(key)) {
+      req.resume?.();
+      return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
+    }
+    if (!this.limited()) {
+      req.resume?.();
+      return res.status(429).set('Retry-After', '1').type('text/plain; charset=utf-8').send('送信が多すぎます。少し待ってください');
+    }
     const body = req.method === 'GET' ? req.query : await this.readBody(req, res);
-    if (body == null) return;
+    if (body === BODY_REJECTED) return;
+    if (body == null || typeof body !== 'object' || Array.isArray(body)) return this.reject(res, 400, '本文の形式が正しくありません');
     if (!this.connectionAllowedSafe()) return res.status(403).type('text/plain; charset=utf-8').send('この配信者は現在、接続を受け付けていません');
-    if (!this.limited()) return res.status(429).set('Retry-After', '1').type('text/plain; charset=utf-8').send('送信が多すぎます。少し待ってください');
     const data = fields(body);
     const kind = text(data.kind || data.event || data.type).toLowerCase();
     if (!KINDS.has(kind)) return this.reject(res, 400, 'イベントの種類が正しくありません');
@@ -122,7 +133,8 @@ export class Ingest {
 
   normalize(kind, data) {
     const avatar = text(data.avatar || data.avatarurl || data.avatar_url || data.profilepictureurl);
-    const uniqueId = text(data.username || data.userid, MAX_NAME).replace(/^@/, '');
+    const username = text(data.username, MAX_NAME).replace(/^@/, '');
+    const uniqueId = username || text(data.userid, MAX_NAME);
     const user = { uniqueId, nickname: text(data.nickname, MAX_NAME), profilePicture: avatar ? { urls: [avatar] } : null };
     const raw = { user };
     if (kind === 'gift') Object.assign(raw, { giftId: text(data.giftid), repeatCount: Math.min(MAX_REPEAT, Math.max(1, number(data.repeatcount, 1))), repeatEnd: true, gift: { name: text(data.giftname, MAX_NAME), diamondCount: data.coins } });
@@ -150,8 +162,15 @@ export class Ingest {
   }
 
   pruneDirect(now) {
-    for (const [key, record] of this.events) {
-      if (record.source === 'direct' && now - record.at > 15_000) this.events.delete(key);
+    while (this.#directEventStart < this.#directEvents.length) {
+      const item = this.#directEvents[this.#directEventStart];
+      if (now - item.record.at <= 15_000) break;
+      if (this.events.get(item.fingerprint) === item.record) this.events.delete(item.fingerprint);
+      this.#directEventStart++;
+    }
+    if (this.#directEventStart > 1024 && this.#directEventStart * 2 >= this.#directEvents.length) {
+      this.#directEvents = this.#directEvents.slice(this.#directEventStart);
+      this.#directEventStart = 0;
     }
   }
 
