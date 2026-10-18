@@ -21,6 +21,22 @@ export const MEDIA_DIR = path.join(root, 'media');
 const COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const isColor = (v) => typeof v === 'string' && (COLOR_RE.test(v) || COLOR_TOKENS.includes(v));
 
+function warnUnusedKeys(raw, known, where, issues) {
+  for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+}
+
+// ルールの共通の条件(gifts・users・minCoins・events)を読む。
+// users を持たないルール(メディア通知・効果音)は withUsers: false で呼び、今までどおり読まない。
+function checkRuleConditions(raw, where, issues, rule, { withUsers = true, eventValues = null } = {}) {
+  for (const key of withUsers ? ['gifts', 'users'] : ['gifts']) {
+    if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${where}.${key}`, issues);
+  }
+  if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${where}.minCoins`, issues);
+  if (eventValues && raw.events != null) {
+    rule.events = checkValue({ type: 'list', default: [], values: eventValues }, raw.events, `${where}.events`, issues);
+  }
+}
+
 function checkValue(field, value, where, issues) {
   const err = (msg) => issues.errors.push(`${where}: ${msg}`);
   switch (field.type) {
@@ -112,7 +128,7 @@ function checkSlotTrigger(value, where, issues) {
     gifts: value.gifts == null ? [] : checkValue({ type: 'list', default: [] }, value.gifts, `${where}.gifts`, issues),
     minCoins: value.minCoins == null ? 0 : checkValue({ type: 'number', default: 0, min: 0 }, value.minCoins, `${where}.minCoins`, issues),
   };
-  for (const key of Object.keys(value)) if (!['gifts', 'minCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  warnUnusedKeys(value, ['gifts', 'minCoins'], where, issues);
   return out;
 }
 
@@ -142,7 +158,7 @@ function checkSlotPayouts(value, where, issues) {
     const actions = raw.actions == null ? [] : checkActions(raw.actions, `${at}.actions`, issues);
     const text = String(raw.text ?? raw.label ?? id).trim() || id;
     const known = ['id', 'text', 'label', 'tier', 'weight', 'symbols', 'actions'];
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return { id: /^[A-Za-z0-9_-]+$/.test(id) ? id : `role${i}`, text, tier, weight: weight > 0 ? weight : 1, symbols, actions };
   });
 }
@@ -189,7 +205,7 @@ function checkItems(value, where, issues) {
       if (actions.length) item.actions = actions;
     }
     const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'actions'];
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return item;
   });
 }
@@ -209,19 +225,14 @@ function checkRules(value, where, issues) {
       issues.errors.push(`${at}: { gifts: [...], color: ... } のように書いてください`);
       return rule;
     }
-    for (const key of ['gifts', 'users']) {
-      if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${at}.${key}`, issues);
-    }
-    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    checkRuleConditions(raw, at, issues, rule);
     if (raw.color != null) rule.color = checkValue({ type: 'color', default: 'accent' }, raw.color, `${at}.color`, issues);
     if (raw.big != null) rule.big = checkValue({ type: 'boolean', default: false }, raw.big, `${at}.big`, issues);
     if (raw.sound != null) rule.sound = checkValue({ type: 'boolean', default: true }, raw.sound, `${at}.sound`, issues);
     if (raw.duration != null) rule.duration = checkValue({ type: 'number', default: 4.5, min: 1, max: 30 }, raw.duration, `${at}.duration`, issues);
     if (raw.text != null) rule.text = String(raw.text);
     if (!RULE_MATCH.some((k) => k in rule)) issues.warnings.push(`${at}: 条件（gifts / users / minCoins）がないので全部に当てはまります`);
-    for (const key of Object.keys(raw)) {
-      if (![...RULE_MATCH, ...RULE_SET].includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
-    }
+    warnUnusedKeys(raw, [...RULE_MATCH, ...RULE_SET], at, issues);
     return rule;
   });
 }
@@ -239,9 +250,7 @@ function checkMediaRules(value, where, issues) {
       issues.errors.push(`${at}: { mediaId, gifts / minCoins / events } で書いてください`);
       return rule;
     }
-    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
-    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
-    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: ['follow'] }, raw.events, `${at}.events`, issues);
+    checkRuleConditions(raw, at, issues, rule, { withUsers: false, eventValues: ['follow'] });
     const mediaId = String(raw.mediaId ?? '').trim();
     if (!mediaId) issues.errors.push(`${at}: mediaId が必要です`);
     else rule.mediaId = mediaId;
@@ -249,7 +258,7 @@ function checkMediaRules(value, where, issues) {
       issues.warnings.push(`${at}: きっかけ（gifts / minCoins / events）がないので再生されません`);
     }
     const known = ['gifts', 'minCoins', 'events', 'mediaId'];
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return rule;
   });
 }
@@ -267,9 +276,7 @@ function checkSoundRules(value, where, issues) {
       issues.errors.push(`${at}: { mediaId, gifts / minCoins / events, volume } で書いてください`);
       return rule;
     }
-    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
-    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
-    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: ['follow', 'share'] }, raw.events, `${at}.events`, issues);
+    checkRuleConditions(raw, at, issues, rule, { withUsers: false, eventValues: ['follow', 'share'] });
     if (raw.volume != null && raw.volume !== '') rule.volume = checkValue({ type: 'number', default: 100, min: 0, max: 100 }, raw.volume, `${at}.volume`, issues);
     const mediaId = String(raw.mediaId ?? '').trim();
     if (!mediaId) issues.errors.push(`${at}: mediaId が必要です`);
@@ -278,7 +285,7 @@ function checkSoundRules(value, where, issues) {
       issues.warnings.push(`${at}: きっかけ（gifts / minCoins / events）がないので鳴りません`);
     }
     const known = ['gifts', 'minCoins', 'events', 'mediaId', 'volume'];
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return rule;
   });
 }
@@ -311,7 +318,7 @@ function checkGachaTiers(value, where, issues) {
     if (wantPity && pitySeen) issues.warnings.push(`${at}.pity: 天井の対象は1つだけ使います（先のものを使います）`);
     if (pity) pitySeen = true;
     const known = ['id', 'label', 'weight', 'pity'];
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return { id: TIER_ID.test(id) ? id : `tier${i}`, label, weight: weight > 0 ? weight : 1, pity };
   });
 }
@@ -365,20 +372,13 @@ function checkMcRules(value, where, issues) {
     if (!rule.commands.length && !rule.superstreamGift && !rule.superstreamAction) {
       issues.errors.push(`${at}: commands / superstreamGift / superstreamAction のどれかを書いてください`);
     }
-    if (raw.gifts != null) rule.gifts = checkValue({ type: 'list', default: [] }, raw.gifts, `${at}.gifts`, issues);
-    if (raw.users != null) rule.users = checkValue({ type: 'list', default: [] }, raw.users, `${at}.users`, issues);
-    if (raw.events != null) rule.events = checkValue({ type: 'list', default: [], values: MC_EVENTS }, raw.events, `${at}.events`, issues);
-    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    checkRuleConditions(raw, at, issues, rule, { eventValues: MC_EVENTS });
     if (raw.perCount != null) rule.perCount = checkValue({ type: 'boolean', default: false }, raw.perCount, `${at}.perCount`, issues);
     if (raw.name != null) rule.name = String(raw.name);
     if (!rule.gifts && !rule.events && rule.minCoins == null && !rule.users) {
       issues.warnings.push(`${at}: 条件（gifts / events / minCoins / users）がないので、ギフトのたびに実行されます`);
     }
-    for (const key of Object.keys(raw)) {
-      if (!['commands', 'gifts', 'users', 'events', 'minCoins', 'perCount', 'name', 'superstreamGift', 'superstreamAction'].includes(key)) {
-        issues.warnings.push(`${at}.${key}: 使われない項目です`);
-      }
-    }
+    warnUnusedKeys(raw, ['commands', 'gifts', 'users', 'events', 'minCoins', 'perCount', 'name', 'superstreamGift', 'superstreamAction'], at, issues);
     return rule;
   });
 }
@@ -398,10 +398,7 @@ function checkWinRules(value, where, issues) {
       issues.errors.push(`${at}: { gifts: [Lion], add: -1 } のように書いてください`);
       return rule;
     }
-    for (const key of ['gifts', 'users']) {
-      if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${at}.${key}`, issues);
-    }
-    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    checkRuleConditions(raw, at, issues, rule);
     for (const key of ['add', 'set']) {
       if (raw[key] == null) continue;
       const n = Number(raw[key]);
@@ -421,7 +418,7 @@ function checkWinRules(value, where, issues) {
     if (!rule.gifts && !rule.users && rule.minCoins == null) {
       issues.warnings.push(`${at}: 条件（gifts / minCoins / users）がないので、ギフトのたびに変わります`);
     }
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return rule;
   });
 }
@@ -452,10 +449,7 @@ function checkTimerRules(value, where, issues) {
       issues.errors.push(`${at}: { gifts: [Galaxy], minutes: 10 } のように書いてください`);
       return { seconds: 0 };
     }
-    for (const key of ['gifts', 'users']) {
-      if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${at}.${key}`, issues);
-    }
-    if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    checkRuleConditions(raw, at, issues, rule);
     if (raw.seconds != null && raw.minutes != null) issues.errors.push(`${at}: seconds と minutes はどちらか1つにしてください`);
     const amount = raw.seconds ?? raw.minutes;
     rule.seconds = 0;
@@ -472,7 +466,7 @@ function checkTimerRules(value, where, issues) {
     if (!rule.gifts && !rule.users && rule.minCoins == null) {
       issues.warnings.push(`${at}: 条件（gifts / minCoins / users）がないので、ギフトのたびに使われます`);
     }
-    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    warnUnusedKeys(raw, known, at, issues);
     return rule;
   });
 }
@@ -498,16 +492,14 @@ function checkFields(section, raw, where, issues) {
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 
-/** 生の設定を検証し、初期値で埋めた設定と、エラー・警告を返す */
-export function normalize(raw) {
-  const issues = { errors: [], warnings: [] };
-  const config = {};
-  const src = raw && typeof raw === 'object' ? raw : {};
-  if (raw != null && (typeof raw !== 'object' || Array.isArray(raw))) issues.errors.push('設定の一番外側は「セクション名: ...」の形にしてください');
-
+function warnUnknownSections(src, issues) {
   for (const key of Object.keys(src)) {
     if (!SCHEMA[key] && key !== 'active') issues.warnings.push(`${key}: 使われないセクションです（使えるのは ${SECTIONS.join(', ')}）`);
   }
+}
+
+function normalizeSections(src, issues) {
+  const config = {};
   for (const section of SECTIONS) {
     const def = SCHEMA[section];
     if (def.kind === 'object') {
@@ -526,10 +518,12 @@ export function normalize(raw) {
       if (section === 'chats') checkChat(config[section][id], `${section}.${id}`, issues);
     }
   }
-  // active は「種類を選ぶ」ための記録。書かれていないときは default、
-  // default もなければそのウィジェットの最初の種類を使う。
+  return config;
+}
+
+function normalizeActive(config, rawActive, issues) {
+  const active = rawActive && typeof rawActive === 'object' && !Array.isArray(rawActive) ? rawActive : {};
   config.active = {};
-  const active = src.active && typeof src.active === 'object' && !Array.isArray(src.active) ? src.active : {};
   for (const section of SECTIONS) {
     if (SCHEMA[section].kind !== 'map') continue;
     const names = Object.keys(config[section] ?? {});
@@ -537,6 +531,17 @@ export function normalize(raw) {
     config.active[section] = names.includes(requested) ? requested : names.includes('default') ? 'default' : names[0] ?? 'default';
     if (requested != null && typeof requested !== 'string') issues.errors.push(`active.${section}: 種類の名前は文字で書いてください`);
   }
+}
+
+/** 生の設定を検証し、初期値で埋めた設定と、エラー・警告を返す */
+export function normalize(raw) {
+  const issues = { errors: [], warnings: [] };
+  const src = raw && typeof raw === 'object' ? raw : {};
+  if (raw != null && (typeof raw !== 'object' || Array.isArray(raw))) issues.errors.push('設定の一番外側は「セクション名: ...」の形にしてください');
+  warnUnknownSections(src, issues);
+  const config = normalizeSections(src, issues);
+  // active は「種類を選ぶ」ための記録。書かれていないときは default、default もなければ先頭を使う。
+  normalizeActive(config, src.active, issues);
   return { config, ...issues };
 }
 
@@ -588,6 +593,17 @@ function toNode(doc, value) {
   return node;
 }
 
+function applyYamlChange(doc, change) {
+  const keys = toPath(change.path);
+  if (change.op === 'delete') doc.deleteIn(keys);
+  else if (change.op === 'merge' && doc.hasIn(keys) && change.value != null && typeof change.value === 'object' && !Array.isArray(change.value)) {
+    for (const [key, value] of Object.entries(change.value)) doc.setIn([...keys, key], toNode(doc, value));
+  } else {
+    doc.setIn(keys, toNode(doc, change.value));
+  }
+  return keys;
+}
+
 /**
  * YAML の文字に、いくつかの変更をまとめて当てた結果を返す（ファイルには書かない）。
  * changes: [{ op: 'set' | 'merge' | 'delete', path, value }]。コメントや並びは残る
@@ -596,13 +612,10 @@ export function applyChanges(text, changes) {
   const { doc } = parseText(text);
   if (doc.errors.length) return { ok: false, errors: doc.errors.map((e) => `今の設定ファイルが壊れています: ${e.message}`), warnings: [] };
   for (const c of changes) {
-    const keys = toPath(c.path);
     try {
-      if (c.op === 'delete') doc.deleteIn(keys);
-      else if (c.op === 'merge' && doc.hasIn(keys) && c.value != null && typeof c.value === 'object' && !Array.isArray(c.value)) {
-        for (const [k, v] of Object.entries(c.value)) doc.setIn([...keys, k], toNode(doc, v));
-      } else doc.setIn(keys, toNode(doc, c.value));
+      applyYamlChange(doc, c);
     } catch (err) {
+      const keys = toPath(c.path);
       return { ok: false, errors: [`${keys.join('.')}: 変えられませんでした（${err.message}）`], warnings: [] };
     }
   }
