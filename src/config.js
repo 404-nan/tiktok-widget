@@ -80,6 +80,8 @@ function checkValue(field, value, where, issues) {
       return checkSlotTrigger(value, where, issues);
     case 'slotPayouts':
       return checkSlotPayouts(value, where, issues);
+    case 'actions':
+      return checkActions(value, where, issues);
     case 'cutinStyle':
       return checkCutinStyle(value, where, issues);
     case 'crop':
@@ -437,6 +439,12 @@ function checkChat(c, where, issues) {
   c.hideUsers = c.hideUsers.map((u) => u.replace(/^@/, ''));
 }
 
+function checkVoteOptions(value, where, issues) {
+  const out = checkValue({ type: 'list', default: ['A', 'B', 'C'] }, value, where, issues);
+  if (out.length < 2 || out.length > 9) issues.errors.push(`${where}: 選択肢は 2 個以上 9 個以下にしてください`);
+  return out;
+}
+
 // 延長タイマーのギフトのルール（{ gifts: [Galaxy], minutes: 10 } / { gifts: [Rose], seconds: 30 }）
 function checkTimerRules(value, where, issues) {
   if (value == null) return [];
@@ -491,7 +499,9 @@ function checkFields(section, raw, where, issues) {
       continue;
     }
     if (value == null) continue;
-    out[key] = checkValue(fields[key], value, `${where}.${key}`, issues);
+    out[key] = section === 'votes' && key === 'options'
+      ? checkVoteOptions(value, `${where}.${key}`, issues)
+      : checkValue(fields[key], value, `${where}.${key}`, issues);
   }
   return out;
 }

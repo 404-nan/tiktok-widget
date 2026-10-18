@@ -612,6 +612,28 @@ SCHEMA.minecraft = {
   },
 };
 
+SCHEMA.votes = {
+  kind: 'map',
+  page: 'vote',
+  title: 'コメント投票',
+  desc:
+    'コメントの「1」「2」など、選択肢の番号を1人1票で集計する。始める・締める・結果を出すはダッシュボード、Stream Deck、MCP、CLIから操作できる。' +
+    'URL は /widgets/vote.html?id=<名前>',
+  size: () => [720, 360],
+  fields: {
+    ...placementFields(8, 55),
+    title: str('どれにする?', '投票の見出し'),
+    options: list(['A', 'B', 'C'], '番号で選ぶ選択肢（2〜9個）'),
+    durationSeconds: num(60, '投票を受け付ける秒数（0 で時間では締めない）', { min: 0, max: 3600 }),
+    autoReveal: bool(true, '時間で締め切ったら続けて結果を出す'),
+    resultActions: { type: 'actions', default: [], desc: '結果が出たときに1回だけ動かす動作の一覧' },
+    showNames: bool(true, '直近に投票した人の名前を表示する'),
+    sound: bool(true, '結果発表の効果音'),
+    volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    color: color('accent', '投票バーの色'),
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {

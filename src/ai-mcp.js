@@ -227,6 +227,19 @@ export function registerAiTools(server, call) {
     },
   }, wrap(async (args) => shown(await call('boss', args))));
 
+  server.registerTool('vote', {
+    title: 'コメント投票',
+    description: 'コメントの番号投票を始める・締める・結果を出す・リセットする・状態を見る。配信中の本番では変更できない。',
+    inputSchema: {
+      action: z.enum(['status', 'start', 'close', 'result', 'reset']).default('status'),
+      id: z.string().optional(),
+      options: z.array(z.string()).optional(),
+      seconds: z.number().optional(),
+      dryRun: z.boolean().optional(),
+      tenant: z.string().optional(),
+    },
+  }, wrap(async (args) => shown(await call('vote', args))));
+
   server.registerTool('rush', {
     title: 'RUSH',
     description: 'RUSH（確変）に入る・終わらせる・状態を見る。配信中の本番では変更できない。',

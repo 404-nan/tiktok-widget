@@ -51,6 +51,9 @@ Minecraft / SuperStream
   boss damage <数> [名前]   ダメージを与える
   boss set <数> [名前]      HP をその数にする
   boss defeat|heal|next|reset [名前]  討伐・HP を戻す・次のボス・1体目から
+  vote status [名前]                  投票の状態を見る
+  vote start|close|result|reset [名前] 投票を始める・締める・結果・リセット
+  vote start 名前 --seconds 30        秒数を今回だけ変えて始める
   status
 
 AI と使う
@@ -163,6 +166,14 @@ try {
       if (action === 'damage' || action === 'set') print(await admin.boss(action, rest[1], Number(rest[0])));
       else if (['defeat', 'heal', 'next', 'reset'].includes(action)) print(await admin.boss(action, rest[0]));
       else print(await admin.boss('status', action));
+      break;
+    }
+    case 'vote': {
+      const [action = 'status', id, ...rest] = args;
+      const opts = {};
+      const secondsIndex = rest.indexOf('--seconds');
+      if (secondsIndex >= 0 && rest[secondsIndex + 1] != null) opts.seconds = Number(rest[secondsIndex + 1]);
+      print(await admin.vote(action, id, opts));
       break;
     }
     case 'rush':

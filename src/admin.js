@@ -182,6 +182,13 @@ export async function boss(action = 'status', id = null, value) {
   return Object.entries(out).map(([k, b]) => line(k, b)).join('\n');
 }
 
+/** コメント投票を始める・締める・結果を出す・リセットする・見る */
+export async function vote(action = 'status', id = null, opts = {}) {
+  if (action === 'status') return callServer('/api/vote');
+  const target = encodeURIComponent(id || 'active');
+  return callServer(`/api/vote/${target}/${encodeURIComponent(action)}`, { method: 'POST', body: opts });
+}
+
 /** RUSH に入る・終わらせる・今の状態（サーバーが必要） */
 export async function rush(action = 'status') {
   if (action === 'start' || action === 'stop') {

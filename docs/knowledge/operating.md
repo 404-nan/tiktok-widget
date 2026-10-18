@@ -10,6 +10,8 @@
 - 状態操作: `win`, `wins`, `timer`, `boss`。各コマンドの詳しい引数は `bin/tw.js` のHELPを見る。
 - Minecraft: `superstream`, `mc <command>`。連携が有効な開発環境だけで試す。
 
+コメント投票: `vote status [名前]`、`vote start 名前 [--seconds 30]`、`vote close 名前`、`vote result 名前`、`vote reset 名前`。
+
 ## MCP
 
 - 起動は `npm run mcp`。登録例は `npm run tw -- mcp` で表示する。
@@ -17,6 +19,8 @@
 - 表示・確認は `list_widget_urls`、`list_gifts`、`list_media`、`get_history`、`get_status`。
 - 動作確認は `test_event`、`spin_roulette`、`wins`、`timer`、`boss`、`rush`、`list_superstream_actions`、`minecraft_command`。
 - 最初に設定の説明を読み、現在値を確認してから小さく変更する。保存前に検証されるが、変更後もテストする。
+
+投票の試すボタンは `/api/simulate` のコメントとして送る。配信前は一時集計に入り、LIVE接続開始時にリセットされる。配信中は票にならない。
 
 ## エージェント用の MCP(LuLServer)
 

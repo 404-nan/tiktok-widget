@@ -26,6 +26,7 @@ import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
+import { VoteEngine } from './vote.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
@@ -43,7 +44,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -61,7 +62,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -112,7 +113,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const gacha = new Gacha(hub, { bus });
   const slot = new SlotEngine(hub, { bus });
   boss.setBus(bus);
-  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
+  const actionDeps = () => ({ roulette, timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
+  const vote = new VoteEngine(hub, {
+    onResult: ({ id: voteId, actions, result }) => runActions(actions, actionDeps(), { source: 'vote', voteId, result }),
+  });
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
@@ -139,6 +143,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
     slot.setConfig(config.slots);
+    vote.setEnabled(entitled('votes'));
+    vote.setConfig(entitled('votes') ? config.votes : {});
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -286,6 +292,30 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       res.json({ ok: true, boss: boss.apply(bid, req.params.action, req.query.value ?? req.body?.value) });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+  // コメント投票。Stream Deck から押せるように GET と POST の両方を受ける。
+  r.get('/api/vote', (_req, res) => res.json(vote.snapshot()));
+  r.all('/api/vote/:id/:action', (req, res) => {
+    const requested = req.params.id;
+    const ids = requested === 'all'
+      ? vote.ids()
+      : [requested === 'active' ? cfg.activeId(hub.config, 'votes') : requested];
+    try {
+      if (req.params.action === 'status') return res.json({ ok: true, votes: vote.snapshot() });
+      const data = { ...req.body, ...req.query };
+      const out = {};
+      for (const id of ids) {
+        if (!id) continue;
+        if (req.params.action === 'start') out[id] = vote.start(id, { options: data.options, seconds: data.seconds });
+        else if (req.params.action === 'close') out[id] = vote.close(id);
+        else if (req.params.action === 'result') out[id] = vote.result(id);
+        else if (req.params.action === 'reset') out[id] = (vote.reset(id), vote.snapshot()[id]);
+        else throw new Error('動作は start / close / result / reset / status のどれかです');
+      }
+      return res.json({ ok: true, vote: ids.length === 1 ? out[ids[0]] : undefined, votes: out });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
     }
   });
   // マイクラ側の演出プロフィールに設定済みの演出（読むだけ）
@@ -661,6 +691,25 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return { status: 400, body: { error: err.message } };
       }
     }
+    if (target === 'vote') {
+      if (!entitled('votes')) return { status: 403, body: { error: 'コメント投票は管理者が使えるようにすると使えます' } };
+      const requested = data?.id;
+      const ids = requested === 'all' ? vote.ids() : [requested === 'active' || !requested ? cfg.activeId(hub.config, 'votes') : requested];
+      try {
+        if (action === 'status') return { status: 200, body: { ok: true, votes: vote.snapshot() } };
+        const out = {};
+        for (const id of ids) {
+          if (action === 'start') out[id] = vote.start(id, data);
+          else if (action === 'close') out[id] = vote.close(id);
+          else if (action === 'result') out[id] = vote.result(id);
+          else if (action === 'reset') { vote.reset(id); out[id] = vote.snapshot()[id]; }
+          else throw new Error('動作は start / close / result / reset / status のどれかです');
+        }
+        return { status: 200, body: { ok: true, vote: ids.length === 1 ? out[ids[0]] : undefined, votes: out } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
     hub.control(String(target), String(action), data ?? {});
     return { status: 200, body: { ok: true } };
   }
@@ -743,6 +792,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
+    readVote() { return vote.snapshot(); },
     readRush() { return rush.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
@@ -760,6 +810,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     async close() {
       unwatch();
       roulette.clear();
+      vote.reset();
       demo.stop();
       await tiktok.disconnect().catch(() => {});
       history.end();

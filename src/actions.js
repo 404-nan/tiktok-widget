@@ -1,7 +1,7 @@
 // ルーレットの当たりなどで実行する動作。
 // 設定の actions を検証し、タイマー・WIN数・RUSH・メディア・効果音・ボス・ガチャへ渡す。
 
-export const ACTION_TYPES = ['timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'gacha.start'];
+export const ACTION_TYPES = ['roulette.spin', 'timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'gacha.start'];
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 
 /** 動作1件を検証する。壊れていれば null（issues.errors に理由） */
@@ -65,9 +65,12 @@ export function checkActions(value, where, issues) {
   return value.map((raw, i) => parseAction(raw, `${where}[${i}]`, issues)).filter(Boolean);
 }
 
-function runOne(action, deps) {
+function runOne(action, deps, meta = {}) {
   const id = action.id ?? null;
   switch (action.type) {
+    case 'roulette.spin':
+      if (!deps.roulette) throw new Error('ルーレットがありません');
+      return deps.roulette.spin(id, meta.trigger ?? null);
     case 'timer.add':
       if (!deps.timer) throw new Error('タイマーがありません');
       return deps.timer.apply(id, 'add', action.seconds);
@@ -115,7 +118,7 @@ export function runActions(actions, deps, meta = {}) {
       return;
     }
     try {
-      const result = runOne(action, deps);
+      const result = runOne(action, deps, meta);
       results.push({ ok: true, action, result });
       deps.bus?.emit('action.done', { action, result, ...meta });
     } catch (err) {
