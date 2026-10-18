@@ -39,6 +39,57 @@ function migrate(holder) {
   delete holder.premium;
 }
 
+function accessFeatures(feature) {
+  if (feature === 'all') return Object.keys(FEATURES);
+  if (feature === 'premium') return Object.keys(FEATURES).filter((name) => FEATURES[name].premium);
+  return [feature];
+}
+
+function applyAccess(holder, features, value) {
+  holder.access ??= {};
+  for (const feature of features) {
+    if (value) holder.access[feature] = value;
+    else delete holder.access[feature];
+  }
+}
+
+function widgetsForTenant(tenant, entitled) {
+  return [...(tenant?.widgets ?? [])].filter((section) => entitled(section));
+}
+
+function rentalView(rental) {
+  return {
+    now: rental.now ? { until: new Date(rental.now.end).toISOString() } : null,
+    next: rental.next ? { start: new Date(rental.next.start).toISOString(), end: new Date(rental.next.end).toISOString() } : null,
+  };
+}
+
+function backupFiles(dir) {
+  const files = [];
+  const list = path.join(dir, 'tenants.json');
+  if (fs.existsSync(list)) files.push('tenants.json');
+  if (fs.existsSync(path.join(dir, 'billing.json'))) files.push('billing.json');
+  const tenantsDir = path.join(dir, 'tenants');
+  if (fs.existsSync(tenantsDir)) {
+    for (const id of fs.readdirSync(tenantsDir)) {
+      if (fs.existsSync(path.join(tenantsDir, id, 'config.yaml'))) files.push(path.join('tenants', id, 'config.yaml'));
+    }
+  }
+  return files;
+}
+
+function copyBackupFiles(dir, targetDir, files) {
+  for (const file of files) {
+    fs.mkdirSync(path.dirname(path.join(targetDir, file)), { recursive: true });
+    fs.copyFileSync(path.join(dir, file), path.join(targetDir, file));
+  }
+}
+
+function trimBackups(root, keep) {
+  const all = fs.readdirSync(root).sort();
+  for (const old of all.slice(0, Math.max(0, all.length - keep))) fs.rmSync(path.join(root, old), { recursive: true, force: true });
+}
+
 export class Tenants {
   constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env } = {}) {
     this.dir = dir;
@@ -190,25 +241,18 @@ export class Tenants {
    * hours: 0 か省略でずっと、数ならその時間だけ（過ぎたら戻る）
    */
   setAccess(target, feature, on, hours = 0) {
-    const features = feature === 'all' ? Object.keys(FEATURES) : feature === 'premium' ? Object.keys(FEATURES).filter((f) => FEATURES[f].premium) : [feature];
+    const features = accessFeatures(feature);
     if (!features.every((f) => FEATURES[f])) throw new Error(`名前は ${Object.keys(FEATURES).join(' / ')} か all / premium です`);
     if (on !== true && on !== false && on !== null) throw new Error('on は true / false / null のどれかです');
     const h = Number(hours) || 0;
     if (h < 0) throw new Error('時間は 0（ずっと）か、それより大きい数にしてください');
     const value = on === null ? null : { on, until: h > 0 ? Date.now() + h * 3600_000 : null, at: Date.now() };
-    const apply = (holder) => {
-      holder.access ??= {};
-      for (const f of features) {
-        if (value) holder.access[f] = value;
-        else delete holder.access[f];
-      }
-    };
-    if (target === 'global') apply(this.data.global);
-    else if (target === 'everyone') for (const t of this.data.tenants) apply(t);
+    if (target === 'global') applyAccess(this.data.global, features, value);
+    else if (target === 'everyone') for (const t of this.data.tenants) applyAccess(t, features, value);
     else {
       const t = this.get(target);
       if (!t) throw new Error('その配信者は見つかりません');
-      apply(t);
+      applyAccess(t, features, value);
     }
     this.#save();
     this.#notify(target === 'global' || target === 'everyone' ? null : target);
@@ -323,7 +367,7 @@ export class Tenants {
   info(id) {
     const t = this.get(id);
     const rental = rentalForHandle(this.rental.snapshot, t?.tiktokId);
-    const widgets = [...(t?.widgets ?? [])].filter((section) => this.entitled(id, section));
+    const widgets = widgetsForTenant(t, (section) => this.entitled(id, section));
     if (rental.now && this.entitled(id, 'minecraft') && !widgets.includes('minecraft')) widgets.push('minecraft');
     const billing = this.billing.clientView(id);
     billing.limited = Object.keys(FEATURES).filter((feature) => !this.billing.isFeatureAllowed(id, feature));
@@ -333,7 +377,7 @@ export class Tenants {
       name: t?.name ?? '',
       widgets,
       tiktokId: t?.tiktokId ?? '',
-      rental: { now: rental.now ? { until: new Date(rental.now.end).toISOString() } : null, next: rental.next ? { start: new Date(rental.next.start).toISOString(), end: new Date(rental.next.end).toISOString() } : null },
+      rental: rentalView(rental),
       access: Object.fromEntries(Object.entries(this.accessState(id)).filter(([, state]) => state.on)),
       template: t?.template ?? null,
       guideDone: Boolean(t?.guideDone),
@@ -442,26 +486,13 @@ function safeEqual(a, b) {
  * 新しい 20 回分だけ残す。写したところを返す（何もなければ null）
  */
 export function backupData(dir, keep = 20) {
-  const files = [];
-  const list = path.join(dir, 'tenants.json');
-  if (fs.existsSync(list)) files.push('tenants.json');
-  if (fs.existsSync(path.join(dir, 'billing.json'))) files.push('billing.json');
-  const tdir = path.join(dir, 'tenants');
-  if (fs.existsSync(tdir)) {
-    for (const id of fs.readdirSync(tdir)) {
-      if (fs.existsSync(path.join(tdir, id, 'config.yaml'))) files.push(path.join('tenants', id, 'config.yaml'));
-    }
-  }
+  const files = backupFiles(dir);
   if (!files.length) return null;
   const root = path.join(dir, 'backups');
   const to = path.join(root, new Date().toISOString().replace(/[:.]/g, '-'));
   try {
-    for (const f of files) {
-      fs.mkdirSync(path.dirname(path.join(to, f)), { recursive: true });
-      fs.copyFileSync(path.join(dir, f), path.join(to, f));
-    }
-    const all = fs.readdirSync(root).sort();
-    for (const old of all.slice(0, Math.max(0, all.length - keep))) fs.rmSync(path.join(root, old), { recursive: true, force: true });
+    copyBackupFiles(dir, to, files);
+    trimBackups(root, keep);
     return to;
   } catch (err) {
     console.warn(`[backup] 写せませんでした: ${err.message}`);
