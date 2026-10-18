@@ -1,0 +1,27 @@
+# roulette-one-url: ルーレットが何個あっても、配信ソフトに入れる URL は1本にする
+仕事の種類: 配線
+見た目が変わるか: 変わる(URL の一覧と、ダッシュボードの「OBS に入れる URL」の出し方だけ。ウィジェットの見た目は変えない)
+
+目的: ルーレットを複数作った配信者が、ルーレットごとの URL を TikTok LIVE Studio に別々のブラウザソースとして足し、配信のパソコンが重くなっている。`/widgets/roulette.html`(ids なし)は、もともと全部のルーレットを1ページ・1本の WebSocket で順番に出せる。URL の一覧がルーレットごとに別の URL を勧めているのを、1本に変える。
+
+## 作るもの(触ってよいファイル)
+- `src/config.js` の URL の一覧(ルーレットの項目を作るところ。今は1件ごとに `roulette.html?ids=<id>`)
+- `public/dashboard/editor.js` の URL を作るところ(今は `?ids=<id>` を付ける)と、`public/dashboard/simple.js` の説明
+- テスト: `test/roulette-one-url.test.js`
+
+## 触らないファイル
+- `public/widgets/roulette.html`・`public/widgets/lib/roulette*.js`(1ページで全部を出す仕組みはもうある)、`config.yaml`、`data/`
+
+## 完成の条件
+- AC-1 URL の一覧(`list_widget_urls`・CLI の `urls`・ダッシュボード)は、ルーレットが1個以上あれば「ルーレット(全部)」の1件だけを出す。URL は `/widgets/roulette.html`(テナントは `/t/<OBS の鍵>/widgets/roulette.html`)で、`ids` を付けない
+- AC-2 推奨サイズは、入っているルーレットの形の大きい方に合わせる(丸型 600×680、横型 820×330。両方あれば 820×680)
+- AC-3 ルーレットごとの `?ids=` の URL は消さず、ダッシュボードの「ほかの項目」の中に「1つだけ出したいとき」として畳んで出す(今入れている人の URL が切れないように)
+- AC-4 ダッシュボードに1行の説明: 「ルーレットが何個あっても、入れるのはこの1本です。ギフトが来たルーレットが順番に出ます」
+- AC-5 `all.html`(まとめた1本)の動きは変えない
+- AC-6 既存のテストは全部そのまま通る
+## 作らないもの
+- 2つのルーレットを同時に回す仕組み(1本にすると順番になる。これは今の roulette.html の動きのまま)
+## 証拠
+- `test/roulette-one-url.test.js`、`npm test`、ダッシュボードの「OBS に入れる URL」の撮影(1280・390)
+## めにくんに決めてほしいこと
+- 今ルーレットごとにソースを入れている配信者に、知らせるか(ダッシュボードに一度だけ「1本にまとめられます」を出す案)
