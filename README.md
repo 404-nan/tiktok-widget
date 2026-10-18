@@ -2,6 +2,16 @@
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
+## 機能の状態
+
+| 機能 | 状態 | 場所 |
+| --- | --- | --- |
+| 配信ウィジェット・ダッシュボード・管理画面 | できた | `public/`、`src/`、`server.js` |
+| ウィジェットとサーバーの性能計測 | できた | `scripts/perf/` |
+| 性能の上限判定とJSON出力 | できた | `scripts/perf/lib/` |
+
+最後に直した日: 2026-10-19
+
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
 | ギフト通知 `gift-alert` | ギフト・フォロー・シェアを中継テロップのように表示。高額ギフトは金色 | 760 × 200 |
@@ -349,6 +359,9 @@ src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は�
 src/normalize.js       生データをウィジェット用の形にそろえる（連打ギフトは確定時に1件）
 src/hub.js             集計（いいね・視聴者・コイン・トップギフター）と配信
 src/demo.js            デモ・テスト用のイベント
+scripts/               ギフト表・リハーサル・性能計測の補助スクリプト
+scripts/perf/           一時サーバーとChrome headlessで性能を測る道具
+docs/knowledge/         エージェント向けの構成・運用・性能の知識
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
 public/monitor/        配信中モニター
