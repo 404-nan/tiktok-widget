@@ -66,6 +66,7 @@ const ADMIN_TOKEN = (() => {
 const app = express();
 app.set('trust proxy', true);
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 // 動いているかの確認（Cloudflare が定期的に呼ぶ）
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
@@ -358,6 +359,19 @@ app.post('/d/:sid', (req, res) => {
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 
+const ingestRequest = (req, res) => {
+  const header = String(req.headers.authorization ?? '');
+  const key = req.params.key || (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? '');
+  const tenant = tenants.byIngestKey(key);
+  if (!tenant) return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
+  if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
+  return tenants.runtime(tenant.id).ingest.handle(req, res, key);
+};
+app.post('/in/:key', ingestRequest);
+app.get('/in/:key', ingestRequest);
+app.post('/in', ingestRequest);
+app.get('/in', ingestRequest);
+
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
 function billingAllows(fn, fallback) {
   try {
@@ -372,10 +386,10 @@ app.use('/t/:key', (req, res, next) => {
   const found = tenants.byKey(req.params.key);
   if (!found) return res.status(404).type('text/plain; charset=utf-8').send('この URL は使えません（管理者に確認してください）');
   const { tenant, role } = found;
-  if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   req.role = role;
   req.tenant = tenant;
   const p = req.path;
+  if (!tenant.enabled && !(role === 'owner' && /^\/api\/ingest(?:\/|$)/.test(p))) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   // OBS 用の鍵で開けるのはウィジェットと画像と、ウィジェットが読む API だけ
   if (role === 'obs' && !(p === '/widgets' || p.startsWith('/widgets/') || p.startsWith('/media/') || p.startsWith('/api/'))) {
     return res.status(403).type('text/plain; charset=utf-8').send('これは OBS 用の URL です。ダッシュボードはダッシュボードの URL で開いてください');

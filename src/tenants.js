@@ -146,6 +146,15 @@ export class Tenants {
     return null;
   }
 
+  /** 外部イベント受け口の鍵から配信者を探す */
+  byIngestKey(key) {
+    for (const t of this.data.tenants) {
+      const runtime = this.runtime(t.id);
+      if (runtime.ingest.accepts(key)) return t;
+    }
+    return null;
+  }
+
   // --- 使える / 使えない ---
 
   /**

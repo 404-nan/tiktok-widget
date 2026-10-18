@@ -31,6 +31,7 @@ import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 import { giftNamesDocument } from './gift-display.js';
 import { isDevEnv } from './env.js';
+import { Ingest } from './ingest.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -94,6 +95,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return true;
     }
   };
+  const ingest = new Ingest(hub, { dataDir, connectionAllowed: () => mayConnect(streamLive()) });
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
   const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()) });
   const demo = new DemoSource(hub);
@@ -198,6 +200,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (req.method === 'POST' && /^\/api\/media-alerts\/(ack|autoplay)$/.test(req.path)) return next();
     if (req.method === 'POST' && /^\/api\/gift-sounds\/(ack|autoplay)$/.test(req.path)) return next();
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
+  });
+
+  r.get('/api/ingest', (req, res) => res.json(ingest.state()));
+  r.post('/api/ingest/key', (req, res) => {
+    const key = ingest.create();
+    res.json(key);
+  });
+  r.delete('/api/ingest/key', (_req, res) => {
+    ingest.remove();
+    res.json({ ok: true });
   });
 
   r.get('/api/me', (req, res) => {
@@ -689,6 +701,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id,
     hub,
     tiktok,
+    ingest,
     demo,
     autoConnect({ handle, slot, now = Date.now() }) {
       const state = auto.get(slot.id) ?? { attempts: 0, lastAttempt: 0, manuallyStopped: false };
