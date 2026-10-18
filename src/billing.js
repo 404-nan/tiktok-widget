@@ -278,6 +278,73 @@ function makeCode() {
   return Array.from(crypto.randomBytes(8), (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
 }
 
+function applyPlanPatch(account, patch) {
+  if (!('plan' in patch)) return;
+  if (patch.plan == null || patch.plan === '') {
+    delete account.plan;
+    return;
+  }
+  const plan = canonicalPlan(patch.plan);
+  if (!plan) throw new Error('プランは 5%プラン、2000円プラン、5000円プラン のどれかです');
+  account.plan = plan;
+}
+
+function applyStatusPatch(account, patch, previousStatus) {
+  if (!('status' in patch)) return;
+  if (patch.status == null || patch.status === '') {
+    delete account.status;
+    return;
+  }
+  const status = canonicalStatus(patch.status);
+  if (!status) throw new Error('状態は お試し、支払い済み、支払い待ち、停止 のどれかです');
+  account.status = status;
+  account.statusAt = Date.now();
+  if (status === 'past_due' && previousStatus !== 'past_due') account.pastDueAt = Date.now();
+  if (status !== 'past_due') delete account.pastDueAt;
+}
+
+function applyDatePatch(account, patch, field, errorMessage) {
+  if (!(field in patch)) return;
+  if (patch[field] == null || patch[field] === '') {
+    delete account[field];
+    return;
+  }
+  const day = normalizeDate(patch[field]);
+  if (!day) throw new Error(errorMessage);
+  account[field] = day;
+}
+
+function applyNotePatch(account, patch) {
+  if (!('note' in patch)) return;
+  if (patch.note == null || String(patch.note).trim() === '') delete account.note;
+  else account.note = String(patch.note).trim().slice(0, 500);
+}
+
+function applyMonthlyPricePatch(account, patch) {
+  if (!('monthlyPrice' in patch)) return;
+  if (patch.monthlyPrice == null || patch.monthlyPrice === '') {
+    delete account.monthlyPrice;
+    return;
+  }
+  const price = Number(patch.monthlyPrice);
+  if (!Number.isFinite(price) || price < 0 || price > 10_000_000) throw new Error('月額は 0 以上の金額です');
+  account.monthlyPrice = Math.round(price);
+}
+
+function normalizePremiumFeatures(value) {
+  if (!Array.isArray(value)) throw new Error('機能の一覧で送ってください');
+  const next = [];
+  const seen = new Set();
+  for (const item of value) {
+    const name = String(item ?? '').trim();
+    if (!name || seen.has(name) || name.length > 40) continue;
+    seen.add(name);
+    next.push(name);
+    if (next.length >= 40) break;
+  }
+  return next;
+}
+
 export class BillingStore {
   constructor({ dir, env = process.env } = {}) {
     this.dir = dir;
@@ -356,7 +423,7 @@ export class BillingStore {
 
   adminView(id, now = Date.now()) {
     const entry = this.account(id) ?? {};
-    const status = computeStatus(this.account(id), now);
+    const status = computeStatus(entry, now);
     const plan = planOf(entry.plan);
     return {
       plan: canonicalPlan(entry.plan),
@@ -374,7 +441,7 @@ export class BillingStore {
       storedStatus: canonicalStatus(entry.status),
       statusLabel: STATUS_LABEL[status] ?? '',
       graceUntil: this.account(id) ? graceUntilDay(entry, now) : '',
-      trialNotice: trialNotice(this.account(id), now),
+      trialNotice: trialNotice(entry, now),
       history: Array.isArray(entry.history) ? entry.history.slice(-50) : [],
       discount: monthDiscount(entry),
     };
@@ -482,17 +549,7 @@ export class BillingStore {
       this.data.multiplier = n;
     }
     if ('premiumFeatures' in patch) {
-      if (!Array.isArray(patch.premiumFeatures)) throw new Error('機能の一覧で送ってください');
-      const next = [];
-      const seen = new Set();
-      for (const item of patch.premiumFeatures) {
-        const name = String(item ?? '').trim();
-        if (!name || seen.has(name) || name.length > 40) continue;
-        seen.add(name);
-        next.push(name);
-        if (next.length >= 40) break;
-      }
-      this.data.premiumFeatures = next;
+      this.data.premiumFeatures = normalizePremiumFeatures(patch.premiumFeatures);
     }
     this.save();
     return this.globalView();
@@ -503,54 +560,13 @@ export class BillingStore {
     const before = {};
     for (const key of HISTORY_FIELDS) before[key] = cur[key] ?? null;
     const prevStatus = canonicalStatus(cur.status);
-    if ('plan' in patch) {
-      if (patch.plan == null || patch.plan === '') delete cur.plan;
-      else {
-        const plan = canonicalPlan(patch.plan);
-        if (!plan) throw new Error('プランは 5%プラン、2000円プラン、5000円プラン のどれかです');
-        cur.plan = plan;
-      }
-    }
-    if ('status' in patch) {
-      if (patch.status == null || patch.status === '') delete cur.status;
-      else {
-        const status = canonicalStatus(patch.status);
-        if (!status) throw new Error('状態は お試し、支払い済み、支払い待ち、停止 のどれかです');
-        cur.status = status;
-        cur.statusAt = Date.now();
-        if (status === 'past_due' && prevStatus !== 'past_due') cur.pastDueAt = Date.now();
-        if (status !== 'past_due') delete cur.pastDueAt;
-      }
-    }
+    applyPlanPatch(cur, patch);
+    applyStatusPatch(cur, patch, prevStatus);
     if ('free' in patch) cur.free = Boolean(patch.free);
-    if ('paidUntil' in patch) {
-      if (patch.paidUntil == null || patch.paidUntil === '') delete cur.paidUntil;
-      else {
-        const day = normalizeDate(patch.paidUntil);
-        if (!day) throw new Error('支払った日までは 2026-11-30 のような日付です');
-        cur.paidUntil = day;
-      }
-    }
-    if ('trialEndsAt' in patch) {
-      if (patch.trialEndsAt == null || patch.trialEndsAt === '') delete cur.trialEndsAt;
-      else {
-        const day = normalizeDate(patch.trialEndsAt);
-        if (!day) throw new Error('お試しの終わりは 2026-11-30 のような日付です');
-        cur.trialEndsAt = day;
-      }
-    }
-    if ('note' in patch) {
-      if (patch.note == null || String(patch.note).trim() === '') delete cur.note;
-      else cur.note = String(patch.note).trim().slice(0, 500);
-    }
-    if ('monthlyPrice' in patch) {
-      if (patch.monthlyPrice == null || patch.monthlyPrice === '') delete cur.monthlyPrice;
-      else {
-        const n = Number(patch.monthlyPrice);
-        if (!Number.isFinite(n) || n < 0 || n > 10_000_000) throw new Error('月額は 0 以上の金額です');
-        cur.monthlyPrice = Math.round(n);
-      }
-    }
+    applyDatePatch(cur, patch, 'paidUntil', '支払った日までは 2026-11-30 のような日付です');
+    applyDatePatch(cur, patch, 'trialEndsAt', 'お試しの終わりは 2026-11-30 のような日付です');
+    applyNotePatch(cur, patch);
+    applyMonthlyPricePatch(cur, patch);
     recordBillingChange(cur, before);
     this.data.accounts[id] = cur;
     this.save();
