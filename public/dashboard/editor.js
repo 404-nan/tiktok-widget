@@ -778,7 +778,7 @@ export function createEditor({ api, setMessage }) {
       // まとまりに入っていない項目は、ここに畳んでおく（押したときだけ開く）
       const shown = new Set(easy.groups.flatMap((g) => g.fields));
       const others = Object.keys(def.fields).filter((k) => !shown.has(k) && !unusable(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
-      if (others.length || streamDeckUrls().length) {
+      if (others.length || streamDeckUrls().length || tab === 'roulettes') {
         const more = document.createElement('details');
         more.className = 'more others';
         more.open = store.get(`others-open:${tab}`, false);
@@ -2037,7 +2037,6 @@ export function createEditor({ api, setMessage }) {
     }
     const target = document.querySelector('.more.others .settings');
     if (target) target.append(box);
-    else $('sizeHint').insertAdjacentElement('afterend', box);
   }
 
   function updateUrl(immediate = false) {
