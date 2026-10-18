@@ -69,3 +69,8 @@
 ## 2巡目(レビューで見つかったもの)
 - AC-14 AI 経由の `combo` ツール(`src/ai-api.js` の `AI_ROUTES` に `POST /combo` があり、`operate()` が `combo` を `performControl('combo', action, data)` へ渡す)で、'status' は combo の snapshot を返し、'reset'・'test' を呼んでも RUSH の状態(`runtime.readRush()`)が変わらない。配信中の本番では 'test' が拒まれる。これをテストで確かめる
 - AC-15 `ComboEngine.test()` が予約したテスト送信のタイマーは、`reset()`・`close()`・`setConfig({ enabled: false })` のあとに1つも残らず、テスト用の状態にそれ以上数えない(偽の時計を8秒以上進めても 'combo' メッセージが配られない)。これをテストで確かめる
+
+## 3巡目(レビューで見つかったもの)
+- AC-16 'hit' の `gift` は `giftDisplayName(e.gift)` の値そのものになる(`e.gift.name` を先に使わない)。日本語名があるギフトを送ると、'hit' の `gift` が `giftDisplayName` の返す日本語名と一致する。これをテストで確かめる
+- AC-17 `runtime.readRush()` は 2巡目より前と同じく、呼ぶたびに RUSH の今の `snapshot()` を返す(`rushIdle` のような古い値の使い回しをしない)。待機中に時間を進めて2回読むと `now` が進んでいる
+- AC-18 `performControl('combo','test', data)` は、`data.user` が渡されていて、それが `{ id か name を持つオブジェクト }` でなければ(文字列・数・空のオブジェクトなど。渡されていないときは今のまま既定のテスト用の人で動く)テストのギフトを送らず、日本語の理由つきの 400 を返す。`GET /api/combo/test?user=abc` で区別キーが `'?'` のコンボができない
