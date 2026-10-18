@@ -477,6 +477,25 @@ SCHEMA.stepup = {
   },
 };
 
+SCHEMA.swarm = {
+  kind: 'object',
+  page: 'swarm',
+  title: '群予告',
+  size: () => [1080, 1920],
+  desc: '短い時間に届いたギフトの個数が境目を超えると、ギフトの大群と「群」を画面に出します。',
+  fields: {
+    enabled: bool(true, '群予告を使う'),
+    windowSeconds: num(5, 'ギフトの個数を数える秒数', { min: 2, max: 30 }),
+    scale: oneOf(['small', 'medium', 'large', 'custom'], 'medium', '配信の規模に合わせた境目'),
+    threshold: num(30, 'custom のときに群を起こす個数', { min: 1 }),
+    cooldownSeconds: num(20, '群を出したあと次に数え始めるまでの秒数', { min: 0, max: 300 }),
+    text: str('群', '群の演出に出す文字（1〜2文字）'),
+    maxIcons: num(60, '一度に飛ばすギフトのアイコンの上限', { min: 10, max: 120 }),
+    sound: bool(true, '効果音を鳴らす'),
+    volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
 SCHEMA.mediaAlerts = {
   kind: 'object',
   page: 'media',

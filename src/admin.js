@@ -206,6 +206,17 @@ export async function stepup(action = 'status') {
   return state.active ? `ステップアップ予告中: STEP ${state.step} / ${state.total} コイン` : state.last ? `前回のステップアップ: STEP ${state.last.step} / ${state.last.total} コイン` : 'ステップアップ予告は待機中です';
 }
 
+/** 群予告を見本・待機・状態確認する */
+export async function swarm(action = 'status') {
+  if (['trigger', 'reset'].includes(action)) {
+    const { swarm: state } = await callServer('/api/control', { method: 'POST', body: { target: 'swarm', action } });
+    if (action === 'reset') return '群予告を待機に戻しました';
+    return '群予告の見本を送りました';
+  }
+  const state = await callServer('/api/swarm');
+  return state.active ? `群予告中: ${state.last?.count ?? 0} 個` : state.last ? `前回の群予告: ${state.last.count} 個` : '群予告は待機中です';
+}
+
 export async function control(target, action, data) {
   await callServer('/api/control', { method: 'POST', body: { target, action, data } });
   return `${target} に ${action} を送りました`;

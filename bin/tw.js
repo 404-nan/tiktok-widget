@@ -39,6 +39,7 @@ Minecraft / SuperStream
   spin [ルーレットの名前]
   rush [start|stop]         RUSH に入る・終わらせる（省くと今の状態）
   stepup [start|stop|reset|demo] ステップアップ予告を操作・確認する
+  swarm [trigger|reset]     群予告の見本・待機・状態を操作する
   win [名前]                WIN 数を +1（クリア。名前を省くと全部）
   wins [名前]               WIN 数を見る
   wins add <数> [名前]      足す（-1 で減らす）
@@ -171,6 +172,9 @@ try {
       break;
     case 'stepup':
       print(await admin.stepup(args[0]));
+      break;
+    case 'swarm':
+      print(await admin.swarm(args[0]));
       break;
     case 'spin':
       print(await admin.spinRoulette(args[0]));

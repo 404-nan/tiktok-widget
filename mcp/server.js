@@ -269,6 +269,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'swarm',
+  {
+    title: '群予告',
+    description: '群予告の見本を出す・待機に戻す・状態を見る。',
+    inputSchema: { action: z.enum(['trigger', 'reset', 'status']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.swarm(action))),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',

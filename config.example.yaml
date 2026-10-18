@@ -191,6 +191,19 @@ stepup:
   volume: 0.5
   edge: right # right / left
 
+# 群予告 … /widgets/swarm.html
+# 5秒以内に届いたギフトの個数が境目を超えると、ギフトの大群と「群」を出します。
+swarm:
+  enabled: true
+  windowSeconds: 5 # 個数を数える秒数
+  scale: medium # small / medium / large / custom
+  threshold: 30 # custom のときに群を出す個数
+  cooldownSeconds: 20 # 群を出したあと次に出せるまでの秒数
+  text: 群
+  maxIcons: 60 # 一度に飛ばすアイコンの上限
+  sound: true
+  volume: 0.5
+
 # ランキング … /widgets/ranking.html（default 以外は ?id=名前）
 rankings:
   default:

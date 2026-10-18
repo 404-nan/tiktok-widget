@@ -173,6 +173,11 @@ export class StepupEngine {
 
   #finishRound(kind, event) {
     const endedAt = Date.now();
+    const completed = {
+      startedAt: this.state.startedAt,
+      endsAt: this.state.endsAt,
+      steps: this.state.steps.map((step) => ({ ...step, by: step.by ? { ...step.by } : null })),
+    };
     const result = {
       step: this.state.step,
       total: this.state.total,
@@ -183,13 +188,22 @@ export class StepupEngine {
     this.#clearTimers();
     const cooldown = Number(this.config?.cooldownSeconds ?? 0);
     this.state = { ...this.#emptyState(), cooldownUntil: cooldown > 0 ? endedAt + cooldown * 1000 : null };
-    this.#send({ ...event, kind });
     if (this.state.cooldownUntil) {
       this.cooldownTimer = setTimeout(() => {
         this.state.cooldownUntil = null;
         this.cooldownTimer = null;
       }, cooldown * 1000);
     }
+    // 内部状態は待機に戻すが、終了の1通だけは終了時点の段・合計を画面へ渡す。
+    const endedSnapshot = {
+      ...this.snapshot(),
+      step: result.step,
+      total: result.total,
+      startedAt: completed.startedAt,
+      endsAt: completed.endsAt,
+      steps: completed.steps,
+    };
+    this.#send({ ...event, kind }, endedSnapshot);
     return this.snapshot();
   }
 
@@ -238,8 +252,8 @@ export class StepupEngine {
     this.demoTimers.clear();
   }
 
-  #send(event) {
-    this.hub.broadcast({ type: 'stepup', stepup: this.snapshot(), event });
-    this.hub.emit('stepup', this.snapshot(), event);
+  #send(event, state = this.snapshot()) {
+    this.hub.broadcast({ type: 'stepup', stepup: state, event });
+    this.hub.emit('stepup', state, event);
   }
 }
