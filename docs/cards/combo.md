@@ -65,3 +65,7 @@
 - 段の既定: ×2 青・×3 緑・×4 赤・×5 金・×6 虹(今のカード)でよいか。もっとゆっくりにするか
 - 既定の秒数 10 秒でよいか
 - 'combo' を「豪華な演出」の仲間にして、最初は使えない(管理者が許可する)でよいか
+
+## 2巡目(レビューで見つかったもの)
+- AC-14 AI 経由の `combo` ツール(`src/ai-api.js` の `AI_ROUTES` に `POST /combo` があり、`operate()` が `combo` を `performControl('combo', action, data)` へ渡す)で、'status' は combo の snapshot を返し、'reset'・'test' を呼んでも RUSH の状態(`runtime.readRush()`)が変わらない。配信中の本番では 'test' が拒まれる。これをテストで確かめる
+- AC-15 `ComboEngine.test()` が予約したテスト送信のタイマーは、`reset()`・`close()`・`setConfig({ enabled: false })` のあとに1つも残らず、テスト用の状態にそれ以上数えない(偽の時計を8秒以上進めても 'combo' メッセージが配られない)。これをテストで確かめる
