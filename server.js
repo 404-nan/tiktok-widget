@@ -6,7 +6,6 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import * as cfg from './src/config.js';
-import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR } from './src/tenants.js';
 import { overlayMessageAllowed } from './src/billing.js';
@@ -88,7 +87,7 @@ admin.use(adminGuard(ADMIN_TOKEN));
 const origin = (req) => `${req.protocol}://${req.host}`;
 function tenantView(req, t) {
   const rt = tenants.runtimes.get(t.id);
-  const config = rt?.hub.config ?? cfg.createStore(path.join(tenants.dataDir(t.id), 'config.yaml')).load().config;
+  const config = tenantConfig(rt, t);
   return {
     id: t.id,
     name: t.name,
@@ -101,15 +100,33 @@ function tenantView(req, t) {
     shortId: t.shortId,
     pin: t.pin,
     billing: tenants.billing.adminView(t.id),
-    urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
+    urls: tenantUrls(req, t),
     status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
     settings: {
       widgets: [...(t.widgets ?? [])],
-      roulettes: config ? cfg.publicConfig({ roulettes: config.roulettes ?? {} }).roulettes : {},
-      timers: config ? cfg.publicConfig({ timers: config.timers ?? {} }).timers : {},
-      rush: config ? cfg.publicConfig({ rush: config.rush ?? {} }).rush : {},
+      roulettes: publicTenantSection(config, 'roulettes'),
+      timers: publicTenantSection(config, 'timers'),
+      rush: publicTenantSection(config, 'rush'),
     },
   };
+}
+
+function tenantConfig(runtime, tenant) {
+  return runtime?.hub.config ?? cfg.createStore(path.join(tenants.dataDir(tenant.id), 'config.yaml')).load().config;
+}
+
+function tenantUrls(req, tenant) {
+  const base = origin(req);
+  return {
+    short: `${base}/d/${tenant.shortId}`,
+    dashboard: `${base}/t/${tenant.key}/dashboard/`,
+    monitor: `${base}/t/${tenant.key}/monitor/`,
+    obs: `${base}/t/${tenant.obsKey}/widgets/`,
+  };
+}
+
+function publicTenantSection(config, section) {
+  return config ? cfg.publicConfig({ [section]: config[section] ?? {} })[section] : {};
 }
 admin.get('/tenants', (req, res) => {
   res.json({
@@ -193,53 +210,36 @@ admin.put('/sign-key', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.get('/keys', (_req, res) => res.json({ keys: apiKeys.list() }));
-admin.get('/api-keys', (_req, res) => res.json({ keys: apiKeys.list() }));
-admin.post('/keys', (req, res) => {
-  try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.post('/api-keys', (req, res) => {
-  try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.patch('/keys/:id', (req, res) => {
-  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.put('/keys/:id', (req, res) => {
-  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.patch('/api-keys/:id', (req, res) => {
-  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.put('/api-keys/:id', (req, res) => {
-  try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.delete('/keys/:id', (req, res) => {
-  try { res.json({ ok: apiKeys.remove(req.params.id) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.delete('/api-keys/:id', (req, res) => {
-  try { res.json({ ok: apiKeys.remove(req.params.id) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
+for (const route of ['/keys', '/api-keys']) {
+  admin.get(route, (_req, res) => res.json({ keys: apiKeys.list() }));
+  admin.post(route, (req, res) => {
+    try { res.status(201).json({ ok: true, key: apiKeys.add(req.body ?? {}) }); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  admin.patch(`${route}/:id`, (req, res) => {
+    try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  admin.put(`${route}/:id`, (req, res) => {
+    try { res.json({ ok: true, key: apiKeys.update(req.params.id, req.body ?? {}) }); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+  admin.delete(`${route}/:id`, (req, res) => {
+    try { res.json({ ok: apiKeys.remove(req.params.id) }); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+}
 admin.get('/notes', (_req, res) => res.json({ notes: notes.list() }));
 admin.post('/notes', (req, res) => {
   try { res.status(201).json({ ok: true, note: notes.create(req.body ?? {}) }); }
   catch (err) { res.status(400).json({ error: err.message }); }
 });
-admin.patch('/notes/:id', (req, res) => {
-  try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
-admin.put('/notes/:id', (req, res) => {
-  try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
-  catch (err) { res.status(400).json({ error: err.message }); }
-});
+for (const method of ['patch', 'put']) {
+  admin[method]('/notes/:id', (req, res) => {
+    try { res.json({ ok: true, note: notes.update(req.params.id, req.body ?? {}) }); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+}
 admin.delete('/notes/:id', (req, res) => res.json({ ok: notes.remove(req.params.id) }));
 // プランと支払い。決済はせず、状態・期限・プランを手で入れる
 admin.put('/billing', (req, res) => {
@@ -412,35 +412,38 @@ if (local) {
 
 const server = createServer(app);
 const wss = new WebSocketServer({ noServer: true });
+function websocketTarget(pathname) {
+  const tenantPath = pathname.match(/^\/t\/([^/]+)\/ws$/);
+  if (tenantPath) {
+    const found = tenants.byKey(tenantPath[1]);
+    if (!found?.tenant.enabled) return null;
+    return { runtime: tenants.runtime(found.tenant.id), role: found.role, tenantId: found.tenant.id };
+  }
+  if (pathname === '/ws') return local ? { runtime: local, role: 'owner', tenantId: null } : null;
+  return null;
+}
+
+function acceptWebsocket(ws, target) {
+  const { runtime, role, tenantId } = target;
+  ws.role = role;
+  ws.isAlive = true;
+  ws.on('pong', () => (ws.isAlive = true));
+  const overlayBlocked = () => billingAllows(() => tenantId != null && tenants.billing.isOverlayBlocked(tenantId), false);
+  // 未払いの OBS 用接続は、配信に映るものを流さない。読み込み直しだけは届ける
+  ws.quiet = role === 'obs' && overlayBlocked();
+  ws.allowMessage = (msg) => overlayMessageAllowed({ role, blocked: overlayBlocked(), type: msg?.type });
+  runtime.hub.addClient(ws);
+}
+
 server.on('upgrade', (req, socket, head) => {
   const { pathname } = new URL(req.url, 'http://x');
-  let rt = null;
-  let role = 'owner';
-  let tenantId = null;
-  const m = pathname.match(/^\/t\/([^/]+)\/ws$/);
-  if (m) {
-    const found = tenants.byKey(m[1]);
-    if (found?.tenant.enabled) {
-      rt = tenants.runtime(found.tenant.id);
-      role = found.role;
-      tenantId = found.tenant.id;
-    }
-  } else if (pathname === '/ws') {
-    rt = local;
-  }
-  if (!rt) {
+  const target = websocketTarget(pathname);
+  if (!target) {
     socket.destroy();
     return;
   }
   wss.handleUpgrade(req, socket, head, (ws) => {
-    ws.role = role;
-    ws.isAlive = true;
-    ws.on('pong', () => (ws.isAlive = true));
-    const overlayBlocked = () => billingAllows(() => tenantId != null && tenants.billing.isOverlayBlocked(tenantId), false);
-    // 未払いの OBS 用接続は、配信に映るものを流さない。読み込み直しだけは届ける
-    ws.quiet = role === 'obs' && overlayBlocked();
-    ws.allowMessage = (msg) => overlayMessageAllowed({ role, blocked: overlayBlocked(), type: msg?.type });
-    rt.hub.addClient(ws);
+    acceptWebsocket(ws, target);
   });
 });
 
