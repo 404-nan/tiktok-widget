@@ -707,6 +707,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     };
   }
 
+  let rushIdle = null;
   return {
     id,
     hub,
@@ -765,7 +766,15 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
-    readRush() { return rush.snapshot(); },
+    // 待機中の RUSH は状態が変わらないので、AI の操作結果を同じ状態として返す。
+    readRush() {
+      const current = rush.snapshot();
+      if (current.active) return current;
+      if (!rushIdle || JSON.stringify(rushIdle.last) !== JSON.stringify(current.last)) {
+        rushIdle = current;
+      }
+      return rushIdle;
+    },
     readCombo() { return combo.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];

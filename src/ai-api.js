@@ -55,6 +55,7 @@ export const AI_ROUTES = [
   { method: 'POST', path: '/wins', tool: 'wins' },
   { method: 'POST', path: '/boss', tool: 'boss' },
   { method: 'POST', path: '/rush', tool: 'rush' },
+  { method: 'POST', path: '/combo', tool: 'combo' },
   { method: 'POST', path: '/test/event', tool: 'test_event' },
   { method: 'POST', path: '/tenant/widgets', tool: 'tenant_widgets' },
   { method: 'POST', path: '/tenant/template', tool: 'tenant_template' },
@@ -616,6 +617,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       if (tool === 'wins') return { status: 200, body: { ok: true, wins: runtime.readWins(), live, configVersion: version } };
       if (tool === 'timer') return { status: 200, body: { ok: true, timers: runtime.readTimer(), live, configVersion: version } };
       if (tool === 'boss') return { status: 200, body: { ok: true, boss: runtime.readBoss(), live, configVersion: version } };
+      if (tool === 'combo') return { status: 200, body: { ok: true, combo: runtime.readCombo(), live, configVersion: version } };
       return { status: 200, body: { ok: true, rush: runtime.readRush(), live, configVersion: version } };
     }
     if (isProd(ctx.req) && live) return { status: 403, body: { error: '配信中はAIから変更できません', live: true, configVersion: version } };
@@ -624,6 +626,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     else if (tool === 'timer') out = runtime.performControl('timer', action, { id: args.id, seconds: args.seconds, minutes: args.minutes, value: args.value });
     else if (tool === 'wins') out = runtime.performControl('wins', action, { id: args.id, value: args.value });
     else if (tool === 'boss') out = runtime.performControl('boss', action, { id: args.id, value: args.value });
+    else if (tool === 'combo') out = runtime.performControl('combo', action, { user: args.user, count: args.count });
     else out = runtime.performControl('rush', action, {});
     const changeId = crypto.randomBytes(8).toString('hex');
     if (out.status < 400 && action !== 'status') {

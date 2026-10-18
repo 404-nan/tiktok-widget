@@ -10,6 +10,7 @@ export class ComboEngine {
     this.config = null;
     this.active = new Map();
     this.tests = new Map();
+    this.testTimers = new Set();
     this.last = null;
     hub.on('event', (e) => this.onEvent(e));
     hub.on('testEvent', (e) => this.#onTest(e));
@@ -40,7 +41,11 @@ export class ComboEngine {
   test(user, count = 5) {
     const total = Math.min(20, Math.max(1, Number(count) || 5));
     for (let i = 0; i < total; i++) {
-      setTimeout(() => this.#hit(this.tests, { kind: 'gift', user, gift: { name: 'テストギフト', id: 'test', count: 1 }, totalDiamonds: 1, test: true }, true), i * 400);
+      const timer = setTimeout(() => {
+        this.testTimers.delete(timer);
+        this.#hit(this.tests, { kind: 'gift', user, gift: { name: 'テストギフト', id: 'test', count: 1 }, totalDiamonds: 1, test: true }, true);
+      }, i * 400);
+      this.testTimers.add(timer);
     }
   }
 
@@ -133,6 +138,8 @@ export class ComboEngine {
 
   #clear(notify) {
     for (const map of [this.active, this.tests]) for (const state of map.values()) clearTimeout(state.timer);
+    for (const timer of this.testTimers) clearTimeout(timer);
+    this.testTimers.clear();
     this.active.clear();
     this.tests.clear();
     this.last = null;
