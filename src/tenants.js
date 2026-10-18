@@ -12,6 +12,7 @@ import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
 import { RentalState, rentalForHandle } from './rental.js';
 import { BillingStore } from './billing.js';
+import { IngestKeyStore } from './ingest-keys.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'));
@@ -149,8 +150,8 @@ export class Tenants {
   /** 外部イベント受け口の鍵から配信者を探す */
   byIngestKey(key) {
     for (const t of this.data.tenants) {
-      const runtime = this.runtime(t.id);
-      if (runtime.ingest.accepts(key)) return t;
+      const store = new IngestKeyStore({ dir: this.dataDir(t.id) });
+      if (store.authenticate(key)) return t;
     }
     return null;
   }
