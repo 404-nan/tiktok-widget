@@ -179,6 +179,18 @@ rush:
   extendSeconds: 5 # この秒数だけ延びる
   maxSeconds: 300 # 延びても最長この秒数まで
 
+# ステップアップ予告 … /widgets/stepup.html
+# 30秒のギフト合計で STEP 1 から STEP 5 までを一段ずつ進めます。
+stepup:
+  enabled: true
+  windowSeconds: 30 # 最初のギフトから数える秒数
+  scale: medium # small / medium / large / custom
+  minCoins: 1 # このコイン未満のギフトは数えない
+  cooldownSeconds: 10 # ラウンド終了後に次を始めるまでの秒数
+  sound: true
+  volume: 0.5
+  edge: right # right / left
+
 # ランキング … /widgets/ranking.html（default 以外は ?id=名前）
 rankings:
   default:

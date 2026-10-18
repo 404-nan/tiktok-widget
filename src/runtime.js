@@ -17,6 +17,7 @@ import { Minecraft } from './minecraft.js';
 import { History } from './history.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
+import { StepupEngine } from './stepup.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
@@ -43,8 +44,8 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
-const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'stepup', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
     if (key === 'winsFx') return [key, { label: 'WIN数の全画面演出', pages: ['wins-fx.html'], premium: true }];
@@ -61,7 +62,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -101,6 +102,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const minecraft = new Minecraft(hub);
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
+  const stepup = new StepupEngine(hub);
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
   roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
@@ -132,6 +134,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     // 管理者が使えなくしたものは止める
     minecraft.setConfig(entitled('minecraft') ? config.minecraft : { ...config.minecraft, enabled: false });
     rush.setConfig(entitled('rush') ? config.rush : { ...config.rush, enabled: false });
+    stepup.setConfig(entitled('stepup') ? config.stepup : { ...config.stepup, enabled: false });
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
@@ -256,6 +259,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // Minecraft・RUSH・WIN数
   r.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
   r.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
+  r.get('/api/stepup', (_req, res) => res.json(stepup.snapshot()));
   r.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
   // Stream Deck やブラウザのブックマークから押せるように GET でも受ける
   // 例: /api/wins/default/win（+1）・/api/wins/default/add?value=-1・/api/wins/default/undo・/api/wins/all/reset
@@ -634,6 +638,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       const out = action === 'stop' ? rush.stop() : rush.start({ reason: 'manual' });
       return { status: 200, body: { ok: true, rush: out ?? rush.snapshot() } };
     }
+    if (target === 'stepup') {
+      if (action === 'status') return { status: 200, body: { ok: true, stepup: stepup.snapshot() } };
+      if (!entitled('stepup')) return { status: 403, body: { error: 'ステップアップ予告は管理者が使えるようにすると使えます' } };
+      const out = action === 'stop' ? stepup.stop() : action === 'reset' ? stepup.reset() : action === 'demo' ? stepup.demo() : stepup.start();
+      return { status: 200, body: { ok: true, stepup: out ?? stepup.snapshot() } };
+    }
     // WIN 数もサーバーで持つ
     if (target === 'wins') {
       try {
@@ -744,6 +754,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
     readRush() { return rush.snapshot(); },
+    readStepup() { return stepup.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();
@@ -765,6 +776,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       history.end();
       clearInterval(history.timer);
       timer.close();
+      stepup.close();
       gacha.close();
       slot.close();
       giftSounds.close();

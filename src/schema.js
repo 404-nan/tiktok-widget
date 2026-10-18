@@ -447,6 +447,36 @@ SCHEMA.rush = {
   },
 };
 
+SCHEMA.stepup = {
+  kind: 'object',
+  page: 'stepup',
+  title: 'ステップアップ予告',
+  size: () => [1080, 1920],
+  desc:
+    '短い時間に届いたギフトの合計コインで、STEP 1 から STEP 5 までを一段ずつ進めます。少額のギフトも合計に入ります。',
+  fields: {
+    enabled: bool(true, 'ステップアップ予告を使う'),
+    windowSeconds: num(30, '1回のステップアップを数える秒数', { min: 5, max: 300 }),
+    scale: oneOf(['small', 'medium', 'large', 'custom'], 'medium', '配信の規模に合わせた境目'),
+    step1Coins: num(100, 'STEP 1 に届く合計コイン', { min: 1 }),
+    step2Coins: num(300, 'STEP 2 に届く合計コイン', { min: 1 }),
+    step3Coins: num(600, 'STEP 3 に届く合計コイン', { min: 1 }),
+    step4Coins: num(1000, 'STEP 4 に届く合計コイン', { min: 1 }),
+    step5Coins: num(2000, 'STEP 5 に届く合計コイン', { min: 1 }),
+    minCoins: num(1, '数え始めるギフトの最小コイン', { min: 1 }),
+    step1Text: str('STEP 1', 'STEP 1 の表示文字'),
+    step2Text: str('STEP 2', 'STEP 2 の表示文字'),
+    step3Text: str('STEP 3', 'STEP 3 の表示文字'),
+    step4Text: str('STEP 4', 'STEP 4 の表示文字'),
+    step5Text: str('STEP 5', 'STEP 5 の表示文字'),
+    finalText: str('虹確定', 'STEP 5 に届いたときの表示文字'),
+    cooldownSeconds: num(10, 'STEP 5 または時間切れのあとに待つ秒数', { min: 0, max: 120 }),
+    sound: bool(true, '段が上がったときに効果音を鳴らす'),
+    volume: num(0.5, '効果音の音量', { min: 0, max: 1 }),
+    edge: oneOf(['right', 'left'], 'right', '段が積み上がる側'),
+  },
+};
+
 SCHEMA.mediaAlerts = {
   kind: 'object',
   page: 'media',

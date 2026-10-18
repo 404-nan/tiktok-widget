@@ -259,6 +259,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'stepup',
+  {
+    title: 'ステップアップ予告',
+    description: 'ステップアップ予告を始める・止める・待機に戻す・見本を出す・状態を見る。',
+    inputSchema: { action: z.enum(['start', 'stop', 'reset', 'demo', 'status']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.stepup(action))),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',

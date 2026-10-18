@@ -493,7 +493,18 @@ function checkFields(section, raw, where, issues) {
     if (value == null) continue;
     out[key] = checkValue(fields[key], value, `${where}.${key}`, issues);
   }
+  if (section === 'stepup' && out.scale === 'custom') checkStepupThresholds(out, where, issues);
   return out;
+}
+
+function checkStepupThresholds(config, where, issues) {
+  for (let step = 2; step <= 5; step++) {
+    const previous = config[`step${step - 1}Coins`];
+    const current = config[`step${step}Coins`];
+    if (current <= previous) {
+      issues.errors.push(`${where}.step${step}Coins: 前の段より大きい数にしてください`);
+    }
+  }
 }
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;
