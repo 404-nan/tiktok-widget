@@ -2035,7 +2035,9 @@ export function createEditor({ api, setMessage }) {
       row.append(lab, line);
       box.append(row);
     }
-    const target = document.querySelector('.more.others .settings');
+    const target = simple()
+      ? document.querySelector('.more.others .settings')
+      : document.querySelector('.more .settings');
     if (target) target.append(box);
   }
 
