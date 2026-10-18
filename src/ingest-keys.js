@@ -23,7 +23,6 @@ export class IngestKeyStore {
     try {
       this.data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       if (!this.data?.hash || !this.data?.createdAt || !this.data?.hint) this.data = null;
-      fs.chmodSync(this.file, 0o600);
     } catch {
       this.data = null;
     }

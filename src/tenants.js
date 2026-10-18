@@ -50,6 +50,7 @@ export class Tenants {
     this.onChange = onChange;
     this.data = { tenants: [], global: { access: {} } };
     this.runtimes = new Map(); // id → runtime
+    this.ingestKeys = new Map(); // id → { store, signature }
     this.rental = new RentalState();
     this.backupDir = backupData(dir);
     this.#load();
@@ -150,7 +151,22 @@ export class Tenants {
   /** 外部イベント受け口の鍵から配信者を探す */
   byIngestKey(key) {
     for (const t of this.data.tenants) {
-      const store = new IngestKeyStore({ dir: this.dataDir(t.id) });
+      const dir = this.dataDir(t.id);
+      const file = path.join(dir, 'ingest.json');
+      let signature = null;
+      try {
+        const stat = fs.statSync(file);
+        signature = `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`;
+      } catch {}
+      let cached = this.ingestKeys.get(t.id);
+      if (!cached) {
+        cached = { store: new IngestKeyStore({ dir }), signature };
+        this.ingestKeys.set(t.id, cached);
+      } else if (cached.signature !== signature) {
+        cached.store.load();
+        cached.signature = signature;
+      }
+      const store = cached.store;
       if (store.authenticate(key)) return t;
     }
     return null;

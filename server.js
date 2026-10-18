@@ -20,7 +20,6 @@ import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
 import { AiTokenStore } from './src/ai-tokens.js';
 import { createAiControl } from './src/ai-api.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
-import { IngestKeyStore } from './src/ingest-keys.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -363,6 +362,10 @@ const ingestRequest = (req, res) => {
   const header = String(req.headers.authorization ?? '');
   const key = req.params.key || (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? '');
   const tenant = tenants.byIngestKey(key);
+  // 停止中の旧クライアントが、鍵を発行できなかった403のJSONをそのまま再送する場合。
+  if (!tenant && (key === 'null' || key === 'undefined')) {
+    return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
+  }
   if (!tenant) return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
   if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   return tenants.runtime(tenant.id).ingest.handle(req, res, key);
@@ -390,10 +393,8 @@ app.use('/t/:key', (req, res, next) => {
   req.tenant = tenant;
   const p = req.path;
   if (!tenant.enabled) {
-    // 停止中も応答は403。既存クライアントが本文をJSONとして読むため鍵の値を返す。
     if (role === 'owner' && req.method === 'POST' && p === '/api/ingest/key') {
-      const key = new IngestKeyStore({ dir: tenants.dataDir(tenant.id) }).create();
-      return res.status(403).json({ value: key.value });
+      return res.status(403).json({ error: 'この配信者の利用は止められています', value: null });
     }
     return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   }
