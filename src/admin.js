@@ -194,6 +194,16 @@ export async function rush(action = 'status') {
   return r.last ? `待機中（前回 合計 ${r.last.total} コイン / ギフト ${r.last.gifts} 個）` : '待機中';
 }
 
+/** コンボをリセット・テスト・確認する（サーバーが必要） */
+export async function combo(action = 'status') {
+  if (action === 'status') {
+    const c = await callServer('/api/combo');
+    return c.active.length ? `コンボ中: ${c.active.map((x) => `${x.user?.name ?? '名前なし'} ×${x.count}`).join('、')}` : 'コンボ中ではありません';
+  }
+  await callServer('/api/control', { method: 'POST', body: { target: 'combo', action, data: action === 'test' ? { count: 5 } : {} } });
+  return action === 'reset' ? 'コンボをリセットしました' : 'コンボを試しました';
+}
+
 export async function control(target, action, data) {
   await callServer('/api/control', { method: 'POST', body: { target, action, data } });
   return `${target} に ${action} を送りました`;

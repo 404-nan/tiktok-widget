@@ -78,6 +78,7 @@ const TOOLS = {
   wins: { scope: 'operate', mutate: true, operate: true },
   boss: { scope: 'operate', mutate: true, operate: true },
   rush: { scope: 'operate', mutate: true, operate: true },
+  combo: { scope: 'operate', mutate: true, operate: true },
   test_event: { scope: 'test', mutate: true, test: true },
   tenant_widgets: { scope: 'admin', mutate: true },
   tenant_template: { scope: 'admin', mutate: true },

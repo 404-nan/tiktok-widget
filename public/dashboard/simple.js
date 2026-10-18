@@ -10,7 +10,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
+  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -42,6 +42,7 @@ export const INFO = {
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
+  combo: { icon: 'layers', desc: '続けてギフトすると ×2 ×3 と数字が出て、色が上がっていく' },
   minecraft: { icon: 'box', desc: 'マイクラの枠の時間が分かります。枠の間は自動で TikTok につながります' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
 };
@@ -199,6 +200,29 @@ export const SIMPLE = {
       { title: '中身', fields: ['duration', 'text', 'enterText'] },
     ],
   },
+  combo: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      {
+        title: 'いつつながる',
+        presets: [{ title: 'つながる速さ', options: [
+          { label: 'ゆっくり 15秒', value: { seconds: 15 } },
+          { label: 'ふつう 10秒', value: { seconds: 10 } },
+          { label: 'はやい 5秒', value: { seconds: 5 } },
+        ] }],
+        fields: ['seconds', 'gifts', 'minCoins'],
+      },
+      {
+        title: '段の境目',
+        presets: [{ title: '上がりかた', options: [
+          { label: 'すぐ上がる 2・3・4・5・6', value: { blueAt: 2, greenAt: 3, redAt: 4, goldAt: 5, rainbowAt: 6 } },
+          { label: 'ゆっくり上がる 2・4・7・12・20', value: { blueAt: 2, greenAt: 4, redAt: 7, goldAt: 12, rainbowAt: 20 } },
+        ] }],
+        fields: [],
+      },
+      { title: '文字', fields: ['endText'] },
+    ],
+  },
   mediaAlerts: {
     groups: [
       { title: '使う', fields: ['enabled'] },
@@ -278,13 +302,14 @@ export const SIMPLE_LABELS = {
   'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
   'imageCutins.imageStyle': '画像のスタイル', 'imageCutins.crop': '切り抜き',
   'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
+  'combo.enabled': 'コンボを使う', 'combo.seconds': 'つながる秒数', 'combo.gifts': '数えるギフト', 'combo.minCoins': '何コインから数える', 'combo.endText': '終わるときの文字',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
 
 // 数字の後ろに付ける単位
 export const UNITS = {
   minCoins: 'コイン', bigCoins: 'コイン', fontSize: 'px', maxItems: '件', limit: '人', startMinutes: '分', maxHours: '時間',
-  coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', scale: '倍',
+  coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', seconds: '秒', scale: '倍',
   rivalCoins: 'コイン', pity: '回',
 };
 
@@ -307,6 +332,7 @@ const SUMMARY = {
   cutins: (e) => `${e.minCoins} コインから・${e.textWeight === 'bold' ? '太字' : '普通'}`,
   imageCutins: (e) => `${e.minCoins} コインから${{ stripe: '・縞・標準', invert: '・縞・反転', thick: '・縞・枠太' }[e.imageStyle] ?? ''}${e.photo ? '' : '・写真なし'}`,
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
+  combo: (e) => (e.enabled ? `${e.seconds} 秒つながる・${e.blueAt} 回から出す` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),

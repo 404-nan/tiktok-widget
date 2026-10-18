@@ -168,6 +168,9 @@ try {
     case 'rush':
       print(await admin.rush(args[0]));
       break;
+    case 'combo':
+      print(await admin.combo(args[0]));
+      break;
     case 'spin':
       print(await admin.spinRoulette(args[0]));
       break;
