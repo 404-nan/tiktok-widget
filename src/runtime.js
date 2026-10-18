@@ -627,9 +627,6 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   }
 
   // ルーレット・タイマー・WIN数・ボス・RUSH。画面の /api/control と AI 用 API で同じ
-  let rushReadHold = null;
-  let lastRushRead = null;
-
   function performControl(target, action, data = {}) {
     if (!target || !action) return { status: 400, body: { error: 'target と action が必要です' } };
     // ルーレットは何が当たるかをサーバーで決める
@@ -646,7 +643,6 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return { status: 200, body: { ok: true, rush: out ?? rush.snapshot() } };
     }
     if (target === 'combo') {
-      rushReadHold = lastRushRead;
       if (action === 'status') return { status: 200, body: { ok: true, combo: combo.snapshot() } };
       if (!entitled('combo')) return { status: 403, body: { error: 'コンボは管理者が使えるようにすると使えます' } };
       if (action === 'reset') {
@@ -774,11 +770,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
-    // 操作前後の RUSH の状態を同じ参照として返し、コンボ操作で変えない。
     readRush() {
-      const current = rushReadHold ?? rush.snapshot();
-      lastRushRead = current;
-      return current;
+      return rush.snapshot();
     },
     readCombo() { return combo.snapshot(); },
     readWidgets(base) {

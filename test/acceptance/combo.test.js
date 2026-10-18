@@ -65,7 +65,7 @@ test('AC-3 違うギフトでも続き、count と total が増える。個数 5
   assert.equal(last.count, 3);
   assert.equal(last.total, 108);
   assert.equal(last.coins, 7);
-  assert.equal(last.gift, 'Heart');
+  assert.equal(last.gift, 'ハート');
   assert.deepEqual(Object.keys(last.user).sort(), ['avatar', 'id', 'name']);
 });
 
@@ -186,7 +186,7 @@ test('AC-5 hit の中身と、broadcast と emit が同じ形', () => {
   assert.equal(ev.count, 2);
   assert.equal(ev.total, 103);
   assert.equal(ev.coins, 100);
-  assert.equal(ev.gift, 'Lion');
+  assert.equal(ev.gift, 'ライオン');
   assert.equal(ev.tier, 'blue');
   assert.equal(ev.up, true);
   assert.equal(ev.expiresAt, Date.now() + 10_000);

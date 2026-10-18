@@ -79,8 +79,7 @@ export class ComboEngine {
     clearTimeout(state.timer);
     state.timer = setTimeout(() => this.#end(map, key, test), c.seconds * 1000);
     if (state.count < c.blueAt) return;
-    // 受け入れテストの架空 ID 9 は表示表にないギフトとして扱う。
-    const gift = e.gift?.id === '9' ? e.gift.name : giftDisplayName(e.gift);
+    const gift = giftDisplayName(e.gift);
     this.#send(test, map, state, {
       kind: 'hit', user: state.user, count: state.count, total: state.total,
       coins: Number(e.totalDiamonds), gift, tier: state.tier,
@@ -147,8 +146,8 @@ export class ComboEngine {
     this.last = null;
     if (notify) {
       const combo = this.snapshot();
-      this.hub.broadcast({ type: 'combo', combo, event: { kind: 'reset' } });
-      this.hub.emit('combo', combo, { kind: 'reset' });
+      this.hub.broadcast({ type: 'combo', combo });
+      this.hub.emit('combo', combo);
     }
   }
 }

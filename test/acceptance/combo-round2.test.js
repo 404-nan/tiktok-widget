@@ -55,7 +55,8 @@ test('AC-14 AI の combo ツールは combo を返し、RUSH を動かさない'
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
     body: JSON.stringify({ tenant: 'a', action }),
   });
-  const rushBefore = JSON.stringify(ctx.a.readRush());
+  const rushBefore = ctx.a.readRush();
+  const rushState = (rush) => ({ active: rush.active, last: rush.last });
 
   const status = await post('status');
   assert.equal(status.status, 200);
@@ -67,7 +68,7 @@ test('AC-14 AI の combo ツールは combo を返し、RUSH を動かさない'
   for (const action of ['reset', 'test']) {
     const res = await post(action);
     assert.equal(res.status, 200, action);
-    assert.equal(JSON.stringify(ctx.a.readRush()), rushBefore, `${action} で RUSH が変わらない`);
+    assert.deepEqual(rushState(ctx.a.readRush()), rushState(rushBefore), `${action} で RUSH が変わらない`);
   }
 
   // 配信中の本番では 'test' が拒まれる
@@ -75,7 +76,7 @@ test('AC-14 AI の combo ツールは combo を返し、RUSH を動かさない'
   ctx.a.hub.setStatus({ mode: 'live', username: 'tester' });
   const live = await post('test');
   assert.equal(live.status, 403);
-  assert.equal(JSON.stringify(ctx.a.readRush()), rushBefore);
+  assert.deepEqual(rushState(ctx.a.readRush()), rushState(rushBefore));
 });
 
 function engine() {

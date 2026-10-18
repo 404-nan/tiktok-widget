@@ -1,15 +1,15 @@
 # combo: 擬似連(コンボ)のサーバー・設定・操作(1枚目。画面は docs/cards/combo-widget.md)
 
-仕事の種類: 作り込み(新しい部品。サーバーの数え方・設定・操作の口)
+仕事の種類: 作り込み(1枚目のサーバー・設定・操作は実装済み。専用画面は2枚目)
 見た目が変わるか: いいえ(この1枚目は画面を作らない。画面は2枚目。ただし「かんたん」の設定画面に項目が1つ増える)
 
 目的: 同じ人が一定の秒数(既定10秒)以内に続けてギフトすると「×2」「×3」…と数え、段が1つ上がるたびに画面へ知らせる。途切れたら合計コインを添えてしめる。「もう1回送ったら赤になる」が見えて次のギフトが出やすくなる。違うギフトでも数える(連打のまとめ=1回のギフトの個数とは別)。状態はサーバーで持ち、OBS を読み込み直しても続きから出せる。
 
-下書き: なし(実装もテストも書き始めていない)。調べて分かったことは「実装のあしがかり」に書いた。
+下書き: なし。1枚目の実装と受け入れテストは済み。専用画面はまだ作らない。調べて分かったことは「実装のあしがかり」に書いた。
 
 ## 作るもの(触ってよいファイル)
 - 新規: `src/combo.js`(`ComboEngine`。`src/rush.js` と同じ作り: `constructor(hub)`、`setConfig(cfg)`、`snapshot()`、`onEvent(e)`、`reset()`、`close()`)
-- 新規: `test/acceptance/combo.test.js`(先に書く。実装より前)、`test/combo-wiring.test.js`(配線)
+- 新規: `test/acceptance/combo.test.js`(先に書く。実装より前)、`test/acceptance/combo-wiring.test.js`(配線)、`test/acceptance/combo-round2.test.js`・`combo-round3.test.js`(レビュー受け入れ)
 - 足すだけ: `src/schema.js`(`SCHEMA.combo`)、`src/runtime.js`(エンジンを作る・`applyEngines`・`/api/combo`・`OBS_ALLOWED`・`performControl`・`FEATURE_ORDER`・`PREMIUM_KEYS`)、`src/admin.js`(`combo()`)、`mcp/server.js`、`bin/tw.js`、`src/ai-api.js` と `src/ai-mcp.js`(rush と同じ並びで)、`public/dashboard/simple.js`(かんたん)、`public/dashboard/editor.js`(試すボタン)
 - 触らない: `public/widgets/cutin.html`・`image-cutin.html`・`lib/cutin*.js`・`src/cutin-style.js`(別のセッションが変える)、`src/hub.js`(変えなくてよい。`hub.on('event')` / `testEvent` / `reset` を聞くだけ)、既存のテストを書き換えて緑にすること
 - 作らない: 画面(`public/widgets/combo.html`。2枚目)、保存ファイル(コンボは数十秒で消えるので再起動をまたいで残さない)、ほかのウィジェットへの連携
@@ -51,7 +51,7 @@
 
 ## 証拠
 - `test/acceptance/combo.test.js`: 時計を差し替えられる形(`ComboEngine` は `now()` を受け取れる・または `node:test` の `mock.timers`)で、AC-3〜AC-8 を `EventEmitter` の偽 hub(`test/rush.test.js` と同じ)で確かめる。段が上がる回数、違うギフトで続く、`seconds` 秒より後は新しく数える、人が違えば別、×2 まで出さない、×1 だけでは 'end' が出ない、`reset` で空になる、配信中のテストは本番の数に入らない
-- `test/combo-wiring.test.js`: `normalize` が `combo` の初期値を返す、境目が逆だとエラー、`OBS_ALLOWED` が `/api/combo` を通す、`performControl('combo','reset')`、`defaultsFor('combo')`
+- `test/acceptance/combo-wiring.test.js`: `normalize` が `combo` の初期値を返す、境目が逆だとエラー、`OBS_ALLOWED` が `/api/combo` を通す、`performControl('combo','reset')`、`defaultsFor('combo')`
 - `npm test`(Windows の既知6件以外が緑)
 
 ## 実装のあしがかり(調べたこと)
@@ -74,3 +74,9 @@
 - AC-16 'hit' の `gift` は `giftDisplayName(e.gift)` の値そのものになる(`e.gift.name` を先に使わない)。日本語名があるギフトを送ると、'hit' の `gift` が `giftDisplayName` の返す日本語名と一致する。これをテストで確かめる
 - AC-17 `runtime.readRush()` は 2巡目より前と同じく、呼ぶたびに RUSH の今の `snapshot()` を返す(`rushIdle` のような古い値の使い回しをしない)。待機中に時間を進めて2回読むと `now` が進んでいる
 - AC-18 `performControl('combo','test', data)` は、`data.user` が渡されていて、それが `{ id か name を持つオブジェクト }` でなければ(文字列・数・空のオブジェクトなど。渡されていないときは今のまま既定のテスト用の人で動く)テストのギフトを送らず、日本語の理由つきの 400 を返す。`GET /api/combo/test?user=abc` で区別キーが `'?'` のコンボができない
+
+## 現在の状態
+
+- 1枚目のサーバー・設定・操作、レビュー1〜3巡目の指摘、受け入れテストは実装済み。
+- `public/widgets/combo.html` の専用画面と画面側の連携は2枚目で作るため、コンボ機能全体は「作りかけ」。
+- 実ファイルの確認日: 2026-10-19
