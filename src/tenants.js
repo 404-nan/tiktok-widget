@@ -384,6 +384,14 @@ export class Tenants {
     return rt;
   }
 
+  liveCount() {
+    let count = 0;
+    for (const runtime of this.runtimes.values()) {
+      if (runtime.isLive()) count++;
+    }
+    return count;
+  }
+
   async close(id) {
     const rt = this.runtimes.get(id);
     if (!rt) return;

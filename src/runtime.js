@@ -690,6 +690,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     hub,
     tiktok,
     demo,
+    // 配信終了後の再接続は、切れている短い間も同じ配信として数える。
+    isLive: streamLive,
     autoConnect({ handle, slot, now = Date.now() }) {
       const state = auto.get(slot.id) ?? { attempts: 0, lastAttempt: 0, manuallyStopped: false };
       auto.set(slot.id, state);
