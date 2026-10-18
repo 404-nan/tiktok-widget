@@ -30,7 +30,7 @@ export const INFO = {
   counters: { icon: 'heart', desc: 'いいねや視聴者の数を出す' },
   goals: { icon: 'target', desc: '「フォロー 100 人」のような目標までのバー' },
   rankings: { icon: 'trophy', desc: 'たくさんギフトをくれた人の順位' },
-  roulettes: { icon: 'dices', desc: 'ギフトで回る、罰ゲームやごほうびのルーレット' },
+  roulettes: { icon: 'dices', desc: 'ルーレットが何個あっても、入れるのはこの1本です。ギフトが来たルーレットが順番に出ます' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
   timers: { icon: 'timer', desc: 'ギフトで延びる残り時間（耐久配信）' },

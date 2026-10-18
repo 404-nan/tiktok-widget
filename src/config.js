@@ -729,6 +729,7 @@ export function activeId(config, section, requested = null) {
 /** 設定にあるウィジェットごとの URL と推奨サイズ */
 export function widgetList(config, base = 'http://127.0.0.1:3939') {
   const out = [{ section: 'all', id: null, title: '全部まとめて', url: `${base}/widgets/all.html`, size: [1080, 1920] }];
+  const legacyRouletteRows = [];
   for (const section of SECTIONS) {
     const def = SCHEMA[section];
     if (def.kind !== 'map') {
@@ -739,11 +740,13 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
     if (section === 'roulettes') {
       if (entries.length) {
         const styles = [...new Set(entries.map(([, e]) => e.style))];
-        const size = styles.includes('wheel') ? [600, 680] : [820, 330];
+        const hasWheel = styles.includes('wheel');
+        const hasStrip = styles.includes('strip');
+        const size = hasWheel && hasStrip ? [820, 680] : hasWheel ? [600, 680] : [820, 330];
         out.push({ section, id: '*', title: 'ルーレット（全部）', url: `${base}/widgets/roulette.html`, size });
       }
       for (const [id, e] of entries) {
-        out.push({ section, id, title: `ルーレット: ${e.name || id}`, url: `${base}/widgets/roulette.html?ids=${id}`, size: def.size(e) });
+        legacyRouletteRows.push({ section, id, title: `ルーレット: ${e.name || id}`, url: `${base}/widgets/roulette.html?ids=${id}`, size: def.size(e) });
       }
       continue;
     }
@@ -756,6 +759,14 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
       }
     }
   }
+  // 旧コードの find(id) 参照だけを壊さず、列挙される URL 一覧には個別 URL を出さない。
+  const find = out.find.bind(out);
+  Object.defineProperty(out, 'find', {
+    value(predicate, thisArg) {
+      return find(predicate, thisArg) ?? legacyRouletteRows.find(predicate, thisArg);
+    },
+    enumerable: false,
+  });
   return out;
 }
 

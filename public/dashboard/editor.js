@@ -1971,7 +1971,7 @@ export function createEditor({ api, setMessage }) {
   function currentWidget() {
     if (tab === 'minecraft') return null;
     const section = tab === 'theme' ? 'alerts' : tab;
-    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : isObj(tab) ? null : id;
+    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : tab === 'roulettes' ? '*' : isObj(tab) ? null : id;
     return payload.widgets.find((w) => w.section === section && w.id === wid && !w.extra);
   }
 
@@ -1994,15 +1994,14 @@ export function createEditor({ api, setMessage }) {
       box = document.createElement('div');
       box.id = 'rouletteUrls';
       box.className = 'roulette-urls';
-      $('sizeHint').insertAdjacentElement('afterend', box);
     }
     box.replaceChildren();
     const title = document.createElement('span');
     title.className = 'field-label';
-    title.textContent = 'LIVE Studio / OBS に入れるURL';
+    title.textContent = '1つだけ出したいときの LIVE Studio / OBS URL';
     const hint = document.createElement('p');
     hint.className = 'hint';
-    hint.textContent = 'ルーレットごとに別のブラウザソースにするときは各URL、1つで全部出すときは一番下のURL';
+    hint.textContent = 'ルーレットごとに分けて出したいときだけ使います。';
     box.append(title, hint);
     const saved = Object.entries(payload.config.roulettes ?? {});
     const rows = [];
@@ -2036,6 +2035,9 @@ export function createEditor({ api, setMessage }) {
       row.append(lab, line);
       box.append(row);
     }
+    const target = document.querySelector('.more.others .settings');
+    if (target) target.append(box);
+    else $('sizeHint').insertAdjacentElement('afterend', box);
   }
 
   function updateUrl(immediate = false) {
