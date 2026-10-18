@@ -6,6 +6,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { normalize, widgetList } from '../../src/config.js';
+import { renderRouletteUrls, ROULETTE_DESCRIPTION } from '../../public/dashboard/roulette-urls.js';
+import { FakeDocument } from '../helpers/fake-dom.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BASE = 'http://127.0.0.1:3939';
@@ -72,17 +74,34 @@ test('AC-2 丸型と横型の両方なら 820×680', () => {
 });
 
 test('AC-3 ルーレットごとの ?ids= の URL は、ダッシュボードの「ほかの項目」の中の「1つだけ出したいとき」に残る', () => {
-  const editor = fs.readFileSync(path.join(repoRoot, 'public/dashboard/editor.js'), 'utf8');
-  assert.ok(editor.includes('1つだけ出したいとき'));
-  assert.ok(editor.includes('ids='));
-  assert.ok(editor.includes('ほかの項目'));
+  const documentRef = new FakeDocument();
+  const details = documentRef.createElement('details');
+  details.className = 'more others';
+  const target = documentRef.createElement('div');
+  target.className = 'settings';
+  details.append(target);
+  const fallback = documentRef.createElement('div');
+  const box = renderRouletteUrls({
+    documentRef,
+    widget: { url: `${BASE}/widgets/roulette.html` },
+    roulettes: { one: wheel('一'), two: strip('二') },
+    target,
+    fallback,
+    locationOrigin: BASE,
+  });
+
+  assert.equal(target.querySelector('#rouletteUrls'), box);
+  assert.equal(target.querySelectorAll('.roulette-url').length, 2);
+  assert.equal(target.querySelectorAll('input').length, 2);
+  assert.ok(box.textContent.includes('1つだけ出したいとき'));
+  assert.ok(!box.textContent.includes('全部まとめて'));
+  assert.equal(target.querySelectorAll('input')[0].value, `${BASE}/widgets/roulette.html?ids=one`);
+  assert.equal(target.querySelectorAll('input')[1].value, `${BASE}/widgets/roulette.html?ids=two`);
+  assert.equal(fallback.children.length, 0);
 });
 
 test('AC-4 ダッシュボードに1行の説明を出す', () => {
-  const text = ['editor.js', 'simple.js', 'index.html']
-    .map((f) => fs.readFileSync(path.join(repoRoot, 'public/dashboard', f), 'utf8'))
-    .join('\n');
-  assert.ok(text.includes('ルーレットが何個あっても、入れるのはこの1本です。ギフトが来たルーレットが順番に出ます'));
+  assert.equal(ROULETTE_DESCRIPTION, 'ルーレットが何個あっても、入れるのはこの1本です。ギフトが来たルーレットが順番に出ます');
 });
 
 test('AC-5 all.html の URL と大きさは変わらない', () => {
