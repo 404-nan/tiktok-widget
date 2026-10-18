@@ -298,20 +298,22 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/vote', (_req, res) => res.json(vote.snapshot()));
   r.all('/api/vote/:id/:action', (req, res) => {
     const requested = req.params.id;
+    const action = req.params.action;
+    const allowedActions = ['status', 'start', 'close', 'result', 'reset'];
+    if (!allowedActions.includes(action)) return res.status(400).json({ error: '投票の動作は start / close / result / reset / status のどれかです' });
     const ids = requested === 'all'
       ? vote.ids()
       : [requested === 'active' ? cfg.activeId(hub.config, 'votes') : requested];
     try {
-      if (req.params.action === 'status') return res.json({ ok: true, votes: vote.snapshot() });
+      if (action === 'status') return res.json({ ok: true, votes: vote.snapshot() });
+      if (!ids.length || ids.some((id) => !id || !vote.ids().includes(id))) throw new Error('投票の設定がありません');
       const data = { ...req.body, ...req.query };
       const out = {};
       for (const id of ids) {
-        if (!id) continue;
-        if (req.params.action === 'start') out[id] = vote.start(id, { options: data.options, seconds: data.seconds });
-        else if (req.params.action === 'close') out[id] = vote.close(id);
-        else if (req.params.action === 'result') out[id] = vote.result(id);
-        else if (req.params.action === 'reset') out[id] = (vote.reset(id), vote.snapshot()[id]);
-        else throw new Error('動作は start / close / result / reset / status のどれかです');
+        if (action === 'start') out[id] = vote.start(id, { options: data.options, seconds: data.seconds });
+        else if (action === 'close') out[id] = vote.close(id);
+        else if (action === 'result') out[id] = vote.result(id);
+        else if (action === 'reset') out[id] = (vote.reset(id), vote.snapshot()[id]);
       }
       return res.json({ ok: true, vote: ids.length === 1 ? out[ids[0]] : undefined, votes: out });
     } catch (err) {
@@ -696,7 +698,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       const requested = data?.id;
       const ids = requested === 'all' ? vote.ids() : [requested === 'active' || !requested ? cfg.activeId(hub.config, 'votes') : requested];
       try {
+        const allowedActions = ['status', 'start', 'close', 'result', 'reset'];
+        if (!allowedActions.includes(action)) throw new Error('投票の動作は start / close / result / reset / status のどれかです');
         if (action === 'status') return { status: 200, body: { ok: true, votes: vote.snapshot() } };
+        if (!ids.length || ids.some((id) => !id || !vote.ids().includes(id))) throw new Error('投票の設定がありません');
         const out = {};
         for (const id of ids) {
           if (action === 'start') out[id] = vote.start(id, data);

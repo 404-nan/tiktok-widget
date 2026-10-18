@@ -14,6 +14,7 @@ const files = [
   'public/widgets/media.js',
   'public/widgets/gacha.js',
   'public/widgets/slot.js',
+  'public/widgets/vote.js',
   'public/widgets/sounds.js',
 ];
 

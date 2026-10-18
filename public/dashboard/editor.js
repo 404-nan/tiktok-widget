@@ -134,6 +134,7 @@ export function createEditor({ api, setMessage }) {
   let mode = 'simple';
   let view = 'obs';
   let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
+  let testVoteParticipant = 0;
   let alertMedia = []; // メディア通知に入れたファイル
   let refreshMediaSelects = () => {};
   const simple = () => mode === 'simple';
@@ -2173,7 +2174,7 @@ export function createEditor({ api, setMessage }) {
         chip('しめきる', 'pause', vote('close')),
         chip('結果を出す', 'trophy', vote('result')),
         chip('リセット', 'rotate-ccw', vote('reset')),
-        ...options.map((_, index) => chip(`${index + 1} に1票（テスト）`, 'message-circle', () => api('/api/simulate', { kind: 'chat', text: String(index + 1), user: 'テスト参加者' }))),
+        ...options.map((_, index) => chip(`${index + 1} に1票（テスト）`, 'message-circle', () => api('/api/simulate', { kind: 'chat', text: String(index + 1), user: `テスト参加者${++testVoteParticipant}` }))),
       );
     } else if (tab === 'jars') {
       box.append(chip('ゆらす', null, control('gift-jar', 'shake', { id })), chip('中身を空にする', null, control('gift-jar', 'reset', { id })));

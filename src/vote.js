@@ -5,6 +5,7 @@ const OPTION_MIN = 2;
 const OPTION_MAX = 9;
 const RECENT_NAMES = 5;
 const TALLY_DELAY = 250;
+const MAX_DURATION_SECONDS = 3600;
 
 const clone = (value) => structuredClone(value);
 const optionError = () => `選択肢は ${OPTION_MIN} 個以上 ${OPTION_MAX} 個以下にしてください`;
@@ -69,7 +70,8 @@ export class VoteEngine {
     const state = this.#state(id, entry);
     if (state.phase === 'open') throw new Error('もう始まっています');
     const options = normalizeOptions(overrides.options ?? entry.options);
-    const seconds = overrides.seconds == null ? Number(entry.durationSeconds) || 0 : Number(overrides.seconds);
+    const requestedSeconds = overrides.seconds == null ? Number(entry.durationSeconds) || 0 : Number(overrides.seconds);
+    const seconds = Math.min(MAX_DURATION_SECONDS, requestedSeconds);
     if (!Number.isFinite(seconds) || seconds < 0) throw new Error('投票の秒数は 0 以上にしてください');
     this.#clearTimer(state);
     state.title = String(entry.title ?? 'どれにする?');
@@ -289,4 +291,3 @@ export class VoteEngine {
     if (notify) this.#broadcast(id, 'reset');
   }
 }
-

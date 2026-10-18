@@ -19,6 +19,9 @@
   .label { overflow-wrap: anywhere; font-size: 20px; font-weight: 700; }
   .bar { height: 22px; overflow: hidden; background: #25262B; }
   .fill { height: 100%; width: 0; background: #F6F5F1; transition: width .25s ease; }
+  #vote.closed .fill, #vote.revealing .fill { transition: none; }
+  .row.voted { animation: vote-flash .45s ease-out; }
+  .row.voted .number, .row.voted .label, .row.voted .count { filter: brightness(1.7); }
   .row.leading .fill { background: #FF4F1F; }
   .count { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 24px; text-align: right; white-space: nowrap; }
   #names { min-height: 1.4em; margin: 16px 0 0; color: #C9C9D1; font-size: 16px; text-align: right; }
@@ -29,6 +32,7 @@
   #vote.result .row.loser { opacity: .38; }
   #vote.result.hit { animation: hit .18s linear 2; }
   @keyframes hit { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(7px); } }
+  @keyframes vote-flash { 0% { filter: brightness(1.8); } 100% { filter: brightness(1); } }
   @media (max-width: 520px) {
     #vote { padding: 18px; }
     .row { grid-template-columns: 30px minmax(70px, 1fr) minmax(70px, 2fr) 72px; gap: 6px; }
