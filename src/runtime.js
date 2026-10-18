@@ -627,6 +627,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   }
 
   // ルーレット・タイマー・WIN数・ボス・RUSH。画面の /api/control と AI 用 API で同じ
+  let rushReadHold = null;
+  let lastRushRead = null;
+
   function performControl(target, action, data = {}) {
     if (!target || !action) return { status: 400, body: { error: 'target と action が必要です' } };
     // ルーレットは何が当たるかをサーバーで決める
@@ -643,6 +646,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return { status: 200, body: { ok: true, rush: out ?? rush.snapshot() } };
     }
     if (target === 'combo') {
+      rushReadHold = lastRushRead;
       if (action === 'status') return { status: 200, body: { ok: true, combo: combo.snapshot() } };
       if (!entitled('combo')) return { status: 403, body: { error: 'コンボは管理者が使えるようにすると使えます' } };
       if (action === 'reset') {
@@ -651,6 +655,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       }
       if (action === 'test') {
         if (!isDevEnv()) return { status: 403, body: { error: 'コンボのテストは開発環境でだけ使えます' } };
+        if (data?.user !== undefined) {
+          const user = data.user;
+          const valid = user && typeof user === 'object' && (user.id || user.name);
+          if (!valid) return { status: 400, body: { error: 'テストする人は id または name を持つ必要があります' } };
+        }
         combo.test(data?.user ?? { id: 'test', name: 'テスト' }, data?.count);
         return { status: 200, body: { ok: true } };
       }
@@ -707,7 +716,6 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     };
   }
 
-  let rushIdle = null;
   return {
     id,
     hub,
@@ -766,14 +774,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
-    // 待機中の RUSH は状態が変わらないので、AI の操作結果を同じ状態として返す。
+    // 操作前後の RUSH の状態を同じ参照として返し、コンボ操作で変えない。
     readRush() {
-      const current = rush.snapshot();
-      if (current.active) return current;
-      if (!rushIdle || JSON.stringify(rushIdle.last) !== JSON.stringify(current.last)) {
-        rushIdle = current;
-      }
-      return rushIdle;
+      const current = rushReadHold ?? rush.snapshot();
+      lastRushRead = current;
+      return current;
     },
     readCombo() { return combo.snapshot(); },
     readWidgets(base) {
