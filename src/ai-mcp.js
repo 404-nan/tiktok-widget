@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { reference } from './config.js';
 import { AI_ROUTES } from './ai-api.js';
 import { isDevEnv } from './env.js';
+import { takeWidgetScreenshot } from './ai-screenshot.js';
 
 export const AI_MCP_INSTRUCTIONS = [
   'TikTok LIVE 配信用ウィジェットの設定を、サーバーの AI 用 API 経由で扱う。',
@@ -12,6 +13,7 @@ export const AI_MCP_INSTRUCTIONS = [
   '配信中は変更不可。配信が live または接続中のときは、書き込みも操作も拒否される（dry-run と読み取りはできる）。',
   '課金は申請だけ。反映は管理画面で人が承認したときだけ。課金のスイッチ、API キー、4桁の数字、接続は変更できない。',
   '接続・切断・再起動・トークンの発行・配信者の削除はできない。',
+  '画面確認は take_widget_screenshot を使う。開発環境でテスト送信してから、一覧にあるウィジェットだけを撮影する。',
 ].join('\n');
 
 const PATH_DESC = 'ドット区切りの場所。例: "roulettes.punishment.gifts" / "theme.accent"';
@@ -53,7 +55,7 @@ export async function callAiHttp(server, token, tool, args = {}) {
   return data;
 }
 
-export function registerAiTools(server, call) {
+export function registerAiTools(server, call, options = {}) {
   const wrap = (fn) => async (args) => {
     try {
       return await fn(args ?? {});
@@ -185,6 +187,33 @@ export function registerAiTools(server, call) {
     },
   }, wrap(async (args) => shown(await call('test_event', args))));
 
+  server.registerTool('take_widget_screenshot', {
+    title: 'ウィジェットを撮影',
+    description: '開発環境でテスト送信をしてから、配信者の一覧にある指定ウィジェットだけを撮影する。任意のURLは指定できない。',
+    inputSchema: {
+      tenant: z.string().min(1).describe('配信者の id（必須）'),
+      widget: z.string().min(1).describe('一覧の名前。例: alerts:default / 通知: default'),
+      kind: z.enum(['gift', 'like', 'follow', 'share', 'chat', 'viewers']),
+      giftName: z.string().optional(),
+      count: z.number().int().min(1).max(999).optional(),
+      diamonds: z.number().int().min(1).optional(),
+      user: z.string().optional(),
+      viewers: z.number().int().min(0).optional(),
+      waitMs: z.number().int().min(0).max(30000).default(0).describe('テスト送信後に待つ時間（ミリ秒、最大30秒）'),
+      width: z.number().int().positive().optional().describe('撮影幅。省略時はウィジェットの推奨サイズ'),
+      height: z.number().int().positive().optional().describe('撮影高さ。省略時はウィジェットの推奨サイズ'),
+    },
+  }, wrap(async (args) => {
+    const allowed = typeof options.isDevelopment === 'function' ? options.isDevelopment() : options.isDevelopment !== false;
+    const result = await takeWidgetScreenshot({ call, args, isDevelopment: allowed, capture: options.capture });
+    return {
+      content: [
+        { type: 'text', text: `撮影しました\n${JSON.stringify(result.metadata, null, 2)}` },
+        result.image,
+      ],
+    };
+  }));
+
   server.registerTool('spin_roulette', {
     title: 'ルーレットを回す',
     description: 'ルーレットを回す。配信中の本番では拒否される。この操作は取り消せない。',
@@ -275,7 +304,7 @@ export function createAiMcpHandler(control) {
         throw err;
       }
       return result.body;
-    });
+    }, { isDevelopment: () => isDevEnv(req) });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     try {
       await mcp.connect(transport);

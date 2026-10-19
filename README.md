@@ -2,6 +2,14 @@
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
+## 機能の状態
+
+| 機能 | 何ができるか | 状態 | コードの場所 |
+| --- | --- | --- | --- |
+| ウィジェット表示 | TikTok LIVE のギフト・コメント・集計を画面に出す | できた | `public/widgets/` |
+| 開発用ウィジェット撮影 | テナントの一覧から選んだウィジェットへテスト送信し、待って画像を返す | できた（既存のPuppeteer環境が必要） | `src/ai-screenshot.js`, `src/ai-mcp.js` |
+| 本番撮影 | 本番配信中の画面を撮影する | まだ（安全のため作らない） | - |
+
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
 | ギフト通知 `gift-alert` | ギフト・フォロー・シェアを中継テロップのように表示。高額ギフトは金色 | 760 × 200 |
@@ -344,6 +352,7 @@ src/rcon.js            RCON クライアント
 src/superstream.js     マイクラ側の演出プロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）
 mcp/server.js          MCP サーバー
+src/ai-screenshot.js   開発用ウィジェットのテスト送信後撮影
 bin/tw.js              CLI
 src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は自動で再接続）
 src/normalize.js       生データをウィジェット用の形にそろえる（連打ギフトは確定時に1件）
@@ -360,6 +369,8 @@ Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 ```
+
+最後に直した日: 2026-10-19
 
 ```bash
 npm test
