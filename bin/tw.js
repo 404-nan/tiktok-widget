@@ -168,6 +168,10 @@ try {
     case 'rush':
       print(await admin.rush(args[0]));
       break;
+    case 'obs':
+      if (!args[0]) throw new Error('obsのきっかけを指定してください');
+      print(await admin.control('obs', 'test', { rule: args[0] }));
+      break;
     case 'spin':
       print(await admin.spinRoulette(args[0]));
       break;

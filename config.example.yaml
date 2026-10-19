@@ -213,3 +213,14 @@ minecraft:
     - name: 1000 コイン以上で隕石
       minCoins: 1000
       superstreamGift: 6001
+# OBS連携。OBSのツール → WebSocketサーバー設定を有効にし、ブラウザソースURLの末尾に #pw=パスワード を自分で足す（サーバーには送られません）。
+obs:
+  enabled: false
+  port: 4455
+  scene: ""
+  source: ""
+  cooldownSeconds: 4
+  reduce: false
+  rules:
+    - {on: rainbow, do: shake, strength: 1.5, seconds: 0.8}
+    - {on: rainbow, do: zoom, scale: 1.08, seconds: 1.2}

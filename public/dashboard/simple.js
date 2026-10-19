@@ -8,6 +8,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
+  ['豪華な演出', ['obs']],
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
@@ -25,6 +26,7 @@ export const PLAY_MODES = [
 
 // アイコンとひとこと（URL や設定の名前は書かない）
 export const INFO = {
+  obs: { icon: 'video', desc: '虹や大当たりのとき、OBSのカメラを揺らす・拡大する' },
   alerts: { icon: 'gift', desc: 'ギフトやフォローが来たら、名前つきのテロップを出す' },
   chats: { icon: 'message-circle', desc: 'コメントを画面に流す。読み上げもできる' },
   counters: { icon: 'heart', desc: 'いいねや視聴者の数を出す' },
@@ -61,6 +63,15 @@ const CUTIN_SCALE = {
  * groups: [{ title, presets?（押すとまとめて値が入る型）, fields（出す項目） }]、note: 項目の代わりに出す案内
  */
 export const SIMPLE = {
+  obs: {
+    groups: [
+      { title: '使う', fields: ['enabled', 'port'] },
+      { title: 'どのカメラを', fields: ['scene', 'source'] },
+      { title: 'どんなとき・どう動かす', fields: ['rules', 'cooldownSeconds', 'reduce'] },
+    ],
+    help: 'OBSのツール → WebSocketサーバー設定で有効にし、ブラウザソースにこのURLを入れ、末尾に #pw= とOBSのパスワードを自分で足します（サーバーには送られません）。',
+    size: () => [320, 120],
+  },
   alerts: {
     groups: [
       { title: 'いつ出す', fields: ['events', 'gifts', 'minCoins'] },
@@ -255,6 +266,7 @@ export const SIMPLE = {
 
 // 「かんたん」での呼び名（そのまま読んで分かる言い方にする。説明文は出さない）
 export const SIMPLE_LABELS = {
+  'obs.enabled': 'OBS連携を使う', 'obs.source': '動かすカメラのソース', 'obs.scene': '動かす場面', 'obs.rules': '動作ルール', 'obs.cooldownSeconds': '同じ動作の間隔', 'obs.reduce': '動きを弱める',
   'alerts.events': '出すきっかけ', 'alerts.minCoins': '何コインから出す', 'alerts.position': 'たての位置', 'alerts.align': 'よこの位置',
   'alerts.bigCoins': '何コインから金色にする', 'alerts.rules': 'このギフトのときだけ特別にする',
   'chats.style': '形', 'chats.fontSize': '文字の大きさ', 'chats.maxItems': '一度に出す数', 'chats.highlight': 'ギフトした人を目立たせる',
@@ -294,6 +306,7 @@ const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).map((name) 
 
 // ホームの一覧に出す、今の設定のひとこと（1件目の設定から作る）
 const SUMMARY = {
+  obs: (e) => (e.enabled === false ? '使わない設定' : `${e.source || 'カメラ未指定'}を${e.reduce ? '弱めに' : '動かす'}・ルール ${e.rules?.length ?? 0}件`),
   alerts: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・') || 'なし'}で出す`,
   chats: (e) => `${e.style === 'bubble' ? '吹き出し' : 'テロップ'}${e.tts ? '・読み上げあり' : ''}`,
   counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),

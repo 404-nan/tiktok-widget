@@ -612,6 +612,23 @@ SCHEMA.minecraft = {
   },
 };
 
+SCHEMA.obs = {
+  kind: 'object', page: 'obs-bridge', title: 'OBS連携',
+  desc: '虹や大当たりのときにOBSのカメラを揺らす・拡大する機能です。OBSのパスワードはサーバーへ送らず、ブラウザURLの#以降だけで使います。',
+  fields: {
+    enabled: bool(false, 'OBSを動かす。初期は切です。'),
+    port: num(4455, 'OBS WebSocketのポート。パスワードはここに置かず、URLの#以降で送ります。', { min: 1, max: 65535 }),
+    scene: str('', '動かす場面の名前。空なら現在の場面です。'),
+    source: str('', '揺らす・拡大するカメラのソース名。空なら動かしません。'),
+    rules: { type: 'obsRules', default: [
+      { on: 'rainbow', do: 'shake', strength: 1.5, seconds: 0.8 }, { on: 'rainbow', do: 'zoom', scale: 1.08, seconds: 1.2 },
+      { on: 'jackpot', do: 'shake', strength: 1.5, seconds: 0.8 }, { on: 'rushStart', do: 'zoom', scale: 1.06, seconds: 1 }, { on: 'bossDefeat', do: 'shake', strength: 1.2, seconds: 0.6 },
+    ], desc: 'きっかけごとのOBS動作。パスワードは送らず保存もしません。'},
+    cooldownSeconds: num(4, '同じきっかけを続けて動かさない秒数。', { min: 0, max: 60 }),
+    reduce: bool(false, '動きを弱める。揺れ・ズーム幅を半分、時間を0.6倍にします。'),
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {

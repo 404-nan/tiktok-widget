@@ -80,6 +80,8 @@ function checkValue(field, value, where, issues) {
       return checkSlotTrigger(value, where, issues);
     case 'slotPayouts':
       return checkSlotPayouts(value, where, issues);
+    case 'obsRules':
+      return checkObsRules(value, where, issues);
     case 'cutinStyle':
       return checkCutinStyle(value, where, issues);
     case 'crop':
@@ -87,6 +89,23 @@ function checkValue(field, value, where, issues) {
     default:
       return value;
   }
+}
+
+function checkObsRules(value, where, issues) {
+  if (!Array.isArray(value)) { issues.errors.push(`${where}: ルールの一覧で書いてください`); return []; }
+  const ons = ['rainbow', 'gold', 'jackpot', 'slotBig', 'rushStart', 'rushEnd', 'bossDefeat', 'gachaTop'];
+  const dos = ['shake', 'zoom', 'scene', 'show', 'hide'];
+  return value.map((raw, i) => {
+    const at = `${where}.${i}`; const r = raw && typeof raw === 'object' ? raw : {}; const out = { on: String(r.on ?? ''), do: String(r.do ?? '') };
+    if (!ons.includes(out.on)) issues.errors.push(`${at}.on: OBSのきっかけを指定してください`);
+    if (!dos.includes(out.do)) issues.errors.push(`${at}.do: OBSの動作を指定してください`);
+    const number = (key, def, min, max) => { const n = r[key] == null ? def : Number(r[key]); if (!Number.isFinite(n) || n < min || n > max) { issues.errors.push(`${at}.${key}: ${min}〜${max}の数値で指定してください`); return def; } return n; };
+    if (out.do === 'shake') { out.strength = number('strength', 1.5, 0.1, 3); out.seconds = number('seconds', 0.8, 0.2, 3); }
+    if (out.do === 'zoom') { out.scale = number('scale', 1.08, 1, 1.5); out.seconds = number('seconds', 1.2, 0.2, 3); }
+    if (out.do === 'scene') { out.name = String(r.name ?? ''); out.backSeconds = number('backSeconds', 3, 0, 60); }
+    if (out.do === 'show' || out.do === 'hide') { out.item = String(r.item ?? ''); out.seconds = number('seconds', 3, 0, 60); }
+    return out;
+  });
 }
 
 function checkCutinStyle(value, where, issues) {
