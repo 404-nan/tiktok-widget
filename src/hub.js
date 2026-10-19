@@ -82,6 +82,8 @@ export class Hub extends EventEmitter {
   publish(event) {
     if (!event) return;
     const e = { id: ++this.seq, ts: Date.now(), ...event };
+    // 配る前に、サーバー側の仕組みがイベントへ共有用の印を付けられるようにする。
+    this.emit('prepare', e);
     // テスト送信（test: true）は、本番の数を汚さない:
     // - 配信中（TikTok につないでいる間）は画面に出すだけ。集計・ランキングは変えず、
     //   ほかの仕組み（WIN数・タイマー・ボス・ルーレット・Minecraft・記録）にも渡さない

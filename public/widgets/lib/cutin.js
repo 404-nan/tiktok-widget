@@ -97,7 +97,7 @@ export async function startCutin(section) {
    * 写真の帯: 斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる。
    * 帯の画像は上下に 0.3 倍ずつ余白を持つので、要素の高さは見える帯の 1.6 倍。
    */
-  function buildPhotoStrip(e, t, bw, sh, seed) {
+  function buildPhotoStrip(e, t, bw, sh, seed, photoSource) {
     const pad = sh * 0.3;
     const full = sh * 1.6;
     const parts = [];
@@ -107,7 +107,7 @@ export async function startCutin(section) {
     photo.className = 'strip-photo';
     const mask = bandImage(bw, sh, ['#fff', '#fff'], seed);
     photo.style.webkitMaskImage = photo.style.maskImage = `url("${mask.src}")`;
-    const src = p.photo || '';
+    const src = photoSource || '';
     if (src) {
       const img = new Image();
       img.className = 'photo-img';
@@ -319,7 +319,10 @@ export async function startCutin(section) {
 
   // --- 1回分 ---
   async function play(e) {
-    const tier = tierFor(e);
+    const baseTier = tierFor(e);
+    const result = window.CutinPremium ? window.CutinPremium.resolve(e.cutinDraw, baseTier, p) : { tier: baseTier, from: null, pattern: null };
+    const tier = result.tier;
+    if (!tier) return;
     const t = TIERS[tier];
     const W = innerWidth, H = innerHeight;
     const unit = Math.min(W, H);
@@ -337,7 +340,8 @@ export async function startCutin(section) {
     stage.style.setProperty('--word-fill', t.word);
     stage.style.setProperty('--tag-accent', t.accent);
 
-    const seed = Math.floor(Math.random() * 900) + 1;
+    const seed = e.cutinDraw && e.cutinDraw.seed >= 1 && e.cutinDraw.seed <= 900 ? e.cutinDraw.seed : 1;
+    const photoSource = p[tier + 'Photo'] || p.photo || '';
     const visual = $('visual');
     const word = $('word');
     const tagEl = $('tag');
@@ -354,7 +358,7 @@ export async function startCutin(section) {
         height: size.h,
         style: p.imageStyle,
         crop: p.crop && typeof p.crop === 'object' ? p.crop : { x: 0.5, y: 0.5, scale: 1 },
-        photo: p.photo ? mediaUrl(p.photo) : '',
+        photo: photoSource ? mediaUrl(photoSource) : '',
         accent: t.accent,
       });
       stage.classList.add('style-hatch');
@@ -368,7 +372,7 @@ export async function startCutin(section) {
     } else if (p.style === 'photo') {
       // 写真の帯（縁が木炭のかすれ線）
       const sh = Math.round(H > W ? Math.min(H * 0.3, W * 0.62) : H * 0.42);
-      const strip = buildPhotoStrip(e, t, bw, sh, seed);
+      const strip = buildPhotoStrip(e, t, bw, sh, seed, photoSource);
       stage.classList.add('style-photo');
       stage.style.setProperty('--bh', `${strip.full}px`);
       $('band').replaceChildren(...strip.nodes);
@@ -386,17 +390,29 @@ export async function startCutin(section) {
       paint.className = 'paint';
       const glint = bandImage(bw, bh, ['#fff', '#fff'], seed + 23, { glint: true });
       glint.style.opacity = '.35';
-      $('band').replaceChildren(ink, paint, glint);
       wait = [ink, paint, glint];
+      const nodes = [ink, paint];
+      if (result.pattern && window.CutinPremium) {
+        const pattern = window.CutinPremium.paint(result.pattern, bw, bh, seed, Math.max(8, Math.round(bh / 18)));
+        if (pattern) {
+          const premium = new Image();
+          premium.className = 'premium-pattern';
+          premium.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + bw + ' ' + bh + '"><defs>' + pattern.defs + '</defs>' + pattern.fill + '</svg>');
+          nodes.push(premium);
+          wait.push(premium);
+        }
+      }
+      nodes.push(glint);
+      $('band').replaceChildren(...nodes);
     }
 
     // 色の帯に乗せるもの。写真を指定したときだけ写真を乗せ、なければ帯と文字だけ
     // 縦長フレームは帯の中に写真を入れてあるので、横の写真は足さない
     if (!hatch) visual.replaceChildren();
     if (!hatch && p.style !== 'photo') {
-      if (p.image === 'photo' && p.photo) {
+      if (p.image === 'photo' && photoSource) {
         const img = new Image();
-        img.src = mediaUrl(p.photo);
+        img.src = mediaUrl(photoSource);
         if (p.crop && typeof p.crop === 'object') img.style.objectPosition = `${Number(p.crop.x) * 100}% ${Number(p.crop.y) * 100}%`;
         visual.replaceChildren(img);
         wait.push(img);
@@ -426,6 +442,13 @@ export async function startCutin(section) {
 
     // 画像の読み込みを待つ（帯の SVG はここで描かれる）
     await Promise.all(wait.map((img) => img.decode().catch(() => {})));
+
+    if (result.from) {
+      stage.classList.add('promote');
+      sfx('kyuin');
+      await sleep(180);
+      stage.classList.remove('promote');
+    }
 
     // 虹: フリーズ（暗転して無音）→ キュイン
     if (tier === 'rainbow' && p.freeze) {

@@ -11,6 +11,7 @@ const files = [
   'public/dashboard/dev-features.js',
   'public/dashboard/cutin-crop.js',
   'public/widgets/lib/cutin-style.js',
+  'public/widgets/lib/cutin-premium.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
   'public/widgets/slot.js',

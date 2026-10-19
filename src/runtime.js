@@ -17,6 +17,7 @@ import { Minecraft } from './minecraft.js';
 import { History } from './history.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
+import { drawCutin } from './cutin-draw.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
@@ -101,6 +102,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const minecraft = new Minecraft(hub);
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
+  // 画面ごとに別のくじを引かないよう、配信直前に1回だけ作る。
+  hub.on('prepare', (event) => {
+    if (!['gift', 'follow', 'share'].includes(event.kind)) return;
+    event.cutinDraw = drawCutin({ rush: rush.state.active === true });
+  });
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
   roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));

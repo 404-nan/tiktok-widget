@@ -19,6 +19,13 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ボス討伐 `boss` | ギフトのコイン（といいね）がダメージになり、視聴者みんなでボスの HP を削る。HP バーが削れて白い残像がゆっくり追いかけ（格闘ゲームの体力ゲージ）、ダメージの数字が飛び、ボスが揺れる。大ダメージは板ごと揺れて斬撃。残りが少ないと HP が赤く点滅。HP 0 で一瞬暗転してから「討伐!」と金の光、とどめを刺した人のアイコン。少し待つと HP を増やした次のボスが出てくる（白鬼 → 赤鬼 → 黒鬼）。討伐でルーレットや Minecraft のコマンドも。HP は配信をまたいで残る | 720 × 260 |
 | ランキング `ranking` | この配信のトップギフター・いいねランキング。順位が入れ替わるとなめらかに動く | 420 × 416（5人） |
 
+## 機能の状態
+
+| 機能 | 状態 | コードの場所 |
+| --- | --- | --- |
+| カットインのプレミア柄・昇格・RUSH格上げ・段階写真 | できた | `src/cutin-draw.js`、`public/widgets/lib/cutin-premium.js` |
+| カットインの画面撮影と本番反映 | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
+
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
 管理用の画面は3つです。
@@ -333,6 +340,7 @@ src/config.js          設定ファイルの検証・読み書き（コメント
 src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
+src/README.md           サーバー側コードの役目とつながり
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）
 src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
@@ -350,16 +358,18 @@ src/normalize.js       生データをウィジェット用の形にそろえる
 src/hub.js             集計（いいね・視聴者・コイン・トップギフター）と配信
 src/demo.js            デモ・テスト用のイベント
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
-public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
+public/dashboard/      設定画面（[README](public/dashboard/README.md)、common.js / charts.js は3画面で共通）
 public/monitor/        配信中モニター
 public/history/        統計・履歴
-public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
-test/                  node --test のテスト
+public/widgets/        各ウィジェット（[README](public/widgets/README.md)、lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
+test/                  node --test のテスト（[README](test/README.md)）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 ```
+
+最後に直した日: 2026-10-19
 
 ```bash
 npm test
