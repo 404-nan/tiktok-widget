@@ -9,6 +9,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 配信ウィジェット・ダッシュボード・管理画面 | できた | `public/`、`src/`、`server.js` |
 | ウィジェットとサーバーの性能計測 | できた | `scripts/perf/` |
 | 性能の上限判定とJSON出力 | できた | `scripts/perf/lib/` |
+| 性能改善（perf-fix） | できた | WebSocket の差分配信と連打時の履歴保存を確認する受け入れテスト。`src/hub.js`、`public/widgets/lib/overlay.js`、`test/acceptance/` |
 
 最後に直した日: 2026-10-19
 

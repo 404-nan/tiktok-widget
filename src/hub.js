@@ -130,6 +130,10 @@ export class Hub extends EventEmitter {
     for (const ws of this.clients) {
       if (ws.readyState !== 1) continue;
       if (typeof ws.allowMessage === 'function' && !ws.allowMessage(msg)) continue;
+      if (ws.compact && msg.type === 'event') {
+        ws.send(JSON.stringify({ type: 'event', event: msg.event, statePatch: statePatch(msg.event, msg.state) }));
+        continue;
+      }
       ws.send(text);
     }
   }
@@ -207,3 +211,22 @@ const top = (map, field) =>
     .sort((a, b) => finiteCount(b[field]) - finiteCount(a[field]))
     .slice(0, RANKING_SIZE)
     .map((r) => ({ ...r, [field]: finiteCount(r[field]) }));
+
+function statePatch(event, state) {
+  const patch = {};
+  if (event.kind === 'gift') Object.assign(patch, { diamonds: state.diamonds, gifts: state.gifts, topGifters: rankingPatch(state.topGifters, event.user) });
+  if (event.kind === 'like') Object.assign(patch, { likes: state.likes, topLikers: rankingPatch(state.topLikers, event.user) });
+  if (event.kind === 'follow') patch.follows = state.follows;
+  if (event.kind === 'share') patch.shares = state.shares;
+  if (event.kind === 'chat') patch.comments = state.comments;
+  if (event.kind === 'viewers') patch.viewers = state.viewers;
+  return patch;
+}
+
+function rankingPatch(rows, user) {
+  const changedKey = user?.id || user?.name || '?';
+  return {
+    order: rows.map((row) => row.key),
+    changed: rows.filter((row) => row.key === changedKey).map((row) => ({ ...row })),
+  };
+}

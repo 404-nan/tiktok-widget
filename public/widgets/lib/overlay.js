@@ -262,6 +262,7 @@ export const list = (s) =>
 export function connect(handlers) {
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws`;
   let ws;
+  let latestState = null;
   const open = () => {
     ws = new WebSocket(url);
     ws.onmessage = (m) => {
@@ -272,9 +273,9 @@ export function connect(handlers) {
         return;
       }
       if (msg.type === 'hello' || msg.type === 'config') handleConfig(msg.config);
-      if (msg.type === 'hello') { handlers.hello?.(msg.status, msg.state, msg); window.__twSampleShow?.(Boolean(msg.sample?.on)); handlers.sample?.(Boolean(msg.sample?.on), msg.sample); }
-      else if (msg.type === 'event') handlers.event?.(msg.event, msg.state);
-      else if (msg.type === 'state') handlers.state?.(msg.state);
+      if (msg.type === 'hello') { latestState = msg.state; handlers.hello?.(msg.status, latestState, msg); window.__twSampleShow?.(Boolean(msg.sample?.on)); handlers.sample?.(Boolean(msg.sample?.on), msg.sample); }
+      else if (msg.type === 'event') { latestState = mergeStatePatch(latestState, msg.state, msg.statePatch); handlers.event?.(msg.event, latestState); }
+      else if (msg.type === 'state') { latestState = msg.state; handlers.state?.(latestState); }
       else if (msg.type === 'status') handlers.status?.(msg.status);
       else if (msg.type === 'control') handlers.control?.(msg);
       else if (msg.type === 'config') handlers.config?.(msg.config);
@@ -287,6 +288,20 @@ export function connect(handlers) {
     ws.onclose = () => setTimeout(open, 2000);
   };
   open();
+}
+
+function mergeStatePatch(previous, full, patch) {
+  if (full) return full;
+  if (!patch) return previous;
+  const next = { ...(previous ?? {}), ...patch };
+  for (const name of ['topGifters', 'topLikers']) {
+    const change = patch[name];
+    if (!change || !Array.isArray(change.order)) continue;
+    const old = new Map((previous?.[name] ?? []).map((row) => [row.key, row]));
+    for (const row of change.changed ?? []) old.set(row.key, row);
+    next[name] = change.order.map((key) => old.get(key)).filter(Boolean);
+  }
+  return next;
 }
 
 /** 自分宛ての制御メッセージか（target が自分の名前か 'all'） */
