@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-export const SCOPES = ['read', 'write', 'operate', 'test', 'admin'];
+export const SCOPES = ['read', 'write', 'operate', 'test', 'admin', 'suggest'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAYS = 30;
 
@@ -25,7 +25,7 @@ function hashesEqual(storedHex, digest) {
 }
 
 export function publicToken(token) {
-  return {
+  const result = {
     id: token.id,
     name: token.name,
     tenants: [...token.tenants],
@@ -34,6 +34,8 @@ export function publicToken(token) {
     createdAt: token.createdAt,
     lastUsedAt: token.lastUsedAt ?? null,
   };
+  if (token.kind) result.kind = token.kind;
+  return result;
 }
 
 function checkTenants(value) {
@@ -114,6 +116,31 @@ export class AiTokenStore {
     this.tokens.push(token);
     this.save();
     return { token: publicToken(token), value };
+  }
+
+  /** 配信者本人の入口。対象は1テナント、権限は読み取り・提案・開発テストに固定する。 */
+  issueStreamer({ tenantId, name, days = DEFAULT_DAYS, expiresAt = null, now = Date.now(), tenants, tenant, scopes } = {}) {
+    if (tenants != null || tenant != null || scopes != null) throw new Error('配信者専用トークンの範囲と権限は固定です');
+    const id = String(tenantId ?? '').trim();
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || id === '*') throw new Error('配信者専用トークンの対象が正しくありません');
+    const issued = this.issue({ name, tenants: [id], scopes: ['read', 'suggest', 'test'], days, expiresAt, now });
+    const stored = this.tokens.find((token) => token.id === issued.token.id);
+    stored.kind = 'streamer';
+    stored.ownerTenantId = id;
+    this.save();
+    return { token: publicToken(stored), value: issued.value };
+  }
+
+  listForTenant(tenantId) {
+    return this.tokens
+      .filter((token) => token.kind === 'streamer' && token.ownerTenantId === tenantId)
+      .map((token) => publicToken(token));
+  }
+
+  revokeStreamer(id, tenantId) {
+    const token = this.tokens.find((item) => item.id === id);
+    if (!token || token.kind !== 'streamer' || token.ownerTenantId !== tenantId) throw new Error('そのトークンは見つかりません');
+    return this.revoke(id);
   }
 
   revoke(id) {

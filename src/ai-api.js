@@ -47,6 +47,7 @@ export const AI_ROUTES = [
   { method: 'GET', path: '/widget-urls', tool: 'list_widget_urls' },
   { method: 'GET', path: '/gifts', tool: 'list_gifts' },
   { method: 'GET', path: '/changes', tool: 'list_changes' },
+  { method: 'POST', path: '/suggest', tool: 'suggest_config' },
   { method: 'POST', path: '/config/set', tool: 'set_config' },
   { method: 'POST', path: '/config/merge', tool: 'merge_config' },
   { method: 'POST', path: '/config/delete', tool: 'delete_config' },
@@ -70,6 +71,7 @@ const TOOLS = {
   list_gifts: { scope: 'read' },
   validate_config: { scope: 'read' },
   list_changes: { scope: 'read' },
+  suggest_config: { scope: 'suggest' },
   set_config: { scope: 'write', mutate: true, op: 'set' },
   merge_config: { scope: 'write', mutate: true, op: 'merge' },
   delete_config: { scope: 'write', mutate: true, op: 'delete' },
@@ -479,6 +481,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       }
       return finish(tool, context, { status: 200, body: { config: shown, ...issues, configVersion: version, live } });
     }
+    if (tool === 'suggest_config') return finish(tool, context, suggestConfig(runtime, args));
     if (tool === 'get_history') {
       const row = runtime.readHistory(args.id);
       if (args.id && !row) return finish(tool, context, { status: 404, body: { error: '見つかりません' } });
@@ -591,6 +594,28 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
         changeId,
       },
     };
+  }
+
+  // 配信者向け提案は必ずプレビューだけ。保存や承認待ちの作成は既存の所有者画面で行う。
+  function suggestConfig(runtime, args) {
+    const op = args.op === 'merge' || args.op === 'delete' || args.op === 'set' ? args.op : 'set';
+    const configPath = args.path;
+    if (configPath == null || configPath === '') return { status: 400, body: { error: 'path が必要です' } };
+    if (classifyConfigPath(configPath, args.value) !== 'ok') return { status: 403, body: { error: 'この項目は AI からは提案できません' } };
+    const preview = runtime.previewConfig(op, configPath, args.value);
+    const before = clonePlace(lookup(runtime.getConfig(), configPath));
+    const after = preview.config ? clonePlace(lookup(preview.config, configPath)) : { defined: false, value: null };
+    const shown = (place) => (place.defined ? stripSecrets(place.value) : null);
+    const body = {
+      ok: preview.ok,
+      dryRun: true,
+      diff: { path: configPath, op, before: shown(before), after: shown(after) },
+      validation: { ok: preview.ok, errors: preview.errors, warnings: preview.warnings },
+      live: runtime.aiLive(),
+      configVersion: runtime.configVersion(),
+      message: '提案だけです。保存は配信者の画面で確認してから行ってください',
+    };
+    return preview.ok ? { status: 200, body } : { status: 422, body: { ...body, error: preview.errors[0] ?? '設定を確認できません' } };
   }
 
   function operate(runtime, tenantId, tool, args, ctx) {

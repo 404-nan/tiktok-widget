@@ -13,6 +13,7 @@ export const AI_MCP_INSTRUCTIONS = [
   '配信中は変更不可。配信が live または接続中のときは、書き込みも操作も拒否される（dry-run と読み取りはできる）。',
   '課金は申請だけ。反映は管理画面で人が承認したときだけ。課金のスイッチ、API キー、4桁の数字、接続は変更できない。',
   '接続・切断・再起動・トークンの発行・配信者の削除はできない。',
+  '配信者用トークンでは、まず get_config で読み取り、suggest_config で保存しない提案を確認し、開発環境で test_event を使う。保存や承認はダッシュボードの所有者が行う。',
   '画面確認は take_widget_screenshot を使う。開発環境でテスト送信してから、一覧にあるウィジェットだけを撮影する。',
 ].join('\n');
 
@@ -84,6 +85,18 @@ export function registerAiTools(server, call, options = {}) {
     inputSchema: { tenant: z.string().optional() },
     annotations: readOnly,
   }, wrap(async (args) => shown(await call('validate_config', args))));
+
+  server.registerTool('suggest_config', {
+    title: '設定の提案を見る',
+    description: '設定を保存せず、差分・検証結果・配信中かどうかだけを返す。保存は配信者の画面で確認してから行う。',
+    inputSchema: {
+      op: z.enum(['set', 'merge', 'delete']).optional(),
+      path: z.string().describe(PATH_DESC),
+      value: z.any().optional(),
+      tenant: z.string().optional(),
+    },
+    annotations: readOnly,
+  }, wrap(async (args) => shown(await call('suggest_config', args))));
 
   const dry = {
     dryRun: z.boolean().optional().describe('true なら差分と検証だけ返し、保存しない'),

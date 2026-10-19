@@ -26,6 +26,7 @@
     <a class="chip pressable" href="#roulette">ルーレット</a>
     <a class="chip pressable" href="#timer">延長タイマー</a>
     <a class="chip pressable" href="#test">ためす</a>
+    <a class="chip pressable" href="#ai">外部AIにつなぐ</a>
     <a class="chip pressable" href="#trouble">困ったとき</a>
   </nav>
 
@@ -74,6 +75,18 @@
       <li>配信中にためしても、ランキングや記録・Minecraft には入りません。</li>
       <li>「デモを流す」はギフトをまとめて流して、全体の動きを見るためのものです。</li>
     </ul>
+  </section>
+
+  <section class="panel" id="ai">
+    <h2>外部AIにつなぐ</h2>
+    <ol>
+      <li>配信者用ダッシュボードの「AIとの接続」で名前と期限を入れ、「トークンを発行」を押します。</li>
+      <li>表示された値を一度だけコピーし、Claude・ChatGPT など外部AIの秘密のトークン欄へ貼ります。URLやチャット本文には貼りません。</li>
+      <li>接続先とテナント指定を外部AI側に登録し、最初に読み取りをします。次に「設定の提案」で dry-run の差分・検証結果・配信中かどうかを確認します。</li>
+      <li>最後に開発環境でテスト送信をします。提案は自動保存されず、本番の集計・履歴・ランキングを変えません。</li>
+      <li>本番へ反映したいときは、提案を見て配信者本人が既存の承認・設定画面で判断します。配信中は反映しません。使い終わったら一覧の「取り消す」を押します。</li>
+    </ol>
+    <p class="hint">できることは、自分のテナントの読み取り・設定提案・開発環境のテスト送信だけです。保存、操作、課金申請、接続や再起動はできません。</p>
   </section>
 
   <section class="panel" id="trouble">
