@@ -159,6 +159,13 @@ export async function ootori(action = 'status') {
   return state;
 }
 
+/** ダレ場の事件を開始・停止・確認する。状態はサーバーが持つ。 */
+export async function dareba(action = 'status') {
+  if (action === 'status') return callServer('/api/dareba');
+  const { dareba: state } = await callServer('/api/control', { method: 'POST', body: { target: 'dareba', action } });
+  return state;
+}
+
 /** WIN 数を変える・見る（サーバーが必要）。action: win / add / set / undo / reset / status。id を省くと全部 */
 export async function wins(action = 'status', id = null, value) {
   const line = (k, c) => `${k}: WIN ${c.wins}`;

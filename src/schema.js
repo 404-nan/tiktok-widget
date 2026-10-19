@@ -538,6 +538,18 @@ SCHEMA.peka = {
   },
 };
 
+SCHEMA.dareba = {
+  kind: 'object',
+  page: 'dareba',
+  title: 'ダレ場の小さな事件',
+  size: () => [640, 240],
+  desc: 'ギフトの勢いが落ちたときだけ、野良ボス・宝箱・号外の小さな事件を1つ出す。判定の数字は画面に出さない。URL は /widgets/dareba.html',
+  fields: {
+    enabled: bool(true, 'ダレ場の事件を使う'),
+    type: oneOf(['野良ボス', '宝箱', '号外'], '野良ボス', '自動で起こす事件の種類'),
+  },
+};
+
 SCHEMA.slots = {
   kind: 'object',
   page: 'slot',

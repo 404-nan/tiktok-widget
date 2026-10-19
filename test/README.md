@@ -4,6 +4,8 @@ Node標準テストで、サーバー側の仕組みと公開画面の配線を�
 
 | ファイル | 何をするか |
 | --- | --- |
+| `acceptance/dareba.test.js` | ダレ場の判定、状態、停止、テスト送信の受け入れ条件を確かめる |
+| `dareba-wiring.test.js` | 設定・機能一覧・ダッシュボード・公開ウィジェットの配線を確かめる |
 | `acceptance/peka.test.js` | Pekaの完成条件ごとの受け入れテスト |
 | `peka-wiring.test.js` | ランタイム、API、CLI、MCP、ダッシュボード、公開画面の配線テスト |
 | `acceptance/throne.test.js` | 動く王座の完成条件ごとの受け入れテスト |
@@ -13,5 +15,7 @@ Node標準テストで、サーバー側の仕組みと公開画面の配線を�
 | `acceptance/relay-stop.test.js` | リレー停止の完成条件ごとの受け入れテスト |
 | `relay-stop-wiring.test.js` | リレー停止の設定、操作経路、公開画面の配線テスト |
 | `*.test.js` | 既存機能のテスト |
+
+## つながり
 
 テストは `npm test` で実行します。本番の `config.yaml` や `data/` は使いません。

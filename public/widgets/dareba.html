@@ -1,0 +1,76 @@
+<!-- ダレ場の事件を画面端で短く見せるウィジェット。状態と時刻はサーバーから受け取る。 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ダレ場の小さな事件</title>
+<style>
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: "Yu Gothic UI", Meiryo, sans-serif; }
+#dareba { position: absolute; left: 2%; top: 18%; width: 70%; color: #F6F5F1; opacity: 0; transform: translateX(-110%); transition: opacity .18s ease, transform .22s ease; }
+#dareba.show { opacity: 1; transform: translateX(0); }
+#sender { display: flex; align-items: center; gap: 12px; background: #111113; border-left: 10px solid #3FA9F5; padding: 14px 20px; font-size: 28px; font-weight: bold; }
+#sender img { width: 48px; height: 48px; object-fit: cover; border-radius: 50%; }
+#plate { margin-top: 8px; background: #2ECC71; color: #111113; padding: 12px 20px; font-size: 42px; font-weight: bold; }
+#result { margin-top: 8px; background: #FF4F1F; color: #F6F5F1; padding: 14px 20px; font-size: 48px; font-weight: bold; }
+@media (max-width: 600px) { #dareba { width: 92%; top: 12%; } #sender { font-size: 22px; } #plate, #result { font-size: 34px; } }
+</style>
+</head>
+<body>
+<div id="dareba" aria-live="polite"><div id="sender"></div><div id="plate"></div><div id="result"></div></div>
+<script>
+(function () {
+  'use strict';
+  var box = document.getElementById('dareba');
+  var sender = document.getElementById('sender');
+  var plate = document.getElementById('plate');
+  var result = document.getElementById('result');
+  var lastId = null;
+  var lastPhase = null;
+  var showTimer = null;
+  function text(value, fallback) { return value || fallback; }
+  function show(state) {
+    if (!state || !state.eventId) return;
+    if (state.eventId === lastId && state.state === lastPhase) return;
+    lastId = state.eventId;
+    lastPhase = state.state;
+    sender.textContent = text(state.user && state.user.name, 'ライコネの事件');
+    plate.textContent = text(state.type, '小さな事件');
+    result.textContent = state.result || '';
+    sender.style.borderLeftColor = state.state === 'completed' ? '#FFC53D' : '#3FA9F5';
+    plate.style.background = state.state === 'completed' ? '#FF4F1F' : '#2ECC71';
+    box.className = 'show';
+    beep(state.state === 'completed' ? 660 : 220);
+    clearTimeout(showTimer);
+    showTimer = setTimeout(function () { box.className = ''; }, 3000);
+  }
+  function beep(frequency) {
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    var context;
+    var oscillator;
+    var gain;
+    if (!AudioContextClass) return;
+    try {
+      context = new AudioContextClass();
+      oscillator = context.createOscillator();
+      gain = context.createGain();
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.18);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.2);
+    } catch (error) {}
+  }
+  function receive(message) {
+    if (message && message.type === 'hello') show(message.dareba);
+    if (message && message.type === 'dareba') show(message.dareba);
+  }
+  fetch('/api/dareba').then(function (r) { return r.json(); }).then(show).catch(function () {});
+  var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (error) {} };
+}());
+</script>
+</body>
+</html>

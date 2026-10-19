@@ -292,6 +292,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'dareba',
+  {
+    title: 'ダレ場の小さな事件',
+    description: 'ギフトの勢いが落ちたときの小さな事件を確認・開始・停止する。判定の数字は画面に出さず、状態はサーバーが持つ。',
+    inputSchema: { action: z.enum(['status', 'start', 'stop']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.dareba(action))),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',

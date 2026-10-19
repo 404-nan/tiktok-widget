@@ -40,6 +40,7 @@ Minecraft / SuperStream
   peka [status|bonusResolved] 告知ランプを見る・ボーナスを解決する
   throne [status|finish|stop|reset] 王座を見る・終了・演出停止・リセット
   ootori [status|start|finish|reset] ラスト10分と大トリを操作する
+  dareba [status|start|stop]    ダレ場の小さな事件を見る・操作する
   rush [start|stop]         RUSH に入る・終わらせる（省くと今の状態）
   win [名前]                WIN 数を +1（クリア。名前を省くと全部）
   wins [名前]               WIN 数を見る
@@ -183,6 +184,9 @@ try {
       break;
     case 'ootori':
       print(await admin.ootori(args[0] || 'status'));
+      break;
+    case 'dareba':
+      print(await admin.dareba(args[0] || 'status'));
       break;
     case 'status':
       print(await admin.status().then(({ status, state }) => ({ status, state: { ...state, topGifters: undefined } })));
