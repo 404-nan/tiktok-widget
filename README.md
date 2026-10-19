@@ -2,6 +2,17 @@
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
+## 機能の状態
+
+| 機能 | 状態 |
+| --- | --- |
+| ギフト・コメント・視聴者数の受信と WebSocket 配信 | できた |
+| オーバーレイ、ダッシュボード、モニター、統計、管理画面 | できた |
+| デモ・開発用テスト送信（本番の数を汚さない） | できた |
+| `/healthz`（稼働確認と配信中人数） | できた |
+| Cloudflare 経由の hosted 運用 | 作りかけ（運用環境の確認が必要） |
+| 演出の効果ログと配信後レポート | まだ（カードのみ） |
+
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
 | ギフト通知 `gift-alert` | ギフト・フォロー・シェアを中継テロップのように表示。高額ギフトは金色 | 760 × 200 |
@@ -343,6 +354,7 @@ src/minecraft.js       マイクラ連携（ルール・ルーレットの結果
 src/rcon.js            RCON クライアント
 src/superstream.js     マイクラ側の演出プロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）
+src/healthz.js         稼働確認と、配信中またはつなぎ直し中の人数を返す
 mcp/server.js          MCP サーバー
 bin/tw.js              CLI
 src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は自動で再接続）
@@ -361,6 +373,8 @@ deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 ```
 
+`src/` の各ファイルの役目とつながりは [src/README.md](src/README.md) にまとめています。
+
 ```bash
 npm test
 ```
@@ -368,3 +382,5 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にして上書きします（前に取れた分は残ります。ログイン・API キー・有料プランは不要）。終わったら `npm test` で確かめてコミットしてください。AI 向けの決まりは `AGENTS.md` にあります。
+
+最後に直した日: 2026-10-19

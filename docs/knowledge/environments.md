@@ -15,9 +15,14 @@
 - `TW_HOSTED` はテナント公開モード、`TW_RENTAL_STATE` と `TW_RENTAL_AUTOCONNECT` は運用環境の補助設定。
 - `TW_AI_KEY`、`TW_AI_PROVIDER`、`TW_AI_MODEL`、`TW_AI_BASE_URL` はAI接続設定の名前だけを示す。値は書かない。
 
+## 公開 healthz
+
+- `/healthz` は Cloudflare の稼働確認から認証なしで呼ぶ公開口。
+- `ok` と `live`（配信中またはつなぎ直し中の配信者数）だけを返し、配信者名や ID は返さない。
+- `demo` と `idle` は `live` に数えない。公開人数を変えるときは [healthz-live カード](../cards/healthz-live.md) も更新する。
+
 ## 配信中の禁止事項
 
 - 本番サービスを止めない、再起動しない、`/reload` を実行しない。
-- `/healthz` の `live` は、いま配信中またはつなぎ直し中の配信者数を返す。
 - 本番の `config.yaml`、`data/`、テナント設定、接続設定を開発確認のために変更しない。
 - 確認は開発サーバー（3940）か、専用の一時ディレクトリ・一時ポートで行う。
