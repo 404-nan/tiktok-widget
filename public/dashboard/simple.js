@@ -8,7 +8,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
+  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'tickers', 'supporters']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
 ];
@@ -30,6 +30,8 @@ export const INFO = {
   counters: { icon: 'heart', desc: 'いいねや視聴者の数を出す' },
   goals: { icon: 'target', desc: '「フォロー 100 人」のような目標までのバー' },
   rankings: { icon: 'trophy', desc: 'たくさんギフトをくれた人の順位' },
+  tickers: { icon: 'newspaper', desc: 'お知らせ・目標・ギフトを下の帯に流す' },
+  supporters: { icon: 'users', desc: '最近フォローやギフトをくれた人を表示する' },
   roulettes: { icon: 'dices', desc: 'ギフトで回る、罰ゲームやごほうびのルーレット' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
@@ -61,6 +63,19 @@ const CUTIN_SCALE = {
  * groups: [{ title, presets?（押すとまとめて値が入る型）, fields（出す項目） }]、note: 項目の代わりに出す案内
  */
 export const SIMPLE = {
+  tickers: {
+    groups: [
+      { title: '流すもの', fields: ['label', 'messages', 'showGifts', 'giftCount'] },
+      { title: '目標', fields: ['showGoals', 'goals'] },
+      { title: '見た目', fields: ['speed', 'color'] },
+    ],
+  },
+  supporters: {
+    groups: [
+      { title: '出すもの', fields: ['events', 'limit', 'minCoins'] },
+      { title: '見た目', fields: ['avatars', 'lifetime', 'color'] },
+    ],
+  },
   alerts: {
     groups: [
       { title: 'いつ出す', fields: ['events', 'gifts', 'minCoins'] },
@@ -255,6 +270,8 @@ export const SIMPLE = {
 
 // 「かんたん」での呼び名（そのまま読んで分かる言い方にする。説明文は出さない）
 export const SIMPLE_LABELS = {
+  'tickers.label': '札の文字', 'tickers.messages': '流す文', 'tickers.showGifts': '最近のギフトを流す', 'tickers.giftCount': 'ギフトの件数', 'tickers.showGoals': '目標を流す', 'tickers.goals': '流す目標', 'tickers.speed': '流れる速さ', 'tickers.color': '札の色',
+  'supporters.events': '出すイベント', 'supporters.limit': '出す人数', 'supporters.minCoins': '何コインから', 'supporters.avatars': 'アイコンを出す', 'supporters.lifetime': '消すまでの秒数', 'supporters.color': '新しいカードの印',
   'alerts.events': '出すきっかけ', 'alerts.minCoins': '何コインから出す', 'alerts.position': 'たての位置', 'alerts.align': 'よこの位置',
   'alerts.bigCoins': '何コインから金色にする', 'alerts.rules': 'このギフトのときだけ特別にする',
   'chats.style': '形', 'chats.fontSize': '文字の大きさ', 'chats.maxItems': '一度に出す数', 'chats.highlight': 'ギフトした人を目立たせる',
@@ -294,6 +311,8 @@ const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).map((name) 
 
 // ホームの一覧に出す、今の設定のひとこと（1件目の設定から作る）
 const SUMMARY = {
+  tickers: (e) => `${e.messages?.length ?? 0} 個のお知らせ・${e.showGifts ? 'ギフトあり' : 'ギフトなし'}`,
+  supporters: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・')}を${e.limit} 人`,
   alerts: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・') || 'なし'}で出す`,
   chats: (e) => `${e.style === 'bubble' ? '吹き出し' : 'テロップ'}${e.tts ? '・読み上げあり' : ''}`,
   counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),

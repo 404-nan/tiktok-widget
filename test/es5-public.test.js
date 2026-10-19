@@ -15,6 +15,9 @@ const files = [
   'public/widgets/gacha.js',
   'public/widgets/slot.js',
   'public/widgets/sounds.js',
+  'public/widgets/ticker.js',
+  'public/widgets/supporters.js',
+  'public/widgets/lib/telop.js',
 ];
 
 function loadAcorn() {

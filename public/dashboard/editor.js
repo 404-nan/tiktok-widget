@@ -2235,6 +2235,11 @@ export function createEditor({ api, setMessage }) {
         ),
         chip('RUSH 終了', 'square', control('rush', 'stop')),
       );
+    } else if (tab === 'tickers' || tab === 'supporters') {
+      box.replaceChildren(
+        chip('テストギフト', 'gift', () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: 10 })),
+        chip('フォロー', 'user-plus', () => api('/api/simulate', { kind: 'follow' })),
+      );
     } else if (tab === 'chats') {
       // コメントと、ギフトを送った人のコメント（先にその人のギフトを送り、同じ人がコメントする）
       const e = payload.config.chats?.[id] ?? {};
