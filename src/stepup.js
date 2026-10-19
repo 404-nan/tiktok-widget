@@ -49,6 +49,11 @@ export class StepupEngine {
       ...this.state,
       steps: this.state.steps.map((step) => ({ ...step, by: step.by ? { ...step.by } : null })),
       thresholds: [...this.thresholds],
+      edge: this.config?.edge ?? 'right',
+      sound: this.config?.sound !== false,
+      volume: Number(this.config?.volume ?? 0.5),
+      stepTexts: [1, 2, 3, 4, 5].map((step) => this.config?.[`step${step}Text`] ?? `STEP ${step}`),
+      finalText: this.config?.finalText ?? '虹確定',
       now: Date.now(),
       last: this.last ? { ...this.last, by: this.last.by ? { ...this.last.by } : null } : null,
       cooldownUntil: this.state.cooldownUntil,
@@ -95,6 +100,7 @@ export class StepupEngine {
       this.cooldownTimer = null;
       this.state.cooldownUntil = null;
     }
+    if (!this.state.active) this.#beginRound();
     return this.snapshot();
   }
 
@@ -253,7 +259,15 @@ export class StepupEngine {
   }
 
   #send(event, state = this.snapshot()) {
-    this.hub.broadcast({ type: 'stepup', stepup: state, event });
-    this.hub.emit('stepup', state, event);
+    const step = Math.max(1, Math.min(5, Number(event.step) || 1));
+    const text = event.kind === 'final' ? state.finalText : state.stepTexts[step - 1];
+    const enriched = {
+      ...event,
+      text,
+      volume: state.volume,
+      sound: state.sound,
+    };
+    this.hub.broadcast({ type: 'stepup', stepup: state, event: enriched });
+    this.hub.emit('stepup', state, enriched);
   }
 }

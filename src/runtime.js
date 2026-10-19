@@ -645,12 +645,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (target === 'stepup') {
       if (action === 'status') return { status: 200, body: { ok: true, stepup: stepup.snapshot() } };
       if (!entitled('stepup')) return { status: 403, body: { error: 'ステップアップ予告は管理者が使えるようにすると使えます' } };
+      if (!['start', 'stop', 'reset', 'demo'].includes(action)) return { status: 400, body: { error: 'stepup の action は start / stop / reset / demo / status です' } };
       const out = action === 'stop' ? stepup.stop() : action === 'reset' ? stepup.reset() : action === 'demo' ? stepup.demo() : stepup.start();
       return { status: 200, body: { ok: true, stepup: out ?? stepup.snapshot() } };
     }
     if (target === 'swarm') {
       if (action === 'status') return { status: 200, body: { ok: true, swarm: swarm.snapshot() } };
       if (!entitled('swarm')) return { status: 403, body: { error: '群予告は管理者が使えるようにすると使えます' } };
+      if (!['trigger', 'reset'].includes(action)) return { status: 400, body: { error: 'swarm の action は trigger / reset / status です' } };
       const out = action === 'reset' ? swarm.reset() : swarm.trigger();
       return { status: 200, body: { ok: true, swarm: out ?? swarm.snapshot() } };
     }

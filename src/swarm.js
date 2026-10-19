@@ -52,6 +52,9 @@ export class SwarmEngine {
       cooldownUntil: this.cooldownUntil,
       window: this.#windowCount(),
       threshold: this.threshold,
+      text: this.config?.text ?? '群',
+      sound: this.config?.sound !== false,
+      volume: Number(this.config?.volume ?? 0.5),
       now: Date.now(),
     };
   }
@@ -218,7 +221,8 @@ export class SwarmEngine {
 
   #send(event) {
     const state = this.snapshot();
-    this.hub.broadcast({ type: 'swarm', swarm: state, event });
-    this.hub.emit('swarm', state, event);
+    const enriched = { ...event, text: state.text, sound: state.sound, volume: state.volume };
+    this.hub.broadcast({ type: 'swarm', swarm: state, event: enriched });
+    this.hub.emit('swarm', state, enriched);
   }
 }

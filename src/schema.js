@@ -489,7 +489,7 @@ SCHEMA.swarm = {
     scale: oneOf(['small', 'medium', 'large', 'custom'], 'medium', '配信の規模に合わせた境目'),
     threshold: num(30, 'custom のときに群を起こす個数', { min: 1 }),
     cooldownSeconds: num(20, '群を出したあと次に数え始めるまでの秒数', { min: 0, max: 300 }),
-    text: str('群', '群の演出に出す文字（1〜2文字）'),
+    text: str('群', '群の演出に出す文字（1〜2文字）', { maxLength: 2 }),
     maxIcons: num(60, '一度に飛ばすギフトのアイコンの上限', { min: 10, max: 120 }),
     sound: bool(true, '効果音を鳴らす'),
     volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),

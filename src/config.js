@@ -25,7 +25,10 @@ function checkValue(field, value, where, issues) {
   const err = (msg) => issues.errors.push(`${where}: ${msg}`);
   switch (field.type) {
     case 'string':
-      if (typeof value === 'string') return value;
+      if (typeof value === 'string') {
+        if (field.maxLength != null && [...value].length > field.maxLength) return err(`${field.maxLength}文字以内にしてください`), value.slice(0, field.maxLength);
+        return value;
+      }
       if (typeof value === 'number') return String(value);
       return err('文字で書いてください'), field.default;
     case 'number': {
