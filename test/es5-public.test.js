@@ -13,6 +13,8 @@ const files = [
   'public/widgets/lib/cutin-style.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
+  'public/widgets/stepup.js',
+  'public/widgets/swarm.js',
   'public/widgets/slot.js',
   'public/widgets/sounds.js',
 ];

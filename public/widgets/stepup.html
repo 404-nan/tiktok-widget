@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- ステップアップの状態と段階演出を、OBS の全画面に表示するウィジェット。 -->
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=1080, height=1920, initial-scale=1">
+<title>ステップアップ</title>
+<link rel="stylesheet" href="lib/overlay.css"><link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+:root{--ink:#111113;--paper:#F6F5F1;--signal:#FF4F1F;--gold:#FFC53D;--blue:#2387F2;--green:#42B883}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent;color:var(--paper);font-family:"Zen Kaku Gothic New","Yu Gothic UI",Meiryo,sans-serif}
+body.preview{background:var(--ink)}.idle{display:none;position:absolute;inset:0;place-items:center;font-size:30px}body.preview .idle{display:grid}body.preview-on .idle{display:none}
+.light{background:var(--paper);color:var(--ink)}.light .coins{color:var(--ink);text-shadow:none}.light .idle{color:var(--ink)}
+.stack{position:absolute;right:34px;bottom:52px;width:220px;display:grid;gap:7px;z-index:2}.edge-left .stack{right:auto;left:34px}
+.step{height:46px;border:3px solid var(--step-color);color:var(--paper);background:transparent;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:900;letter-spacing:.05em}.step.on{background:var(--step-color);color:var(--ink)}
+.step:nth-child(1){--step-color:var(--blue)}.step:nth-child(2){--step-color:var(--green)}.step:nth-child(3){--step-color:var(--signal)}.step:nth-child(4){--step-color:var(--gold)}.step:nth-child(5){--step-color:var(--signal);background-image:linear-gradient(90deg,#2387F2,#42B883,#FFC53D,#FF4F1F)}.step:not(.on):nth-child(5){background-image:none}
+.summary{position:absolute;right:34px;bottom:315px;width:220px;z-index:2}.edge-left .summary{right:auto;left:34px}.meter{height:8px;background:var(--paper);border:2px solid var(--ink)}.meter i{display:block;height:100%;width:0;background:var(--gold)}.coins{margin:8px 0 0;font-size:20px;font-weight:900;text-shadow:0 2px 4px var(--ink)}
+.flash{position:absolute;inset:0;display:none;place-items:center;z-index:3;background:rgba(17,17,19,.92)}.flash.show{display:grid;animation:flash-in var(--duration,1s) ease-out both}.flash.final{background:radial-gradient(circle,#FFC53D,#FF4F1F 35%,#42B883 60%,#2387F2)}.message{text-align:center;transform:rotate(-3deg)}.message strong{display:block;font-family:"Dela Gothic One",sans-serif;font-size:var(--size,120px);color:var(--tone,var(--paper));text-shadow:8px 8px var(--ink)}.message small{display:block;margin-top:24px;font-size:22px;font-weight:900}.final-label{display:none!important}.flash.final .step-label{display:none}.flash.final .final-label{display:block!important}
+@keyframes flash-in{0%{opacity:0;transform:scale(.9)}12%{opacity:1;transform:scale(1.03)}100%{opacity:0;transform:scale(1)}}
+</style></head>
+<body><p class="idle">ステップアップ・待機</p><div class="summary"><div class="meter"><i id="meter"></i></div><p class="coins" id="coins">0 コイン</p></div><div class="stack" id="stack"><div class="step">STEP 1</div><div class="step">STEP 2</div><div class="step">STEP 3</div><div class="step">STEP 4</div><div class="step">STEP 5</div></div><div class="flash" id="flash"><div class="message"><strong class="step-label" id="step-label">STEP 1</strong><strong class="final-label">虹確定</strong><small id="sender"></small></div></div><script src="stepup.js"></script></body>
+</html>
