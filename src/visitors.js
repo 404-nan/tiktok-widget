@@ -41,8 +41,17 @@ export class VisitorLog {
   }
 
   refreshConfig() {
-    this.config = this.hub.config?.visitors ?? null;
-    if (!this.config || Object.keys(this.config).length === 0) return;
+    const settings = this.hub.config?.visitors ?? null;
+    if (!settings || Object.keys(settings).length === 0) {
+      this.config = null;
+      return;
+    }
+    const entries = Object.values(settings).filter((entry) => entry && typeof entry === 'object');
+    this.config = {
+      regularVisits: Math.min(...entries.map((entry) => Number(entry.regularVisits ?? DEFAULTS.regularVisits)), DEFAULTS.regularVisits),
+      keepDays: Math.min(...entries.map((entry) => Number(entry.keepDays ?? DEFAULTS.keepDays)), DEFAULTS.keepDays),
+    };
+    if (this.dirty && !this.flush()) return;
     this.loadFromDisk();
   }
 
@@ -66,8 +75,15 @@ export class VisitorLog {
   }
 
   handleEvent(event) {
-    if (!this.enabled() || this.stopped || this.hub.status?.mode !== 'live') return;
-    if (!KINDS.has(event?.kind) || !event.user?.id || isDemo(event)) return;
+    if (!this.enabled() || this.stopped) return;
+    if (!event?.user?.id || String(event.user.id).startsWith('demo_')) return;
+    if (event?.test) {
+      const visits = Math.max(1, Number(event.testVisits) || 1);
+      this.broadcast(event.user, visits, true);
+      return;
+    }
+    if (this.hub.status?.mode !== 'live') return;
+    if (!KINDS.has(event?.kind)) return;
     this.record(event, false);
   }
 
@@ -85,6 +101,8 @@ export class VisitorLog {
     if (!key) return;
     const today = dateText(this.now());
     const old = this.people[key];
+    // 再起動で streamPeople が空になっても、同じ日に同じ人を二重に迎えない。
+    if (old?.last === today) return;
     const visits = old && old.stream !== this.stream ? old.visits + 1 : old?.visits ?? 1;
     this.people[key] = {
       visits,

@@ -29,7 +29,7 @@ const event = (kind, id = 'u-1', name = '花子', extra = {}) => ({ kind, user: 
 
 function liveHub(visitors = config()) {
   const hub = new Hub();
-  hub.config = { visitors };
+  hub.config = { visitors: visitors.default ? visitors : { default: visitors } };
   hub.status = { mode: 'live', username: '配信者', message: '' };
   return hub;
 }
@@ -128,6 +128,63 @@ test('保存期間、forget、設定なしを扱う', () => {
   assert.equal(fs.existsSync(path.join(emptyDir, 'visitors.json')), false);
   assert.equal(fs.existsSync(path.join(emptyDir, 'visitors.key')), false);
   empty.close();
+});
+
+test('実際の visitors map から最小の regularVisits と keepDays を使う', () => {
+  const dir = temp();
+  let now = Date.parse('2026-10-19T12:00:00Z');
+  const hub = liveHub({
+    default: config({ regularVisits: 5, keepDays: 30 }),
+    short: config({ regularVisits: 2, keepDays: 7 }),
+  });
+  const sent = [];
+  hub.broadcast = (message) => sent.push(message);
+  const log = new VisitorLog(hub, { dir, now: () => now });
+  log.load({ version: 1, people: { old: { visits: 2, first: '2026-10-01', last: '2026-10-10', stream: 1 } } });
+  assert.equal(log.snapshot().stored, 0, '最短の keepDays=7 で古い記録を消す');
+  hub.emit('event', event('member', 'first'));
+  hub.emit('status', { mode: 'idle' }, { mode: 'live' });
+  now += 86_400_000;
+  hub.emit('status', { mode: 'live' }, { mode: 'idle' });
+  hub.emit('event', event('member', 'first'));
+  assert.equal(sent.at(-1).visitor.visits, 2);
+  assert.equal(log.snapshot().stream.regular, 1, '最小の regularVisits=2 を使う');
+  log.close();
+});
+
+test('設定変更で未保存の来場を失わず、配信前のテスト送信も表示する', () => {
+  const dir = temp();
+  const hub = liveHub();
+  const sent = [];
+  hub.broadcast = (message) => sent.push(message);
+  const log = new VisitorLog(hub, { dir, now: () => Date.parse('2026-10-19T12:00:00Z') });
+  hub.emit('event', event('member', 'real-user'));
+  hub.setConfig({ visitors: { default: config({ keepDays: 1 }) } });
+  assert.equal(log.snapshot().stored, 1, '未保存の来場を設定変更で失わない');
+  hub.status = { mode: 'idle' };
+  hub.publish({ ...event('member', 'preview-user'), test: true, testVisits: 4 });
+  assert.equal(sent.at(-1).type, 'visitor');
+  assert.equal(sent.at(-1).visitor.visits, 4);
+  assert.equal(sent.at(-1).visitor.test, true);
+  assert.equal(log.snapshot().stored, 1, '配信前テストは記録しない');
+  log.close();
+});
+
+test('再起動して同じ配信の印を読み込んだ場合は二重に数えない', () => {
+  const dir = temp();
+  const now = Date.parse('2026-10-19T12:00:00Z');
+  const hub = liveHub();
+  const first = new VisitorLog(hub, { dir, now: () => now });
+  hub.emit('event', event('member', 'same-stream'));
+  first.flush();
+  first.close();
+  const restartedHub = liveHub();
+  restartedHub.status = { mode: 'live', username: '配信者', message: '' };
+  const restarted = new VisitorLog(restartedHub, { dir, now: () => now });
+  restartedHub.emit('event', event('member', 'same-stream'));
+  assert.equal(restarted.snapshot().stream.first, 0, '同じ配信では再起動後に再通知しない');
+  assert.equal(restarted.snapshot().stored, 1);
+  restarted.close();
 });
 
 test('設定、member テストイベント、公開ウィジェットの契約がある', () => {

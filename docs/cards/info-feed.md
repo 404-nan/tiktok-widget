@@ -9,7 +9,7 @@
 触ってよいファイル:
 - 新規: `src/info-feed.js`、`public/widgets/ticker.html`、`public/widgets/ticker.js`、`public/widgets/supporters.html`、`public/widgets/supporters.js`、`public/widgets/lib/telop.js`(2つで使う部品。ES5)、`test/acceptance/info-feed.test.js`
 - 足すだけ(既存行の並べ替え・書式直しはしない): `src/schema.js`(末尾の節として)、`src/runtime.js`(`FEATURE_ORDER` に足す・`InfoFeed` を作る・`GET /api/info-feed`・`OBS_ALLOWED` に足す・`close()`)、`public/dashboard/simple.js`(`GROUPS`・`INFO`・`SIMPLE`・`SIMPLE_LABELS`・`SUMMARY`)、`public/dashboard/editor.js`(試すボタン)、`test/es5-public.test.js`(`files` に新しい JS を足す)
-触らないファイル: `src/hub.js`、`src/demo.js`、`server.js`、`mcp/*`、`bin/tw.js`、`public/widgets/all.html`、`cutin*`、既存のウィジェット、`docs/cards/effect-log.md`、`docs/cards/tw-guard.md`
+このカード単独では触らないファイル: `src/hub.js`、`src/demo.js`、`server.js`、`mcp/*`、`bin/tw.js`、`public/widgets/all.html`、`cutin*`、既存のウィジェット、`docs/cards/effect-log.md`、`docs/cards/tw-guard.md`。同じ組の visitors カードが共有ファイルを変更していても、info-feed の変更範囲には含めない。
 作らないもの: 「全部まとめて」(all.html)への組み込み、配信画面での置き場所(posX など。ウィジェット単体の URL だけ)、サポーターの履歴の保存(再起動で空に戻ってよい)、絵の素材、音
 
 ## 設定(src/schema.js。map の節。説明は日本語・やさしい言葉)
