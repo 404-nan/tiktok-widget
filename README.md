@@ -8,7 +8,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | --- | --- | --- | --- |
 | ウィジェット表示 | TikTok LIVE のギフト・コメント・集計を画面に出す | できた | `public/widgets/` |
 | 開発用ウィジェット撮影 | テナントの一覧から選んだウィジェットへテスト送信し、待って画像を返す | できた（既存のPuppeteer環境が必要） | `src/ai-screenshot.js`, `src/ai-mcp.js` |
-| 配信者自身のAI接続 | 自分のテナント限定のトークンを発行し、読み取り・設定提案・開発テスト送信を行う。値は発行直後だけ表示 | できた | `src/ai-tokens.js`, `src/ai-api.js`, `public/dashboard/ai-streamer.js` |
+| 配信者自身のAI接続 | 自分のテナント限定のトークンを10件まで発行し、読み取り・設定提案・開発テスト送信を行う。期限状態を表示し、値は発行直後だけ表示 | できた | `src/ai-tokens.js`, `src/ai-api.js`, `public/dashboard/ai-streamer.js` |
 | 本番撮影 | 本番配信中の画面を撮影する | まだ（安全のため作らない） | - |
 
 | ウィジェット | 内容 | 推奨サイズ |

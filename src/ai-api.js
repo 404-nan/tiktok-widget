@@ -10,6 +10,22 @@ import { isDevEnv } from './env.js';
 const WRITE_LIMIT = 30;
 const WRITE_WINDOW_MS = 60_000;
 const UNDO_KEEP = 50;
+const DEFAULT_DEV_WIDGET_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+
+function allowedWidgetHosts() {
+  const configured = String(process.env.TW_DEV_HOSTS ?? '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean);
+  return new Set([...DEFAULT_DEV_WIDGET_HOSTS, ...configured]);
+}
+
+/** 撮影用URLはローカルか、明示した開発ホストだけに限定する。Hostヘッダーを信頼して外へ出さない。 */
+export function isSafeDevelopmentWidgetUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) && allowedWidgetHosts().has(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
 
 const POLLUTION = new Set(['__proto__', 'constructor', 'prototype']);
 const EXACT_FORBIDDEN = new Set([
@@ -491,7 +507,11 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       const base = typeof target.widgetBaseFor === 'function'
         ? target.widgetBaseFor(context.req)
         : (target.widgetBase || (context.req ? `${context.req.protocol}://${context.req.get('host')}` : 'http://127.0.0.1:3939'));
-      return finish(tool, context, { status: 200, body: { widgets: runtime.readWidgets(base), live: runtime.aiLive() } });
+      const widgets = runtime.readWidgets(base);
+      if (!widgets.every((widget) => isSafeDevelopmentWidgetUrl(widget.url))) {
+        return finish(tool, context, { status: 403, body: { error: '撮影はローカルまたは設定済みの開発用の接続先だけ使えます' } });
+      }
+      return finish(tool, context, { status: 200, body: { widgets, live: runtime.aiLive() } });
     }
     if (tool === 'list_gifts') {
       return finish(tool, context, { status: 200, body: { gifts: runtime.readGifts() } });

@@ -18,6 +18,14 @@ function copyButton(value, label = 'コピー') {
   return button;
 }
 
+/** 配信者が一覧で期限の状態を判断できるよう、日本語の短い状態を返す。 */
+function streamerTokenStatus(token, now = Date.now()) {
+  const expiresAt = Date.parse(token?.expiresAt || '');
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) return { label: '期限切れ', expired: true, urgent: false };
+  const urgent = expiresAt - now <= 3 * 24 * 60 * 60 * 1000;
+  return { label: urgent ? 'まもなく期限' : '有効', expired: false, urgent };
+}
+
 export async function setupStreamerAi({ box, intro, body, api }) {
   if (!box || !body) return;
   let state;
@@ -38,13 +46,14 @@ export async function setupStreamerAi({ box, intro, body, api }) {
   const renderList = () => {
     list.replaceChildren(el('h4', { textContent: '発行済み（値は表示しません）' }));
     for (const token of state.tokens ?? []) {
+      const status = streamerTokenStatus(token);
       const revoke = el('button', { type: 'button', className: 'chip pressable', textContent: '取り消す' });
       revoke.addEventListener('click', async () => {
         revoke.disabled = true;
         try { await api(`/api/ai/streamer/${encodeURIComponent(token.id)}`, {}, 'DELETE'); state.tokens = state.tokens.filter((item) => item.id !== token.id); renderList(); }
         catch (err) { list.append(message(err.message, true)); revoke.disabled = false; }
       });
-      list.append(el('div', { className: 'streamer-ai-token' }, el('div', {}, el('strong', { textContent: token.name }), el('span', { className: 'hint', textContent: `期限 ${token.expiresAt}・対象 ${token.tenants[0]}` })), revoke));
+      list.append(el('div', { className: `streamer-ai-token${status.expired ? ' expired' : status.urgent ? ' expiring' : ''}` }, el('div', {}, el('strong', { textContent: token.name }), el('span', { className: 'hint', textContent: `${status.label}・期限 ${token.expiresAt}・対象 ${token.tenants[0]}` })), revoke));
     }
   };
   renderList();

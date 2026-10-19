@@ -828,6 +828,7 @@ const AI_SCOPES = [
   ['write', '設定を変える'],
   ['operate', '操作する'],
   ['test', 'テスト送信'],
+  ['suggest', '設定を提案する'],
   ['admin', '配信者の設定'],
 ];
 const AI_SCOPE_LABEL = Object.fromEntries(AI_SCOPES);

@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 export const SCOPES = ['read', 'write', 'operate', 'test', 'admin', 'suggest'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAYS = 30;
+const MAX_STREAMER_TOKENS = 10;
 
 const safeText = (value, max) => String(value ?? '').trim().slice(0, max);
 
@@ -59,7 +60,7 @@ function checkScopes(value) {
   for (const item of list) {
     const scope = String(item ?? '').trim();
     if (!scope) continue;
-    if (!SCOPES.includes(scope)) throw new Error('権限は 読む・設定を変える・操作する・テスト送信・配信者の設定 のどれかです');
+    if (!SCOPES.includes(scope)) throw new Error('権限は 読む・設定を変える・操作する・テスト送信・設定を提案する・配信者の設定 のどれかです');
     if (!scopes.includes(scope)) scopes.push(scope);
   }
   if (!scopes.length) throw new Error('権限を1つ以上選んでください');
@@ -89,7 +90,7 @@ export class AiTokenStore {
     return this.tokens.map((token) => publicToken(token));
   }
 
-  issue({ name, tenants, scopes, days = DEFAULT_DAYS, expiresAt = null, now = Date.now() } = {}) {
+  issue({ name, tenants, scopes, days = DEFAULT_DAYS, expiresAt = null, now = Date.now(), kind = null, ownerTenantId = null } = {}) {
     const tokenName = safeText(name, 80);
     if (!tokenName) throw new Error('名前を入れてください');
     let expiry = expiresAt;
@@ -113,6 +114,8 @@ export class AiTokenStore {
       lastUsedAt: null,
       hash: hashToken(value).toString('hex'),
     };
+    if (kind) token.kind = kind;
+    if (ownerTenantId) token.ownerTenantId = ownerTenantId;
     this.tokens.push(token);
     this.save();
     return { token: publicToken(token), value };
@@ -123,15 +126,17 @@ export class AiTokenStore {
     if (tenants != null || tenant != null || scopes != null) throw new Error('配信者専用トークンの範囲と権限は固定です');
     const id = String(tenantId ?? '').trim();
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || id === '*') throw new Error('配信者専用トークンの対象が正しくありません');
-    const issued = this.issue({ name, tenants: [id], scopes: ['read', 'suggest', 'test'], days, expiresAt, now });
-    const stored = this.tokens.find((token) => token.id === issued.token.id);
-    stored.kind = 'streamer';
-    stored.ownerTenantId = id;
-    this.save();
-    return { token: publicToken(stored), value: issued.value };
+    const pruned = this.pruneExpired(now);
+    const active = this.tokens.filter((token) => token.kind === 'streamer' && token.ownerTenantId === id);
+    if (active.length >= MAX_STREAMER_TOKENS) {
+      if (pruned) this.save();
+      throw new Error('配信者専用トークンは1人につき10件までです');
+    }
+    return this.issue({ name, tenants: [id], scopes: ['read', 'suggest', 'test'], days, expiresAt, now, kind: 'streamer', ownerTenantId: id });
   }
 
   listForTenant(tenantId) {
+    if (this.pruneExpired(Date.now())) this.save();
     return this.tokens
       .filter((token) => token.kind === 'streamer' && token.ownerTenantId === tenantId)
       .map((token) => publicToken(token));
@@ -149,6 +154,13 @@ export class AiTokenStore {
     if (before === this.tokens.length) throw new Error('そのトークンは見つかりません');
     this.save();
     return true;
+  }
+
+  /** 期限切れのトークンは一覧と上限の対象から外し、次の保存時に片付ける。 */
+  pruneExpired(now) {
+    const before = this.tokens.length;
+    this.tokens = this.tokens.filter((token) => Date.parse(token.expiresAt) > now);
+    return before !== this.tokens.length;
   }
 
   /**
