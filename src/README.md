@@ -11,6 +11,8 @@
 | `relay-stop.js` | 既存スロットの固定結果、3本の停止順、送信者、10秒の自動停止、待機列をサーバーで管理する |
 | `schema.js` | ダレ場を含む設定項目、初期値、説明を定義する |
 | `minecraft-name.js` | Minecraftの名前入り妨害を安全化し、状態とコマンドを管理する |
+| `mc-goal-alert.js` | Minecraftのゴール距離、警報段階、再通知、ゴール到達をサーバーで管理する |
+| `rcon.js` | MinecraftのRCONへ接続し、通常コマンドとゴール距離問い合わせを送る |
 | `runtime.js` | ダレ場を配信イベント、API、WebSocket、設定へつなぐ |
 | `admin.js` | CLI と MCP からダレ場の状態・開始・停止を呼ぶ |
 | `hub.js` | TikTokイベントを集め、集計とWebSocket配信を行う |
@@ -18,4 +20,4 @@
 
 ## つながり
 
-Peka、動く王座、リレー停止、大トリ、ダレ場は `runtime.js` から `hub.js` のイベントを購読し、公開ウィジェットへAPIとWebSocketで状態を渡します。既存のイベントは `testEvent` を集計しません。
+Peka、動く王座、リレー停止、大トリ、ダレ場、ゴール接近警報は `runtime.js` から `hub.js` のイベントを購読し、公開ウィジェットへAPIとWebSocketで状態を渡します。既存のイベントは `testEvent` を集計しません。

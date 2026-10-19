@@ -10,9 +10,10 @@ OBSやTikTok LIVE Studioのブラウザソースで開く公開ウィジェッ�
 | `peka.html` | サーバーが決めた時刻に隅のランプを一度だけ光らせ、送った人を表示する |
 | `throne.html` | サーバーが決めた王座、接近時のVS、王冠移動を表示する。JavaScriptはES5で外部素材を使わない |
 | `ootori.html` | ラスト10分の席、大トリ、参加者のエンドロールを表示する。名前は文字列として表示し、WebAudioだけで音を鳴らす |
+| `goal-alert.html` | Minecraftのゴール距離をサーバーから受け、50m・20m・5mの警報と最終防衛ラインを表示する |
 | `*.html` | ギフト通知、コメント、ゲーム、集計など各ウィジェットの画面 |
 | `lib/` | 複数のウィジェットで使う表示部品 |
 
 ## つながり
 
-設定と状態はサーバー側の `src/peka.js` / `src/throne.js` / `src/ootori.js` / `src/dareba.js` が持ち、画面は対応するAPIとWebSocketの通知を表示します。
+設定と状態はサーバー側の `src/peka.js` / `src/throne.js` / `src/ootori.js` / `src/dareba.js` / `src/mc-goal-alert.js` が持ち、画面は対応するAPIとWebSocketの通知を表示します。

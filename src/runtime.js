@@ -67,7 +67,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -110,6 +110,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
   roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
+  minecraft.setGoalReachedHandler(() => {
+    minecraft.enqueue(['bossbar set tw:goal_alert visible false'], {}, 'goal-alert');
+    const setting = hub.config?.minecraft?.goalAlert ?? {};
+    const id = setting.winsId || cfg.activeId(hub.config, 'wins');
+    wins.apply(id, 'win');
+  });
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   const bus = createEventBus();
@@ -297,6 +303,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
 
   // Minecraft・RUSH・WIN数
   r.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
+  r.get('/api/minecraft/goal-alert', (_req, res) => res.json(minecraft.goalAlertSnapshot()));
   r.get('/api/minecraft/named-sabotage', (_req, res) => res.json(minecraft.namedSabotage.snapshot()));
   r.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
   r.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
@@ -830,6 +837,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readThrone() { return throne.snapshot(); },
     readOotori() { return ootori.snapshot(); },
     readDareba() { return dareba.snapshot(); },
+    readGoalAlert() { return minecraft.goalAlertSnapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();
@@ -856,6 +864,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       relayStop.close();
       ootori.close();
       dareba.close();
+      minecraft.goalAlert.stop();
       giftSounds.close();
       boss.flush();
     },

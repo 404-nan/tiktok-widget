@@ -4,6 +4,7 @@
 import { Rcon } from './rcon.js';
 import { giftMatches, giftDisplayName } from './gifts.js';
 import { NamedSabotageEngine, namedSabotageCleanupCommands } from './minecraft-name.js';
+import { GoalAlertEngine } from './mc-goal-alert.js';
 
 const MAX_REPEAT = 50;
 const MAX_QUEUE = 500;
@@ -69,6 +70,11 @@ export class Minecraft {
     this.lastFailure = 0;
     this.status = { state: 'off', message: 'マイクラ連携はオフです', sent: 0 };
     this.namedSabotage = new NamedSabotageEngine({ hub });
+    this.goalAlert = new GoalAlertEngine({
+      hub,
+      queryDistance: (goal) => this.#client().goalDistance(goal),
+      onAlert: (event) => this.#sendGoalAlert(event),
+    });
     hub.on('event', (e) => this.onEvent(e));
   }
 
@@ -81,6 +87,7 @@ export class Minecraft {
       this.rcon?.close();
       this.rcon = null;
     }
+    this.goalAlert.setConfig({ ...mc, goalAlert: { ...(mc.goalAlert ?? {}), enabled: Boolean(mc.enabled && mc.goalAlert?.enabled) } });
     if (!mc.enabled) return this.#setStatus({ state: 'off', message: 'マイクラ連携はオフです' });
     if (changed || this.status.state === 'off') this.check();
   }
@@ -107,13 +114,39 @@ export class Minecraft {
       const times = Math.min(MAX_REPEAT, e.gift.count ?? 1);
       for (let i = 0; i < times; i++) this.enqueue(superstreamCommands({ superstreamGift: e.gift.id }, profile), {}, 'superstream');
     }
+    let sabotage = false;
     for (const rule of this.config.rules ?? []) {
       if (!ruleMatches(rule, e)) continue;
+      sabotage = true;
       const times = rule.perCount ? Math.min(MAX_REPEAT, e.gift?.count ?? e.count ?? 1) : 1;
       const vars = varsFor(e);
       const commands = [...rule.commands, ...superstreamCommands(rule, profile)];
       for (let i = 0; i < times; i++) this.enqueue(commands, vars, rule.name);
     }
+    if (sabotage) this.goalAlert.recordSabotage(e);
+  }
+
+  /** ゴール到達時のWIN処理をランタイムから差し込む。 */
+  setGoalReachedHandler(handler) {
+    this.goalAlert.setGoalReachedHandler(handler);
+  }
+
+  goalAlertSnapshot() {
+    return this.goalAlert.snapshot();
+  }
+
+  testGoalDistance(result) {
+    return this.goalAlert.testDistance(result);
+  }
+
+  #sendGoalAlert(event) {
+    const color = event.stage === 'final' ? 'yellow' : event.stage === 'warning' ? 'red' : 'blue';
+    const text = JSON.stringify({ text: event.message });
+    this.enqueue([
+      `bossbar set tw:goal_alert name ${text}`,
+      `bossbar set tw:goal_alert color ${color}`,
+      'bossbar set tw:goal_alert visible true',
+    ], {}, 'goal-alert');
   }
 
   /** 名前入り妨害は通常のルールと別の安全なコマンド集合へ送る。 */
@@ -170,6 +203,10 @@ export class Minecraft {
     const response = await this.#client().send(command.replace(/^\//, ''));
     this.#log({ command, ok: true, response, source: 'test' });
     return response;
+  }
+
+  async #queryGoalDistance(goal) {
+    return this.#client().goalDistance(goal);
   }
 
   #client() {

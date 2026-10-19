@@ -661,6 +661,8 @@ SCHEMA.ootori = {
 
 SCHEMA.minecraft = {
   kind: 'object',
+  page: 'goal-alert',
+  size: () => [640, 180],
   title: 'マイクラ連携',
   desc:
     'Minecraft サーバーの RCON にコマンドを送る。マイクラ側の演出プラグインのコマンドもそのまま書ける。' +
@@ -677,6 +679,13 @@ SCHEMA.minecraft = {
       '届いたギフトをマイクラ側の演出に渡して、そのギフトの演出を実行する（ss test profile）。' +
         'マイクラ側でプロフィールを start していないとき用（両方動かすと演出が二重になる）',
     ),
+    goalAlert: {
+      type: 'object',
+      default: { enabled: false, world: '', x: null, y: null, z: null, winsId: 'default' },
+      desc:
+        'ゴールのワールドと座標を登録すると、50m・20m・5mでゲーム内と画面へ警報を出す。' +
+        'ワールドと座標がないと距離を推測せず無効。距離・警報・ゴール到達はサーバーで管理する。URL は /widgets/goal-alert.html',
+    },
     superstreamFile: str('', 'マイクラ側の演出プロフィールのファイルの場所。書くと、設定済みのギフト ID と演出をダッシュボードや AI で確認できる'),
     rules: {
       type: 'mcRules',

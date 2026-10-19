@@ -258,8 +258,8 @@ export const SIMPLE = {
     ],
   },
   minecraft: {
-    note: 'マイクラの枠の時間を表示します。枠の間は自動で TikTok につながります。',
-    groups: [],
+    note: 'マイクラの連携とゴール接近警報を設定します。ゴールのワールドと座標がないと警報は動きません。',
+    groups: [{ title: 'ゴール接近警報', fields: ['goalAlert'] }],
   },
   theme: {
     groups: [
@@ -310,6 +310,7 @@ export const SIMPLE_LABELS = {
   'imageCutins.imageStyle': '画像のスタイル', 'imageCutins.crop': '切り抜き',
   'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
   'dareba.enabled': 'ダレ場の事件を使う', 'dareba.type': '起こす事件',
+  'minecraft.goalAlert': 'ゴール接近警報',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
 
