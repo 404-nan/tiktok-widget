@@ -1,0 +1,5 @@
+<!-- サーバーの押しボタン状態を、配信画面へ透明な待機画面つきで表示する。 -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=640,height=360"><title>押しボタン</title>
+<style>html,body{margin:0;width:640px;height:360px;background:transparent;overflow:hidden;font-family:Arial,sans-serif}#push{box-sizing:border-box;width:100%;height:100%;padding:35px;text-align:center;color:#F6F5F1}.idle{display:none}.open,.result{background:#111113;border:10px solid #FF4F1F}.open .button{margin:35px auto 20px;padding:25px;background:#111113;border:5px solid #F6F5F1;font-size:64px;font-weight:bold}.result{display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:42px}.blue{background:#2457A6}.green{background:#238B5A}.red{background:#C5322D}.gold{background:#FFC53D;color:#111113}.miss{background:#222228}</style></head>
+<body><main id="push" class="idle"><div class="button">押せ!</div><div id="count"></div></main><script src="push-button.js"></script></body></html>

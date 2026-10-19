@@ -27,6 +27,7 @@ import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
 import { VoteEngine } from './vote.js';
+import { PushButtonEngine } from './push-button.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
@@ -44,7 +45,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -62,7 +63,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -117,6 +118,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const vote = new VoteEngine(hub, {
     onResult: ({ id: voteId, actions, result }) => runActions(actions, actionDeps(), { source: 'vote', voteId, result }),
   });
+  const push = new PushButtonEngine(hub, {
+    onResult: ({ id: pushId, actions, result }) => runActions(actions, actionDeps(), { source: 'push', pushId, result }),
+  });
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
@@ -145,6 +149,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     slot.setConfig(config.slots);
     vote.setEnabled(entitled('votes'));
     vote.setConfig(entitled('votes') ? config.votes : {});
+    push.setEnabled(entitled('pushButtons'));
+    push.setConfig(entitled('pushButtons') ? config.pushButtons : {});
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -319,6 +325,18 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
+  });
+  // 押しボタン。Stream Deck から押せるように GET と POST の両方を受ける。
+  r.get('/api/push-button', (_req, res) => res.json(push.snapshot()));
+  r.all('/api/push-button/:id/:action', (req, res) => {
+    const action = req.params.action; const id = req.params.id === 'active' ? cfg.activeId(hub.config, 'pushButtons') : req.params.id;
+    if (!['status', 'start', 'finish', 'reset'].includes(action)) return res.status(400).json({ error: '押しボタンの動作は start / finish / reset / status のどれかです' });
+    try {
+      if (action === 'status') return res.json({ ok: true, push: push.snapshot() });
+      if (!push.ids().includes(id)) throw new Error('押しボタンの設定がありません');
+      const state = action === 'start' ? push.start(id, { seconds: req.body?.seconds ?? req.query?.seconds }) : action === 'finish' ? push.finish(id) : (push.reset(id), push.snapshot()[id]);
+      return res.json({ ok: true, push: state, pushes: push.snapshot() });
+    } catch (err) { return res.status(400).json({ error: err.message }); }
   });
   // マイクラ側の演出プロフィールに設定済みの演出（読むだけ）
   r.get('/api/superstream', (_req, res) => {
@@ -715,6 +733,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return { status: 400, body: { error: err.message } };
       }
     }
+    if (target === 'push') {
+      if (!entitled('pushButtons')) return { status: 403, body: { error: '押しボタンは管理者が使えるようにすると使えます' } };
+      const id = data?.id === 'active' || !data?.id ? cfg.activeId(hub.config, 'pushButtons') : data.id;
+      try {
+        if (!['status', 'start', 'finish', 'reset'].includes(action)) throw new Error('押しボタンの動作は start / finish / reset / status のどれかです');
+        if (action === 'status') return { status: 200, body: { ok: true, push: push.snapshot() } };
+        if (!push.ids().includes(id)) throw new Error('押しボタンの設定がありません');
+        const state = action === 'start' ? push.start(id, data) : action === 'finish' ? push.finish(id) : (push.reset(id), push.snapshot()[id]);
+        return { status: 200, body: { ok: true, push: state, pushes: push.snapshot() } };
+      } catch (err) { return { status: 400, body: { error: err.message } }; }
+    }
     hub.control(String(target), String(action), data ?? {});
     return { status: 200, body: { ok: true } };
   }
@@ -798,6 +827,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
     readVote() { return vote.snapshot(); },
+    readPush() { return push.snapshot(); },
     readRush() { return rush.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
@@ -816,6 +846,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       unwatch();
       roulette.clear();
       vote.reset();
+      push.reset();
       demo.stop();
       await tiktok.disconnect().catch(() => {});
       history.end();

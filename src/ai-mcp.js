@@ -240,6 +240,12 @@ export function registerAiTools(server, call) {
     },
   }, wrap(async (args) => shown(await call('vote', args))));
 
+  server.registerTool('push_button', {
+    title: '押しボタン',
+    description: '押しボタンを始める・締める・リセットする・状態を見る。配信中の本番では変更できない。',
+    inputSchema: { action: z.enum(['status', 'start', 'finish', 'reset']).default('status'), id: z.string().optional(), seconds: z.number().optional(), dryRun: z.boolean().optional(), tenant: z.string().optional() },
+  }, wrap(async (args) => shown(await call('push_button', args))));
+
   server.registerTool('rush', {
     title: 'RUSH',
     description: 'RUSH（確変）に入る・終わらせる・状態を見る。配信中の本番では変更できない。',

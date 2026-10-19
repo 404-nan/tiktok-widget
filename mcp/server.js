@@ -274,6 +274,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'push_button',
+  {
+    title: '押しボタン',
+    description: '押しボタンを始める・締める・リセットする・状態を見る。',
+    inputSchema: { action: z.enum(['status', 'start', 'finish', 'reset']).default('status'), id: z.string().optional(), seconds: z.number().optional() },
+  },
+  wrap(async ({ action, id, seconds }) => text(await admin.pushButton(action, id ?? null, { seconds }))),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',

@@ -634,6 +634,20 @@ SCHEMA.votes = {
   },
 };
 
+// コメントといいねで押す、時間制の参加型ボタン。
+SCHEMA.pushButtons = {
+  kind: 'map', page: 'push-button', title: '押しボタン',
+  desc: 'コメント「押」か、いいねの連打で参加する PUSH ボタン。', size: () => [640, 360],
+  fields: {
+    ...placementFields(8, 55), label: str('押せ!', '画面に出す文字'), seconds: num(5, '受付時間（1〜60秒）', { min: 1, max: 60 }),
+    keyword: str('押', '押しとして数えるコメント'), likesPerPush: num(5, '何いいねで1押しか（0で数えない）', { min: 0, max: 1000 }),
+    steps: list([3, 10, 30, 100], '青・緑・赤・金になる押し数（4個、昇順）'),
+    blueActions: { type: 'actions', default: [], desc: '青の動作' }, greenActions: { type: 'actions', default: [], desc: '緑の動作' },
+    redActions: { type: 'actions', default: [], desc: '赤の動作' }, goldActions: { type: 'actions', default: [], desc: '金の動作' },
+    missText: str('不発', '届かなかったときの文字'), sound: bool(true, '効果音'), volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }), color: color('accent', 'ボタンの色'),
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {

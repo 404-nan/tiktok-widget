@@ -445,6 +445,14 @@ function checkVoteOptions(value, where, issues) {
   return out;
 }
 
+// 押しボタンの段階は4個ちょうどで、青から金へ増える順にする。
+function checkPushSteps(value, where, issues) {
+  const out = checkValue({ type: 'list', default: [3, 10, 30, 100] }, value, where, issues).map(Number);
+  if (out.length !== 4) issues.errors.push(`${where}: 段階の数は4個にしてください`);
+  if (out.some((n, i) => !Number.isInteger(n) || n < 1 || (i > 0 && n <= out[i - 1]))) issues.errors.push(`${where}: 段階は1以上の整数を昇順で4個書いてください`);
+  return out;
+}
+
 // 延長タイマーのギフトのルール（{ gifts: [Galaxy], minutes: 10 } / { gifts: [Rose], seconds: 30 }）
 function checkTimerRules(value, where, issues) {
   if (value == null) return [];
@@ -501,7 +509,11 @@ function checkFields(section, raw, where, issues) {
     if (value == null) continue;
     out[key] = section === 'votes' && key === 'options'
       ? checkVoteOptions(value, `${where}.${key}`, issues)
-      : checkValue(fields[key], value, `${where}.${key}`, issues);
+      : section === 'pushButtons' && key === 'steps'
+        ? checkPushSteps(value, `${where}.${key}`, issues)
+        : section === 'pushButtons' && key === 'keyword' && String(value).trim() === ''
+          ? (issues.errors.push(`${where}.${key}: 空にはできません`), String(value))
+          : checkValue(fields[key], value, `${where}.${key}`, issues);
   }
   return out;
 }

@@ -54,6 +54,8 @@ Minecraft / SuperStream
   vote status [名前]                  投票の状態を見る
   vote start|close|result|reset [名前] 投票を始める・締める・結果・リセット
   vote start 名前 --seconds 30        秒数を今回だけ変えて始める
+  push status [名前]                  押しボタンの状態を見る
+  push start|finish|reset [名前]      押しボタンを始める・締める・リセット
   status
 
 AI と使う
@@ -174,6 +176,13 @@ try {
       const secondsIndex = rest.indexOf('--seconds');
       if (secondsIndex >= 0 && rest[secondsIndex + 1] != null) opts.seconds = Number(rest[secondsIndex + 1]);
       print(await admin.vote(action, id, opts));
+      break;
+    }
+    case 'push': {
+      const [action = 'status', id, ...rest] = args;
+      const opts = {}; const secondsIndex = rest.indexOf('--seconds');
+      if (secondsIndex >= 0 && rest[secondsIndex + 1] != null) opts.seconds = Number(rest[secondsIndex + 1]);
+      print(await admin.pushButton(action, id, opts));
       break;
     }
     case 'rush':
