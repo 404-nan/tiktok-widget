@@ -17,6 +17,7 @@ const files = [
   'public/widgets/sounds.js',
   'public/widgets/ticker.js',
   'public/widgets/supporters.js',
+  'public/widgets/visitors.js',
   'public/widgets/lib/telop.js',
 ];
 

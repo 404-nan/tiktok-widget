@@ -627,6 +627,18 @@ SCHEMA.supporters = {
   },
 };
 
+// 配信中に初見・おかえり・常連を迎えるテロップ。記録はサーバー側で匿名化する。
+SCHEMA.visitors = {
+  kind: 'map', page: 'visitors', title: '初見さん・常連さん', desc: '配信の記録から来場回数を数え、初見さんや常連さんを迎える。URL は /widgets/visitors.html?id=<名前>', size: () => [760, 160],
+  fields: {
+    showFirst: bool(true, '初見さんを迎える'), showReturning: bool(false, 'おかえりの人を迎える'), showRegular: bool(true, '常連さんを迎える'),
+    regularVisits: num(3, '何回目から常連さんとして迎えるか', { min: 2, max: 100 }),
+    firstText: str('はじめまして！ゆっくりしていってね', '初見さんの文'), returningText: str('また来てくれてありがとう', 'おかえりの文'), regularText: str('{visits}回目の来場、いつもありがとう', '常連さんの文。{visits} は回数に置き換わる'),
+    duration: num(4, '1件を出す秒数', { min: 1, max: 30 }), maxQueue: num(5, '待たせる最大人数', { min: 1, max: 50 }), avatars: bool(true, 'アイコンを出す'),
+    keepDays: num(90, '記録を残す日数', { min: 1, max: 365 }),
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {

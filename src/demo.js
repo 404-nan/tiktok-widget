@@ -30,6 +30,8 @@ export function demoUser(name = pick(NAMES)) {
 export function makeEvent(kind, opts = {}) {
   const user = opts.user || opts.senderName ? demoUser(opts.user || opts.senderName) : demoUser();
   switch (kind) {
+    case 'member':
+      return { kind: 'member', user, testVisits: Math.max(1, Number(opts.visits) || 1) };
     case 'gift': {
       // 一覧にないギフト名でも、名前とコインを指定すればテストできる（ルーレットの条件の確認用）
       const custom = opts.giftName && { id: String(opts.giftId || ''), name: String(opts.giftName), diamonds: Math.max(1, Number(opts.diamonds) || 1), icon: 'gift' };

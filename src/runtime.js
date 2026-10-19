@@ -32,6 +32,7 @@ import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 import { giftNamesDocument } from './gift-display.js';
 import { isDevEnv } from './env.js';
 import { InfoFeed } from './info-feed.js';
+import { VisitorLog } from './visitors.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -44,7 +45,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'tickers', 'supporters', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -62,7 +63,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -72,6 +73,7 @@ export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/,
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true }) {
   const hub = new Hub();
   const infoFeed = new InfoFeed(hub);
+  const visitors = new VisitorLog(hub, { dir: dataDir });
   // connecting は「直前まで live だった再接続」だけ配信中。未接続・配信終了のあとは新しい接続。
   // 再接続が一度失敗して error になっても、配信終了か手動切断までは同じ配信の続きとみなす。
   let reconnectFromLive = false;
@@ -312,6 +314,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.set('Cache-Control', 'no-cache');
     res.json(giftNamesDocument());
   });
+  r.get('/api/visitors', (_req, res) => res.json(visitors.snapshot()));
 
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
   // 名前だけの控えはコインが無いので、分かっている数（diamond_count など）を id で埋める
@@ -624,6 +627,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // ルーレット・タイマー・WIN数・ボス・RUSH。画面の /api/control と AI 用 API で同じ
   function performControl(target, action, data = {}) {
     if (!target || !action) return { status: 400, body: { error: 'target と action が必要です' } };
+    if (target === 'visitors' && action === 'forget') return { status: 200, body: { ok: visitors.forget(), visitors: visitors.snapshot() } };
     // ルーレットは何が当たるかをサーバーで決める
     if (target === 'roulette' && action === 'spin') {
       const spin = roulette.spin(data?.id ?? null);
@@ -746,6 +750,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
+    readVisitors() { return visitors.snapshot(); },
     readRush() { return rush.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
@@ -773,6 +778,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       giftSounds.close();
       boss.flush();
       infoFeed.close();
+      visitors.close();
     },
   };
 }

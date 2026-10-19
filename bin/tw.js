@@ -35,7 +35,7 @@ Minecraft / SuperStream
 
 テスト（サーバー起動中のみ）
   test gift <名前> [個数] [1個のコイン]
-  test like [数] | test follow | test share | test chat
+  test like [数] | test follow | test share | test chat | test member [回数]
   spin [ルーレットの名前]
   rush [start|stop]         RUSH に入る・終わらせる（省くと今の状態）
   win [名前]                WIN 数を +1（クリア。名前を省くと全部）
@@ -120,6 +120,8 @@ try {
             ? { count: Number(a) || 20 }
             : kind === 'viewers'
               ? { viewers: Number(a) || undefined }
+              : kind === 'member'
+                ? { visits: Number(a) || 1 }
               : {};
       print(await admin.testEvent(kind, opts));
       break;

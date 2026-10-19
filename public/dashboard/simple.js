@@ -8,7 +8,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'tickers', 'supporters']],
+  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'tickers', 'supporters', 'visitors']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
 ];
@@ -32,6 +32,7 @@ export const INFO = {
   rankings: { icon: 'trophy', desc: 'たくさんギフトをくれた人の順位' },
   tickers: { icon: 'newspaper', desc: 'お知らせ・目標・ギフトを下の帯に流す' },
   supporters: { icon: 'users', desc: '最近フォローやギフトをくれた人を表示する' },
+  visitors: { icon: 'door-open', desc: '初見さんや何度も来ている人を迎える' },
   roulettes: { icon: 'dices', desc: 'ギフトで回る、罰ゲームやごほうびのルーレット' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
@@ -63,6 +64,14 @@ const CUTIN_SCALE = {
  * groups: [{ title, presets?（押すとまとめて値が入る型）, fields（出す項目） }]、note: 項目の代わりに出す案内
  */
 export const SIMPLE = {
+  visitors: {
+    groups: [
+      { title: '迎える人', fields: ['showFirst', 'showReturning', 'showRegular', 'regularVisits'] },
+      { title: '迎える文', fields: ['firstText', 'returningText', 'regularText'] },
+      { title: '見た目', fields: ['duration', 'avatars'] },
+      { title: '記録', fields: ['keepDays'] },
+    ],
+  },
   tickers: {
     groups: [
       { title: '流すもの', fields: ['label', 'messages', 'showGifts', 'giftCount'] },
@@ -272,6 +281,7 @@ export const SIMPLE = {
 export const SIMPLE_LABELS = {
   'tickers.label': '札の文字', 'tickers.messages': '流す文', 'tickers.showGifts': '最近のギフトを流す', 'tickers.giftCount': 'ギフトの件数', 'tickers.showGoals': '目標を流す', 'tickers.goals': '流す目標', 'tickers.speed': '流れる速さ', 'tickers.color': '札の色',
   'supporters.events': '出すイベント', 'supporters.limit': '出す人数', 'supporters.minCoins': '何コインから', 'supporters.avatars': 'アイコンを出す', 'supporters.lifetime': '消すまでの秒数', 'supporters.color': '新しいカードの印',
+  'visitors.showFirst': '初見さんを迎える', 'visitors.showReturning': 'おかえりの人を迎える', 'visitors.showRegular': '常連さんを迎える', 'visitors.regularVisits': '何回目から常連さん', 'visitors.firstText': '初見さんの文', 'visitors.returningText': 'おかえりの文', 'visitors.regularText': '常連さんの文', 'visitors.duration': '出す秒数', 'visitors.avatars': 'アイコンを出す', 'visitors.keepDays': '記録を残す日数',
   'alerts.events': '出すきっかけ', 'alerts.minCoins': '何コインから出す', 'alerts.position': 'たての位置', 'alerts.align': 'よこの位置',
   'alerts.bigCoins': '何コインから金色にする', 'alerts.rules': 'このギフトのときだけ特別にする',
   'chats.style': '形', 'chats.fontSize': '文字の大きさ', 'chats.maxItems': '一度に出す数', 'chats.highlight': 'ギフトした人を目立たせる',
@@ -313,6 +323,7 @@ const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).map((name) 
 const SUMMARY = {
   tickers: (e) => `${e.messages?.length ?? 0} 個のお知らせ・${e.showGifts ? 'ギフトあり' : 'ギフトなし'}`,
   supporters: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・')}を${e.limit} 人`,
+  visitors: (e) => `${e.regularVisits} 回目から常連さん・${e.keepDays} 日記録`,
   alerts: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・') || 'なし'}で出す`,
   chats: (e) => `${e.style === 'bubble' ? '吹き出し' : 'テロップ'}${e.tts ? '・読み上げあり' : ''}`,
   counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),

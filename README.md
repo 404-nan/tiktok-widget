@@ -20,6 +20,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ランキング `ranking` | この配信のトップギフター・いいねランキング。順位が入れ替わるとなめらかに動く | 420 × 416（5人） |
 | ニュースティッカー `ticker`（できた） | お知らせ・目標・最近のギフトを画面下の帯に流す | 1080 × 72 |
 | 最近のサポーター `supporters`（できた） | 最近フォロー・ギフト・シェアした人を上から表示する | 420 × 72 + 60 × 件数 |
+| 初見さん・常連さん `visitors`（作りかけ・本番前の見た目確認待ち） | 配信ごとの匿名記録で初見・おかえり・常連を迎える。名前とユーザー ID は保存しない | 760 × 160 |
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
@@ -335,6 +336,7 @@ src/config.js          設定ファイルの検証・読み書き（コメント
 src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
+src/visitors.js        来場回数を HMAC で匿名化して保存し、初見・常連の通知を配る
 src/info-feed.js       フォロー・ギフト・シェアの最近の一覧をメモリで持つ
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）
@@ -357,7 +359,8 @@ public/dashboard/      設定画面（common.js / charts.js は3画面で共通�
 public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
-test/                  node --test のテスト
+public/widgets/visitors.html / visitors.js  初見・常連の来場テロップ
+test/                  node --test のテスト（acceptance/visitors.test.js は来場テロップの完成条件）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
