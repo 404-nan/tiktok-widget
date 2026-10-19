@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Hub } from '../../src/hub.js';
+import { IngestKeyStore } from '../../src/ingest-keys.js';
 import { startHostedServer } from '../helpers/guard-harness.js';
 
 const sha256 = (v) => crypto.createHash('sha256').update(v).digest('hex');
@@ -37,6 +38,7 @@ async function boot() {
   fs.writeFileSync(configPath, '');
   fs.writeFileSync(path.join(dataDir, 'tenants.json'), JSON.stringify({ tenants: TENANTS, global: { access: {} } }));
   fs.writeFileSync(path.join(dataDir, 'billing.json'), JSON.stringify({ accounts: { pay: { status: 'suspended' } } }));
+  const offIngestKey = new IngestKeyStore({ dir: path.join(dataDir, 'tenants', 'off') }).create().value;
   const server = await startHostedServer({
     env: { TW_CONFIG: configPath, TW_DATA: dataDir, TW_ENV: 'dev', TW_BILLING: 'on', TW_RESUME_CONNECT: '0', TW_ADMIN_TOKEN: 'admin-token-for-test' },
   });
@@ -55,7 +57,7 @@ async function boot() {
     body: method === 'GET' ? undefined : JSON.stringify(body),
   });
   const recent = async (tenant) => (await json(await api(tenant, '/api/status'))).recent;
-  return { root, dataDir, base, api, json, makeKey, send, recent, A: TENANTS[0], C: TENANTS[1], OFF: TENANTS[2], PAY: TENANTS[3] };
+  return { root, dataDir, base, api, json, makeKey, send, recent, offIngestKey, A: TENANTS[0], C: TENANTS[1], OFF: TENANTS[2], PAY: TENANTS[3] };
 }
 
 const user = { userId: 'viewer1', nickname: 'ゆうた' };
@@ -119,8 +121,7 @@ test('AC-4 照合: 違う鍵は 404、止められた配信者は 403、受け�
   // 受け口の鍵は /t/<鍵> として使えない
   assert.equal((await fetch(`${s.base}/t/${keyA}/api/ingest`)).status, 404);
   // 止められた配信者
-  const keyOff = await s.makeKey(s.OFF);
-  assert.equal((await s.send(keyOff, { kind: 'follow', ...user })).status, 404);
+  assert.equal((await s.send(s.offIngestKey, { kind: 'follow', ...user })).status, 403);
 });
 
 test('AC-4 Authorization: Bearer でも渡せる(URL は /in)', async () => {
