@@ -244,8 +244,8 @@ test('AC-8(c) eventId つきの再送は 200 で duplicate、2回目は数えな
 test('AC-8(b) 直近に別の経路から同じ内容が来ていたら捨てる(直接の TikTok 接続のかわりにテスト送信を使う)', async () => {
   const s = await boot();
   const key = await s.makeKey(s.A);
-  // 直接の経路(source なし)で同じ内容のコメントが先に届く。テスト送信のユーザー id は demo_ が付く
-  const direct = await s.api(s.A, '/api/simulate', { method: 'POST', body: { kind: 'chat', user: 'viewer1', text: '同じ文' } });
+  // TikTok接続と同じイベント形で、同じ内容のコメントが先に届く。
+  const direct = await s.api(s.A, '/api/simulate', { method: 'POST', body: { kind: 'chat', user: 'viewer1', text: '同じ文', source: 'tiktok' } });
   assert.equal(direct.status, 200);
   const res = await s.send(key, { kind: 'chat', userId: 'demo_viewer1', comment: '同じ文' });
   assert.equal(res.status, 200);
@@ -264,8 +264,8 @@ test('AC-8(a) 直接の接続が20秒以内に届けているあいだ、受け�
   const key = await s.makeKey(s.A);
   const before = await s.json(await s.api(s.A, '/api/ingest'));
   assert.equal(before.direct.lastEventAt, null);
-  // 直接の経路(source なし)で何か届ける
-  await s.api(s.A, '/api/simulate', { method: 'POST', body: { kind: 'follow', user: 'direct1' } });
+  // TikTok接続と同じイベント形で何か届ける
+  await s.api(s.A, '/api/simulate', { method: 'POST', body: { kind: 'follow', user: 'direct1', source: 'tiktok' } });
   const mid = await s.json(await s.api(s.A, '/api/ingest'));
   assert.ok(mid.direct.lastEventAt > 0, '直接の最後の時刻を持つ');
   const like = await s.json(await s.send(key, { kind: 'like', ...user, likeCount: 3, totalLikeCount: 30 }));

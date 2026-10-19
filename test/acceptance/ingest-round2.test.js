@@ -59,7 +59,7 @@ async function boot() {
 test('AC-14 直接のコメントと同じ内容を kind: comment で送ると、捨てられて duplicates が1増える', async () => {
   const s = await boot();
   const key = await s.makeKey(s.A);
-  const direct = await s.api(s.A, '/api/simulate', { method: 'POST', body: { kind: 'chat', user: 'v14', text: '同じ文14' } });
+  const direct = await s.api(s.A, '/api/simulate', { method: 'POST', body: { kind: 'chat', user: 'v14', text: '同じ文14', source: 'tiktok' } });
   assert.equal(direct.status, 200);
   const res = await s.send(key, { kind: 'comment', userId: 'demo_v14', comment: '同じ文14' });
   assert.equal(res.status, 200);

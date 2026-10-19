@@ -179,7 +179,7 @@ export class TikTokSource {
     };
     const pub = (fn) => (data) => {
       try {
-        this.hub.publish(fn(data));
+        this.hub.publish({ ...fn(data), source: 'tiktok' });
       } catch (err) {
         console.warn('[tiktok] イベントの変換に失敗:', err);
       }

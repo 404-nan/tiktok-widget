@@ -40,3 +40,17 @@ test('文字列の null / undefined を鍵として送っても、専用403で�
     }
   }
 });
+
+test('不正な鍵の連打は送信元単位で照合を制限する', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-ingest-invalid-limit-'));
+  roots.push(root);
+  const dataDir = path.join(root, 'data');
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(path.join(root, 'config.yaml'), '');
+  fs.writeFileSync(path.join(dataDir, 'tenants.json'), JSON.stringify({ tenants: [{ id: 'aaa', name: 'A', enabled: true, widgets: [], access: {} }], global: { access: {} } }));
+  const server = await startHostedServer({ env: { TW_CONFIG: path.join(root, 'config.yaml'), TW_DATA: dataDir, TW_ENV: 'dev', TW_RESUME_CONNECT: '0', TW_ADMIN_TOKEN: 'test-admin-token' } });
+  children.push(server.child);
+  const statuses = [];
+  for (let i = 0; i < 41; i++) statuses.push((await fetch(`${await server.ready}/in/not-a-real-key-${i}`, { method: 'POST', body: '{}' })).status);
+  assert.equal(statuses.at(-1), 429);
+});

@@ -1,3 +1,4 @@
+// 外部ツールのイベントを正規化し、重複を防いで配信ハブへ渡す。
 import { normalizeChat, normalizeFollow, normalizeGift, normalizeLike, normalizeShare } from './normalize.js';
 import { IngestKeyStore } from './ingest-keys.js';
 
@@ -26,10 +27,11 @@ export class Ingest {
   #directEvents = [];
   #directEventStart = 0;
 
-  constructor(hub, { dataDir, connectionAllowed = () => true, now = () => Date.now(), keyStore = null } = {}) {
+  constructor(hub, { dataDir, connectionAllowed = () => true, now = () => Date.now(), keyStore = null, onKeyChange = () => {} } = {}) {
     this.hub = hub;
     this.now = now;
     this.connectionAllowed = connectionAllowed;
+    this.onKeyChange = onKeyChange;
     this.keys = keyStore ?? new IngestKeyStore({ dir: dataDir, now });
     this.stateData = { accepted: 0, duplicates: 0, limited: 0, rejected: 0, byKind: {}, lastEventAt: null, direct: { lastEventAt: null } };
     this.tokens = 40;
@@ -37,7 +39,7 @@ export class Ingest {
     this.events = new Map();
     this.eventIds = new Map();
     hub.on('event', (event) => {
-      if (event?.source !== 'ingest') {
+      if (event?.source === 'tiktok') {
         const at = this.now();
         this.stateData.direct.lastEventAt = at;
         this.pruneDirect(at);
@@ -51,10 +53,11 @@ export class Ingest {
 
   create() {
     const key = this.keys.create();
+    this.onKeyChange();
     return { value: key.value, keyHint: key.hint, keyCreatedAt: key.createdAt };
   }
 
-  remove() { this.keys.remove(); }
+  remove() { this.keys.remove(); this.onKeyChange(); }
 
   state() {
     return {
@@ -118,13 +121,15 @@ export class Ingest {
     const data = fields(body);
     const kind = text(data.kind || data.event || data.type).toLowerCase();
     if (!KINDS.has(kind)) return this.reject(res, 400, 'イベントの種類が正しくありません');
-    if (data.eventid != null && this.seenEvent(String(data.eventid))) return this.duplicate(res);
+    const test = data.test === true || data.test === 'true' || data.test === '1' || req.query?.test === '1';
+    const eventId = data.eventid == null ? null : String(data.eventid);
+    if (eventId && this.isSeenEvent(eventId, test)) return this.duplicate(res);
     const event = this.normalize(kind, data);
     const fingerprint = this.fingerprint(kind, event);
     if (kind === 'like' && this.stateData.direct.lastEventAt != null && this.now() - this.stateData.direct.lastEventAt <= 20_000) return this.duplicate(res);
     if (kind !== 'like' && this.events.get(fingerprint)?.source === 'direct' && this.now() - this.events.get(fingerprint).at <= 15_000) return this.duplicate(res);
-    const test = data.test === true || data.test === 'true' || data.test === '1' || req.query?.test === '1';
     this.hub.publish({ ...event, source: 'ingest', ...(test ? { test: true } : {}) });
+    if (eventId) this.rememberEvent(eventId, test);
     this.stateData.accepted++;
     this.stateData.lastEventAt = this.now();
     this.stateData.byKind[kind === 'comment' ? 'chat' : kind] = (this.stateData.byKind[kind === 'comment' ? 'chat' : kind] ?? 0) + 1;
@@ -152,13 +157,15 @@ export class Ingest {
     return `${kind}|${user}|${event.count}|${event.total}`;
   }
 
-  seenEvent(id) {
+  isSeenEvent(id, test) {
     const now = this.now();
-    for (const [key, at] of this.eventIds) if (now - at > 600_000) this.eventIds.delete(key);
-    if (this.eventIds.has(id)) return true;
-    this.eventIds.set(id, now);
+    for (const [key, entry] of this.eventIds) if (now - entry.at > 600_000) this.eventIds.delete(key);
+    return this.eventIds.get(id)?.test === test;
+  }
+
+  rememberEvent(id, test) {
+    this.eventIds.set(id, { at: this.now(), test });
     while (this.eventIds.size > 1000) this.eventIds.delete(this.eventIds.keys().next().value);
-    return false;
   }
 
   pruneDirect(now) {

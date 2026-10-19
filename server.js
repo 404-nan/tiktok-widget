@@ -1,3 +1,4 @@
+// HTTPサーバー本体。配信者の画面、外部イベント受け口、WebSocketを提供する。
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import { WebSocketServer } from 'ws';
 import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
-import { Tenants, DATA_DIR } from './src/tenants.js';
+import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
 import { overlayMessageAllowed } from './src/billing.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
@@ -363,7 +364,8 @@ app.post('/d/:sid', (req, res) => {
 const ingestRequest = (req, res) => {
   const header = String(req.headers.authorization ?? '');
   const key = req.params.key || (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? '');
-  const tenant = tenants.byIngestKey(key);
+  const tenant = tenants.byIngestKey(key, req.ip);
+  if (tenant === INGEST_LOOKUP_LIMITED) return res.status(429).set('Retry-After', '1').type('text/plain; charset=utf-8').send('送信が多すぎます。少し待ってください');
   if (!tenant) return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
   if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   return tenants.runtime(tenant.id).ingest.handle(req, res, key);

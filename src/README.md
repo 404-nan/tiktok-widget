@@ -28,7 +28,7 @@
 | `gift-sounds.js` | ギフト音の再生状態を管理する |
 | `history.js` | 配信履歴を保存・取得する |
 | `hub.js` | イベントを集計し、接続中の画面へ配信する |
-| `ingest.js` | 外部ツールからイベントを受け、正規化してhubへ流す |
+| `ingest.js` | 外部ツールからイベントを受け、重複・直接接続との競合を整理してhubへ流す |
 | `ingest-keys.js` | 外部イベント受け口の鍵を保存・照合する |
 | `media-alerts.js` | メディア付き通知を管理する |
 | `minecraft.js` | Minecraft連携のルールを処理する |
@@ -45,7 +45,7 @@
 | `slot.js` | スロットの抽選と結果を処理する |
 | `superstream.js` | Minecraft演出プロフィールを読む |
 | `tenants.js` | 配信者一覧、runtime、配信者ごとの鍵を管理する |
-| `tiktok.js` | tiktok-live-connectorでLIVEへ接続する |
+| `tiktok.js` | tiktok-live-connectorでLIVEへ接続し、TikTok由来の印を付ける |
 | `timer.js` | 延長タイマーの状態と操作を管理する |
 | `vault.js` | Cloudflare環境のデータ退避と復元を行う |
 | `wins.js` | WIN数の状態と操作を管理する |

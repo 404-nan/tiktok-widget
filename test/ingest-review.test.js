@@ -115,3 +115,54 @@ test('配信者を削除したら ingest key のキャッシュも消す', async
 
   assert.equal(tenants.ingestKeys.has('aaa'), false);
 });
+
+test('デモのテストイベントは直接接続の重複防止を発動させない', async () => {
+  let now = 1_000_000;
+  const hub = new Hub();
+  const ingest = new Ingest(hub, { keyStore: keyStore(), now: () => now });
+  hub.publish({ kind: 'like', count: 1, total: 1, user: { id: 'demo', name: 'デモ' }, test: true, source: 'demo' });
+  const res = response();
+
+  await ingest.handle(request(JSON.stringify({ kind: 'like', userId: 'real', likeCount: 1, eventId: 'live-like-1' })), res, 'twin_test');
+
+  assert.deepEqual(res.body, { ok: true });
+});
+
+test('直接のTikTokイベントだけが外部いいねを重複扱いにする', async () => {
+  let now = 1_000_000;
+  const hub = new Hub();
+  const ingest = new Ingest(hub, { keyStore: keyStore(), now: () => now });
+  hub.publish({ kind: 'like', count: 1, total: 1, user: { id: 'live', name: '配信者' }, source: 'tiktok' });
+  const res = response();
+
+  await ingest.handle(request(JSON.stringify({ kind: 'like', userId: 'external', likeCount: 1, eventId: 'live-like-2' })), res, 'twin_test');
+
+  assert.deepEqual(res.body, { ok: true, duplicate: true });
+});
+
+test('重複で捨てたeventIdは記録せず、同じIDを後で受け付ける', async () => {
+  let now = 1_000_000;
+  const hub = new Hub();
+  const ingest = new Ingest(hub, { keyStore: keyStore(), now: () => now });
+  hub.publish({ kind: 'like', count: 1, total: 1, user: { id: 'live', name: '配信者' }, source: 'tiktok' });
+  const rejected = response();
+  await ingest.handle(request(JSON.stringify({ kind: 'like', userId: 'external', likeCount: 1, eventId: 'reuse-1' })), rejected, 'twin_test');
+
+  now += 21_000;
+  const accepted = response();
+  await ingest.handle(request(JSON.stringify({ kind: 'follow', userId: 'external', eventId: 'reuse-1' })), accepted, 'twin_test');
+
+  assert.deepEqual(accepted.body, { ok: true });
+});
+
+test('test=trueのeventIdは本番イベントの同じIDを塞がない', async () => {
+  let now = 1_000_000;
+  const hub = new Hub();
+  const ingest = new Ingest(hub, { keyStore: keyStore(), now: () => now });
+  const testResponse = response();
+  await ingest.handle(request(JSON.stringify({ kind: 'follow', userId: 'demo', eventId: 'same-1', test: true })), testResponse, 'twin_test');
+  const liveResponse = response();
+  await ingest.handle(request(JSON.stringify({ kind: 'follow', userId: 'real', eventId: 'same-1' })), liveResponse, 'twin_test');
+
+  assert.deepEqual(liveResponse.body, { ok: true });
+});

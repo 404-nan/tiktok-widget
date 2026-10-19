@@ -58,6 +58,9 @@ test('AC-3 使い方の受け口の URL・項目名は ingest の受け入れ名
   assert.match(help, /429/);
   assert.match(help, /1秒20回/);
   assert.doesNotMatch(help, /twin_[0-9a-f]{48}/i);
+  assert.match(help, /外部ツールだけ.*テスト送信|テスト送信.*外部ツールだけ/);
+  assert.match(help, /URL.*鍵.*ログ|鍵.*URL.*ログ/);
+  assert.match(help, /止められた.*403|403.*止められた/);
 });
 
 test('AC-4 表示用スクリプトは相対読み込みの読みやすい日本語ESモジュールである', () => {

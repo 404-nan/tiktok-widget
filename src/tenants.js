@@ -16,6 +16,7 @@ import { IngestKeyStore } from './ingest-keys.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'));
+export const INGEST_LOOKUP_LIMITED = Symbol('ingest lookup limited');
 const MEDIA_DIR = path.join(root, 'media');
 
 const newKey = () => crypto.randomBytes(18).toString('base64url');
@@ -51,6 +52,8 @@ export class Tenants {
     this.data = { tenants: [], global: { access: {} } };
     this.runtimes = new Map(); // id → runtime
     this.ingestKeys = new Map(); // id → { store, signature }
+    this.ingestKeyIndex = new Map(); // 鍵の要約 → 配信者ID
+    this.invalidIngestAttempts = new Map();
     this.rental = new RentalState();
     this.backupDir = backupData(dir);
     this.#load();
@@ -149,7 +152,39 @@ export class Tenants {
   }
 
   /** 外部イベント受け口の鍵から配信者を探す */
-  byIngestKey(key) {
+  byIngestKey(key, sourceIp = '') {
+    const digest = crypto.createHash('sha256').update(String(key)).digest('hex');
+    const tenantId = this.ingestKeyIndex.get(digest);
+    if (!tenantId) {
+      if (sourceIp && !this.#allowInvalidIngestAttempt(sourceIp)) return INGEST_LOOKUP_LIMITED;
+      this.#loadIngestKeys();
+      return this.ingestKeyIndex.has(digest) ? this.#tenantForIndexedKey(digest, key) : null;
+    }
+    this.#refreshIngestKey(tenantId);
+    if (!this.ingestKeyIndex.has(digest)) return null;
+    return this.#tenantForIndexedKey(digest, key);
+  }
+
+  #refreshIngestKey(tenantId) {
+    const tenant = this.get(tenantId);
+    if (!tenant) return;
+    const dir = this.dataDir(tenant.id);
+    const file = path.join(dir, 'ingest.json');
+    let signature = null;
+    try {
+      const stat = fs.statSync(file);
+      signature = `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`;
+    } catch {}
+    const cached = this.ingestKeys.get(tenant.id);
+    if (!cached) return this.#loadIngestKeys();
+    if (cached.signature === signature) return;
+    this.#removeIngestIndex(tenant.id);
+    cached.store.load();
+    cached.signature = signature;
+    if (cached.store.data?.hash) this.ingestKeyIndex.set(cached.store.data.hash, tenant.id);
+  }
+
+  #loadIngestKeys() {
     for (const t of this.data.tenants) {
       const dir = this.dataDir(t.id);
       const file = path.join(dir, 'ingest.json');
@@ -163,13 +198,44 @@ export class Tenants {
         cached = { store: new IngestKeyStore({ dir }), signature };
         this.ingestKeys.set(t.id, cached);
       } else if (cached.signature !== signature) {
+        this.#removeIngestIndex(t.id);
         cached.store.load();
         cached.signature = signature;
       }
-      const store = cached.store;
-      if (store.authenticate(key)) return t;
+      if (cached.store.data?.hash) this.ingestKeyIndex.set(cached.store.data.hash, t.id);
     }
-    return null;
+  }
+
+  refreshIngestKey(id) { this.#refreshIngestKey(id); }
+
+  #tenantForIndexedKey(digest, key) {
+    const tenant = this.get(this.ingestKeyIndex.get(digest));
+    if (!tenant) return null;
+    const cached = this.ingestKeys.get(tenant.id);
+    return cached?.store.authenticate(key) ? tenant : null;
+  }
+
+  #removeIngestIndex(tenantId) {
+    for (const [digest, id] of this.ingestKeyIndex) if (id === tenantId) this.ingestKeyIndex.delete(digest);
+  }
+
+  // 不正な鍵は照合前に送信元ごとに抑え、配信者数分の読み込みを連打させない。
+  #allowInvalidIngestAttempt(sourceIp) {
+    const now = Date.now();
+    const bucket = this.invalidIngestAttempts.get(sourceIp) ?? { tokens: 40, at: now };
+    const elapsed = now - bucket.at;
+    if (elapsed >= 1000) {
+      const seconds = Math.floor(elapsed / 1000);
+      bucket.tokens = Math.min(40, bucket.tokens + seconds * 20);
+      bucket.at += seconds * 1000;
+    }
+    if (bucket.tokens < 1) {
+      this.invalidIngestAttempts.set(sourceIp, bucket);
+      return false;
+    }
+    bucket.tokens--;
+    this.invalidIngestAttempts.set(sourceIp, bucket);
+    return true;
   }
 
   // --- 使える / 使えない ---
@@ -336,6 +402,7 @@ export class Tenants {
     await this.close(id);
     this.data.tenants = this.data.tenants.filter((t) => t.id !== id);
     this.ingestKeys.delete(id);
+    this.#removeIngestIndex(id);
     this.#save();
     this.billing.remove(id);
   }
@@ -406,6 +473,7 @@ export class Tenants {
       ai: this.ai,
       notes: this.notes,
       connectionAllowed: ({ live } = {}) => this.billing.allowsConnection(id, { live }),
+      onIngestKeyChange: () => this.refreshIngestKey(id),
     });
     this.runtimes.set(id, rt);
     return rt;
