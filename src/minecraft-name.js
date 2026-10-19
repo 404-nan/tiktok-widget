@@ -1,6 +1,9 @@
 // Minecraft妨害に使う表示名を安全化し、名前入り妨害の状態とコマンドを管理する。
 // 送信者IDは内部でだけ使い、Minecraftとウィジェットへは安全化済み表示名だけを渡す。
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 const DEFAULT_SHEEP_LIMIT = 30;
 const DEFAULT_QUEUE_LIMIT = 30;
 const DEFAULT_MEDIUM_SECONDS = 15;
@@ -48,7 +51,6 @@ export function namedSabotageCommands(item, size = 'medium') {
     for (let i = 0; i < Math.min(10, item.sheepCount ?? 10); i++) {
       commands.push(`summon sheep ~${i - 5} ~ ~${i % 2 ? 2 : -2} {CustomName:${commandText(name)},Tags:["${tag}"]}`);
     }
-    commands.push(`schedule function tw:named_sabotage_expire_${tag} 60s`);
   } else {
     commands.push(`bossbar add ${tag} ${commandText(`${name}の暗闇 残り15秒`)}`);
     commands.push(`bossbar set ${tag} players @a`);
@@ -64,7 +66,7 @@ export function namedSabotageCleanupCommands(item) {
 }
 
 export class NamedSabotageEngine {
-  constructor({ hub, now = () => Date.now(), sheepLimit = DEFAULT_SHEEP_LIMIT, queueLimit = DEFAULT_QUEUE_LIMIT } = {}) {
+  constructor({ hub, now = () => Date.now(), sheepLimit = DEFAULT_SHEEP_LIMIT, queueLimit = DEFAULT_QUEUE_LIMIT, statePath = null } = {}) {
     this.hub = hub;
     this.now = now;
     this.sheepLimit = sheepLimit;
@@ -73,6 +75,8 @@ export class NamedSabotageEngine {
     this.active = [];
     this.expired = [];
     this.eventIds = new Set();
+    this.statePath = statePath;
+    this.#loadState();
   }
 
   setConfig(config = {}) {
@@ -104,6 +108,7 @@ export class NamedSabotageEngine {
     };
     this.eventIds.add(item.eventId);
     this.active.push(item);
+    this.#saveState();
     this.broadcast();
     return { ...item, user: { ...item.user } };
   }
@@ -120,7 +125,10 @@ export class NamedSabotageEngine {
     item.state = 'expired';
     item.expiredAt = this.now();
     this.active = this.active.filter((entry) => entry.eventId !== eventId);
+    this.eventIds.delete(eventId);
     this.expired.push({ ...item });
+    this.expired = this.expired.slice(-100);
+    this.#saveState();
     this.broadcast();
     return true;
   }
@@ -129,6 +137,7 @@ export class NamedSabotageEngine {
     const item = this.active.find((entry) => entry.eventId === eventId);
     if (!item) return false;
     item.state = state;
+    this.#saveState();
     this.broadcast();
     return true;
   }
@@ -148,4 +157,32 @@ export class NamedSabotageEngine {
   }
 
   broadcast() { this.hub?.broadcast({ type: 'named-sabotage', namedSabotage: this.snapshot() }); }
+
+  // 再起動後に残っている羊とボスバーを、Minecraft側で一度だけ消費する。
+  takeStale() {
+    const stale = this.active.map((item) => ({ ...item }));
+    if (stale.length) {
+      this.active = [];
+      this.eventIds.clear();
+      this.#saveState();
+    }
+    return stale;
+  }
+
+  #loadState() {
+    if (!this.statePath) return;
+    try {
+      const saved = JSON.parse(fs.readFileSync(this.statePath, 'utf8'));
+      this.active = Array.isArray(saved.active) ? saved.active : [];
+      this.eventIds = new Set(this.active.map((item) => item.eventId));
+    } catch {
+      // 初回起動や壊れた一時ファイルでは、空の状態から始める。
+    }
+  }
+
+  #saveState() {
+    if (!this.statePath) return;
+    fs.mkdirSync(path.dirname(this.statePath), { recursive: true });
+    fs.writeFileSync(this.statePath, JSON.stringify({ active: this.active }), { mode: 0o600 });
+  }
 }

@@ -61,7 +61,7 @@ export function varsFor(e = {}, extra = {}) {
 }
 
 export class Minecraft {
-  constructor(hub) {
+  constructor(hub, { namedSabotageStatePath = null } = {}) {
     this.hub = hub;
     this.config = null;
     this.rcon = null;
@@ -69,7 +69,8 @@ export class Minecraft {
     this.running = false;
     this.lastFailure = 0;
     this.status = { state: 'off', message: 'マイクラ連携はオフです', sent: 0 };
-    this.namedSabotage = new NamedSabotageEngine({ hub });
+    this.namedSabotage = new NamedSabotageEngine({ hub, statePath: namedSabotageStatePath });
+    this.goalBarReady = false;
     this.goalAlert = new GoalAlertEngine({
       hub,
       queryDistance: (goal) => this.#client().goalDistance(goal),
@@ -88,7 +89,11 @@ export class Minecraft {
       this.rcon = null;
     }
     this.goalAlert.setConfig({ ...mc, goalAlert: { ...(mc.goalAlert ?? {}), enabled: Boolean(mc.enabled && mc.goalAlert?.enabled) } });
-    if (!mc.enabled) return this.#setStatus({ state: 'off', message: 'マイクラ連携はオフです' });
+    if (!mc.enabled) {
+      this.goalBarReady = false;
+      return this.#setStatus({ state: 'off', message: 'マイクラ連携はオフです' });
+    }
+    for (const item of this.namedSabotage.takeStale()) this.enqueue(namedSabotageCleanupCommands(item), {}, 'named-sabotage-cleanup');
     if (changed || this.status.state === 'off') this.check();
   }
 
@@ -142,11 +147,17 @@ export class Minecraft {
   #sendGoalAlert(event) {
     const color = event.stage === 'final' ? 'yellow' : event.stage === 'warning' ? 'red' : 'blue';
     const text = JSON.stringify({ text: event.message });
-    this.enqueue([
+    const commands = [];
+    if (!this.goalBarReady) {
+      commands.push('bossbar add tw:goal_alert {"text":"ゴール接近警報"}');
+      this.goalBarReady = true;
+    }
+    commands.push(
       `bossbar set tw:goal_alert name ${text}`,
       `bossbar set tw:goal_alert color ${color}`,
       'bossbar set tw:goal_alert visible true',
-    ], {}, 'goal-alert');
+    );
+    this.enqueue(commands, {}, 'goal-alert');
   }
 
   /** 名前入り妨害は通常のルールと別の安全なコマンド集合へ送る。 */

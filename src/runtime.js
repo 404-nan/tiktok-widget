@@ -104,7 +104,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()) });
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
-  const minecraft = new Minecraft(hub);
+  const minecraft = new Minecraft(hub, { namedSabotageStatePath: path.join(dataDir, 'named-sabotage.json') });
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
@@ -141,6 +141,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const relay = relayStop.onEvent(e);
     if (!relay) slot.onEvent(e);
     peka.onEvent(e);
+    ootori.onEvent(e);
   });
   hub.on('testEvent', (e) => peka.onEvent(e));
   hub.on('testEvent', (e) => throne.testEvent(e));
@@ -711,7 +712,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     }
     if (target === 'dareba') {
       if (action === 'status') return { status: 200, body: { ok: true, dareba: dareba.snapshot() } };
-      if (action === 'stop') return { status: 200, body: { ok: true, dareba: dareba.stop() ? dareba.snapshot() : dareba.snapshot() } };
+      if (action === 'stop') return { status: 200, body: { ok: true, dareba: dareba.stop() } };
       if (action === 'start') return { status: 200, body: { ok: true, dareba: dareba.trigger({ user: data?.user ?? null }) ? dareba.snapshot() : dareba.snapshot() } };
       return { status: 400, body: { error: 'ダレ場は status / start / stop を指定してください' } };
     }

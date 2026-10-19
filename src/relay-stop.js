@@ -146,6 +146,8 @@ export class RelayStopEngine {
       this.state = 'idle';
       return this.start(next);
     }
+    // 完了通知を出した後は、次のギフトを新しいリレーとして受け付ける。
+    this.state = 'idle';
     return { ok: true, ...this.snapshot() };
   }
 

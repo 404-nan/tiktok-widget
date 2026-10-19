@@ -6,8 +6,8 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 | 機能 | 状態 | 主な場所 |
 | --- | --- | --- |
-| Minecraft ゴール接近警報 | できた（50m・20m・5mの段階警報、距離のサーバー管理、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`public/widgets/goal-alert.html` |
-| 名前入りMinecraft妨害 | できた（安全なコマンド生成・サーバー状態・カットイン配線） | `src/minecraft-name.js`、`src/minecraft.js` |
+| Minecraft ゴール接近警報 | できた（50m・20m・5mの段階警報、1m以内の到達判定、ボスバー作成、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`src/minecraft.js`、`public/widgets/goal-alert.html` |
+| 名前入りMinecraft妨害 | できた（安全なコマンド生成、状態保存、再起動時の片付け、カットイン配線） | `src/minecraft-name.js`、`src/minecraft.js` |
 | 既存のギフト・コメント・ゲーム演出 | できた | `src/`、`public/widgets/` |
 
 最後に直した日: 2026-10-19
@@ -37,7 +37,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
-機能の状態: 既存のウィジェットは表のとおりです。告知ランプ、リレー停止、動く王座、大トリは実装済みで、公開前の見た目確認が残っています。
+機能の状態: 既存のウィジェットは表のとおりです。告知ランプ、リレー停止、動く王座、大トリ、ゴール接近警報、名前入りMinecraft妨害は実装済みです。公開前の見た目確認が残っています。
 
 最終更新: 2026-10-19
 
@@ -363,6 +363,8 @@ src/timer.js           延長タイマー（残り時間・延長・一時停止
 src/boss.js            ボス討伐（ギフトのダメージで HP を削り、討伐・次のボスを配る。data/boss.json に残す）
 src/rush.js            RUSH（確変）モードの状態と時間（突入・延長・終了を全画面に配る）
 src/minecraft.js       マイクラ連携（ルール・ルーレットの結果 → RCON）
+src/minecraft-name.js  名前入り妨害の安全化・状態保存・再起動時の片付け
+src/mc-goal-alert.js   ゴール距離の段階警報と到達判定
 src/rcon.js            RCON クライアント
 src/superstream.js     マイクラ側の演出プロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）

@@ -10,10 +10,10 @@
 | `ootori.js` | ラスト10分の席、大トリ、参加者一覧、終了演出の時間をサーバーで管理する |
 | `relay-stop.js` | 既存スロットの固定結果、3本の停止順、送信者、10秒の自動停止、待機列をサーバーで管理する |
 | `schema.js` | ダレ場を含む設定項目、初期値、説明を定義する |
-| `minecraft-name.js` | Minecraftの名前入り妨害を安全化し、状態とコマンドを管理する |
+| `minecraft-name.js` | Minecraftの名前入り妨害を安全化し、状態保存・再起動時の片付け・コマンドを管理する |
 | `mc-goal-alert.js` | Minecraftのゴール距離、警報段階、再通知、ゴール到達をサーバーで管理する |
 | `rcon.js` | MinecraftのRCONへ接続し、通常コマンドとゴール距離問い合わせを送る |
-| `runtime.js` | ダレ場を配信イベント、API、WebSocket、設定へつなぐ |
+| `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ |
 | `admin.js` | CLI と MCP からダレ場の状態・開始・停止を呼ぶ |
 | `hub.js` | TikTokイベントを集め、集計とWebSocket配信を行う |
 | `*.js` | 配信、設定、履歴、ゲーム、外部連携などのサーバー側機能 |

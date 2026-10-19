@@ -6,6 +6,7 @@ const RESPONSE_LIMIT_MS = 1500;
 const REPEAT_LIMIT_MS = 30_000;
 const REARM_DISTANCE = 5;
 const SABOTAGE_WINDOW_MS = 15_000;
+const GOAL_REACHED_DISTANCE = 1;
 
 export function stageForDistance(distance) {
   if (distance <= 5) return 'final';
@@ -40,9 +41,14 @@ export class GoalAlertEngine {
   }
 
   setConfig(config) {
+    const nextConfig = config?.goalAlert ?? config ?? null;
+    const sameGoal = validGoal(this.config) && validGoal(nextConfig)
+      && ['world', 'x', 'y', 'z'].every((key) => String(this.config[key]) === String(nextConfig[key]));
+    const alreadyHandled = sameGoal && this.goalHandled;
     this.stop();
-    this.config = config?.goalAlert ?? config ?? null;
+    this.config = nextConfig;
     this.resetState();
+    this.goalHandled = alreadyHandled;
     if (!validGoal(this.config)) {
       this.state = 'disabled';
       this.publishState();
@@ -123,7 +129,8 @@ export class GoalAlertEngine {
     const previousDistance = this.distance;
     this.distance = distance;
     this.serverTime = Number(result.serverTime) || this.now();
-    if (distance === 0) return this.handleGoal();
+    // 座標から計算した距離は小数になるため、ゴール座標の1m以内を到達とする。
+    if (distance <= GOAL_REACHED_DISTANCE) return this.handleGoal();
     this.state = 'measuring';
     const stage = stageForDistance(distance);
     this.rearmStages(distance);

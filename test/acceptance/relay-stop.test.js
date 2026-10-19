@@ -54,10 +54,24 @@ test('AC-2/5: 有効なギフトの到着順で3本を止め、送信者を各�
   relay.onEvent(gift('second', '二人目'));
   relay.onEvent(gift('third', '三人目'));
   const state = relay.snapshot();
-  assert.equal(state.state, 'done');
+  assert.equal(state.state, 'idle');
   assert.equal(state.stoppedCount, 3);
   assert.deepEqual(state.stoppers.map((user) => user.name), ['一人目', '二人目', '三人目']);
   assert.equal(state.linked, true);
+  relay.close();
+});
+
+test('レビュー再現: 完了後の次のギフトは新しいリレーを開始し、エラーを返さない', () => {
+  const { relay, slot } = makeHarness();
+  relay.start(gift('starter'));
+  relay.onEvent(gift('one'));
+  relay.onEvent(gift('two'));
+  relay.onEvent(gift('three'));
+
+  const next = relay.onEvent(gift('four'));
+  assert.equal(next.ok, true);
+  assert.equal(slot.starts, 2);
+  assert.equal(relay.snapshot().stoppedCount, 1);
   relay.close();
 });
 
@@ -96,4 +110,3 @@ test('AC-8/9: スナップショットに固定結果とテスト分離があり
   assert.deepEqual(relay.snapshot().fixedResult.symbols, ['赤', '青', '金']);
   relay.close();
 });
-

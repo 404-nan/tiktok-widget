@@ -15,6 +15,7 @@ Node標準テストで、サーバー側の仕組みと公開画面の配線を�
 | `acceptance/relay-stop.test.js` | リレー停止の完成条件ごとの受け入れテスト |
 | `acceptance/mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確かめる |
 | `acceptance/mc-goal-alert.test.js` | ゴール距離の問い合わせ、段階警報、再武装、ゴール到達、テスト隔離を確かめる |
+| `pre-ship-regressions.test.js` | 本番前レビューの実接続・再起動・二重処理の再現条件を確かめる |
 | `mc-goal-alert-wiring.test.js` | ゴール接近警報の設定、ランタイム、RCON、公開画面の配線を確かめる |
 | `relay-stop-wiring.test.js` | リレー停止の設定、操作経路、公開画面の配線テスト |
 | `*.test.js` | 既存機能のテスト |
