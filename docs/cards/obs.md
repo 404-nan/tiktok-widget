@@ -50,8 +50,8 @@
 - 設定で `enabled:false` にしても(`config` メッセージで受けて)すぐ元に戻る
 
 ## 触ってよいファイル
-- 新規: `public/widgets/obs-bridge.html`、`public/widgets/obs-bridge.js`(ES5)、`public/widgets/lib/sha256.js`(ES5)、`src/obs.js`(`obsRules` の検証と既定値)、`test/obs-bridge.test.js`、`test/helpers/fake-obs.js`(偽の obs-websocket。既存の `ws` で作る)
-- 足すだけ: `src/schema.js`、`src/config.js`(型 `obsRules` の検証)、`public/dashboard/simple.js`、`bin/tw.js`、`mcp/server.js`、`src/admin.js`、`test/es5-public.test.js`(`files` に新しい公開 JS を足す)、`config.example.yaml`(読み書きして同じ文字になること)、`README.md`(使い方を数行)、`public/help/`(配信者向けの使い方)
+- 新規: `public/widgets/obs-bridge.html`、`public/widgets/obs-bridge.js`(ES5)、`public/widgets/lib/sha256.js`(ES5)、`test/acceptance/obs.test.js`(一時ポートの偽 obs-websocket とページ形の vm)
+- 足すだけ: `src/schema.js`、`src/config.js`(型 `obsRules` の検証)、`public/dashboard/simple.js`、`bin/tw.js`、`mcp/server.js`、`src/admin.js`、`test/es5-public.test.js`(`files` に新しい公開 JS を足す)、`config.example.yaml`(読み書きして同じ文字になること)、`README.md`(使い方を数行)、`public/help/index.html`(配信者向けの使い方)
 - 触らない: `public/widgets/cutin*.html`、`public/widgets/lib/cutin*.js`、`rush.html`、`slot.js` など既存のウィジェット(読むだけ)、`src/hub.js`、`server.js`、`docs/cards/effect-log.md`
 
 ## 完成の条件
@@ -68,10 +68,10 @@
 - AC-11 `schema.js` の `obs` に日本語の説明がつき(パスワードを送らない理由を含む)、`config.example.yaml` に既定(`enabled: false`)が入り、強さ・秒・scale の範囲外は日本語のエラーになる(`config.test.js` の形)
 - AC-12 「かんたん」に出る。呼び名は読めば分かる言い方
 - AC-13 `POST /api/control {target:'obs', action:'test', data:{rule:'rainbow'}}` が接続中のウィジェットに `control` として届き(`hub.control` のテスト)、`tw obs rainbow` と MCP の `obs` が同じ POST を送る
-- AC-14 今あるテストは全部そのまま通る(Windows の既知 6 件を除く)。`test/obs-bridge.test.js` は本物の OBS・本番に触らず、一時ポートの偽サーバーだけを使う
+- AC-14 今あるテストは全部そのまま通る(Windows の既知 6 件を除く)。`test/acceptance/obs.test.js` は本物の OBS・本番に触らず、一時ポートの偽サーバーだけを使う
 
 作らないもの: OBS の録画・配信の開始/停止、ソースの作成、スクリーンショット、OBS への音の送信、複数の OBS、サーバーから OBS への直接接続、パスワードの保存、TikTok LIVE Studio での動作(対象外と help に書く)
-証拠: `test/obs-bridge.test.js`、`test/es5-public.test.js`、`test/config.test.js`、`npm test`
+証拠: `test/acceptance/obs.test.js`、`test/es5-public.test.js`、`test/config.test.js`、`npm test`
 
 ## 決めてほしいこと(めにくんへ)
 - 揺れ・ズームの既定(1.5% / 0.8 秒、ズーム 1.08 倍)は手元の OBS で見て決める

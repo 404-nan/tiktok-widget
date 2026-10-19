@@ -74,6 +74,7 @@ async function startFakeObs({ password = null, silent = false, items = {} } = {}
       const item = Object.entries(f.items).find(([, v]) => v.id === data.sceneItemId)?.[1];
       if (requestType === 'GetCurrentProgramScene') ok({ currentProgramSceneName: f.scene });
       else if (requestType === 'SetCurrentProgramScene') { f.scene = data.sceneName; ok(); }
+      else if (['GetSceneItemId', 'GetSceneItemTransform', 'SetSceneItemTransform', 'SetSceneItemEnabled'].includes(requestType) && data.sceneName !== f.scene) ng(500, 'sceneName is required and must be the current scene');
       else if (requestType === 'GetSceneItemId') (f.items[data.sourceName] ? ok({ sceneItemId: f.items[data.sourceName].id }) : ng(600, 'No scene items were found'));
       else if (requestType === 'GetSceneItemTransform') (item ? ok({ sceneItemTransform: { ...item.transform } }) : ng(600, 'x'));
       else if (requestType === 'SetSceneItemTransform') (item ? (Object.assign(item.transform, data.sceneItemTransform), ok()) : ng(600, 'x'));
@@ -451,7 +452,7 @@ function loadBridgeApi() {
   return sandbox.OBSBridge;
 }
 const gift = (totalDiamonds, extra = {}) => ({ type: 'event', event: { kind: 'gift', totalDiamonds, ...extra }, state: {} });
-const onsOf = (api, msg, config) => (api.eventsFor(msg, config) ?? []).map((x) => (typeof x === 'string' ? x : x.on));
+const onsOf = (api, msg, config) => Array.from(api.eventsFor(msg, config) ?? []).map((x) => (typeof x === 'string' ? x : x.on));
 
 test('AC-8 eventsFor: 虹・金・スロット・RUSH・ボス・ガチャを表で当てはめる', () => {
   const api = loadBridgeApi();
@@ -531,6 +532,34 @@ test('AC-9 揺れとズームは同じソースに重ならず、上から順に
   const zoomIdx = sets.map((r, i) => (moved(r).scaleX !== undefined && moved(r).scaleX !== 1 ? i : -1)).filter((i) => i >= 0);
   assert.ok(shakeIdx.length && zoomIdx.length);
   assert.ok(Math.max(...shakeIdx) < Math.min(...zoomIdx), '揺れとズームが重なっている');
+});
+
+test('レビュー2: 再接続しても最初に受け取ったパスワードで再認証する', async () => {
+  const password = 'reconnect-secret';
+  const { obs } = await bridgeWith({ rules: [SHAKE({ seconds: 0.2 })] }, { fake: { password }, page: { hash: `#pw=${password}`, fast: true } });
+  await waitFor(() => obs.identifies.length === 1, 1000, '最初のIdentify');
+  obs.dropAll();
+  await waitFor(() => obs.identifies.length >= 2, 9000, '再接続後のIdentify');
+  assert.equal(obs.identifies[1].authentication, obs.identifies[0].authentication);
+});
+
+test('レビュー3: 無効で始めても設定変更でOBSへつながり、カットイン閾値を保つ', async () => {
+  const { obs, page, config } = await bridgeWith({ enabled: false, rules: [SHAKE({ seconds: 0.2 })] });
+  await page.emit({ type: 'config', config: { obs: { ...config.obs, enabled: true }, cutins: { default: { goldCoins: 50, rainbowCoins: 100 } }, active: { cutins: 'default' } } });
+  await page.emit(gift(120));
+  await waitFor(() => obs.sets().length > 0, 3000, '再有効化後の演出');
+  assert.equal(obs.identifies.length, 1);
+});
+
+test('レビュー4: 演出中に別のonが来ても、最初の動きの元の値へ戻る', async () => {
+  const { obs, page } = await bridgeWith({ cooldownSeconds: 0, rules: [SHAKE({ seconds: 0.6 }), { on: 'rushStart', do: 'zoom', scale: 1.2, seconds: 0.6 }] });
+  await testRule(page, 'rainbow');
+  await sleep(100);
+  await testRule(page, 'rushStart');
+  await waitFor(() => restored(obs), 3000, '重なった演出の復元');
+  const sets = obs.sets();
+  assert.ok(sets.some((r) => moved(r).positionX !== ORIGINAL.positionX), '最初の演出が動いていない');
+  assert.ok(!sets.some((r) => moved(r).scaleX > 1.05), '後の演出が重なっている');
 });
 
 // ---------- AC-10 ----------

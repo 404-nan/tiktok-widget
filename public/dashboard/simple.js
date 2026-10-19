@@ -8,10 +8,9 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['豪華な演出', ['obs']],
+  ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
