@@ -190,6 +190,17 @@ server.registerTool(
 );
 
 server.registerTool(
+  'relay_stop',
+  {
+    title: 'リレー停止',
+    description: 'スロットのリレー停止状態を見る。ギフトを送った人が3本を順番に止める。',
+    inputSchema: { action: z.enum(['status']).default('status') },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  wrap(async ({ action }) => text(await admin.relayStop(action))),
+);
+
+server.registerTool(
   'spin_roulette',
   {
     title: 'ルーレットを回す',

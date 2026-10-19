@@ -579,6 +579,19 @@ SCHEMA.slots = {
   },
 };
 
+SCHEMA.relayStop = {
+  kind: 'object',
+  page: 'slot',
+  title: 'リレー停止',
+  size: () => [720, 520],
+  desc: '既存スロットの結果を固定し、ギフトを送った人が3本を順番に止める。URL は /widgets/slot.html',
+  fields: {
+    enabled: bool(false, 'リレー停止を使う'),
+    trigger: { type: 'slotTrigger', default: { gifts: ['5655'], minCoins: 0 }, desc: '開始するギフト、または必要な最低コイン' },
+    waitMs: num(10000, '各リールを待つ時間（ミリ秒）', { min: 0, max: 10000 }),
+  },
+};
+
 SCHEMA.rankings = {
   kind: 'map',
   page: 'ranking',

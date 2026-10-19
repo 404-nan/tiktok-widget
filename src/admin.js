@@ -210,6 +210,12 @@ export async function status() {
   return callServer('/api/status');
 }
 
+/** ギフトを送った人が順番に止めるリレー停止の状態を見る。 */
+export async function relayStop(action = 'status') {
+  if (action !== 'status') return control('relay-stop', action, {});
+  return callServer('/api/relay-stop');
+}
+
 /** マイクラ側の演出プロフィールに設定済みのギフトの演出 */
 export async function superstream() {
   const { config } = cfg.load();

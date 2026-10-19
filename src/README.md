@@ -5,9 +5,10 @@
 | ファイル | 何をするか |
 | --- | --- |
 | `peka.js` | 遅れて光る告知ランプの抽選、予定時刻、点灯、待ち行列をサーバーで管理する |
+| `relay-stop.js` | 既存スロットの固定結果、3本の停止順、送信者、10秒の自動停止、待機列をサーバーで管理する |
 | `schema.js` | 設定項目の初期値・範囲・日本語の説明を定義する |
 | `runtime.js` | Pekaを含む各仕組みを起動し、APIとイベントをつなぐ |
 | `hub.js` | TikTokイベントを集め、集計とWebSocket配信を行う |
 | `*.js` | 配信、設定、履歴、ゲーム、外部連携などのサーバー側機能 |
 
-Pekaは `runtime.js` から `hub.js` の `event`・`testEvent`・`reset` を購読し、`public/widgets/peka.html` へAPIとWebSocketで状態を渡します。
+Pekaとリレー停止は `runtime.js` から `hub.js` のイベントを購読し、公開ウィジェットへAPIとWebSocketで状態を渡します。リレー停止は `slot.js` の `SlotEngine` が決めた結果を再抽選せずに使います。

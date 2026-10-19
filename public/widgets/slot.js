@@ -4,6 +4,7 @@
   var reels = document.querySelectorAll('.reel');
   var message = document.getElementById('message');
   var meta = document.getElementById('meta');
+  var stoppers = document.getElementById('stoppers');
   var base = '';
   var pathMatch = location.pathname.match(/^\/t\/[^/]+/);
   if (pathMatch) base = pathMatch[0];
@@ -89,10 +90,51 @@
     if (data.event === 'done' && !data.result) { current = null; }
   }
 
+  function onRelayMessage(text) {
+    var data;
+    var names = [];
+    var i;
+    try { data = JSON.parse(text); } catch (e) { return; }
+    if (!data || data.type !== 'relay-stop') return;
+    if (data.fixedResult) displayRelay(data);
+    for (i = 0; i < (data.stoppers || []).length; i++) names.push(data.stoppers[i] && data.stoppers[i].name ? data.stoppers[i].name : '');
+    stoppers.textContent = names.join(' / ');
+    if (data.message) meta.textContent = data.message;
+  }
+
+  function displayRelay(data) {
+    var result = data.fixedResult;
+    var i;
+    clearTimers();
+    root.setAttribute('data-tier', result.tier || 'lose');
+    for (i = 0; i < 3; i++) setReel(i, result.symbols[i], !(data.stoppedAt && data.stoppedAt[i]));
+    if (data.stoppedCount === 3) {
+      root.className = 'relay-done';
+      wait(250, playRelaySound);
+      wait(3000, function () { root.className = ''; });
+    }
+    message.textContent = data.message || '';
+  }
+
+  function playRelaySound() {
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    var context;
+    var oscillator;
+    if (!AudioContext) return;
+    try {
+      context = new AudioContext();
+      oscillator = context.createOscillator();
+      oscillator.frequency.value = 440;
+      oscillator.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.08);
+    } catch (e) {}
+  }
+
   function connect() {
     var proto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
     var ws = new WebSocket(proto + '//' + location.host + base + '/ws');
-    ws.onmessage = function (ev) { onMessage(ev.data); };
+    ws.onmessage = function (ev) { onMessage(ev.data); onRelayMessage(ev.data); };
     ws.onclose = function () { setTimeout(connect, 1000); };
   }
 
@@ -116,5 +158,13 @@
     } catch (e) {}
   };
   state.send(null);
+  var relayState = new XMLHttpRequest();
+  relayState.open('GET', base + '/api/relay-stop', true);
+  relayState.onreadystatechange = function () {
+    var data;
+    if (relayState.readyState !== 4 || relayState.status !== 200) return;
+    try { data = JSON.parse(relayState.responseText); data.type = 'relay-stop'; onRelayMessage(JSON.stringify(data)); } catch (e) {}
+  };
+  relayState.send(null);
   connect();
 }());

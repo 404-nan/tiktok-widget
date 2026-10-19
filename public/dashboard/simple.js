@@ -10,7 +10,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
+  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'relayStop']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -39,6 +39,7 @@ export const INFO = {
   giftSounds: { icon: 'volume-2', desc: 'ギフトごとに効果音を重ねて鳴らす' },
   gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
   slots: { icon: 'disc-3', desc: 'ギフトで3つの絵柄をそろえるスロット演出' },
+  relayStop: { icon: 'users', desc: 'ギフトを送った人がスロットを1本ずつ止める演出' },
   peka: { icon: 'lightbulb', desc: 'ギフトのあと、隅のランプだけを遅れて光らせる' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
@@ -226,6 +227,9 @@ export const SIMPLE = {
       { title: '絵柄と役', fields: ['symbols', 'payouts'] },
       { title: '演出の割合', fields: ['revivalRate', 'nearMissRate', 'reelStopMs'] },
     ],
+  },
+  relayStop: {
+    groups: [{ title: 'リレー停止', fields: ['enabled', 'trigger', 'waitMs'] }],
   },
   peka: {
     groups: [

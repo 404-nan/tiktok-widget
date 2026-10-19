@@ -53,6 +53,7 @@ Minecraft / SuperStream
   boss set <数> [名前]      HP をその数にする
   boss defeat|heal|next|reset [名前]  討伐・HP を戻す・次のボス・1体目から
   status
+  relay-stop                 リレー停止の状態を見る
 
 AI と使う
   mcp                       MCP サーバーの登録方法を表示
@@ -177,6 +178,9 @@ try {
       break;
     case 'status':
       print(await admin.status().then(({ status, state }) => ({ status, state: { ...state, topGifters: undefined } })));
+      break;
+    case 'relay-stop':
+      print(await admin.relayStop());
       break;
     case 'mcp': {
       const server = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../mcp/server.js');

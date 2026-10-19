@@ -26,6 +26,7 @@ import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
+import { RelayStopEngine } from './relay-stop.js';
 import { Peka } from './peka.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
@@ -44,13 +45,14 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'peka', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'relayStop', 'peka', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
     if (key === 'winsFx') return [key, { label: 'WIN数の全画面演出', pages: ['wins-fx.html'], premium: true }];
     // 文章でたのむと設定の案を作る（1回ごとに AI の料金がかかるので、初めは使えない）
     if (key === 'ai') return [key, { label: 'AI にたのむ', pages: [], premium: true }];
+    if (key === 'relayStop') return [key, { label: 'リレー停止', pages: ['slot.html'], premium: false }];
     const def = SCHEMA[key];
     const pages = def.page ? [`${def.page}.html`] : [];
     if (key === 'roulettes') pages.push('roulette-strip.html');
@@ -62,7 +64,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/peka$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -112,6 +114,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
   const slot = new SlotEngine(hub, { bus });
+  const relayStop = new RelayStopEngine(hub, { slot });
   const peka = new Peka(hub);
   boss.setBus(bus);
   const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
@@ -121,10 +124,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     mediaAlerts.onEvent(e);
     giftSounds.onEvent(e);
     gacha.onEvent(e);
-    slot.onEvent(e);
+    const relay = relayStop.onEvent(e);
+    if (!relay) slot.onEvent(e);
     peka.onEvent(e);
   });
   hub.on('testEvent', (e) => peka.onEvent(e));
+  hub.on('testEvent', (e) => relayStop.onEvent(e));
   hub.on('reset', () => peka.reset());
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
@@ -144,6 +149,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
     slot.setConfig(config.slots);
+    relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
     peka.setConfig(config.peka);
   };
   hub.on('config', applyEngines);
@@ -555,6 +561,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'スロットはオフです' });
         return res.json({ ok: true, slot: started });
       }
+      if (body.target === 'relay-stop') {
+        const started = relayStop.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
+        if (!started.ok) return res.status(400).json(started);
+        return res.json({ ok: true, relayStop: started, visualOnly: true });
+      }
       if (body.target === 'peka') {
         const result = peka.onEvent({ kind: 'gift', gift: { name: 'テストギフト', count: 1, diamonds: 1 }, totalDiamonds: 1, user: { name: 'テストさん' }, test: true });
         return res.json({ ok: true, peka: result });
@@ -566,6 +577,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
   r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
+  r.get('/api/relay-stop', (_req, res) => res.json(relayStop.snapshot()));
   r.get('/api/peka', (_req, res) => res.json(peka.snapshot()));
   r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
   r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
@@ -642,6 +654,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       if (action !== 'bonusResolved' && action !== 'resolve') return { status: 400, body: { error: 'Peka は bonusResolved で解決してください' } };
       return { status: 200, body: { ok: true, peka: peka.resolve('bonusResolved') } };
     }
+    if (target === 'relay-stop' || target === 'relayStop') return { status: 200, body: { ok: true, relayStop: relayStop.snapshot() } };
     // RUSH はサーバーで状態を持つ
     if (target === 'rush') {
       if (action === 'status') return { status: 200, body: { ok: true, rush: rush.snapshot() } };
@@ -759,6 +772,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
     readRush() { return rush.snapshot(); },
+    readRelayStop() { return relayStop.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();
@@ -782,6 +796,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       timer.close();
       gacha.close();
       slot.close();
+      relayStop.close();
       giftSounds.close();
       boss.flush();
     },
