@@ -7,6 +7,7 @@ Node標準のテストです。実データを使わず、一時ファイルや�
 | `acceptance/cutin-premium.test.js` | カットインのプレミア演出カードの受け入れ条件を確かめる |
 | `es5-public.test.js` | 公開ウィジェットのJavaScriptがES5か確かめる |
 | `cutin-style.test.js` | カットインの既存設定と写真の切り抜きを確かめる |
+| `acceptance/pre-ship-review.test.js` | 本番前レビュー5件を、公開側とHubのつなぎ方で再現する |
 | `acceptance/` | 受け入れ条件のテストをまとめる |
 
 ## つながり

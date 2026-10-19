@@ -1,3 +1,5 @@
+// カットインを段階・柄・写真・効果音まで公開画面で再生する。
+// サーバーの抽選結果を使い、古い接続にも安全な既定値で表示する。
 import { brushImage as bandImage } from './brush.js';
 import { setupWidget, mediaUrl, loadConfig, list, connect, giftNode, avatarNode, giftNamed, giftLabel, fmt, createQueue, sleep } from './overlay.js';
 
@@ -148,7 +150,7 @@ export async function startCutin(section) {
     for (const img of edges) img.classList.add('edge');
     edges[0].classList.add('accent');
     edges[1].classList.add('accent');
-    return { nodes: [photo, ...edges], wait: [mask, ...parts], full };
+    return { nodes: [photo, ...edges], edges, wait: [mask, ...parts], full };
   }
 
   // --- 集中線 ---
@@ -318,10 +320,11 @@ export async function startCutin(section) {
   }
 
   // --- 1回分 ---
-  async function play(e) {
+  async function play(e, forcedResult = null) {
     const baseTier = tierFor(e);
-    const result = window.CutinPremium ? window.CutinPremium.resolve(e.cutinDraw, baseTier, p) : { tier: baseTier, from: null, pattern: null };
-    const tier = result.tier;
+    const result = forcedResult || (window.CutinPremium ? window.CutinPremium.resolve(e.cutinDraw, baseTier, p) : { tier: baseTier, from: null, pattern: null });
+    // 昇格前は from の段階を描き、180ms 後に同じ結果の最終段階を描く。
+    const tier = result.from || result.tier;
     if (!tier) return;
     const t = TIERS[tier];
     const W = innerWidth, H = innerHeight;
@@ -340,7 +343,10 @@ export async function startCutin(section) {
     stage.style.setProperty('--word-fill', t.word);
     stage.style.setProperty('--tag-accent', t.accent);
 
-    const seed = e.cutinDraw && e.cutinDraw.seed >= 1 && e.cutinDraw.seed <= 900 ? e.cutinDraw.seed : 1;
+    // 古いサーバーやローカルの見本には抽選値が無いので、以前と同じく毎回形を変える。
+    const seed = e.cutinDraw && e.cutinDraw.seed >= 1 && e.cutinDraw.seed <= 900
+      ? e.cutinDraw.seed
+      : Math.floor(Math.random() * 900) + 1;
     const photoSource = p[tier + 'Photo'] || p.photo || '';
     const visual = $('visual');
     const word = $('word');
@@ -351,6 +357,15 @@ export async function startCutin(section) {
     word.hidden = !p.word;
 
     const hatch = isImage && window.CutinStyle && window.CutinStyle.isHatch(p.imageStyle);
+    const patternImage = (pattern, width, height, patternSeed) => {
+      if (!pattern || !window.CutinPremium) return null;
+      const painted = window.CutinPremium.paint(pattern, width, height, patternSeed, Math.max(8, Math.round(height / 18)));
+      if (!painted) return null;
+      const image = new Image();
+      image.className = 'premium-pattern';
+      image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '"><defs>' + painted.defs + '</defs>' + painted.fill + '</svg>');
+      return image;
+    };
     if (hatch) {
       const size = window.CutinStyle.frameSize(W, H);
       const mounted = window.CutinStyle.mount($('band'), {
@@ -369,6 +384,15 @@ export async function startCutin(section) {
       word.style.left = '0px';
       const fs = Math.round(Math.min((mounted?.bandHeight ?? bh) * 0.46, (size.w * 0.72) / Math.max(2, TEXT[tier].length)));
       stage.style.setProperty('--fs', `${fs}px`);
+      if (result.pattern && mounted?.patternTargets) {
+        for (const target of mounted.patternTargets) {
+          const pattern = patternImage(result.pattern, size.w, size.h, seed);
+          if (pattern) {
+            target.append(pattern);
+            wait.push(pattern);
+          }
+        }
+      }
     } else if (p.style === 'photo') {
       // 写真の帯（縁が木炭のかすれ線）
       const sh = Math.round(H > W ? Math.min(H * 0.3, W * 0.62) : H * 0.42);
@@ -377,6 +401,22 @@ export async function startCutin(section) {
       stage.style.setProperty('--bh', `${strip.full}px`);
       $('band').replaceChildren(...strip.nodes);
       wait = strip.wait;
+      if (result.pattern) {
+        for (const edge of strip.edges.slice(0, 2)) {
+          const pattern = patternImage(result.pattern, bw, sh * 0.06 * 1.6, seed);
+          if (pattern) {
+            Object.assign(pattern.style, {
+              left: edge.style.left,
+              top: edge.style.top,
+              width: edge.style.width,
+              height: edge.style.height,
+              opacity: '.5',
+            });
+            $('band').append(pattern);
+            wait.push(pattern);
+          }
+        }
+      }
       visual.replaceChildren();
       const fs = Math.round(Math.min(sh * 0.36, (W * 0.46) / Math.max(2, TEXT[tier].length)));
       stage.style.setProperty('--fs', `${fs}px`);
@@ -448,6 +488,10 @@ export async function startCutin(section) {
       sfx('kyuin');
       await sleep(180);
       stage.classList.remove('promote');
+      // 下の段階を見せてから、同じイベントを上の段階で描き直す。
+      // 再抽選はせず、サーバーから届いた tier / pattern / seed をそのまま使う。
+      await play(e, { ...result, from: null });
+      return;
     }
 
     // 虹: フリーズ（暗転して無音）→ キュイン
@@ -455,7 +499,7 @@ export async function startCutin(section) {
       $('freeze').classList.add('on');
       await sleep(1100);
       $('freeze').classList.remove('on');
-      sfx('kyuin');
+      if (!result.from) sfx('kyuin');
     }
 
     const rect = $('rig').getBoundingClientRect();
