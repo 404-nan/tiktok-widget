@@ -6,7 +6,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { normalize, widgetList } from '../../src/config.js';
-import { renderRouletteUrls, ROULETTE_DESCRIPTION } from '../../public/dashboard/roulette-urls.js';
+import { renderRouletteUrls } from '../../public/dashboard/roulette-urls.js';
+import { ROULETTE_DESCRIPTION } from '../../public/dashboard/dashboard-descriptions.js';
 import { FakeDocument } from '../helpers/fake-dom.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');

@@ -5,9 +5,9 @@
 目的: ルーレットを複数作った配信者が、ルーレットごとの URL を TikTok LIVE Studio に別々のブラウザソースとして足し、配信のパソコンが重くなっている。`/widgets/roulette.html`(ids なし)は、もともと全部のルーレットを1ページ・1本の WebSocket で順番に出せる。URL の一覧がルーレットごとに別の URL を勧めているのを、1本に変える。
 
 ## 作るもの(触ってよいファイル)
-- `src/config.js` の URL の一覧(ルーレットの項目を作るところ。今は1件ごとに `roulette.html?ids=<id>`)
-- `public/dashboard/editor.js` の URL を作るところ(今は `?ids=<id>` を付ける)と、`public/dashboard/simple.js` の説明
-- テスト: `test/roulette-one-url.test.js`
+- `src/config.js` の URL の一覧(ルーレットは全体用の `/widgets/roulette.html` 1件)
+- `public/dashboard/editor.js` と `public/dashboard/roulette-urls.js` の URL 表示、`public/dashboard/simple.js` の説明
+- テスト: `test/acceptance/roulette-one-url.test.js`、`test/acceptance/roulette-one-url-round2.test.js`、`test/acceptance/roulette-one-url-round3.test.js`
 
 ## 触らないファイル
 - `public/widgets/roulette.html`・`public/widgets/lib/roulette*.js`(1ページで全部を出す仕組みはもうある)、`config.yaml`、`data/`
@@ -22,9 +22,9 @@
 ## 作らないもの
 - 2つのルーレットを同時に回す仕組み(1本にすると順番になる。これは今の roulette.html の動きのまま)
 ## 証拠
-- `test/roulette-one-url.test.js`、`npm test`、ダッシュボードの「OBS に入れる URL」の撮影(1280・390)
-## めにくんに決めてほしいこと
-- 今ルーレットごとにソースを入れている配信者に、知らせるか(ダッシュボードに一度だけ「1本にまとめられます」を出す案)
+- `test/acceptance/roulette-one-url.test.js`、`test/acceptance/roulette-one-url-round2.test.js`、`test/acceptance/roulette-one-url-round3.test.js`
+- `npm.cmd test`（元から落ちる6件を除く）
+- ダッシュボード「OBS に入れる URL」の画面確認: ローカル開発ブラウザの権限が必要なため、この作業では未収録（コードと受け入れテストは確認済み）
 
 ## 2巡目(レビューで見つかったもの)
 - AC-7 ルーレットのタブを開き直す・別のタブから戻る・フォームを作り直す(保存・簡易表示との切り替え)をどの順で行っても、ルーレットごとの `?ids=<id>` の URL は毎回「ほかの項目」の折りたたみの中に1組だけ出て、折りたたみの外に出たり消えたりしない

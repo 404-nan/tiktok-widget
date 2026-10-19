@@ -36,16 +36,16 @@ test('AC-7 フォームを作り直しても URL の箱は新しい「ほかの�
   assert.equal(secondTarget.querySelectorAll('input').length, 1);
 });
 
-test('AC-7 専用の置き場所が無いときは本線 URL の下に残る', () => {
+test('AC-7 ルーレット専用の置き場所が無くても折りたたみ内に残る', () => {
   const documentRef = new FakeDocument();
-  const fallback = documentRef.createElement('div');
+  const target = documentRef.createElement('div');
   const box = renderRouletteUrls({
     documentRef,
     widget: { url: 'http://x/widgets/roulette.html' },
     roulettes: { one: { name: '一', items: ['a'] } },
-    fallback,
+    target,
     locationOrigin: 'http://x',
   });
-  assert.equal(fallback.querySelector('#rouletteUrls'), box);
-  assert.equal(fallback.children.length, 1);
+  assert.equal(target.querySelector('#rouletteUrls'), box);
+  assert.equal(target.children.length, 1);
 });

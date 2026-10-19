@@ -1,5 +1,5 @@
 import { giftLabel } from '/widgets/lib/overlay.js';
-import { ROULETTE_DESCRIPTION } from './roulette-urls.js';
+import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 
 // 「かんたん」モードの中身。
 // iPhone の設定のように、まとまりごとの一覧 → 押すと中に入る、という形にする:

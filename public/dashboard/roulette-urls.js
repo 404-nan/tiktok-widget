@@ -1,6 +1,5 @@
-// ルーレットごとの旧 URL は、一覧に出さず設定画面の折りたたみ内だけに残す。
-
-export const ROULETTE_DESCRIPTION = 'ルーレットが何個あっても、入れるのはこの1本です。ギフトが来たルーレットが順番に出ます';
+// ルーレットごとの旧 URL を、editor.js の詳細設定の折りたたみ内へ描画する。
+// 短い説明の定数は dashboard-descriptions.js に置き、simple.js からも使う。
 
 export function renderRouletteUrls({
   documentRef = document,

@@ -5,6 +5,8 @@ import { icon, mediaUrl, BASE, giftLabel } from '/widgets/lib/overlay.js';
 import { copyText, flashCopied } from './common.js';
 import { WEIGHT_INPUT, parseWeight } from './weight.js';
 import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
+import { widgetDescription } from './dashboard-descriptions.js';
+import { shouldRenderDetails } from './editor-layout.js';
 import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 import { giftPicker } from './gift-picker.js';
@@ -739,7 +741,7 @@ export function createEditor({ api, setMessage }) {
     if (aiView) return;
     renderEntries();
     const def = schema.sections[tab];
-    $('widgetDesc').textContent = INFO[tab]?.desc ?? def.desc;
+    $('widgetDesc').textContent = widgetDescription(simple(), tab, INFO, def);
     $('detailTitle').textContent = def.title;
     const form = $('settings');
     form.replaceChildren();
@@ -782,7 +784,7 @@ export function createEditor({ api, setMessage }) {
       // まとまりに入っていない項目は、ここに畳んでおく（押したときだけ開く）
       const shown = new Set(easy.groups.flatMap((g) => g.fields));
       const others = Object.keys(def.fields).filter((k) => !shown.has(k) && !unusable(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
-      if (others.length || streamDeckUrls().length || tab === 'roulettes') {
+      if (shouldRenderDetails({ tab, restCount: others.length, streamDeckUrlCount: streamDeckUrls().length })) {
         const more = document.createElement('details');
         more.className = 'more others';
         more.open = store.get(`others-open:${tab}`, false);
@@ -825,7 +827,7 @@ export function createEditor({ api, setMessage }) {
     const basic = easy ? [] : (BASIC[tab] ?? Object.keys(def.fields)).filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
     const rest = easy ? [] : Object.keys(def.fields).filter((k) => k !== 'kindName' && !basic.includes(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
-    if (rest.length) {
+    if (shouldRenderDetails({ tab, restCount: rest.length, streamDeckUrlCount: 0 })) {
       const more = document.createElement('details');
       more.className = 'more';
       more.open = store.get('more-open', false);
