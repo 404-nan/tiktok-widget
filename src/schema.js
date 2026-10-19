@@ -465,6 +465,11 @@ SCHEMA.mediaAlerts = {
         '条件: gifts（ギフトIDか名前）/ minCoins（この合計コイン以上）/ events（follow）。' +
         'mediaId はアップロードしたメディアのID。条件が無いルールは再生しない',
     },
+    namedSabotage: {
+      type: 'mcNamedSabotage',
+      default: { enabled: false, mediumSeconds: 15, largeSeconds: 60, largeMinCoins: 1000, sheepLimit: 30, queueLimit: 30 },
+      desc: '送信者名入りの安全な妨害。タイトル・ボスバー・名札だけを使い、ダメージ・爆発・ブロック変更はしない',
+    },
   },
 };
 

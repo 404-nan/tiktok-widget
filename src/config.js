@@ -63,6 +63,8 @@ function checkValue(field, value, where, issues) {
       return checkRules(value, where, issues);
     case 'mcRules':
       return checkMcRules(value, where, issues);
+    case 'mcNamedSabotage':
+      return checkNamedSabotage(value, where, issues);
     case 'winRules':
       return checkWinRules(value, where, issues);
     case 'timerRules':
@@ -93,6 +95,24 @@ function checkCutinStyle(value, where, issues) {
   const parsed = parseImageStyle(value);
   if (!parsed.ok) issues.errors.push(`${where}: stripe / invert / thick のどれかにするか、空にしてください（今: ${JSON.stringify(value)}）`);
   return parsed.value;
+}
+
+function checkNamedSabotage(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.minecraft.fields.namedSabotage.default);
+  if (value == null) return fallback;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    issues.errors.push(`${where}: { enabled, mediumSeconds, largeSeconds, largeMinCoins } の形で書いてください`);
+    return fallback;
+  }
+  const out = { ...fallback };
+  if (value.enabled != null) out.enabled = checkValue({ type: 'boolean', default: false }, value.enabled, `${where}.enabled`, issues);
+  for (const key of ['mediumSeconds', 'largeSeconds', 'largeMinCoins', 'sheepLimit', 'queueLimit']) {
+    if (value[key] == null) continue;
+    const min = key === 'largeMinCoins' ? 0 : 1;
+    out[key] = checkValue({ type: 'number', default: fallback[key], min, max: key.endsWith('Seconds') ? 3600 : 1000 }, value[key], `${where}.${key}`, issues);
+  }
+  for (const key of Object.keys(value)) if (!(key in fallback)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  return out;
 }
 
 function checkCrop(value, where, issues) {

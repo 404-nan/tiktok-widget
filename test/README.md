@@ -13,6 +13,7 @@ Node標準テストで、サーバー側の仕組みと公開画面の配線を�
 | `acceptance/ootori.test.js` | 大トリの完成条件ごとの受け入れテスト |
 | `ootori-wiring.test.js` | 大トリの設定、操作経路、公開画面の配線テスト |
 | `acceptance/relay-stop.test.js` | リレー停止の完成条件ごとの受け入れテスト |
+| `acceptance/mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確かめる |
 | `relay-stop-wiring.test.js` | リレー停止の設定、操作経路、公開画面の配線テスト |
 | `*.test.js` | 既存機能のテスト |
 

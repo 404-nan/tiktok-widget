@@ -141,6 +141,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   hub.on('testEvent', (e) => ootori.testEvent(e));
   hub.on('testEvent', (e) => dareba.testEvent(e));
   hub.on('testEvent', (e) => relayStop.onEvent(e));
+  hub.on('testEvent', (e) => minecraft.testNamedSabotage(e));
   hub.on('reset', () => peka.reset());
   hub.on('reset', () => throne.reset());
   hub.on('reset', () => ootori.reset());
@@ -296,6 +297,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
 
   // Minecraft・RUSH・WIN数
   r.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
+  r.get('/api/minecraft/named-sabotage', (_req, res) => res.json(minecraft.namedSabotage.snapshot()));
   r.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
   r.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
   // Stream Deck やブラウザのブックマークから押せるように GET でも受ける
