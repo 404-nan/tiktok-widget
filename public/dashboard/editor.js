@@ -10,6 +10,7 @@ import { rulesEditor, hasRulesEditor } from './rules.js';
 import { giftPicker } from './gift-picker.js';
 import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gift-sounds-form.js';
 import { TIMER_COIN_SECONDS } from './timer-length.js';
+import { createTemplatesView } from './templates.js';
 
 const $ = (id) => document.getElementById(id);
 const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'minecraft', 'theme'];
@@ -133,6 +134,7 @@ export function createEditor({ api, setMessage }) {
   let view = 'obs';
   let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
   let alertMedia = []; // メディア通知に入れたファイル
+  let templatesView = null;
   let refreshMediaSelects = () => {};
   const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
@@ -438,6 +440,7 @@ export function createEditor({ api, setMessage }) {
       item('plus', '出すものを選ぶ', view === 'catalog', goTo('catalog')),
       label('じゅんび'),
       item('monitor-up', '1つにまとめる', view === 'stage', goTo('stage')),
+      item('layout-template', '配信テンプレート', view === 'templates', goTo('templates')),
       ...(isTenant() ? [item('sparkles', '遊び方をえらびなおす', false, async () => { await api('/api/me/template', { template: null }, 'PUT'); me = await api('/api/me'); view = 'stage'; renderNav(); stage?.render(); })] : []),
       item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
       item('file-code', '設定ファイル', view === 'files', goTo('files')),
@@ -718,16 +721,19 @@ export function createEditor({ api, setMessage }) {
     const listView = simple() && (view === 'catalog' || view === 'obs');
     const aiView = simple() && view === 'ai';
     const stageView = simple() && view === 'stage';
+    const templatesViewActive = simple() && view === 'templates';
     const filesView = view === 'files';
     document.querySelector('.config-panel').hidden = !filesView;
     $('cards').hidden = !listView;
     $('stageView').hidden = !stageView;
+    if (templatesViewActive) $('cards').hidden = false;
     $('aiView').classList.toggle('show', aiView);
-    $('detail').hidden = listView || aiView || stageView || filesView;
+    $('detail').hidden = listView || aiView || stageView || templatesViewActive || filesView;
     $('detailHead').hidden = !simple();
     if (simple()) renderNav();
     if (filesView) return;
     if (stageView) { stage?.render(); return; }
+    if (templatesViewActive) { templatesView?.render($('cards')); return; }
     if (listView) {
       if (view === 'catalog') renderCatalog();
       else renderObs();
@@ -2506,7 +2512,7 @@ export function createEditor({ api, setMessage }) {
         api('/api/env').catch(() => ({ dev: false })),
       ]);
       devMode = env?.dev === true;
-      if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のウィジェット`;
+      if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のライコネ`;
       // TikTok の署名キーは、配信者ごとの URL では管理者が入れる
       if (isTenant()) document.querySelector('#connectForm details')?.toggleAttribute('hidden', true);
       stage = createStage({
@@ -2517,6 +2523,12 @@ export function createEditor({ api, setMessage }) {
         onTemplate: async () => { me = await api('/api/me'); renderPicker(); renderNav(); },
         openWidget: (section, entry) => { view = 'detail'; select(section, entry); },
       });
+      templatesView = createTemplatesView({
+        api,
+        isLive: () => live,
+        onChanged: async () => { await reload(); me = await api('/api/me').catch(() => me); renderNav(); },
+      });
+      await templatesView.start($('cards'));
       renderPicker();
       $('yamlText').value = payload.yaml;
       renderYamlIssues(payload.errors, payload.warnings);

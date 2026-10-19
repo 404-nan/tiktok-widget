@@ -1,6 +1,17 @@
-# TikTok LIVE ウィジェット
+# ライコネ
 
-TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
+ライコネは TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
+
+## 機能の状態
+
+| 機能 | 何ができるか | 状態 | コードの場所 |
+| --- | --- | --- | --- |
+| 製品名 | 配信者向けの画面と説明を「ライコネ」にそろえる | できた | `public/dashboard/`、`public/help/`、`public/admin/` |
+| 配信テンプレート | 妨害マイクラ・罰ゲーム雑談・耐久・目標配信を選び、差分を確認して設定を入れ、元に戻せる | できた | `src/templates/`、`src/templates.js`、`public/dashboard/templates.js` |
+| ウィジェット | ギフト・コメント・目標・ルーレットなどを OBS に表示する | できた | `public/widgets/` |
+| AI にたのむ | 設定変更の案を見てから反映し、元に戻す | できた | `src/ai.js`、`public/dashboard/ai.js` |
+
+配信テンプレートは、ダッシュボードの「かんたん」→「配信テンプレート」から使います。CLI は `npm run tw -- templates`、MCP は `list_templates` / `preview_template` / `apply_template` です。
 
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
@@ -333,6 +344,8 @@ src/config.js          設定ファイルの検証・読み書き（コメント
 src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
+src/templates.js       配信テンプレートの読み込み・検証・差分計算
+src/templates/         妨害マイクラ・罰ゲーム雑談・耐久・目標配信のテンプレートデータ
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）
 src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
@@ -368,3 +381,5 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にして上書きします（前に取れた分は残ります。ログイン・API キー・有料プランは不要）。終わったら `npm test` で確かめてコミットしてください。AI 向けの決まりは `AGENTS.md` にあります。
+
+最後に直した日: 2026-10-19

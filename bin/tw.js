@@ -53,6 +53,11 @@ Minecraft / SuperStream
   boss defeat|heal|next|reset [名前]  討伐・HP を戻す・次のボス・1体目から
   status
 
+配信テンプレート
+  templates                 一覧
+  templates preview <id>   入れる前の差分を見る
+  templates apply <id>     テンプレートを入れる
+
 AI と使う
   mcp                       MCP サーバーの登録方法を表示
 `;
@@ -66,6 +71,26 @@ const print = (s) => console.log(typeof s === 'string' ? s : JSON.stringify(s, n
 const report = (result) => {
   print(admin.describeResult(result));
   if (result.ok === false) process.exitCode = 1;
+};
+const templateCall = async (pathname, body) => {
+  const server = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
+  let destination;
+  try {
+    const check = await fetch(`${server}/api/me`);
+    destination = await check.json().catch(() => ({}));
+  } catch {
+    throw new Error(`サーバー（${server}）に接続できません。先に npm start で起動してください`);
+  }
+  if (destination?.mode === 'tenant') throw new Error('本番（マルチテナント）ではテンプレート操作を使えません。開発サーバーを指定してください');
+  let res;
+  try {
+    res = await fetch(`${server}${pathname}`, { method: body === undefined ? 'GET' : 'POST', headers: body === undefined ? undefined : { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  } catch {
+    throw new Error(`サーバー（${server}）に接続できません。先に npm start で起動してください`);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
 };
 
 try {
@@ -174,6 +199,19 @@ try {
     case 'status':
       print(await admin.status().then(({ status, state }) => ({ status, state: { ...state, topGifters: undefined } })));
       break;
+    case 'templates': {
+      if (process.env.TW_HOSTED === '1') throw new Error('本番（マルチテナント）ではテンプレート操作を使えません。開発サーバーを指定してください');
+      const action = args[0];
+      if (!action) {
+        const rows = await templateCall('/api/templates');
+        for (const row of rows) print(`${row.id}: ${row.name} — ${row.desc}`);
+      } else if (action === 'preview' || action === 'apply') {
+        if (!args[1]) throw new Error(`templates ${action} <id> と指定してください`);
+        const out = await templateCall(`/api/templates/${action}`, { id: args[1] });
+        print(out);
+      } else throw new Error('templates は一覧、preview、apply のどれかです');
+      break;
+    }
     case 'mcp': {
       const server = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../mcp/server.js');
       print(`Claude Code:

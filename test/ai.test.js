@@ -60,7 +60,7 @@ test('設定の文字にまとめて当てる: コメントは残り、間違っ
   assert.equal(next.config.roulettes.batsu.name, '罰ゲーム');
   assert.equal(next.config.theme.accent, '#3FA9F5');
   assert.equal(next.config.theme.gold, cfg.parseText(text).config.theme.gold);
-  assert.match(next.text, /^# TikTok LIVE ウィジェットの設定/);
+  assert.match(next.text, /^# ライコネの設定/);
   const bad = cfg.applyChanges(text, [{ op: 'set', path: 'theme.accent', value: 'あか' }]);
   assert.equal(bad.ok, false);
   assert.ok(bad.errors.length > 0);

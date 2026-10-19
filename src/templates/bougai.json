@@ -1,0 +1,17 @@
+{
+  "id": "bougai",
+  "name": "妨害マイクラ",
+  "desc": "ギフトで配信者のクリアを邪魔する配信",
+  "flow": "配信者が Minecraft をクリアしようとし、視聴者がギフトで妨害する",
+  "peaks": ["大妨害・壊滅", "WIN 数の目標達成"],
+  "widgets": ["wins", "cutins", "rush", "alerts", "rankings"],
+  "optionalWidgets": ["winsFx"],
+  "changes": [
+    { "op": "merge", "path": "wins.default", "value": { "title": "WIN", "goal": 10, "negative": true, "lossPreset": "medium", "gainPreset": "medium", "comboUp": true, "clearFx": true, "rules": [{ "gifts": ["Finger Heart"], "add": -1, "text": "妨害" }, { "gifts": ["Doughnut"], "add": -3, "text": "大妨害" }, { "gifts": ["Lion"], "add": -10, "text": "超妨害" }] }, "label": "WIN数を妨害マイクラ向けにする" },
+    { "op": "merge", "path": "cutins.default", "value": { "minCoins": 100, "greenCoins": 300, "redCoins": 1000, "goldCoins": 5000, "rainbowCoins": 20000 }, "label": "カットインの境目をふつうにする" },
+    { "op": "merge", "path": "rush", "value": { "enabled": true, "enterCoins": 5000, "extendMinCoins": 50 }, "label": "RUSHを使う" },
+    { "op": "merge", "path": "alerts.default", "value": { "events": ["gift", "follow"], "bigCoins": 100 }, "label": "ギフト通知を出す" },
+    { "op": "merge", "path": "rankings.default", "value": { "metric": "coins", "limit": 5 }, "label": "コイン順のランキングを出す" }
+  ],
+  "notes": ["マイクラ連携は「マイクラ連携」の画面で自分で設定してください"]
+}

@@ -40,6 +40,16 @@ const wrap = (fn) => async (args) => {
   }
 };
 const saved = (result) => ({ ...text(admin.describeResult(result)), isError: result.ok === false });
+const templateCall = async (pathname, body) => {
+  if (process.env.TW_HOSTED === '1') throw new Error('本番（マルチテナント）ではテンプレート操作を使えません。開発サーバーを指定してください');
+  const serverUrl = (process.env.TW_SERVER || `http://127.0.0.1:${process.env.PORT || 3939}`).replace(/\/$/, '');
+  const destination = await fetch(`${serverUrl}/api/me`).then((res) => res.json().catch(() => ({})));
+  if (destination?.mode === 'tenant') throw new Error('本番（マルチテナント）ではテンプレート操作を使えません。開発サーバーを指定してください');
+  const res = await fetch(`${serverUrl}${pathname}`, { method: body === undefined ? 'GET' : 'POST', headers: body === undefined ? undefined : { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+};
 
 const PATH_DESC = 'ドット区切りの場所。例: "roulettes.punishment.gifts" / "roulettes.punishment.items.2.color" / "theme.accent"';
 const readOnly = { readOnlyHint: true, openWorldHint: false };
@@ -133,6 +143,25 @@ server.registerTool(
     return text([...lines, ...errors.map((e) => `エラー: ${e}`)].join('\n') || 'ウィジェットの設定がありません');
   }),
 );
+
+server.registerTool('list_templates', {
+  title: '配信テンプレート一覧',
+  description: '選べる配信テンプレートを一覧にする。',
+  annotations: readOnly,
+}, wrap(() => templateCall('/api/templates')));
+
+server.registerTool('preview_template', {
+  title: '配信テンプレートの差分',
+  description: 'テンプレートを入れたときの変更を見せる。設定は保存しない。',
+  inputSchema: { id: z.string() },
+  annotations: readOnly,
+}, wrap(({ id }) => templateCall('/api/templates/preview', { id })));
+
+server.registerTool('apply_template', {
+  title: '配信テンプレートを入れる',
+  description: '確認済みの配信テンプレートを入れる。',
+  inputSchema: { id: z.string(), confirmLive: z.boolean().optional() },
+}, wrap(({ id, confirmLive }) => templateCall('/api/templates/apply', { id, confirmLive })));
 
 server.registerTool(
   'list_gifts',

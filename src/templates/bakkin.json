@@ -1,0 +1,17 @@
+{
+  "id": "bakkin",
+  "name": "罰ゲーム雑談",
+  "desc": "雑談しながらギフトで罰ゲームを決める配信",
+  "flow": "雑談しながら、ギフトでルーレットを回して罰ゲームを決める",
+  "peaks": ["激辛・恥ずかしい罰が当たる瞬間"],
+  "widgets": ["roulettes", "cutins", "goals", "chats", "alerts"],
+  "optionalWidgets": [],
+  "changes": [
+    { "op": "merge", "path": "roulettes.punishment", "value": { "name": "罰ゲーム", "style": "wheel", "gifts": ["Rose"], "items": ["歌う*2", "変顔*2", "一発ギャグ", "モノマネ", "激辛チャレンジ", "セーフ*2"] }, "label": "罰ゲームのルーレットを作る" },
+    { "op": "merge", "path": "cutins.default", "value": { "minCoins": 100, "greenCoins": 300, "redCoins": 1000, "goldCoins": 5000, "rainbowCoins": 20000 }, "label": "カットインの境目をふつうにする" },
+    { "op": "merge", "path": "goals.default", "value": { "title": "フォロー目標", "metric": "follows", "goal": 100, "step": 100 }, "label": "フォロー目標を作る" },
+    { "op": "merge", "path": "chats.default", "value": { "style": "telop", "maxItems": 8, "hideCommands": true }, "label": "コメント欄を出す" },
+    { "op": "merge", "path": "alerts.default", "value": { "events": ["gift", "follow"] }, "label": "ギフト通知を出す" }
+  ],
+  "notes": ["当たりが近いときの専用演出は、今は入れていません"]
+}
