@@ -138,6 +138,13 @@ export async function spinRoulette(id) {
   return id ? `ルーレット ${id} を回しました` : 'ルーレットを回しました';
 }
 
+/** 告知ランプの状態確認と、ボーナス解決を行う。 */
+export async function peka(action = 'status') {
+  if (action === 'status') return callServer('/api/peka');
+  const { peka: state } = await callServer('/api/control', { method: 'POST', body: { target: 'peka', action: action === 'resolve' ? 'bonusResolved' : action } });
+  return state;
+}
+
 /** WIN 数を変える・見る（サーバーが必要）。action: win / add / set / undo / reset / status。id を省くと全部 */
 export async function wins(action = 'status', id = null, value) {
   const line = (k, c) => `${k}: WIN ${c.wins}`;

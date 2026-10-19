@@ -37,6 +37,7 @@ Minecraft / SuperStream
   test gift <名前> [個数] [1個のコイン]
   test like [数] | test follow | test share | test chat
   spin [ルーレットの名前]
+  peka [status|bonusResolved] 告知ランプを見る・ボーナスを解決する
   rush [start|stop]         RUSH に入る・終わらせる（省くと今の状態）
   win [名前]                WIN 数を +1（クリア。名前を省くと全部）
   wins [名前]               WIN 数を見る
@@ -170,6 +171,9 @@ try {
       break;
     case 'spin':
       print(await admin.spinRoulette(args[0]));
+      break;
+    case 'peka':
+      print(await admin.peka(args[0] || 'status'));
       break;
     case 'status':
       print(await admin.status().then(({ status, state }) => ({ status, state: { ...state, topGifters: undefined } })));

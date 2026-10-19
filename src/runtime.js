@@ -26,6 +26,7 @@ import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
+import { Peka } from './peka.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
@@ -43,7 +44,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'peka', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -61,7 +62,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/peka$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -111,6 +112,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
   const slot = new SlotEngine(hub, { bus });
+  const peka = new Peka(hub);
   boss.setBus(bus);
   const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
   bindRouletteActions(hub, bus, actionDeps);
@@ -120,7 +122,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     giftSounds.onEvent(e);
     gacha.onEvent(e);
     slot.onEvent(e);
+    peka.onEvent(e);
   });
+  hub.on('testEvent', (e) => peka.onEvent(e));
+  hub.on('reset', () => peka.reset());
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
   let currentAutoId = null;
@@ -139,6 +144,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
     slot.setConfig(config.slots);
+    peka.setConfig(config.peka);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -549,6 +555,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'スロットはオフです' });
         return res.json({ ok: true, slot: started });
       }
+      if (body.target === 'peka') {
+        const result = peka.onEvent({ kind: 'gift', gift: { name: 'テストギフト', count: 1, diamonds: 1 }, totalDiamonds: 1, user: { name: 'テストさん' }, test: true });
+        return res.json({ ok: true, peka: result });
+      }
       return res.status(400).json({ error: '不明な target です' });
     } catch (err) {
       return res.status(400).json({ error: err.message });
@@ -556,6 +566,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
   r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
+  r.get('/api/peka', (_req, res) => res.json(peka.snapshot()));
   r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
   r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
     try {
@@ -627,6 +638,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return spin ? { status: 200, body: { ok: true, spin } } : { status: 404, body: { error: 'ルーレットの設定がありません' } };
     }
     if (target === 'roulette' && action === 'reset') roulette.clear();
+    if (target === 'peka') {
+      if (action !== 'bonusResolved' && action !== 'resolve') return { status: 400, body: { error: 'Peka は bonusResolved で解決してください' } };
+      return { status: 200, body: { ok: true, peka: peka.resolve('bonusResolved') } };
+    }
     // RUSH はサーバーで状態を持つ
     if (target === 'rush') {
       if (action === 'status') return { status: 200, body: { ok: true, rush: rush.snapshot() } };

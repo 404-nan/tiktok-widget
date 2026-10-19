@@ -200,6 +200,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'peka',
+  {
+    title: '告知ランプ',
+    description: '遅れて光る告知ランプの状態を見る、またはボーナス解決を伝える。',
+    inputSchema: { action: z.enum(['status', 'bonusResolved']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.peka(action))),
+);
+
+server.registerTool(
   'wins',
   {
     title: 'WIN数',

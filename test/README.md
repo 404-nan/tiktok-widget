@@ -1,0 +1,11 @@
+# test/
+
+Node標準テストで、サーバー側の仕組みと公開画面の配線を確認します。
+
+| ファイル | 何をするか |
+| --- | --- |
+| `acceptance/peka.test.js` | Pekaの完成条件ごとの受け入れテスト |
+| `peka-wiring.test.js` | ランタイム、API、CLI、MCP、ダッシュボード、公開画面の配線テスト |
+| `*.test.js` | 既存機能のテスト |
+
+テストは `npm test` で実行します。本番の `config.yaml` や `data/` は使いません。

@@ -522,6 +522,22 @@ SCHEMA.gacha = {
   },
 };
 
+SCHEMA.peka = {
+  kind: 'object',
+  page: 'peka',
+  title: '遅れて光る告知ランプ',
+  size: () => [360, 180],
+  desc: 'ギフトのあと、サーバーが決めた時刻に隅のランプだけを光らせる。URL は /widgets/peka.html',
+  fields: {
+    enabled: bool(true, '遅れて光る告知ランプを使う'),
+    minCoins: num(1, 'この合計コイン未満のギフトは抽選しない', { min: 0 }),
+    chance: num(0.3, '当たりになる確率（0〜1）', { min: 0, max: 1 }),
+    bonusSeconds: num(5, '当たりからボーナスを始めるまでの秒数', { min: 0, max: 3600 }),
+    sound: bool(true, 'ランプが光るときに「カコッ」と鳴らす'),
+    volume: num(0.3, '「カコッ」の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
 SCHEMA.slots = {
   kind: 'object',
   page: 'slot',

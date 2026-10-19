@@ -9,7 +9,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
-  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
+  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
 ];
 
@@ -39,6 +39,7 @@ export const INFO = {
   giftSounds: { icon: 'volume-2', desc: 'ギフトごとに効果音を重ねて鳴らす' },
   gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
   slots: { icon: 'disc-3', desc: 'ギフトで3つの絵柄をそろえるスロット演出' },
+  peka: { icon: 'lightbulb', desc: 'ギフトのあと、隅のランプだけを遅れて光らせる' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
@@ -226,6 +227,12 @@ export const SIMPLE = {
       { title: '演出の割合', fields: ['revivalRate', 'nearMissRate', 'reelStopMs'] },
     ],
   },
+  peka: {
+    groups: [
+      { title: '使う', fields: ['enabled', 'minCoins', 'chance'] },
+      { title: '光りかた', fields: ['bonusSeconds', 'sound', 'volume'] },
+    ],
+  },
   minecraft: {
     note: 'マイクラの枠の時間を表示します。枠の間は自動で TikTok につながります。',
     groups: [],
@@ -311,6 +318,7 @@ const SUMMARY = {
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
   slots: (e) => (e.enabled === false ? '使わない設定' : `${e.revivalRate}% 復活・${e.nearMissRate}% ニアミス`),
+  peka: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins} コインから・当たり ${Math.round(e.chance * 100)}%`),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),
 };
