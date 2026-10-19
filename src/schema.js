@@ -634,6 +634,13 @@ SCHEMA.votes = {
   },
 };
 
+SCHEMA.cheers = {
+  kind: 'map', page: 'cheer', title: 'いいね応援ゲージ', desc: 'いいねをみんなでためて満タンにする応援ゲージ。URL は /widgets/cheer.html?id=<名前>', size: () => [560, 160],
+  fields: {
+    ...placementFields(8, 72), title: str('みんなで応援', '応援ゲージの見出し'), goal: num(500, '満タンまでのいいね数', { min: 1, max: 1000000 }), growth: num(1.5, '満タン後に目標を何倍にするか', { min: 1, max: 10 }), loop: bool(true, '満タン後に次の周を始める'), fullText: str('満タン!', '満タンのときの文'), fullActions: { type: 'actions', default: [], desc: '満タンのときに1回だけ動かす動作の一覧' }, sound: bool(true, '満タンの効果音'), volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }), color: color('accent', 'ゲージの色'), fullColor: color('gold', '満タンの色'),
+  },
+};
+
 // コメントといいねで押す、時間制の参加型ボタン。
 SCHEMA.pushButtons = {
   kind: 'map', page: 'push-button', title: '押しボタン',

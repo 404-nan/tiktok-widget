@@ -27,6 +27,7 @@ import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
 import { VoteEngine } from './vote.js';
+import { CheerEngine } from './cheer.js';
 import { PushButtonEngine } from './push-button.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
@@ -45,7 +46,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -63,7 +64,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -118,6 +119,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const vote = new VoteEngine(hub, {
     onResult: ({ id: voteId, actions, result }) => runActions(actions, actionDeps(), { source: 'vote', voteId, result }),
   });
+  const cheer = new CheerEngine(hub, {
+    onFull: ({ id: cheerId, actions, round, cheer: state }) => runActions(actions, actionDeps(), { source: 'cheer', cheerId, round, cheer: state }),
+  });
   const push = new PushButtonEngine(hub, {
     onResult: ({ id: pushId, actions, result }) => runActions(actions, actionDeps(), { source: 'push', pushId, result }),
   });
@@ -149,6 +153,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     slot.setConfig(config.slots);
     vote.setEnabled(entitled('votes'));
     vote.setConfig(entitled('votes') ? config.votes : {});
+    cheer.setEnabled(entitled('cheers'));
+    cheer.setConfig(entitled('cheers') ? config.cheers : {});
     push.setEnabled(entitled('pushButtons'));
     push.setConfig(entitled('pushButtons') ? config.pushButtons : {});
   };
@@ -325,6 +331,20 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
+  });
+  // いいね応援ゲージ。Stream Deck から押せるように GET と POST の両方を受ける。
+  r.get('/api/cheer', (_req, res) => res.json(cheer.snapshot()));
+  r.all('/api/cheer/:id/:action', (req, res) => {
+    const action = req.params.action;
+    if (!['status', 'add', 'fill', 'reset'].includes(action)) return res.status(400).json({ error: '応援ゲージの動作は add / fill / reset / status のどれかです' });
+    try {
+      const id = req.params.id === 'active' ? cfg.activeId(hub.config, 'cheers') : req.params.id;
+      if (action === 'status') return res.json({ ok: true, cheers: cheer.snapshot() });
+      if (action === 'add') return res.json({ ok: true, cheer: cheer.add(id, req.body?.value ?? req.query?.value) });
+      if (action === 'fill') return res.json({ ok: true, cheer: cheer.fill(id) });
+      cheer.reset(id);
+      return res.json({ ok: true, cheer: cheer.snapshot()[id] });
+    } catch (err) { return res.status(400).json({ error: err.message }); }
   });
   // 押しボタン。Stream Deck から押せるように GET と POST の両方を受ける。
   r.get('/api/push-button', (_req, res) => res.json(push.snapshot()));
@@ -733,6 +753,19 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return { status: 400, body: { error: err.message } };
       }
     }
+    if (target === 'cheer') {
+      if (!entitled('cheers')) return { status: 403, body: { error: 'いいね応援ゲージは管理者が使えるようにすると使えます' } };
+      const requested = data?.id;
+      const ids = requested === 'all' ? cheer.ids() : [requested === 'active' || !requested ? cfg.activeId(hub.config, 'cheers') : requested];
+      try {
+        if (!['status', 'add', 'fill', 'reset'].includes(action)) throw new Error('応援ゲージの動作は add / fill / reset / status のどれかです');
+        if (action === 'status') return { status: 200, body: { ok: true, cheers: cheer.snapshot() } };
+        if (!ids.length || ids.some((id) => !id || !cheer.ids().includes(id))) throw new Error('応援ゲージの設定がありません');
+        const out = {};
+        for (const id of ids) out[id] = action === 'add' ? cheer.add(id, data?.value) : action === 'fill' ? cheer.fill(id) : (cheer.reset(id), cheer.snapshot()[id]);
+        return { status: 200, body: { ok: true, cheer: ids.length === 1 ? out[ids[0]] : undefined, cheers: out } };
+      } catch (err) { return { status: 400, body: { error: err.message } }; }
+    }
     if (target === 'push') {
       if (!entitled('pushButtons')) return { status: 403, body: { error: '押しボタンは管理者が使えるようにすると使えます' } };
       const id = data?.id === 'active' || !data?.id ? cfg.activeId(hub.config, 'pushButtons') : data.id;
@@ -827,6 +860,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
     readVote() { return vote.snapshot(); },
+    readCheer() { return cheer.snapshot(); },
     readPush() { return push.snapshot(); },
     readRush() { return rush.snapshot(); },
     readWidgets(base) {
@@ -846,6 +880,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       unwatch();
       roulette.clear();
       vote.reset();
+      cheer.reset();
       push.reset();
       demo.stop();
       await tiktok.disconnect().catch(() => {});

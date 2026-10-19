@@ -8,7 +8,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
+  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers']],
   ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
 ];
@@ -32,6 +32,7 @@ export const INFO = {
   rankings: { icon: 'trophy', desc: 'たくさんギフトをくれた人の順位' },
   roulettes: { icon: 'dices', desc: 'ギフトで回る、罰ゲームやごほうびのルーレット' },
   votes: { icon: 'list-ordered', desc: 'コメントの「1」「2」などで、みんなの投票を集計する' },
+  cheers: { icon: 'heart', desc: 'いいねをみんなでためて、満タンで演出する' },
   pushButtons: { icon: 'mouse-pointer-2', desc: '「押」とコメントするか、いいねを連打して参加する' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
@@ -131,6 +132,12 @@ export const SIMPLE = {
       { title: '投票の中身', fields: ['title', 'options', 'durationSeconds', 'autoReveal'] },
       { title: '結果の動作', fields: ['resultActions'] },
       { title: '見た目', fields: ['showNames', 'sound', 'volume', 'color'] },
+    ],
+  },
+  cheers: {
+    groups: [
+      { title: 'たまり方', fields: ['title', 'goal', 'growth', 'loop', 'fullActions'] },
+      { title: '見た目', fields: ['fullText', 'sound', 'volume', 'color', 'fullColor'] },
     ],
   },
   pushButtons: {
@@ -280,6 +287,7 @@ export const SIMPLE_LABELS = {
   'rankings.title': '見出し', 'rankings.metric': '順位を決めるもの', 'rankings.limit': '出す人数',
   'roulettes.gifts': '回すギフト', 'roulettes.rushOdds': 'RUSH中は確率を変える', 'roulettes.items': '項目と当たりやすさ', 'roulettes.name': '名前', 'roulettes.style': '形', 'roulettes.scale': '大きさ（倍）',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色',
+  'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
   'jars.gifts': '入れるギフト（空なら全部）', 'jars.shape': '入れ物の形', 'jars.title': 'ラベルの文字', 'jars.liquidColor': '中の液体の色',
   'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.negative': 'マイナスまで減らせる', 'wins.rules': 'ギフトで WIN 数を変える', 'wins.style': '形',
@@ -319,6 +327,7 @@ const SUMMARY = {
   rankings: (e) => e.title,
   roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目${e.rushOdds ? '・RUSH中は確率が変わる' : ''}`,
   votes: (e) => `${e.title}・${e.options?.length ?? 0} 択${e.durationSeconds ? `・${e.durationSeconds} 秒` : '・手動で締める'}`,
+  cheers: (e) => `${e.title}・${e.goal} いいねで満タン${e.loop === false ? '・1回で止まる' : ''}`,
   pushButtons: (e) => `${e.label}・${e.seconds} 秒・${e.keyword} / いいね ${e.likesPerPush} 回で1押し`,
   jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),

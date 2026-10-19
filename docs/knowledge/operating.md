@@ -12,6 +12,8 @@
 
 コメント投票: `vote status [名前]`、`vote start 名前 [--seconds 30]`、`vote close 名前`、`vote result 名前`、`vote reset 名前`。
 
+いいね応援: `cheer status [名前]`、`cheer add <数> [名前]`、`cheer fill [名前]`、`cheer reset [名前]`。HTTP は `/api/cheer` と `/api/cheer/:id/add?value=<数>`、`fill`、`reset` を使う。
+
 ## MCP
 
 - 起動は `npm run mcp`。登録例は `npm run tw -- mcp` で表示する。

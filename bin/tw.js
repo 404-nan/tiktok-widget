@@ -54,6 +54,9 @@ Minecraft / SuperStream
   vote status [名前]                  投票の状態を見る
   vote start|close|result|reset [名前] 投票を始める・締める・結果・リセット
   vote start 名前 --seconds 30        秒数を今回だけ変えて始める
+  cheer status [名前]                 いいね応援の状態を見る
+  cheer add <数> [名前]               いいねを足す
+  cheer fill|reset [名前]             満タンにする・リセット
   push status [名前]                  押しボタンの状態を見る
   push start|finish|reset [名前]      押しボタンを始める・締める・リセット
   status
@@ -176,6 +179,11 @@ try {
       const secondsIndex = rest.indexOf('--seconds');
       if (secondsIndex >= 0 && rest[secondsIndex + 1] != null) opts.seconds = Number(rest[secondsIndex + 1]);
       print(await admin.vote(action, id, opts));
+      break;
+    }
+    case 'cheer': {
+      const [action = 'status', id, value] = args;
+      print(await admin.cheer(action, id, value == null ? undefined : Number(value)));
       break;
     }
     case 'push': {

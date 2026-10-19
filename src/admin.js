@@ -189,6 +189,14 @@ export async function vote(action = 'status', id = null, opts = {}) {
   return callServer(`/api/vote/${target}/${encodeURIComponent(action)}`, { method: 'POST', body: opts });
 }
 
+/** いいね応援ゲージを足す・満タンにする・リセットする・見る。 */
+export async function cheer(action = 'status', id = null, value) {
+  if (action === 'status') return callServer('/api/cheer');
+  const target = encodeURIComponent(id || 'active');
+  if (action === 'add' && value != null) return callServer(`/api/cheer/${target}/add?value=${encodeURIComponent(value)}`);
+  return callServer(`/api/cheer/${target}/${encodeURIComponent(action)}`, { method: 'POST', body: {} });
+}
+
 /** 押しボタンを始める・締める・リセットする・見る。 */
 export async function pushButton(action = 'status', id = null, opts = {}) {
   if (action === 'status') return callServer('/api/push-button');

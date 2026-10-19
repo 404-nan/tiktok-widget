@@ -240,6 +240,12 @@ export function registerAiTools(server, call) {
     },
   }, wrap(async (args) => shown(await call('vote', args))));
 
+  server.registerTool('cheer', {
+    title: 'いいね応援ゲージ',
+    description: 'いいね応援ゲージを足す・満タンにする・リセットする・状態を見る。配信中の本番では変更できない。',
+    inputSchema: { action: z.enum(['status', 'add', 'fill', 'reset']).default('status'), id: z.string().optional(), value: z.number().optional(), dryRun: z.boolean().optional(), tenant: z.string().optional() },
+  }, wrap(async (args) => shown(await call('cheer', args))));
+
   server.registerTool('push_button', {
     title: '押しボタン',
     description: '押しボタンを始める・締める・リセットする・状態を見る。配信中の本番では変更できない。',

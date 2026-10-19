@@ -264,6 +264,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'cheer',
+  {
+    title: 'いいね応援ゲージ',
+    description: 'いいね応援ゲージを足す・満タンにする・リセットする・状態を見る。',
+    inputSchema: { action: z.enum(['status', 'add', 'fill', 'reset']).default('status'), id: z.string().optional().describe('cheers の名前'), value: z.number().optional().describe('add の数') },
+  },
+  wrap(async ({ action, id, value }) => text(await admin.cheer(action, id ?? null, value))),
+);
+
+server.registerTool(
   'rush',
   {
     title: 'RUSH',

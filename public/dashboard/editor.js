@@ -63,7 +63,7 @@ const LABELS = {
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
-  'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色',
+  'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
   coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
@@ -103,6 +103,7 @@ const BASIC = {
   gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
   slots: ['enabled', 'trigger', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs'],
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
+  cheers: ['title', 'goal', 'growth', 'loop', 'fullText', 'fullActions', 'sound', 'volume', 'color', 'fullColor'],
   pushButtons: ['label', 'seconds', 'keyword', 'likesPerPush', 'steps', 'blueActions', 'greenActions', 'redActions', 'goldActions', 'missText', 'sound', 'volume', 'color'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -865,6 +866,7 @@ export function createEditor({ api, setMessage }) {
   function streamDeckUrls() {
     const base = `${location.origin}${BASE}`;
     if (tab === 'votes') return [['はじめる', `${base}/api/vote/active/start`], ['しめきる', `${base}/api/vote/active/close`], ['結果を出す', `${base}/api/vote/active/result`], ['リセット', `${base}/api/vote/active/reset`]];
+    if (tab === 'cheers') return [['いいね ×20（テスト）', `${base}/api/cheer/active/add?value=20`], ['いいね ×100（テスト）', `${base}/api/cheer/active/add?value=100`], ['満タンにする', `${base}/api/cheer/active/fill`], ['リセット', `${base}/api/cheer/active/reset`]];
     if (tab === 'wins') return [['クリア +1', `${base}/api/wins/active/win`], ['-1', `${base}/api/wins/active/add?value=-1`], ['1つ戻す', `${base}/api/wins/active/undo`], ['リセット', `${base}/api/wins/active/reset`]];
     if (tab === 'timers') return [['スタート', `${base}/api/timer/active/start`], ['一時停止', `${base}/api/timer/active/pause`], ['止める・動かす', `${base}/api/timer/active/toggle`], ['+1分', `${base}/api/timer/active/add?seconds=60`], ['-1分', `${base}/api/timer/active/add?seconds=-60`], ['リセット', `${base}/api/timer/active/reset`]];
     if (tab === 'bosses') return [['HP を戻す', `${base}/api/boss/active/heal`], ['ダメージ 100', `${base}/api/boss/active/damage?value=100`], ['討伐', `${base}/api/boss/active/defeat`], ['次のボス', `${base}/api/boss/active/next`], ['1体目から', `${base}/api/boss/active/reset`]];
@@ -2178,6 +2180,9 @@ export function createEditor({ api, setMessage }) {
         chip('リセット', 'rotate-ccw', vote('reset')),
         ...options.map((_, index) => chip(`${index + 1} に1票（テスト）`, 'message-circle', () => api('/api/simulate', { kind: 'chat', text: String(index + 1), user: `テスト参加者${++testVoteParticipant}` }))),
       );
+    } else if (tab === 'cheers') {
+      const cheer = (action, data) => control('cheer', action, { id, ...(data ?? {}) });
+      box.replaceChildren(chip('いいね ×20（テスト）', 'heart', cheer('add', { value: 20 })), chip('いいね ×100（テスト）', 'heart', cheer('add', { value: 100 })), chip('満タンにする', 'trophy', cheer('fill')), chip('リセット', 'rotate-ccw', cheer('reset')));
     } else if (tab === 'pushButtons') {
       const push = (action, data) => control('push', action, { id, ...(data ?? {}) });
       box.replaceChildren(chip('はじめる', 'play', push('start')), chip('いま締める', 'pause', push('finish')), chip('リセット', 'rotate-ccw', push('reset')), chip('「押」と打つ（テスト）', 'message-circle', () => api('/api/simulate', { kind: 'chat', text: '押', user: 'テスト参加者' + (++testVoteParticipant) })), chip('いいね ×5（テスト）', 'heart', () => api('/api/simulate', { kind: 'like', count: 5, user: 'テスト参加者' + (++testVoteParticipant) })));

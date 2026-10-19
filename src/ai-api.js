@@ -56,6 +56,7 @@ export const AI_ROUTES = [
   { method: 'POST', path: '/boss', tool: 'boss' },
   { method: 'POST', path: '/rush', tool: 'rush' },
   { method: 'POST', path: '/vote', tool: 'vote' },
+  { method: 'POST', path: '/cheer', tool: 'cheer' },
   { method: 'POST', path: '/push-button', tool: 'push_button' },
   { method: 'POST', path: '/test/event', tool: 'test_event' },
   { method: 'POST', path: '/tenant/widgets', tool: 'tenant_widgets' },
@@ -81,6 +82,7 @@ const TOOLS = {
   boss: { scope: 'operate', mutate: true, operate: true },
   rush: { scope: 'operate', mutate: true, operate: true },
   vote: { scope: 'operate', mutate: true, operate: true },
+  cheer: { scope: 'operate', mutate: true, operate: true },
   push_button: { scope: 'operate', mutate: true, operate: true },
   test_event: { scope: 'test', mutate: true, test: true },
   tenant_widgets: { scope: 'admin', mutate: true },
@@ -620,6 +622,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       if (tool === 'timer') return { status: 200, body: { ok: true, timers: runtime.readTimer(), live, configVersion: version } };
       if (tool === 'boss') return { status: 200, body: { ok: true, boss: runtime.readBoss(), live, configVersion: version } };
       if (tool === 'vote') return { status: 200, body: { ok: true, votes: runtime.readVote(), live, configVersion: version } };
+      if (tool === 'cheer') return { status: 200, body: { ok: true, cheers: runtime.readCheer(), live, configVersion: version } };
       if (tool === 'push_button') return { status: 200, body: { ok: true, pushes: runtime.readPush(), live, configVersion: version } };
       return { status: 200, body: { ok: true, rush: runtime.readRush(), live, configVersion: version } };
     }
@@ -630,6 +633,7 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     else if (tool === 'wins') out = runtime.performControl('wins', action, { id: args.id, value: args.value });
     else if (tool === 'boss') out = runtime.performControl('boss', action, { id: args.id, value: args.value });
     else if (tool === 'vote') out = runtime.performControl('vote', action, { id: args.id, options: args.options, seconds: args.seconds });
+    else if (tool === 'cheer') out = runtime.performControl('cheer', action, { id: args.id, value: args.value });
     else if (tool === 'push_button') out = runtime.performControl('push', action, { id: args.id, seconds: args.seconds });
     else out = runtime.performControl('rush', action, {});
     const changeId = crypto.randomBytes(8).toString('hex');
