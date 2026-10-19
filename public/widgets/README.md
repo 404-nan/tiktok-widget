@@ -9,7 +9,7 @@ OBS・TikTok LIVE Studio に置く公開ウィジェット本体と、その画�
 | `all.html` | 主要ウィジェットをまとめて表示する |
 | `boss.html` | ボスの HP と討伐演出を表示する |
 | `chat.html` | コメントを表示する |
-| `combo.html` | サーバーの combo 状態を送信者中心に表示する |
+| `combo.html` | サーバーのコンボ状態を送信者中心に表示し、背景は透明、イベントは受信順に表示する |
 | `counter.html` | いいね・視聴者数などを表示する |
 | `cutin.html` | 通常カットインを表示する |
 | `gacha.html` | ガチャ演出を表示する |

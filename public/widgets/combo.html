@@ -10,8 +10,8 @@
   :root { color-scheme: dark; --ink: #111113; --paper: #f7f7f5; --muted: #c9c9d1; --blue: #4ca7ff; --green: #48d597; --red: #ff5d62; --gold: #ffc53d; --rainbow: #d48cff; }
   * { box-sizing: border-box; }
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-  body { background: #111113; color: var(--paper); font-family: "Yu Gothic UI", "Meiryo", sans-serif; font-size: 16px; }
-  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 6vmin; background: #111113; }
+  body { background: transparent; color: var(--paper); font-family: "Yu Gothic UI", "Meiryo", sans-serif; font-size: 16px; }
+  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 6vmin; background: transparent; }
   .panel { width: min(88vw, 720px); min-height: 300px; padding: 5vmin; border: 4px solid var(--tier-color, var(--blue)); background: #111113; box-shadow: 0 16px 44px rgba(0, 0, 0, .45); opacity: 0; transform: translateY(18px) scale(.96); }
   .panel.show { opacity: 1; transform: none; }
   .panel.hit { animation: impact .32s ease-out; }
@@ -95,7 +95,7 @@
   function serverNow() { return Date.now() + serverOffset; }
   function number(value, fallback) { return typeof value === 'number' && isFinite(value) ? value : fallback; }
   function userKey(user) { return String(user && (user.id || user.name) || '?'); }
-  function messageKey(event, test) { return (test ? 'test:' : 'live:') + userKey(event.user) + ':' + String(event.count) + ':' + String(event.expiresAt) + ':' + String(event.kind); }
+  function messageKey(event, test) { return (test ? 'test:' : 'live:') + (event.id || event.endedAt || userKey(event.user) + ':' + String(event.count) + ':' + String(event.expiresAt) + ':' + String(event.kind)); }
   function tierName(value) { return /^(blue|green|red|gold|rainbow)$/.test(value) ? value : 'blue'; }
   function safeText(value) { return value == null ? '' : String(value); }
 
@@ -135,7 +135,22 @@
       endText.textContent = endLabel;
       panel.setAttribute('data-tier', tierName(snapshot.last.tier));
       panel.classList.add('show');
+    } else {
+      clearPanel();
     }
+  }
+
+  function clearPanel() {
+    queue = [];
+    panel.classList.remove('show');
+    panel.classList.remove('hit');
+    panel.classList.remove('ending');
+    panel.classList.remove('hit-stop');
+    sender.textContent = '';
+    count.textContent = '';
+    gift.textContent = '';
+    total.textContent = '';
+    endText.textContent = '';
   }
 
   function playSound(kind) {
@@ -190,13 +205,27 @@
 
   function enqueue(event, test) {
     if (!event || !event.kind || !event.user) return;
+    pruneSeen();
     var key = messageKey(event, test);
     if (seen[key]) return;
-    seen[key] = true;
-    if (event.kind === 'end' && !shownUsers[userKey(event.user)]) return;
+    seen[key] = serverNow();
+    if (event.kind === 'end' && !test && !shownUsers[userKey(event.user)]) return;
     if (queue.length >= 20) queue.shift();
     queue.push({ event: event, test: test === true });
     playNext();
+  }
+
+  function pruneSeen() {
+    var keys = Object.keys(seen);
+    var cutoff = serverNow() - 120000;
+    var i;
+    for (i = 0; i < keys.length; i++) {
+      if (seen[keys[i]] < cutoff) delete seen[keys[i]];
+    }
+    keys = Object.keys(seen);
+    if (keys.length > 200) {
+      for (i = 0; i < keys.length - 200; i++) delete seen[keys[i]];
+    }
   }
 
   function handleMessage(message) {
@@ -204,8 +233,8 @@
     if (message.type === 'config' || message.config) applyConfig(message.config);
     if (message.type !== 'combo' || !enabled) return;
     if (message.test === true) { enqueue(message.event, true); return; }
-    drawState(message.combo);
-    if (message.event) enqueue(message.event, false);
+    if (message.event) enqueue(message.event, message.test === true);
+    else drawState(message.combo);
   }
 
   function applyConfig(config) {

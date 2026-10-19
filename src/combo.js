@@ -12,6 +12,7 @@ export class ComboEngine {
     this.tests = new Map();
     this.testTimers = new Set();
     this.last = null;
+    this.nextEventId = 1;
     hub.on('event', (e) => this.onEvent(e));
     hub.on('testEvent', (e) => this.#onTest(e));
     hub.on('reset', () => this.reset());
@@ -81,7 +82,7 @@ export class ComboEngine {
     if (state.count < c.blueAt) return;
     const gift = giftDisplayName(e.gift);
     this.#send(test, map, state, {
-      kind: 'hit', user: state.user, count: state.count, total: state.total,
+      id: this.nextEventId++, kind: 'hit', user: state.user, count: state.count, total: state.total,
       coins: Number(e.totalDiamonds), gift, tier: state.tier,
       up: state.tierIndex > previousTier, expiresAt: state.expiresAt,
     });
@@ -93,9 +94,9 @@ export class ComboEngine {
     clearTimeout(state.timer);
     map.delete(key);
     if (state.count < this.config?.blueAt) return;
-    const result = { kind: 'end', user: state.user, count: state.count, total: state.total, tier: state.tier };
+    const result = { id: this.nextEventId++, kind: 'end', user: state.user, count: state.count, total: state.total, tier: state.tier };
     if (!test) {
-      const { kind, ...last } = result;
+      const { id, kind, ...last } = result;
       this.last = { ...last, endedAt: Date.now() };
     }
     this.#send(test, map, state, result);
