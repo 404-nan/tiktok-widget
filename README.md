@@ -359,7 +359,7 @@ public/admin/          管理画面（配信者の追加・ウィジェットご
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
 public/monitor/        配信中モニター
 public/history/        統計・履歴
-public/widgets/        各ウィジェット（`push-button.html` / `push-button.js` は押しボタン、lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
+public/widgets/        各ウィジェット（`vote.html` / `vote.js` はコメント投票、`cheer.html` / `cheer.js` はいいね応援、`push-button.html` / `push-button.js` は押しボタン、`all.html` は複数表示、lib/ に共通処理）
 test/                  node --test のテスト
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ

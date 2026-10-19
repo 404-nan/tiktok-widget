@@ -35,7 +35,7 @@ export class VoteEngine {
   setEnabled(enabled) {
     this.enabled = enabled !== false;
     if (!this.enabled) {
-      for (const id of this.states.keys()) this.#resetOne(id, false);
+      for (const id of this.states.keys()) this.#resetOne(id, true);
       this.states.clear();
     }
   }

@@ -50,7 +50,7 @@ export class CheerEngine {
     this.#assertEnabled();
     const state = this.#requireState(id);
     if (state.full && !state.loop) return this.#publicState(state);
-    const count = Math.max(0, number(amount, 0));
+    const count = number(amount, 0);
     return this.#add(id, state, count);
   }
 
@@ -107,7 +107,7 @@ export class CheerEngine {
   }
 
   #add(id, state, count) {
-    state.value += count;
+    state.value = Math.max(0, state.value + count);
     if (state.value >= state.goal) return this.#complete(id, state);
     this.#scheduleTally(id, state);
     return this.#publicState(state);

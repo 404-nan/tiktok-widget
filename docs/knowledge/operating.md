@@ -14,6 +14,8 @@
 
 いいね応援: `cheer status [名前]`、`cheer add <数> [名前]`、`cheer fill [名前]`、`cheer reset [名前]`。HTTP は `/api/cheer` と `/api/cheer/:id/add?value=<数>`、`fill`、`reset` を使う。
 
+押しボタン: `tw push status [名前]`、`tw push start 名前`、`tw push finish 名前`、`tw push reset 名前`（プロジェクト内では `npm run tw -- push ...`）。HTTP は `/api/push-button` と `/api/push-button/:id/start`、`finish`、`reset` を使う。
+
 ## MCP
 
 - 起動は `npm run mcp`。登録例は `npm run tw -- mcp` で表示する。

@@ -12,7 +12,7 @@ import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gi
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'votes', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {

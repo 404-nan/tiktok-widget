@@ -85,8 +85,9 @@ test('AC-5・6: 動作を満タンごとに一度だけ動かし、加減算と�
   });
   engine.fill('default');
   assert.equal(calls.length, 1);
-  engine.add('default', -999);
-  assert.equal(engine.snapshot().default.value, 0);
+  engine.add('default', 50);
+  engine.add('default', -20);
+  assert.equal(engine.snapshot().default.value, 30);
   engine.add('default', 3);
   engine.reset('default');
   assert.deepEqual(engine.snapshot().default, { ...engine.snapshot().default, value: 0, round: 0, full: false, goal: 500 });

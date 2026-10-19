@@ -31,6 +31,7 @@ export class PushButtonEngine {
     if (!Number.isFinite(seconds) || seconds < 1 || seconds > MAX_SECONDS) throw new Error('受付時間は 1 秒以上 60 秒以下にしてください');
     this.#clear(state);
     state.phase = 'open'; state.label = String(entry.label ?? '押せ!'); state.seconds = seconds;
+    state.steps = (entry.steps ?? [3, 10, 30, 100]).slice();
     state.endsAt = Date.now() + seconds * 1000; state.pushes = 0; state.byComments = 0; state.byLikes = 0; state.likes = 0;
     state.recent = []; state.commenters = new Set(); state.result = null; state.config = { ...entry, seconds };
     state.timer = setTimeout(() => this.finish(id), seconds * 1000); state.timer.unref?.();
