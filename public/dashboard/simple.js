@@ -9,7 +9,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
-  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka']],
+  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'relayStop']],
 ];
 
@@ -41,6 +41,7 @@ export const INFO = {
   slots: { icon: 'disc-3', desc: 'ギフトで3つの絵柄をそろえるスロット演出' },
   relayStop: { icon: 'users', desc: 'ギフトを送った人がスロットを1本ずつ止める演出' },
   peka: { icon: 'lightbulb', desc: 'ギフトのあと、隅のランプだけを遅れて光らせる' },
+  throne: { icon: 'crown', desc: '直近10分の首位を王座にして、接近したときだけ VS を出す' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
@@ -104,6 +105,12 @@ export const SIMPLE = {
   },
   rankings: {
     groups: [{ title: '中身', fields: ['title', 'metric', 'limit'] }],
+  },
+  throne: {
+    groups: [
+      { title: 'いつ出す', fields: ['enabled', 'approachPercent', 'maxMoves'] },
+      { title: '見た目', fields: ['showDifference'] },
+    ],
   },
   roulettes: {
     groups: [
@@ -310,6 +317,7 @@ const SUMMARY = {
   counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),
   goals: (e) => `${e.title}（目標 ${e.goal}）`,
   rankings: (e) => e.title,
+  throne: (e) => (e.enabled === false ? '使わない設定' : `直近10分・接近 ${e.approachPercent}%・移動 ${e.maxMoves} 回まで`),
   roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目${e.rushOdds ? '・RUSH中は確率が変わる' : ''}`,
   jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),

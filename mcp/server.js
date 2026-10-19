@@ -221,6 +221,12 @@ server.registerTool(
 );
 
 server.registerTool(
+  'throne',
+  { title: '王座を操作', description: '王座の状態を見る、終了時の称号を確定する、演出を止める、リセットする。', inputSchema: { action: z.enum(['status', 'finish', 'stop', 'reset']).default('status') } },
+  wrap(async ({ action }) => text(await admin.throne(action))),
+);
+
+server.registerTool(
   'wins',
   {
     title: 'WIN数',

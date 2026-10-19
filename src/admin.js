@@ -145,6 +145,13 @@ export async function peka(action = 'status') {
   return state;
 }
 
+/** 王座の状態を見る・終了する・演出を止める（サーバーが必要）。 */
+export async function throne(action = 'status') {
+  if (action === 'status') return callServer('/api/throne');
+  const { throne: state } = await callServer('/api/control', { method: 'POST', body: { target: 'throne', action } });
+  return state;
+}
+
 /** WIN 数を変える・見る（サーバーが必要）。action: win / add / set / undo / reset / status。id を省くと全部 */
 export async function wins(action = 'status', id = null, value) {
   const line = (k, c) => `${k}: WIN ${c.wins}`;

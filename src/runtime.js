@@ -28,6 +28,7 @@ import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
 import { RelayStopEngine } from './relay-stop.js';
 import { Peka } from './peka.js';
+import { ThroneEngine } from './throne.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
@@ -45,7 +46,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'relayStop', 'peka', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'throne', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'relayStop', 'peka', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -64,7 +65,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -116,11 +117,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const slot = new SlotEngine(hub, { bus });
   const relayStop = new RelayStopEngine(hub, { slot });
   const peka = new Peka(hub);
+  const throne = new ThroneEngine({ broadcast: (message) => hub.broadcast(message) });
   boss.setBus(bus);
   const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
+    throne.onEvent(e);
     mediaAlerts.onEvent(e);
     giftSounds.onEvent(e);
     gacha.onEvent(e);
@@ -129,8 +132,14 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     peka.onEvent(e);
   });
   hub.on('testEvent', (e) => peka.onEvent(e));
+  hub.on('testEvent', (e) => throne.testEvent(e));
   hub.on('testEvent', (e) => relayStop.onEvent(e));
   hub.on('reset', () => peka.reset());
+  hub.on('reset', () => throne.reset());
+  hub.on('status', (status) => {
+    if (status?.mode === 'ended') throne.finish();
+    if (status?.mode === 'live' && throne.snapshot().state === 'finished') throne.reset();
+  });
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
   let currentAutoId = null;
@@ -151,6 +160,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     slot.setConfig(config.slots);
     relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
     peka.setConfig(config.peka);
+    throne.setConfig(config.throne);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -579,6 +589,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
   r.get('/api/relay-stop', (_req, res) => res.json(relayStop.snapshot()));
   r.get('/api/peka', (_req, res) => res.json(peka.snapshot()));
+  r.get('/api/throne', (_req, res) => res.json(throne.snapshot()));
   r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
   r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
     try {
@@ -653,6 +664,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (target === 'peka') {
       if (action !== 'bonusResolved' && action !== 'resolve') return { status: 400, body: { error: 'Peka は bonusResolved で解決してください' } };
       return { status: 200, body: { ok: true, peka: peka.resolve('bonusResolved') } };
+    }
+    if (target === 'throne') {
+      if (action === 'status') return { status: 200, body: { ok: true, throne: throne.snapshot() } };
+      if (action === 'reset') return { status: 200, body: { ok: true, throne: throne.reset() } };
+      if (action === 'finish' || action === 'end') return { status: 200, body: { ok: true, throne: throne.finish() } };
+      if (action === 'stop') return { status: 200, body: { ok: true, throne: throne.stopEffects() } };
+      return { status: 400, body: { error: '王座は status / reset / finish / stop を指定してください' } };
     }
     if (target === 'relay-stop' || target === 'relayStop') return { status: 200, body: { ok: true, relayStop: relayStop.snapshot() } };
     // RUSH はサーバーで状態を持つ
@@ -773,6 +791,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readBoss() { return boss.snapshot(); },
     readRush() { return rush.snapshot(); },
     readRelayStop() { return relayStop.snapshot(); },
+    readThrone() { return throne.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();

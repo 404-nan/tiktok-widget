@@ -610,6 +610,21 @@ SCHEMA.rankings = {
 // ランキングは右側の空いた場所に置く。
 SCHEMA.rankings.fields = { ...placementFields(60, 48), ...SCHEMA.rankings.fields };
 
+SCHEMA.throne = {
+  kind: 'map',
+  page: 'throne',
+  title: '動く王座',
+  desc: '直近10分のギフト合計で王を決め、接近したときだけ VS と王冠移動を出す。URL は /widgets/throne.html?id=<名前>',
+  size: () => [900, 500],
+  fields: {
+    ...placementFields(4, 4),
+    enabled: bool(true, '王座の集計と演出を使う'),
+    approachPercent: num(15, '接近と判定する王との差（%）', { min: 0, max: 100 }),
+    showDifference: bool(true, '防衛の差を表示する'),
+    maxMoves: num(12, '1配信で王冠を動かす回数の上限', { min: 0, max: 100 }),
+  },
+};
+
 SCHEMA.minecraft = {
   kind: 'object',
   title: 'マイクラ連携',
