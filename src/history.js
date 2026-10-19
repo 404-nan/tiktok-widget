@@ -160,9 +160,10 @@ class Session {
 }
 
 export class History {
-  constructor(hub, dir = HISTORY_DIR) {
+  constructor(hub, dir = HISTORY_DIR, options = {}) {
     this.hub = hub;
     this.dir = dir;
+    this.writeFile = options.writeFile ?? fs.writeFileSync;
     this.current = null;
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
@@ -211,7 +212,7 @@ export class History {
     s.dirty = false;
     // 何も起きなかった配信は残さない
     if (!s.timeline.length) return;
-    fs.writeFileSync(path.join(this.dir, `${s.id}.json`), JSON.stringify(s));
+    this.writeFile(path.join(this.dir, `${s.id}.json`), JSON.stringify(s));
   }
 
   list() {

@@ -127,11 +127,14 @@ export class Hub extends EventEmitter {
 
   broadcast(msg) {
     const text = JSON.stringify(msg);
+    const compactText = msg.type === 'event'
+      ? JSON.stringify({ type: 'event', event: msg.event, statePatch: statePatch(msg.event, msg.state) })
+      : null;
     for (const ws of this.clients) {
       if (ws.readyState !== 1) continue;
       if (typeof ws.allowMessage === 'function' && !ws.allowMessage(msg)) continue;
       if (ws.compact && msg.type === 'event') {
-        ws.send(JSON.stringify({ type: 'event', event: msg.event, statePatch: statePatch(msg.event, msg.state) }));
+        ws.send(compactText);
         continue;
       }
       ws.send(text);
@@ -225,8 +228,11 @@ function statePatch(event, state) {
 
 function rankingPatch(rows, user) {
   const changedKey = user?.id || user?.name || '?';
-  return {
-    order: rows.map((row) => row.key),
-    changed: rows.filter((row) => row.key === changedKey).map((row) => ({ ...row })),
-  };
+  const order = [];
+  const changed = [];
+  for (const row of rows) {
+    order.push(row.key);
+    if (row.key === changedKey) changed.push({ ...row });
+  }
+  return { order, changed };
 }

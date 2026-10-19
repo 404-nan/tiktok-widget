@@ -9,7 +9,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 配信ウィジェット・ダッシュボード・管理画面 | できた | `public/`、`src/`、`server.js` |
 | ウィジェットとサーバーの性能計測 | できた | `scripts/perf/` |
 | 性能の上限判定とJSON出力 | できた | `scripts/perf/lib/` |
-| 性能改善（perf-fix） | できた | WebSocket の差分配信と連打時の履歴保存を確認する受け入れテスト。`src/hub.js`、`public/widgets/lib/overlay.js`、`test/acceptance/` |
+| 性能改善（perf-fix） | 作りかけ | compact の明示接続・履歴保存・復元テストはできた。画面性能とサーバー p95/RSS は未達。`src/hub.js`、`public/widgets/lib/overlay.js`、`test/acceptance/` |
 
 最後に直した日: 2026-10-19
 
@@ -359,9 +359,11 @@ bin/tw.js              CLI
 src/tiktok.js          tiktok-live-connector で LIVE に接続（切断時は自動で再接続）
 src/normalize.js       生データをウィジェット用の形にそろえる（連打ギフトは確定時に1件）
 src/hub.js             集計（いいね・視聴者・コイン・トップギフター）と配信
+src/ws-mode.js         WebSocket の compact 指定を判定
 src/demo.js            デモ・テスト用のイベント
 scripts/               ギフト表・リハーサル・性能計測の補助スクリプト
 scripts/perf/           一時サーバーとChrome headlessで性能を測る道具
+test/                   node --test のテスト（性能・互換性・各機能）
 docs/knowledge/         エージェント向けの構成・運用・性能の知識
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）

@@ -7,10 +7,16 @@ import { spawn } from 'node:child_process';
 import { WebSocket } from 'ws';
 import { delay, findFreePort } from './process.mjs';
 
-const DEFAULT_CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const DEFAULT_CHROME_PATHS = [
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
 
 export function chromePath() {
-  return process.env.PERF_CHROME || DEFAULT_CHROME;
+  return process.env.PERF_CHROME || DEFAULT_CHROME_PATHS.find((candidate) => fs.existsSync(candidate)) || DEFAULT_CHROME_PATHS[0];
 }
 
 export async function launchChrome() {

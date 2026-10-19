@@ -1,15 +1,11 @@
 # scripts/perf/lib/
 
-性能計測の二つのコマンドから使う、小さく分けた共通部品です。
+性能計測スクリプトの共通部品です。
 
 | ファイル | 役目 |
 | --- | --- |
-| `args.mjs` | `--quick`、`--json`、負荷条件を読む |
-| `chrome.mjs` | Chrome headlessを起動し、既存の `ws` でCDPを呼ぶ |
-| `process.mjs` | 一時サーバー、空きポート、プロセスメモリ、後片付けを扱う |
-| `judge.mjs` | 数字と上限を比べて合否と理由を返す純粋な関数 |
-| `output.mjs` | 日本語表とJSONを書き出す |
-
-## つながり
-
-`widgets.mjs` と `server.mjs` から使われます。Chromeが無くても `judge.mjs` 単体は動きます。
+| `chrome.mjs` | Chrome/Chromium を環境に応じて探し、CDP で計測する。 |
+| `process.mjs` | 一時サーバーとプロセスを管理する。 |
+| `judge.mjs` | 計測結果を上限と照合する。 |
+| `args.mjs` | 計測コマンドの引数を読む。 |
+| `output.mjs` | 表と JSON を出力する。 |

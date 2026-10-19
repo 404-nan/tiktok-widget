@@ -16,9 +16,9 @@ const gift = (i) => ({
   totalDiamonds: 1,
 });
 
-test('AC-5: hello は全状態を持ち、連打のイベントは互換な状態を復元できる差分を持つ', () => {
+test('AC-5: 古いクライアントには event と state を同時に送る', () => {
   const hub = new Hub();
-  const ws = client(true);
+  const ws = client(false);
   hub.addClient(ws);
 
   const hello = JSON.parse(ws.sent[0]);
@@ -30,9 +30,18 @@ test('AC-5: hello は全状態を持ち、連打のイベントは互換な状�
   const event = JSON.parse(ws.sent.at(-1));
   assert.equal(event.type, 'event');
   assert.equal(event.event.kind, 'gift');
+  assert.equal(event.state.gifts, 1);
+  assert.equal(event.statePatch, undefined);
+});
+
+test('AC-5: compact を選んだクライアントだけ差分を受け取る', () => {
+  const hub = new Hub();
+  const ws = client(true);
+  hub.addClient(ws);
+  hub.publish(gift(1));
+  const event = JSON.parse(ws.sent.at(-1));
   assert.equal(event.state, undefined);
   assert.equal(event.statePatch.gifts, 1);
-  assert.ok(Array.isArray(event.statePatch.topGifters.order));
   assert.equal(event.statePatch.topGifters.changed[0].user.name, '利用者1');
 });
 

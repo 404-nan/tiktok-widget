@@ -1,16 +1,26 @@
-// 性能改善の受け入れ条件。Chrome がある環境では画面要素が連打後に増え続けないことを確認する。
-
+// Chrome headless で実際のウィジェットを動かし、DOM と AudioContext の計測値を確認する。
 import { test } from 'node:test';
+import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
+import { chromePath } from '../../scripts/perf/lib/chrome.mjs';
 
-test('AC-3: Chrome があるときだけ、ウィジェットの後片付け計測を実行する', { skip: !hasChrome() }, async (t) => {
-  const result = spawnSync(process.execPath, ['scripts/perf/widgets.mjs', '--quick', '--only', 'gift-alert'], { encoding: 'utf8' });
+test('AC-3: Chrome がある環境では DOM と AudioContext の後片付けを実測する', { skip: !hasChrome() }, async (t) => {
+  const output = path.join(process.cwd(), `.perf-cleanup-${process.pid}.json`);
+  const result = spawnSync(process.execPath, ['scripts/perf/widgets.mjs', '--quick', '--only', 'gift-alert', '--json', output], { encoding: 'utf8' });
   if (result.status === 2) return t.skip('Chrome が見つかりません');
-  if (result.status !== 0) throw new Error(result.stdout + result.stderr);
+  try {
+    if (result.status !== 0 && result.status !== 1) throw new Error(result.stdout + result.stderr);
+    const row = JSON.parse(fs.readFileSync(output, 'utf8')).rows[0];
+    assert.ok(Number.isFinite(row.domStart));
+    assert.ok(Number.isFinite(row.domEnd));
+    assert.ok(Number.isFinite(row.audioContexts));
+  } finally {
+    if (fs.existsSync(output)) fs.rmSync(output, { force: true });
+  }
 });
 
 function hasChrome() {
-  const executable = process.env.PERF_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-  return fs.existsSync(executable);
+  return fs.existsSync(chromePath());
 }

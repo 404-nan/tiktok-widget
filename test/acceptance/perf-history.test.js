@@ -11,20 +11,19 @@ import { History } from '../../src/history.js';
 test('AC-3/AC-6: 連打の履歴は保存回数を増やさず、今までの JSON 形を保つ', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-perf-history-'));
   const hub = new Hub();
-  const history = new History(hub, dir);
-  clearInterval(history.timer);
   let writes = 0;
-  const originalWrite = fs.writeFileSync;
-  fs.writeFileSync = (...args) => { writes += 1; return originalWrite(...args); };
-  try {
-    hub.setStatus({ mode: 'demo' });
-    for (let i = 0; i < 5000; i += 1) {
-      hub.publish({ kind: 'gift', user: { id: `u${i % 20}`, name: `利用者${i % 20}` }, gift: { id: '1', name: 'Rose', diamonds: 1, count: 1 }, totalDiamonds: 1, test: true });
-    }
-    hub.setStatus({ mode: 'idle' });
-  } finally {
-    fs.writeFileSync = originalWrite;
+  const history = new History(hub, dir, {
+    writeFile(file, text) {
+      writes += 1;
+      return fs.writeFileSync(file, text);
+    },
+  });
+  clearInterval(history.timer);
+  hub.setStatus({ mode: 'demo' });
+  for (let i = 0; i < 5000; i += 1) {
+    hub.publish({ kind: 'gift', user: { id: `u${i % 20}`, name: `利用者${i % 20}` }, gift: { id: '1', name: 'Rose', diamonds: 1, count: 1 }, totalDiamonds: 1, test: true });
   }
+  hub.setStatus({ mode: 'idle' });
   assert.equal(writes, 1);
   const files = fs.readdirSync(dir, { withFileTypes: true });
   assert.equal(files.length, 1);

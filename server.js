@@ -19,6 +19,7 @@ import { createAi } from './src/ai.js';
 import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
 import { AiTokenStore } from './src/ai-tokens.js';
 import { createAiControl } from './src/ai-api.js';
+import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -413,7 +414,8 @@ if (local) {
 const server = createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 server.on('upgrade', (req, socket, head) => {
-  const { pathname } = new URL(req.url, 'http://x');
+  const requestUrl = new URL(req.url, 'http://x');
+  const { pathname } = requestUrl;
   let rt = null;
   let role = 'owner';
   let tenantId = null;
@@ -434,7 +436,7 @@ server.on('upgrade', (req, socket, head) => {
   }
   wss.handleUpgrade(req, socket, head, (ws) => {
     ws.role = role;
-    ws.compact = true;
+    ws.compact = compactRequested(requestUrl);
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
     const overlayBlocked = () => billingAllows(() => tenantId != null && tenants.billing.isOverlayBlocked(tenantId), false);

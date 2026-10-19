@@ -4,7 +4,7 @@ import './gift-name.js';
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 // 配信者ごとの URL で開いたときは、API・画像・接続をその下に向ける（1人で使うときは BASE は空）
-const loc = typeof location === 'undefined' ? { pathname: '' } : location;
+const loc = typeof location === 'undefined' ? { pathname: '', search: '' } : location;
 export const BASE = loc.pathname.match(/^\/t\/[^/]+/)?.[0] ?? '';
 if (BASE && typeof window !== 'undefined' && !window.__twBase) {
   window.__twBase = BASE;
@@ -260,7 +260,8 @@ export const list = (s) =>
  * hello の msg には、最近のコメント（recentChats）なども入っている
  */
 export function connect(handlers) {
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws`;
+  const compact = new URLSearchParams(loc.search || '').get('compact') === '1';
+  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${compact ? '?compact=1' : ''}`;
   let ws;
   let latestState = null;
   const open = () => {
@@ -290,7 +291,7 @@ export function connect(handlers) {
   open();
 }
 
-function mergeStatePatch(previous, full, patch) {
+export function mergeStatePatch(previous, full, patch) {
   if (full) return full;
   if (!patch) return previous;
   const next = { ...(previous ?? {}), ...patch };
