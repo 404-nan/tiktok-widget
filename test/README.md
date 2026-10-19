@@ -11,6 +11,7 @@ Node.jsの組み込みテストランナーで、サーバーの機能と受け�
 | `acceptance/ingest-round2.test.js` | ingest AC-14〜21の受け入れテスト |
 | `acceptance/ingest-round3.test.js` | ingest AC-22〜24の受け入れテスト |
 | `acceptance/ingest-review.test.js` | ingest 3巡目レビューのHTTP境界テスト |
+| `acceptance/ingest-status.test.js` | ingest-status AC-1〜4の画面・説明の受け入れテスト |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |

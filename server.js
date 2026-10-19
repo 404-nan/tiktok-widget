@@ -65,7 +65,9 @@ const ADMIN_TOKEN = (() => {
 
 const app = express();
 app.set('trust proxy', true);
-app.use((req, res, next) => req.path === '/in' || req.path.startsWith('/in/') ? next() : express.json()(req, res, next));
+const isIngestPath = (req) => req.path === '/in' || req.path.startsWith('/in/');
+const jsonParser = express.json();
+app.use((req, res, next) => isIngestPath(req) ? next() : jsonParser(req, res, next));
 // 動いているかの確認（Cloudflare が定期的に呼ぶ）
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
@@ -362,10 +364,6 @@ const ingestRequest = (req, res) => {
   const header = String(req.headers.authorization ?? '');
   const key = req.params.key || (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? '');
   const tenant = tenants.byIngestKey(key);
-  // 停止中の旧クライアントが、鍵を発行できなかった403のJSONをそのまま再送する場合。
-  if (!tenant && (key === 'null' || key === 'undefined')) {
-    return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
-  }
   if (!tenant) return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
   if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   return tenants.runtime(tenant.id).ingest.handle(req, res, key);

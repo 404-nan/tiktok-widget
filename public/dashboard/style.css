@@ -148,6 +148,14 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 
 .section { padding: 20px; display: grid; gap: 16px; align-content: start; }
 
+/* 外部ツールの受け口。状態は言葉でも示し、鍵は作成直後だけ見せる。 */
+.ingest-status-rows { display: grid; gap: 8px; }
+.ingest-status-row { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--r-md); background: var(--fill-tertiary); }
+.ingest-status-row span, .ingest-panel .hint { color: var(--text-secondary); }
+.ingest-created { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--warning); border-radius: var(--r-md); }
+.ingest-created p { margin: 0; }
+.ingest-created .url-row { min-width: 0; }
+
 /* 配信画面の見本 */
 .stage-view { display: grid; gap: 16px; min-width: 0; }
 .stage-head h3 { margin: 0; font-size: 24px; }

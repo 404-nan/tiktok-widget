@@ -7,6 +7,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 機能 | 状態 | 内容 |
 | --- | --- | --- |
 | 外部イベント受け口 `ingest` | できた | TikFinity・Streamer.bot などから、配信者ごとの鍵付きHTTP受け口でギフト・いいね・フォロー・コメント・シェアを受け、既存の正規化と配信へ流す |
+| 受け口の状態表示・外部ツール案内 | できた | ダッシュボードで TikTok / 外部ツールの状態、最後に届いた時刻、受信数を確認し、鍵と貼り付け用 URL を作る。使い方画面に TikFinity の例と Streamer.bot の準備中案内を表示 |
 | 配信ウィジェット | できた | OBS / TikTok LIVE Studio に表示する各種オーバーレイ |
 | 管理・設定画面 | できた | 接続、設定、テスト送信、配信履歴を管理 |
 
@@ -48,6 +49,8 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 1. ダッシュボードで TikTok のユーザー名を入れて「接続」（配信中である必要があります）
 2. 「ウィジェット」で使うものを選び、設定を変えて URL を「コピー」（設定は `config.yaml` に保存されます）
 3. OBS / TikTok LIVE Studio に「ブラウザ」ソースを追加し、URL と推奨サイズを入れる
+
+外部ツールから受けるときは、ダッシュボードの「接続の状態」で受け口の鍵を作り、表示された URL を TikFinity などの送信先に貼ります。詳しい項目名と例は `/help/#ingest` にあります。鍵の全文は作成時だけ表示されます。
 
 「デモを流す」や「テスト送信」で、配信前に見た目を確認できます。
 
@@ -361,6 +364,7 @@ src/hub.js             集計（いいね・視聴者・コイン・トップギ
 src/demo.js            デモ・テスト用のイベント
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
+public/dashboard/ingest.js  外部ツールの受け口の状態表示と鍵の作成 UI
 public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）

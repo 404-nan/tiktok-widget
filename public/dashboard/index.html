@@ -110,6 +110,26 @@
       </form>
     </section>
 
+    <section class="panel section ingest-panel" id="ingestSection">
+      <div class="notes-head"><h2>接続の状態</h2><span class="hint">TikTok と外部ツール</span></div>
+      <div class="ingest-status-rows" id="ingestStatusRows">
+        <div class="ingest-status-row" id="ingestDirectStatus"><span>最後に届いた時刻</span></div>
+        <div class="ingest-status-row" id="ingestExternalStatus"><span>最後に届いた時刻</span></div>
+      </div>
+      <p class="hint" id="ingestCounts">受けた数 0・重複で捨てた数 0・多すぎて断った数 0</p>
+      <div class="row wrap">
+        <button class="btn primary pressable" id="ingestCreateBtn" type="button">受け口の鍵を作る</button>
+        <button class="btn pressable" id="ingestRemoveBtn" type="button" hidden>鍵を削除</button>
+      </div>
+      <p class="hint" id="ingestKeyHint" hidden></p>
+      <div class="ingest-created" id="ingestKey" hidden>
+        <p><strong>今だけ表示される鍵</strong>。この画面を閉じると二度と見られません。</p>
+        <div class="url-row"><input id="ingestCreatedKey" readonly aria-label="受け口の鍵"><button class="btn pressable" id="ingestCopyKeyBtn" type="button"><span>鍵をコピー</span></button></div>
+        <div class="url-row"><input id="ingestCreatedUrl" readonly aria-label="受け口の URL"><button class="btn pressable" id="ingestCopyUrlBtn" type="button"><span>URLをコピー</span></button></div>
+      </div>
+      <p class="form-message" id="ingestMessage" role="status"></p>
+    </section>
+
     <section class="panel section solid" data-adv>
       <h2>最近のイベント</h2>
       <ol class="log" id="log"></ol>
