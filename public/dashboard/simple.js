@@ -9,7 +9,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
-  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne']],
+  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori']],
   ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'relayStop']],
 ];
 
@@ -42,6 +42,7 @@ export const INFO = {
   relayStop: { icon: 'users', desc: 'ギフトを送った人がスロットを1本ずつ止める演出' },
   peka: { icon: 'lightbulb', desc: 'ギフトのあと、隅のランプだけを遅れて光らせる' },
   throne: { icon: 'crown', desc: '直近10分の首位を王座にして、接近したときだけ VS を出す' },
+  ootori: { icon: 'crown', desc: 'ラスト10分の最後にギフトを送った人を大トリにする' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
@@ -110,6 +111,12 @@ export const SIMPLE = {
     groups: [
       { title: 'いつ出す', fields: ['enabled', 'approachPercent', 'maxMoves'] },
       { title: '見た目', fields: ['showDifference'] },
+    ],
+  },
+  ootori: {
+    groups: [
+      { title: 'いつ出す', fields: ['enabled', 'mode', 'durationMs'] },
+      { title: '演出', fields: ['seatChangedMs', 'rollMaxMs', 'staticAfterMs', 'hideWords'] },
     ],
   },
   roulettes: {
@@ -318,6 +325,7 @@ const SUMMARY = {
   goals: (e) => `${e.title}（目標 ${e.goal}）`,
   rankings: (e) => e.title,
   throne: (e) => (e.enabled === false ? '使わない設定' : `直近10分・接近 ${e.approachPercent}%・移動 ${e.maxMoves} 回まで`),
+  ootori: (e) => (e.enabled === false ? '使わない設定' : `${e.mode === 'raise' ? 'せり上げ式' : '誰でも式'}・${Math.round((e.durationMs ?? 600000) / 60000)} 分`),
   roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目${e.rushOdds ? '・RUSH中は確率が変わる' : ''}`,
   jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),

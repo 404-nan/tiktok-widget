@@ -227,6 +227,12 @@ server.registerTool(
 );
 
 server.registerTool(
+  'ootori',
+  { title: '大トリ', description: 'ラスト10分の開始、終了、大トリの固定、リセットを操作する。', inputSchema: { action: z.enum(['status', 'start', 'finish', 'reset']).default('status') } },
+  wrap(async ({ action }) => text(await admin.ootori(action))),
+);
+
+server.registerTool(
   'wins',
   {
     title: 'WIN数',

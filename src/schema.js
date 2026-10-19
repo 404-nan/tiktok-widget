@@ -625,6 +625,23 @@ SCHEMA.throne = {
   },
 };
 
+SCHEMA.ootori = {
+  kind: 'object',
+  page: 'ootori',
+  title: '最後の一投とエンドロール',
+  desc: 'ラスト10分の最後に受けたギフトの送信者を大トリにし、参加者を最大20組ずつ表示する。URL は /widgets/ootori.html',
+  size: () => [900, 600],
+  fields: {
+    enabled: bool(true, '大トリ企画を使う'),
+    mode: oneOf(['anyone', 'raise'], 'anyone', '誰でも式は有効なギフト、せり上げ式は現在の席よりコインが多いギフトだけ'),
+    durationMs: num(600000, 'ラスト10分の長さ（ミリ秒）', { min: 0, max: 600000 }),
+    seatChangedMs: num(350, '席の差し替え演出の長さ（0〜700ミリ秒）', { min: 0, max: 700 }),
+    rollMaxMs: num(9000, 'エンドロールの特別枠（最大9000ミリ秒）', { min: 0, max: 9000 }),
+    staticAfterMs: num(3000, '一覧を静止表示へ切り替えるまで（最大3000ミリ秒）', { min: 0, max: 3000 }),
+    hideWords: list([], '参加者名に含まれると表示しない言葉。除外した人数だけを残す'),
+  },
+};
+
 SCHEMA.minecraft = {
   kind: 'object',
   title: 'マイクラ連携',
