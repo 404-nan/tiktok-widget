@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | 製品名 | 配信者向けの画面と説明を「ライコネ」にそろえる | できた | `public/dashboard/`、`public/help/`、`public/admin/` |
 | 配信テンプレート | 妨害マイクラ・罰ゲーム雑談・耐久・目標配信を選び、差分を確認して設定を入れ、元に戻せる | できた | `src/templates/`、`src/templates.js`、`public/dashboard/templates.js` |
+| 配信画面の遊び方選択 | 配信画面の見本で、耐久・目標配信などの使うものを選び、配置を保存する | できた | `public/dashboard/stage.js`、`src/runtime.js` |
 | ウィジェット | ギフト・コメント・目標・ルーレットなどを OBS に表示する | できた | `public/widgets/` |
 | AI にたのむ | 設定変更の案を見てから反映し、元に戻す | できた | `src/ai.js`、`public/dashboard/ai.js` |
 
@@ -363,7 +364,9 @@ src/normalize.js       生データをウィジェット用の形にそろえる
 src/hub.js             集計（いいね・視聴者・コイン・トップギフター）と配信
 src/demo.js            デモ・テスト用のイベント
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
-public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
+public/dashboard/      設定画面（テンプレートの失敗表示と配信画面の配置を含む）
+public/dashboard/stage.js 配信画面の見本、遊び方選択、配置保存
+public/dashboard/templates.js テンプレートの一覧・差分・適用・元戻しと失敗表示
 public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）

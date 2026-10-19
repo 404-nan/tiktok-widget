@@ -109,6 +109,37 @@ test('テナントは使うものを外さず、使えないものを skip に�
   }
 });
 
+test('テンプレートの任意のウィジェットも、許可されていれば一緒に入る', async () => {
+  const setup = serverFor({ tenant: true });
+  const server = await listen(setup.app);
+  try {
+    const applied = await call(server, '/api/templates/apply', { id: 'bougai' });
+    assert.equal(applied.status, 200);
+    assert.ok(setup.state.widgets.includes('winsFx'));
+  } finally {
+    server.close();
+    await setup.rt.close();
+  }
+});
+
+test('テンプレートの元戻しは、設定と遊び方の両方を元に戻す', async () => {
+  const setup = serverFor({ tenant: true });
+  setup.state.widgets = [];
+  setup.state.template = 'custom';
+  const server = await listen(setup.app);
+  try {
+    const applied = await call(server, '/api/templates/apply', { id: 'bougai' });
+    assert.equal(applied.status, 200);
+    const undone = await call(server, '/api/templates/undo', {});
+    assert.equal(undone.status, 200);
+    assert.deepEqual(setup.state.widgets, []);
+    assert.equal(setup.state.template, 'custom');
+  } finally {
+    server.close();
+    await setup.rt.close();
+  }
+});
+
 test('配信中は確認なしで変更せず、id と変更本文を信じない', async () => {
   const setup = serverFor();
   const server = await listen(setup.app);

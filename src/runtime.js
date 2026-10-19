@@ -396,7 +396,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const result = store.replaceText(next.text);
     if (!result.ok) return { status: 422, body: { error: `反映できませんでした: ${result.errors.join(' / ')}`, errors: result.errors } };
     const beforeState = currentUndoState();
-    if (setWidgets) setWidgets([...new Set([...(info().widgets ?? []), ...template.widgets.filter((section) => entitled(section))])]);
+    const templateWidgets = [...(template.widgets ?? []), ...(template.optionalWidgets ?? [])];
+    if (setWidgets) setWidgets([...new Set([...(info().widgets ?? []), ...templateWidgets.filter((section) => entitled(section))])]);
     if (setTemplate) setTemplate(template.id);
     const afterState = currentUndoState();
     aiUndo = { before, after: store.readText(), beforeState, afterState };
@@ -425,8 +426,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     }
     const result = store.replaceText(aiUndo.before);
     if (!result.ok) return res.status(422).json({ ok: false, error: `元に戻せませんでした: ${result.errors.join(' / ')}` });
-    if (aiUndo.beforeState?.widgets && setWidgets) setWidgets(aiUndo.beforeState.widgets);
-    if (aiUndo.beforeState?.widgets && setTemplate) setTemplate(aiUndo.beforeState.template);
+    if (aiUndo.beforeState && setWidgets && aiUndo.beforeState.widgets !== null) setWidgets(aiUndo.beforeState.widgets);
+    if (aiUndo.beforeState && setTemplate) setTemplate(aiUndo.beforeState.template);
     aiUndo = null;
     applyConfigResult(result);
     res.json({ ok: true, ...configPayload(req) });
@@ -495,8 +496,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     }
     const result = store.replaceText(aiUndo.before);
     if (!result.ok) return res.status(422).json({ ok: false, error: `元に戻せませんでした: ${result.errors.join(' / ')}` });
-    if (aiUndo.beforeState?.widgets && setWidgets) setWidgets(aiUndo.beforeState.widgets);
-    if (aiUndo.beforeState?.widgets && setTemplate) setTemplate(aiUndo.beforeState.template);
+    if (aiUndo.beforeState && setWidgets && aiUndo.beforeState.widgets !== null) setWidgets(aiUndo.beforeState.widgets);
+    if (aiUndo.beforeState && setTemplate) setTemplate(aiUndo.beforeState.template);
     aiUndo = null;
     applyConfigResult(result);
     res.json({ ok: true, state: aiState(), ...configPayload(req) });

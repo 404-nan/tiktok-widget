@@ -1,6 +1,6 @@
 // 「かんたん」の配信テンプレート画面。カード、差分確認、適用、元戻しを担当する。
 
-const LABELS = { alerts: 'ギフト通知', chats: 'コメント欄', wins: 'WIN数', cutins: 'カットイン', rush: 'RUSH', rankings: 'ランキング', roulettes: 'ルーレット', goals: '目標バー', timers: '延長タイマー' };
+const LABELS = { alerts: 'ギフト通知', chats: 'コメント欄', wins: 'WIN数', winsFx: 'WIN数の全画面演出', cutins: 'カットイン', rush: 'RUSH', rankings: 'ランキング', roulettes: 'ルーレット', goals: '目標バー', timers: '延長タイマー' };
 const valueText = (value) => value === undefined ? 'まだありません' : JSON.stringify(value, null, 2);
 
 function button(text, className = 'btn pressable') {
@@ -16,6 +16,7 @@ export function createTemplatesView({ api, isLive, onChanged }) {
   let selected = null;
   let preview = null;
   let applied = false;
+  let message = '';
 
   const render = async (root) => {
     root.replaceChildren();
@@ -24,6 +25,7 @@ export function createTemplatesView({ api, isLive, onChanged }) {
     head.append(Object.assign(document.createElement('h3'), { textContent: '配信テンプレート' }));
     head.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: 'どの配信をするか選ぶと、使うものと設定がそろいます。入れる前に、何が変わるかを見せます。' }));
     root.append(head);
+    if (message) root.append(Object.assign(document.createElement('p'), { className: 'form-message error', role: 'alert', textContent: message }));
     const cards = document.createElement('div');
     cards.className = 'template-cards';
     for (const item of list) {
@@ -33,7 +35,18 @@ export function createTemplatesView({ api, isLive, onChanged }) {
       card.append(Object.assign(document.createElement('span'), { textContent: item.desc }));
       card.append(Object.assign(document.createElement('small'), { textContent: `山場: ${(item.peaks ?? []).join('、')}` }));
       card.append(Object.assign(document.createElement('small'), { textContent: `使うもの: ${(item.widgets ?? []).map((key) => LABELS[key] ?? key).join('・')}` }));
-      card.addEventListener('click', async () => { selected = item; preview = await api('/api/templates/preview', { id: item.id }); applied = false; render(root); });
+      card.addEventListener('click', async () => {
+        selected = item;
+        preview = null;
+        applied = false;
+        message = '';
+        try {
+          preview = await api('/api/templates/preview', { id: item.id });
+        } catch (error) {
+          message = error.message;
+        }
+        await render(root);
+      });
       cards.append(card);
     }
     root.append(cards);
@@ -67,14 +80,34 @@ export function createTemplatesView({ api, isLive, onChanged }) {
     const apply = button('この内容で入れる', 'btn primary pressable');
     apply.disabled = preview.nothingToDo || (live && !detail.querySelector('#confirmLive')?.checked);
     detail.querySelector('#confirmLive')?.addEventListener('change', (event) => { apply.disabled = !event.target.checked; });
-    apply.addEventListener('click', async () => { await api('/api/templates/apply', { id: selected.id, confirmLive: detail.querySelector('#confirmLive')?.checked === true }); applied = true; await onChanged(); render(root); });
+    apply.addEventListener('click', async () => {
+      message = '';
+      try {
+        await api('/api/templates/apply', { id: selected.id, confirmLive: detail.querySelector('#confirmLive')?.checked === true });
+        await onChanged();
+        applied = true;
+      } catch (error) {
+        message = error.message;
+      }
+      await render(root);
+    });
     const cancel = button('やめる', 'btn pressable');
     cancel.addEventListener('click', () => { selected = null; preview = null; render(root); });
     actions.append(apply, cancel);
     if (applied) {
       actions.append(Object.assign(document.createElement('span'), { className: 'form-message ok', textContent: '入れました。' }));
       const undo = button('元に戻す', 'chip pressable');
-      undo.addEventListener('click', async () => { await api('/api/templates/undo', {}); await onChanged(); applied = false; render(root); });
+      undo.addEventListener('click', async () => {
+        message = '';
+        try {
+          await api('/api/templates/undo', {});
+          await onChanged();
+          applied = false;
+        } catch (error) {
+          message = error.message;
+        }
+        await render(root);
+      });
       actions.append(undo);
     }
     detail.append(actions);
@@ -82,7 +115,15 @@ export function createTemplatesView({ api, isLive, onChanged }) {
   };
 
   return {
-    async start(root) { list = await api('/api/templates'); await render(root); },
+    async start(root) {
+      try {
+        list = await api('/api/templates');
+      } catch (error) {
+        message = error.message;
+        list = [];
+      }
+      await render(root);
+    },
     render(root) { return render(root); },
   };
 }
