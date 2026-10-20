@@ -101,3 +101,15 @@ test('テスト送信は本番の数を汚さない: 配信中は画面に出る
   hub.setStatus({ mode: 'live' });
   assert.equal(hub.state.follows, 1);
 });
+
+test('次の配信（別の room）につないだら、前の配信のフォロー数は 0 に戻る', () => {
+  const hub = new Hub();
+  hub.setStatus({ mode: 'live', username: 'x', roomId: 'r1' });
+  hub.publish({ kind: 'follow', user: { id: 'u1', name: 'a' } });
+  hub.setStatus({ mode: 'offline' });
+  hub.setStatus({ mode: 'live', roomId: 'r1' });
+  assert.equal(hub.state.follows, 1);
+  hub.setStatus({ mode: 'offline' });
+  hub.setStatus({ mode: 'live', roomId: 'r2' });
+  assert.equal(hub.state.follows, 0);
+});

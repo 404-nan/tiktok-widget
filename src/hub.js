@@ -109,8 +109,9 @@ export class Hub extends EventEmitter {
     if (this.status.mode === 'live' && this.sample.on) this.setSample(false);
     this.broadcast({ type: 'status', status: this.status });
     this.emit('status', this.status, prev);
-    // 配信が始まったら、その前のテストやデモで増えた数を 0 に戻す（途中で切れてつなぎ直したときは戻さない）
-    if (this.status.mode === 'live' && prev.mode !== 'live' && this.testDirty) this.reset();
+    // 配信が始まったら、その前のテストやデモで増えた数と前の配信の数を 0 に戻す（同じ配信につなぎ直したときは戻さない）
+    const newRoom = prev.roomId && this.status.roomId && prev.roomId !== this.status.roomId;
+    if (this.status.mode === 'live' && prev.mode !== 'live' && (this.testDirty || newRoom)) this.reset();
   }
 
   reset() {
