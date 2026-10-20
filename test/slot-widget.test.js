@@ -170,3 +170,41 @@ test('slot.html は仕様の寸法で、Chromium 103 で使えない CSS・グ�
   assert.equal((html.match(/<div class="reel( d[12])?">/g) || []).length, 3);
   assert.match(html, /lang="ja"/);
 });
+
+test('カジノの見た目は別のファイルで、look-casino のときだけ効き、Chromium 103 で使えない CSS を使わない', () => {
+  const css = read('public/widgets/lib/slot-casino.css');
+  assert.match(html, /<link rel="stylesheet" href="lib\/slot-casino.css">/);
+  // 規則は全部 .look-casino の下（電球をふだん隠す1つと、@keyframes の中身は除く）
+  const body = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@keyframes[^{]+\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+  const selectors = [...body.matchAll(/([^{}]+)\{[^}]*\}/g)].map((m) => m[1].trim());
+  assert.ok(selectors.length > 10);
+  for (const sel of selectors) {
+    if (sel === '.cab-bulbs') continue;
+    for (const part of sel.split(',')) assert.match(part.trim(), /^\.look-casino /, sel);
+  }
+  assert.doesNotMatch(css, /backdrop-filter|blur\(|:has\(|color-mix\(|@container|text-wrap/);
+  // 寸法は和パチスロと同じ（width / height を書き換えない）
+  assert.doesNotMatch(body, /(^|[;{\s])(width|height)\s*:\s*\d{3,}px/m);
+});
+
+test('スロットの結果が画面に出るころに slotResult を配る（カットイン用）', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const hub = new EventEmitter();
+    const sent = [];
+    hub.broadcast = (m) => sent.push(m);
+    const engine = new SlotEngine(hub, { randomInt: () => 0 });
+    engine.setConfig({ revivalRate: 0, payouts: [{ id: 'jackpot', text: 'ジャックポット', tier: 'jackpot', weight: 1, symbols: ['7', '7', '7'] }] });
+    const started = engine.start({ kind: 'dev', user: { name: 'テストさん' } });
+    const { resultAt } = slotTimeline(started.result, 700);
+    mock.timers.tick(resultAt - 1);
+    assert.equal(sent.filter((m) => m.type === 'slotResult').length, 0);
+    mock.timers.tick(1);
+    const shown = sent.find((m) => m.type === 'slotResult');
+    assert.equal(shown.result.tier, 'jackpot');
+    assert.equal(shown.payout.text, 'ジャックポット');
+    engine.close();
+  } finally {
+    mock.timers.reset();
+  }
+});

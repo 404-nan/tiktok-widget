@@ -388,6 +388,8 @@
   function applyConfig(slots) {
     if (!slots || typeof slots !== 'object') return;
     cfg = slots;
+    // 見た目: wa 和パチスロ（いつもの） / casino カジノ
+    document.getElementById('stage').className = cfg.look === 'casino' ? 'look-casino' : '';
     picFor = Core.createSymbolMap(Core.configSymbolNames(cfg));
     if (cfg.enabled === false && active) {
       queue = [];

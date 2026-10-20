@@ -1,5 +1,5 @@
 // ルーレット共通: 設定の読み込み、どのルーレットを回すかの判定、抽選、待ち列、結果の表示。
-// 見た目（丸型・横スライド）は roulette-wheel.js / roulette-strip.js が受け持つ。
+// 見た目は roulette-wheel.js（丸型。カジノ・柔道も）/ roulette-strip.js（横スライド）/ roulette-reel.js（スロット台）が受け持つ。
 
 import {
   loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
@@ -57,8 +57,11 @@ function prepare(id, r) {
   const total = items.reduce((a, b) => a + size(b), 0);
   let acc = 0;
   let auto = 0; // 色を指定していない項目の何番目か
+  let order = 0; // 当たり以外の何番目か（カジノ・柔道の見た目で2色を交互に塗る）
   items.forEach((it, i) => {
     it.index = i;
+    it.autoColor = !it.color;
+    if (!it.win) it.order = order++;
     it.start = acc / total;
     acc += size(it);
     it.end = acc / total;

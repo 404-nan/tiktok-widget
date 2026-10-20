@@ -1,0 +1,48 @@
+/* スロットのカジノの見た目（slots.look: casino）。slot.js が #stage に look-casino を付けたときだけ効く。
+   黒い筐体に金の縁、上下に電球が流れ、リールはクロームの枠と丸みの影。寸法と動きは和パチスロの見た目と同じ。
+   和パチスロの見た目（slot.html の style）は平らな色だけの決まりなので、グラデーションはこのファイルにだけ書く */
+.cab-bulbs { display: none; }
+.look-casino .cab {
+  border: 10px solid transparent;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .45), rgba(0, 0, 0, 0) 10%, rgba(255, 255, 255, .07) 50%, rgba(0, 0, 0, 0) 90%, rgba(0, 0, 0, .45)) padding-box,
+    linear-gradient(180deg, #3A0C12, #14060A) padding-box,
+    linear-gradient(135deg, #7A5410, #F2CF6B 24%, #FFF4C4 40%, #C8962E 60%, #6E4B0E 84%, #E9C25A) border-box;
+  box-shadow: 0 0 0 4px #0B0304, 0 18px 36px rgba(0, 0, 0, .5);
+}
+.look-casino .cab-bulbs { display: flex; position: absolute; left: 40px; right: 40px; z-index: 6; justify-content: space-between; pointer-events: none; }
+.look-casino .cab-bulbs--top { top: -11px; }
+.look-casino .cab-bulbs--bottom { bottom: -11px; }
+.look-casino .cab-bulbs i { display: block; width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FFFFFF, #FFE28A 40%, #F59E0B 78%); box-shadow: 0 0 8px 2px rgba(255, 190, 60, .7); animation: bulb-chase .42s linear infinite; }
+.look-casino .cab-bulbs i:nth-child(3n + 2) { animation-delay: -.14s; }
+.look-casino .cab-bulbs i:nth-child(3n) { animation-delay: -.28s; }
+.look-casino .cab.is-big .cab-bulbs i, .look-casino .cab.is-jackpot .cab-bulbs i { animation: bulb-blink .24s linear infinite; }
+@keyframes bulb-chase { 0%, 33% { filter: none; } 34%, 100% { filter: brightness(.3) saturate(.5); box-shadow: none; } }
+@keyframes bulb-blink { 0%, 49% { filter: none; } 50%, 100% { filter: brightness(.3) saturate(.5); box-shadow: none; } }
+.look-casino .band { border: 3px solid #C8962E; }
+.look-casino .call { background: radial-gradient(ellipse at 50% 0%, #3A0F12, #0B0507 75%); }
+.look-casino .call-text { text-shadow: 0 0 18px rgba(255, 197, 61, .5), 0 4px 0 #3A0509; }
+.look-casino .who { background: linear-gradient(180deg, #24242A, #101013); color: #FFE9A6; border-left: 3px solid #C8962E; }
+.look-casino .gift { color: #F5B92E; }
+.look-casino .avatar { border-color: #C8962E; }
+.look-casino .window { background: linear-gradient(180deg, #0B0B0D, #1C1C21); box-shadow: inset 0 0 0 3px #C8962E; }
+.look-casino .reel {
+  border: 6px solid transparent;
+  background: linear-gradient(#FBF7EA, #FBF7EA) padding-box, linear-gradient(135deg, #5E636C, #F5F7FA 22%, #9AA1AC 40%, #E9ECF1 58%, #6B717B 80%, #D5D9DF) border-box;
+}
+.look-casino .reel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(104deg, rgba(255, 255, 255, .25) 0 12%, rgba(255, 255, 255, 0) 12%),
+    linear-gradient(180deg, rgba(20, 4, 6, .5), rgba(20, 4, 6, 0) 28%, rgba(20, 4, 6, 0) 72%, rgba(20, 4, 6, .5));
+}
+.look-casino .reel::after { z-index: 2; border-top-color: #E0141F; border-bottom-color: #E0141F; }
+.look-casino .mark--l { border-left-color: #FFC53D; }
+.look-casino .mark--r { border-right-color: #FFC53D; }
+.look-casino .lamp { background: radial-gradient(ellipse at 50% 30%, #6B4C1C, #2A1A06); }
+.look-casino .lamp.on { background: radial-gradient(ellipse at 50% 30%, #FFFFFF, #FFE28A 35%, #F59E0B 80%); box-shadow: 0 0 10px 2px rgba(255, 190, 60, .7); }
+.look-casino .mini { background: linear-gradient(180deg, #3A0C12, #14060A); border-color: #C8962E; }

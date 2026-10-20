@@ -740,7 +740,7 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
     if (section === 'roulettes') {
       if (entries.length) {
         const styles = [...new Set(entries.map(([, e]) => e.style))];
-        const size = styles.includes('wheel') ? [600, 680] : [820, 330];
+        const size = styles.some((s) => s !== 'strip') ? [600, 680] : [820, 330];
         out.push({ section, id: '*', title: 'ルーレット（全部）', url: `${base}/widgets/roulette.html`, size });
       }
       for (const [id, e] of entries) {

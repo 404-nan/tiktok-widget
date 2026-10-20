@@ -6,6 +6,8 @@
 <title>ギフトルーレット</title>
 <link rel="stylesheet" href="lib/overlay.css">
 <link rel="stylesheet" href="lib/roulette.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<link rel="stylesheet" href="lib/roulette-reel.css">
 <style>
   body { display: grid; grid-template-columns: minmax(0, 1fr); }
   body.style-wheel { place-items: center; }
@@ -98,6 +100,22 @@
 <body>
 <div class="stage" id="stage">
   <div class="view wheel-view" id="wheelView" hidden><canvas></canvas></div>
+  <div class="view slot-view" id="slotView" hidden>
+    <div class="cab">
+      <div class="cab-top">
+        <div class="cab-bulbs top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="cab-title"></div>
+        <div class="cab-bulbs bottom"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="cab-window">
+        <div class="reel-track"></div>
+        <div class="reel-shade"></div>
+        <div class="payline"><i></i><i></i></div>
+      </div>
+      <div class="cab-bottom"></div>
+    </div>
+    <div class="lever"><div class="lever-base"></div><div class="lever-arm"><i></i></div></div>
+  </div>
   <div class="view strip-view" id="stripView" hidden>
     <div class="window">
       <div class="viewport"><div class="track"></div></div>
@@ -122,6 +140,7 @@
   import { loadRoulettes, startRoulettes } from './lib/roulette.js';
   import { createWheel } from './lib/roulette-wheel.js';
   import { createStrip } from './lib/roulette-strip.js';
+  import { createReel } from './lib/roulette-reel.js';
 
   (async () => {
   const roulettes = await loadRoulettes();
@@ -129,6 +148,7 @@
   const views = {
     wheel: createWheel(document.getElementById('wheelView')),
     strip: createStrip(document.getElementById('stripView')),
+    slot: createReel(document.getElementById('slotView')),
   };
 
   startRoulettes({

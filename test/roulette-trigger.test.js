@@ -118,3 +118,17 @@ test('ギリギリ演出のぶん、結果が出るのが遅れる', () => {
   assert.ok(spin.chance);
   assert.equal(spin.spinMs, 2000 + CHANCE_MS);
 });
+
+test('ルーレットの形（casino / slot / judo）を設定でき、結果に形が付く（カットインの見た目用）', () => {
+  for (const style of ['casino', 'slot', 'judo']) {
+    const { config, errors } = normalize({ roulettes: { r: { style, duration: 1, hold: 1, items: [{ label: '当たり', win: true }, 'ハズレ'] } } });
+    assert.deepEqual(errors, []);
+    assert.equal(config.roulettes.r.style, style);
+    const hub = new EventEmitter();
+    hub.broadcast = () => {};
+    const engine = new RouletteEngine(hub);
+    engine.setConfig(config);
+    assert.equal(engine.spin('r').style, style);
+    engine.clear();
+  }
+});

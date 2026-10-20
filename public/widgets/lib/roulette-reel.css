@@ -1,0 +1,155 @@
+/* スロット台型ルーレット（style: slot）の見た目。赤い筐体にクロームの縁、電球の看板、リールの窓、右にレバー。
+   電球が動くのは回っている間（流れる）と止まった直後（点滅）だけ。ふだんは全部点けたまま止めておく */
+
+.slot-view {
+  --chrome: linear-gradient(135deg, #5E636C, #F5F7FA 22%, #9AA1AC 40%, #E9ECF1 58%, #6B717B 80%, #D5D9DF);
+  grid-template-columns: auto auto;
+  justify-content: center;
+  align-items: start;
+}
+
+.cab {
+  position: relative;
+  box-sizing: border-box;
+  width: 470px;
+  height: 572px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 8px solid transparent;
+  border-radius: 150px 150px 24px 24px / 80px 80px 24px 24px;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .38), rgba(0, 0, 0, 0) 14%, rgba(255, 255, 255, .1) 50%, rgba(0, 0, 0, 0) 86%, rgba(0, 0, 0, .38)) padding-box,
+    linear-gradient(180deg, #C4141F, #8A0912 58%, #5C050C) padding-box,
+    var(--chrome) border-box;
+  box-shadow: 0 22px 40px rgba(0, 0, 0, .45);
+}
+
+/* 看板: 黒いガラスに金の文字、上下に電球 */
+.cab-top {
+  position: relative;
+  box-sizing: border-box;
+  height: 128px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 4px solid transparent;
+  border-radius: 110px 110px 14px 14px / 64px 64px 14px 14px;
+  background:
+    radial-gradient(ellipse at 50% 0%, #3A0F12, #0E0607 70%) padding-box,
+    linear-gradient(180deg, #FFF1B8, #D29E35 45%, #7A5410) border-box;
+}
+.cab-title {
+  max-width: 330px;
+  padding-top: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+  font-size: 42px;
+  line-height: 1.15;
+  background: linear-gradient(180deg, #FFF8D8 0%, #FFD566 46%, #E0961A 54%, #FFE7A0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 #5A0A10);
+}
+.cab-bulbs { position: absolute; left: 30px; right: 30px; display: flex; justify-content: space-between; }
+.cab-bulbs.top { top: 24px; left: 96px; right: 96px; }
+.cab-bulbs.bottom { bottom: 10px; }
+.cab-bulbs i {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #FFFFFF, #FFE28A 40%, #F59E0B 78%);
+  box-shadow: 0 0 9px 2px rgba(255, 190, 60, .75);
+}
+.spinning .cab-bulbs i { animation: bulb-chase .42s linear infinite; }
+.spinning .cab-bulbs i:nth-child(3n + 2) { animation-delay: -.14s; }
+.spinning .cab-bulbs i:nth-child(3n) { animation-delay: -.28s; }
+.done .cab-bulbs i { animation: bulb-blink .28s linear infinite; }
+@keyframes bulb-chase { 0%, 33% { filter: none; } 34%, 100% { filter: brightness(.3) saturate(.5); box-shadow: none; } }
+@keyframes bulb-blink { 0%, 49% { filter: none; } 50%, 100% { filter: brightness(.3) saturate(.5); box-shadow: none; } }
+
+/* リールの窓 */
+.cab-window {
+  position: relative;
+  box-sizing: border-box;
+  height: 288px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #F7F2E4;
+  box-shadow: 0 0 0 5px #1A0204, 0 0 0 9px #C9CED6, 0 0 0 11px #3A0509;
+  transition: transform .5s cubic-bezier(.2, .9, .3, 1);
+}
+.reel-track { position: absolute; left: 0; right: 0; top: var(--row); height: var(--row); will-change: transform; }
+.reel-tile {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--row);
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 0 24px;
+  border-bottom: 2px solid rgba(0, 0, 0, .07);
+  color: var(--sym, #17171A);
+  font-family: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+  font-size: 34px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reel-tile span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.reel-tile.has-image { grid-template-columns: auto minmax(0, 1fr); gap: 14px; font-size: 28px; }
+.reel-tile.has-image img { height: calc(var(--row) * .72); width: calc(var(--row) * .72); object-fit: contain; }
+/* 当たりのコマは金地に紅の文字 */
+.reel-tile.is-win { background: linear-gradient(180deg, #FFEDB0, #F5B92E 50%, #FFE08A); color: #9E0B12; text-shadow: 0 2px 0 rgba(255, 255, 255, .6); }
+.fast .reel-tile { transform: scaleY(1.35); opacity: .55; }
+.reel-tile.hit { animation: tile-hit .5s ease-out 2; }
+@keyframes tile-hit { 50% { filter: brightness(1.25); transform: scale(1.06); } }
+
+/* リールの丸み（上下が暗い）と、ガラスの映り込み */
+.reel-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(104deg, rgba(255, 255, 255, .22) 0 14%, rgba(255, 255, 255, 0) 14% 100%),
+    linear-gradient(180deg, rgba(20, 4, 6, .62), rgba(20, 4, 6, 0) 30%, rgba(20, 4, 6, 0) 70%, rgba(20, 4, 6, .62));
+}
+/* 当たりの線（中段）と左右の印 */
+.payline { position: absolute; left: 0; right: 0; top: var(--row); height: var(--row); box-sizing: border-box; border-top: 3px solid #E0141F; border-bottom: 3px solid #E0141F; pointer-events: none; }
+.payline i { position: absolute; top: 50%; margin-top: -14px; width: 0; height: 0; border-top: 14px solid transparent; border-bottom: 14px solid transparent; }
+.payline i:first-child { left: 0; border-left: 20px solid #FFC53D; }
+.payline i:last-child { right: 0; border-right: 20px solid #FFC53D; }
+/* 確定演出: 当たりの線が虹色に変わり続ける */
+.rainbow .payline { animation: pointer-hue .6s linear infinite; }
+/* ギリギリ演出: 窓を大きく写す */
+.chance .cab-window { transform: scale(1.16); z-index: 2; }
+
+/* 下のスピーカー */
+.cab-bottom {
+  flex: 1;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle, #1A0204 2.2px, rgba(0, 0, 0, 0) 2.8px) 0 0 / 11px 11px,
+    linear-gradient(180deg, #4A060C, #2A0306);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .12), 0 0 0 3px #C9CED6;
+}
+
+/* レバー: 付け根を軸に下へ倒れて戻る */
+.lever { position: relative; width: 46px; height: 330px; margin: 120px 0 0 -4px; }
+.lever-base { position: absolute; left: 0; bottom: 0; width: 26px; height: 84px; border-radius: 0 10px 10px 0; background: var(--chrome); box-shadow: 0 6px 12px rgba(0, 0, 0, .4); }
+.lever-arm { position: absolute; left: 12px; bottom: 42px; width: 10px; height: 230px; border-radius: 5px; transform-origin: 50% 100%; background: linear-gradient(90deg, #6B717B, #F5F7FA 45%, #9AA1AC); }
+.lever-arm i { position: absolute; left: -14px; top: -32px; width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFFFFF, #FF4D57 28%, #B3101C 65%, #5C050C); box-shadow: 0 4px 8px rgba(0, 0, 0, .45); }
+.lever.pull .lever-arm { animation: lever-pull .7s cubic-bezier(.3, .7, .3, 1); }
+@keyframes lever-pull { 0% { transform: none; } 38% { transform: scaleY(-.85); } 100% { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning .cab-bulbs i, .done .cab-bulbs i, .lever.pull .lever-arm, .reel-tile.hit { animation: none; }
+}

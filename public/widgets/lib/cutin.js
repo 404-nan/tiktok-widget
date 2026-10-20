@@ -1,3 +1,5 @@
+// カットイン（通常・画像付き）の動き: 帯が入って文字が叩きつけられ、揺れて抜ける。ギフトのコインで色が上がる。
+// 通常カットインは、ルーレット・スロットの演出（チャンス、大写し、確定演出、形ごとの当たり）も出す。
 import { brushImage as bandImage } from './brush.js';
 import { createWheel, creepRotation } from './roulette-wheel.js';
 import { prepareRoulette, CHANCE_MS } from './roulette.js';
@@ -13,8 +15,12 @@ const STAGE = `
       <div class="visual" id="visual"></div>
       <div class="word" id="word"><span class="back"></span><span class="mid"></span><span class="front"></span></div>
       <div class="tag" id="tag"></div>
+      <div class="sevens" id="sevens"><span>7</span><span>7</span><span>7</span></div>
+      <div class="seal" id="seal">勝</div>
     </div>
   </div>
+  <canvas class="coins" id="coins"></canvas>
+  <div class="bulb-frame"><i></i><i></i><i></i><i></i></div>
   <div class="flash"></div>
   <div class="freeze" id="freeze"><span>・・・</span></div>
   <div class="closeup" id="closeup"><canvas></canvas></div>
@@ -24,7 +30,7 @@ const STAGE = `
 const TIER_DEFAULTS = {
   minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
   blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
-  word: true, yieldToImage: false, rouletteWin: true, rouletteWinText: '大当たり', angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
+  word: true, yieldToImage: false, rouletteWin: true, rouletteWinText: '', slotWin: true, angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
 };
 
 /**
@@ -73,7 +79,33 @@ export async function startCutin(section) {
       word: 'linear-gradient(90deg, #FF2D55, #FF9500, #FFE600, #34C759, #00C7FF, #5856D6, #FF2DFF, #FF2D55)',
       accent: '#FFFFFF',
     },
+    // ルーレットの形ごとの当たり（LOOKS）で使う色
+    casino: {
+      band: ['#3A2400', '#B8860B', '#FFF1C2', '#C99A2E', '#FFD86B'],
+      word: 'linear-gradient(180deg, #FFFFFF 0%, #FFF0B3 38%, #E0A526 52%, #FFE69A 70%, #B87A12 100%)',
+      accent: '#FFC53D',
+    },
+    slot: {
+      band: ['#4A0006', '#C8101E', '#FF5A3D', '#B0000F'],
+      word: 'linear-gradient(180deg, #FFFBE0 0%, #FFE27A 45%, #FFB800 55%, #FFF3B0 100%)',
+      accent: '#FFC53D',
+    },
+    judo: {
+      band: ['#0E0E10', '#26262C', '#3A3A42', '#141416'],
+      word: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 62%, #DADADA 100%)',
+      accent: '#C3121E',
+    },
   };
+  // ルーレットの形（style）ごとの当たりのカットイン。win 当たりの文字 / chance チャンス演出の文字（なければ段階の文字）
+  // coins 金貨が降る / bulbs 画面のふちの電球 / sevens 7 が3つ並んでから入る / seal 文字のあとに紅い判が押される
+  const LOOKS = {
+    wheel: { win: '大当たり', tier: 'rainbow' },
+    strip: { win: '大当たり', tier: 'rainbow' },
+    casino: { win: 'ジャックポット', tier: 'casino', coins: true, bulbs: true },
+    slot: { win: 'ビッグボーナス', tier: 'slot', sevens: true, chance: 'リーチ' },
+    judo: { win: '一本', tier: 'judo', seal: true, chance: '技あり', freeze: false },
+  };
+  const lookOf = (style) => LOOKS[style] ?? LOOKS.wheel;
   const ORDER = ['blue', 'green', 'red', 'gold', 'rainbow'];
   const TEXT = { blue: p.blueText, green: p.greenText, red: p.redText, gold: p.goldText, rainbow: p.rainbowText };
 
@@ -189,6 +221,67 @@ export async function startCutin(section) {
     linesTimer = null;
   }
 
+  // --- 金貨の雨（カジノのジャックポット）。seconds のあいだ降らせ、残りは画面の下へ落ちきって消える ---
+  const coinCanvas = $('coins');
+  const coinCtx = coinCanvas.getContext('2d');
+  function coinRain(seconds) {
+    const dpr = devicePixelRatio || 1;
+    coinCanvas.width = innerWidth * dpr;
+    coinCanvas.height = innerHeight * dpr;
+    coinCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const size = Math.min(innerWidth, innerHeight) * 0.07;
+    const coins = [];
+    const until = performance.now() + seconds * 1000;
+    let prev = performance.now();
+    return new Promise((resolve) => {
+      const frame = (now) => {
+        const dt = Math.min(50, now - prev) / 1000;
+        prev = now;
+        if (now < until) {
+          for (let i = 0; i < 3; i++) {
+            coins.push({ x: Math.random() * innerWidth, y: -size, vx: (Math.random() - 0.5) * 120, vy: 200 + Math.random() * 260, spin: 4 + Math.random() * 8, phase: Math.random() * 6, r: size * (0.7 + Math.random() * 0.5) });
+          }
+        }
+        coinCtx.clearRect(0, 0, innerWidth, innerHeight);
+        for (const c of coins) {
+          c.vy += 900 * dt;
+          c.x += c.vx * dt;
+          c.y += c.vy * dt;
+          c.phase += c.spin * dt;
+          // くるくる回る金貨: 横幅を cos で縮めて表と縁を描く
+          const w = Math.max(0.12, Math.abs(Math.cos(c.phase)));
+          coinCtx.save();
+          coinCtx.translate(c.x, c.y);
+          coinCtx.scale(w, 1);
+          const g = coinCtx.createLinearGradient(-c.r, -c.r, c.r, c.r);
+          g.addColorStop(0, '#FFF6C8');
+          g.addColorStop(0.45, '#F5C542');
+          g.addColorStop(1, '#9C6B12');
+          coinCtx.beginPath();
+          coinCtx.arc(0, 0, c.r, 0, Math.PI * 2);
+          coinCtx.fillStyle = g;
+          coinCtx.fill();
+          coinCtx.lineWidth = c.r * 0.12;
+          coinCtx.strokeStyle = '#8A5A0A';
+          coinCtx.stroke();
+          coinCtx.beginPath();
+          coinCtx.arc(0, 0, c.r * 0.62, 0, Math.PI * 2);
+          coinCtx.lineWidth = c.r * 0.08;
+          coinCtx.strokeStyle = 'rgba(138, 90, 10, .7)';
+          coinCtx.stroke();
+          coinCtx.restore();
+        }
+        for (let i = coins.length - 1; i >= 0; i--) if (coins[i].y > innerHeight + size * 2) coins.splice(i, 1);
+        if (now < until || coins.length) requestAnimationFrame(frame);
+        else {
+          coinCtx.clearRect(0, 0, innerWidth, innerHeight);
+          resolve();
+        }
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
   // --- 効果音（音源なしで合成） ---
   let ac;
   const audio = () => (ac ??= new AudioContext());
@@ -284,6 +377,38 @@ export async function startCutin(section) {
         o.start(at);
         o.stop(at + long + 0.05);
       });
+    },
+    // ドン: 太鼓（柔道の一本）
+    taiko() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(110, t);
+      o.frequency.exponentialRampToValueAtTime(46, t + 0.45);
+      env(g, t, 1 * v, 0.004, 0.55);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + 0.6);
+      const n = noise(0.2), ng = a.createGain(), nf = a.createBiquadFilter();
+      nf.type = 'lowpass';
+      nf.frequency.value = 700;
+      env(ng, t, 0.45 * v, 0.002, 0.12);
+      n.connect(nf).connect(ng).connect(a.destination);
+      n.start(t);
+    },
+    // シャラララ: 金貨（カジノのジャックポット）
+    coins() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      for (let i = 0; i < 14; i++) {
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = 'triangle';
+        o.frequency.value = 2400 + Math.random() * 2600;
+        const at = t + i * 0.055 + Math.random() * 0.03;
+        env(g, at, 0.08 * v, 0.004, 0.18);
+        o.connect(g).connect(a.destination);
+        o.start(at);
+        o.stop(at + 0.25);
+      }
     },
     // スッ: 抜けていく音
     out() {
@@ -464,23 +589,47 @@ export async function startCutin(section) {
       sfx('kyuin');
     }
 
+    // ルーレットの形ごとの当たり（job.look）。スロット台は 7 が1つずつ叩きつけられてから帯が入る
+    const look = job.jackpot ? lookOf(job.look) : {};
+    if (job.jackpot) stage.classList.add(`look-${job.look in LOOKS ? job.look : 'wheel'}`);
+    const sevens = [...$('sevens').children];
+    if (look.sevens) {
+      stage.classList.add('dim-on');
+      for (const seven of sevens) {
+        seven.classList.add('in');
+        sfx('slam');
+        await sleep(260);
+      }
+    }
+
     const rect = $('rig').getBoundingClientRect();
     startLines(rect.left, rect.top, t.accent);
     stage.classList.add('play');
     if (job.jackpot) stage.classList.add('jackpot');
     sfx('fween');
     await sleep(200);
-    sfx('slam');
+    sfx(look.seal ? 'taiko' : 'slam');
     if (job.jackpot) sfx('fanfare');
     await sleep(140);
     const hold = job.hold ?? p.hold;
+    const rain = look.coins || job.coins ? (sfx('coins'), coinRain(hold)) : null;
+    if (look.seal) {
+      // 柔道: 文字のあとに紅い判を押す
+      sleep(260).then(() => {
+        $('seal').classList.add('stamp');
+        sfx('taiko');
+      });
+    }
     sfx('gagaga', hold);
     await shake(hold);
+    for (const seven of sevens) seven.classList.remove('in');
+    $('seal').classList.remove('stamp');
     sfx('out');
     stage.classList.add('out');
     await sleep(220);
     stopLines();
     stage.className = 'stage';
+    await rain;
     await sleep(120);
   }
 
@@ -491,7 +640,7 @@ export async function startCutin(section) {
   // ギリギリ演出の大写し: 針のまわりを画面いっぱいに映し、ルーレットと同じ動きで境目へにじり寄る（丸型だけ）
   async function closeup(spin) {
     const entry = fullConfig?.roulettes?.[spin.id];
-    if (!entry || (entry.style ?? 'wheel') !== 'wheel') return;
+    if (!entry || !['wheel', 'casino', 'judo'].includes(entry.style ?? 'wheel')) return;
     const r = prepareRoulette(spin.id, entry, defaults?.roulettes);
     const winner = r.items[spin.index];
     if (!winner) return;
@@ -519,6 +668,9 @@ export async function startCutin(section) {
     sfx('kyuin');
   }
 
+  // 当たりの演出は、止まったところ（そろった絵柄・針の先）を少し見せてから入れる
+  const REVEAL_LOOK_MS = 600;
+
   // ルーレットが回り始めたときに届く。ルーレットの画面は順番待ちをするので、サーバーの時刻（revealAt）から逆算する
   function onSpin(spin) {
     const toReveal = spin.revealAt - spin.at;
@@ -532,7 +684,8 @@ export async function startCutin(section) {
     if (spin.chance) {
       const creepAt = toReveal - CHANCE_MS;
       // 帯の出入りでおよそ1.2秒。にじり寄りが始まるころに抜けるように出す
-      later(creepAt - 1250, () => queue.push({ e, tier: spin.chance, text: TEXT[spin.chance], tag: spin.name, hold: 0.5, freeze: false, deadline: performance.now() + 400 }));
+      const text = lookOf(spin.style).chance ?? TEXT[spin.chance];
+      later(creepAt - 1250, () => queue.push({ e, tier: spin.chance, text, tag: spin.name, hold: 0.5, freeze: false, deadline: performance.now() + 400 }));
       later(creepAt, () => closeup(spin));
     }
   }
@@ -545,11 +698,20 @@ export async function startCutin(section) {
     roulette(m) {
       if (!isImage && p.rouletteWin && m.spin) onSpin(m.spin);
     },
+    // スロットの大当たり・ジャックポット（結果が画面に出るタイミングで届く）。和パチスロは 7・7・7、カジノは金貨
+    slotResult(m) {
+      const result = m.result;
+      if (isImage || !p.slotWin || !result || !['big', 'jackpot'].includes(result.tier)) return;
+      const style = fullConfig?.slots?.look === 'casino' ? 'casino' : 'slot';
+      const text = m.payout?.text || (result.tier === 'jackpot' ? 'ジャックポット' : '大当たり');
+      setTimeout(() => queue.push({ e: { user: result.user }, tier: lookOf(style).tier, text, tag: '', hold: p.hold * 2, freeze: result.tier === 'jackpot', jackpot: true, look: style, coins: result.tier === 'jackpot' }), REVEAL_LOOK_MS);
+    },
     // ルーレットで当たりの項目が出た（結果が画面に出るタイミングで届く）: 虹の帯・フリーズ・ファンファーレ
     rouletteResult(m) {
       const spin = m.spin;
       if (isImage || !p.rouletteWin || !spin?.win) return;
-      queue.push({ e: spin.trigger ?? {}, tier: 'rainbow', text: p.rouletteWinText, tag: spin.label, hold: p.hold * 2, freeze: true, jackpot: true });
+      const look = lookOf(spin.style);
+      setTimeout(() => queue.push({ e: spin.trigger ?? {}, tier: look.tier, text: p.rouletteWinText || look.win, tag: spin.label, hold: p.hold * 2, freeze: look.freeze ?? true, jackpot: true, look: spin.style }), REVEAL_LOOK_MS);
     },
   });
 }

@@ -18,7 +18,7 @@ const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', '
 const ENUM_LABELS = {
   dark: 'ダーク', light: 'ライト', top: '上', center: '中央', bottom: '下', left: '左', right: '右',
   jar: '保存瓶', heart: 'ハート', potion: 'エリクサーのフラスコ', auto: '自動', on: '表示', off: '表示しない',
-  wheel: '丸（ホイール）', strip: '横スライド', radial: '中心から外へ', around: '円周にそって横向き', row: '横', column: '縦',
+  wheel: '丸（ホイール）', strip: '横スライド', casino: 'カジノ', slot: 'スロット台', judo: '柔道', wa: '和パチスロ', radial: '中心から外へ', around: '円周にそって横向き', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
@@ -56,7 +56,7 @@ const LABELS = {
   forwardGifts: 'ギフトをマイクラ側の演出に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
-  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', rouletteWin: 'ルーレットの演出を出す', rouletteWinText: '当たりの文字', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', rouletteWin: 'ルーレットの演出を出す', slotWin: 'スロットの大当たりで出す', rouletteWinText: '当たりの文字', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   textWeight: '文字の太さ', imageStyle: '画像のスタイル', crop: '切り抜き',
   'bosses.name': 'ボスの名前', hp: '最大 HP', hpScale: '次のボスの HP の倍率', 'bosses.image': 'ボスの画像', damageFrom: 'ダメージにするもの',
   rankSource: '順位の参照', rivalCoins: '相手のコイン',
@@ -91,7 +91,7 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'textWeight', 'yieldToImage', 'rouletteWin', 'rouletteWinText'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'textWeight', 'yieldToImage', 'rouletteWin', 'rouletteWinText', 'slotWin'],
   imageCutins: ['photo', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
@@ -100,7 +100,7 @@ const BASIC = {
   mediaAlerts: ['enabled', 'rules'],
   giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
   gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
-  slots: ['enabled', 'trigger', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
+  slots: ['enabled', 'trigger', 'look', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 // WIN数の演出の段階の境目（src/wins.js の LOSS_PRESETS と同じ）

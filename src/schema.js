@@ -320,7 +320,7 @@ export const SCHEMA = {
     fields: {
       ...placementFields(40, 43),
       name: str('', '表示名（ダッシュボード用）'),
-      style: oneOf(['wheel', 'strip'], 'wheel', 'wheel 丸いホイール / strip 横に流れるカード'),
+      style: oneOf(['wheel', 'strip', 'casino', 'slot', 'judo'], 'wheel', 'wheel 丸いホイール / strip 横に流れるカード / casino 金の縁と電球のカジノ台 / slot リールが縦に回るスロット台 / judo 畳と畳縁の柔道場。当たりのカットインも形に合わせて変わる'),
       gifts: list([], 'このギフト名（または ID）で回す。ギフト名の指定は minCoins より優先される'),
       minCoins: num(0, '合計コインがこれ以上のギフトでも回す（0 で無効）', { min: 0 }),
       maxCoins: num(0, 'minCoins で回すときの上限コイン（0 で上限なし）', { min: 0 }),
@@ -395,7 +395,8 @@ SCHEMA.cutins = {
     textWeight: oneOf(['normal', 'bold'], 'normal', '文字だけの太さ。normal 普通 / bold 太字'),
     yieldToImage: bool(false, '画像付きカットインが出るギフトのときは、こちらを出さない（両方を OBS に入れて重ならないように）'),
     rouletteWin: bool(true, 'ルーレットの演出を出す（当たりの「大当たり」、ギリギリのときの「チャンス」と大写し、確定演出）'),
-    rouletteWinText: str('大当たり', 'ルーレットの当たりで出す文字'),
+    slotWin: bool(true, 'スロットの大当たり・ジャックポットで、画面いっぱいの演出を出す（スロットの見た目に合わせる）'),
+    rouletteWinText: str('', 'ルーレットの当たりで出す文字。空ならルーレットの形に合わせる（大当たり / カジノ ジャックポット / スロット台 ビッグボーナス / 柔道 一本）'),
   },
 };
 
@@ -570,6 +571,7 @@ SCHEMA.slots = {
     revivalRate: num(20, '当たりのうち復活演出で見せる割合（0〜100）', { min: 0, max: 100 }),
     nearMissRate: num(30, '外れのうちニアミス演出にする割合（0〜100）', { min: 0, max: 100 }),
     reelStopMs: num(700, 'リール1本が止まる間隔（ミリ秒）', { min: 100, max: 10000 }),
+    look: oneOf(['wa', 'casino'], 'wa', '見た目。wa 和パチスロ（赤と金の平らな色） / casino カジノ（黒い筐体に金の縁、上下に電球が流れる、クロームのリール）。当たりのカットインも見た目に合わせる'),
     idleMode: oneOf(['small', 'hide'], 'small', '回していないとき。small 右下に小さく「（ギフト名）で回せ！」を出す / hide 何も出さない'),
   },
 };

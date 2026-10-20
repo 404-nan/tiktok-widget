@@ -159,7 +159,10 @@ body { color: var(--shiro); font-family: var(--f-ja); }
 .mini-gift { display: block; box-sizing: border-box; max-width: 166px; padding: 0 8px; background: var(--sumi); color: var(--kin); border-radius: 4px; text-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini-call { display: block; white-space: nowrap; }
 @keyframes mini-lamp { 0% { border-color: var(--kin); } 50% { border-color: var(--shiro); } }
+
 </style>
+<!-- カジノの見た目（slots.look: casino）は別のファイル。和パチスロの見た目（上の style）は平らな色だけのまま -->
+<link rel="stylesheet" href="lib/slot-casino.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -213,6 +216,8 @@ body { color: var(--shiro); font-family: var(--f-ja); }
 <div id="stage">
   <div class="cab-wrap" id="cabWrap">
     <section class="cab" id="cab" aria-label="スロット" aria-live="polite">
+      <div class="cab-bulbs cab-bulbs--top" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="cab-bulbs cab-bulbs--bottom" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <header class="band">
         <div class="call"><svg class="burst" viewBox="-600 -600 1200 1200" aria-hidden="true"><polygon points="0,0 -60,-600 60,-600" transform="rotate(0)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(30)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(60)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(90)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(120)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(150)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(180)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(210)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(240)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(270)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(300)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(330)"/></svg><span class="call-text" id="call"></span><span class="queue" id="queue" hidden></span></div>
         <div class="who" id="who" hidden><span class="avatar" id="avatar" aria-hidden="true"></span><span class="who-text"><b class="name" id="name"></b><span class="gift" id="gift"></span></span></div>

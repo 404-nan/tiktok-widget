@@ -1,15 +1,15 @@
-// 丸型ルーレットの描画。
+// 丸型ルーレットの描画（wheel / casino / judo。塗り分けは roulette-skins.js）。
 // 画像のない項目は今までどおり文字を扇の中心線に沿って置き、
 // 画像のある項目は画像と文字を「針の位置に来たとき正立する」向きで置く。
 
-import { loadImage, resolveColor } from './overlay.js';
+import { loadImage } from './overlay.js';
 import { tick, CHANCE_MS } from './roulette.js';
+import { skinFor } from './roulette-skins.js';
 
 const TAU = Math.PI * 2;
 const POINTER = -Math.PI / 2;
 const FONT = '"Zen Kaku Gothic New", "Hiragino Sans", sans-serif';
 const norm = (a) => ((a % TAU) + TAU) % TAU;
-const PAPER = () => resolveColor('paper');
 const CREEP = 0.6; // ギリギリ演出で、最後ににじり寄る長さ（扇の幅に対する割合）
 const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
 const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
@@ -34,6 +34,7 @@ export function createWheel(root) {
   let rotation = 0;
   let pointerKick = 0;
   let rainbowPointer = false; // 確定演出: 針が虹色に変わり続ける
+  let lights = { mode: 'idle', since: 0 }; // カジノの電球（idle 全部点灯 / spin 流れる / done 点滅）
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function resize() {
@@ -62,32 +63,41 @@ export function createWheel(root) {
 
   function draw() {
     if (!r || !size) return;
+    const skin = skinFor(r.style);
     const c = size / 2;
-    const rim = 14;
-    const rad = c - rim - 2;
+    const { rim, rad } = skin.geometry(c);
+    const now = performance.now();
+    const s = {
+      ctx, c, rad, rim, r, now, rotation, lights, pointerKick,
+      items: r.items,
+      pointerColor: rainbowPointer ? `hsl(${(now / 3) % 360}, 95%, 55%)` : '',
+    };
+    const font = skin.font ?? FONT;
+    const weight = skin.weight ?? '900';
     ctx.clearRect(0, 0, size, size);
+    skin.back(s);
 
-    ctx.beginPath();
-    ctx.arc(c, c, rad + rim, 0, TAU);
-    ctx.fillStyle = r.frame;
-    ctx.fill();
+    for (const it of r.items) {
+      const a0 = it.start * TAU + rotation;
+      const a1 = it.end * TAU + rotation;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.arc(c, c, rad, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = skin.fill(s, it);
+      ctx.fill();
+    }
+    skin.overSegments?.(s);
 
     for (const it of r.items) {
       const a0 = it.start * TAU + rotation;
       const a1 = it.end * TAU + rotation;
       const span = (it.end - it.start) * TAU;
-      ctx.beginPath();
-      ctx.moveTo(c, c);
-      ctx.arc(c, c, rad, a0, a1);
-      ctx.closePath();
-      ctx.fillStyle = it.fill;
-      ctx.fill();
-
       const mid = (a0 + a1) / 2;
       const img = images.get(it.src);
       ctx.save();
       ctx.translate(c, c);
-      ctx.fillStyle = it.ink;
+      ctx.fillStyle = skin.ink(s, it);
       if (img) {
         // 外向きが「上」になる向き。針の位置（真上）に来たとき正立する
         ctx.rotate(mid + Math.PI / 2);
@@ -97,7 +107,7 @@ export function createWheel(root) {
         if (it.label) {
           const fs = Math.max(11, Math.min(rad * 0.075, box * 0.32)) * r.fontScale;
           const y = -dist + box / 2 + fs * 0.95;
-          ctx.font = `900 ${fs}px ${FONT}`;
+          ctx.font = `${weight} ${fs}px ${font}`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(fitText(it.label, Math.max(fs * 2, span * (dist - box / 2) * 0.9)), 0, y);
@@ -108,11 +118,11 @@ export function createWheel(root) {
         const dist = rad * 0.7;
         const maxWidth = span * dist * 0.85;
         let fs = Math.max(12, Math.min(rad * 0.12, span * dist * 0.4)) * r.fontScale;
-        ctx.font = `900 ${fs}px ${FONT}`;
+        ctx.font = `${weight} ${fs}px ${font}`;
         // 横向きは幅が狭いので、長い文字はまず小さくして収める（それでも入らなければ … で切る）
         while (fs > 12 && ctx.measureText(it.label).width > maxWidth) {
           fs = Math.max(12, fs * 0.92);
-          ctx.font = `900 ${fs}px ${FONT}`;
+          ctx.font = `${weight} ${fs}px ${font}`;
         }
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -124,58 +134,30 @@ export function createWheel(root) {
         const fs = Math.max(12, Math.min(rad * 0.12, arc * 0.5)) * r.fontScale;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        ctx.font = `900 ${fs}px ${FONT}`;
+        ctx.font = `${weight} ${fs}px ${font}`;
         ctx.fillText(fitText(it.label, rad * 0.62), rad - 18, 1);
       }
       ctx.restore();
     }
 
-    // 扇の境目の線とペグ
-    for (const it of r.items) {
-      const a = it.start * TAU + rotation;
-      ctx.beginPath();
-      ctx.moveTo(c, c);
-      ctx.lineTo(c + Math.cos(a) * rad, c + Math.sin(a) * rad);
-      ctx.strokeStyle = r.frame;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(c + Math.cos(a) * (rad + rim / 2), c + Math.sin(a) * (rad + rim / 2), 3.5, 0, TAU);
-      ctx.fillStyle = PAPER();
-      ctx.fill();
-    }
-
-    // 中心
-    ctx.beginPath();
-    ctx.arc(c, c, rad * 0.13, 0, TAU);
-    ctx.fillStyle = r.frame;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(c, c, rad * 0.13 - 5, 0, TAU);
-    ctx.strokeStyle = r.pointer;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(c, c, 4, 0, TAU);
-    ctx.fillStyle = PAPER();
-    ctx.fill();
-
+    skin.dividers(s);
+    skin.hub(s);
+    skin.front?.(s);
     // 針（上）。ペグに当たると少しはじかれる
-    ctx.save();
-    ctx.translate(c, 6);
-    ctx.rotate(pointerKick);
-    ctx.beginPath();
-    ctx.moveTo(-15, 0);
-    ctx.lineTo(15, 0);
-    ctx.lineTo(0, 38);
-    ctx.closePath();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = r.frame;
-    ctx.stroke();
-    ctx.fillStyle = rainbowPointer ? `hsl(${(performance.now() / 3) % 360} 95% 55%)` : r.pointer;
-    ctx.fill();
-    ctx.restore();
+    skin.pointer(s);
+  }
+
+  // 光り物のあるスキン（カジノ）: 止まったあと少しのあいだ電球を点滅させてから、静かな状態に戻す
+  function celebrate() {
+    if (!skinFor(r?.style).lights || reduced) return;
+    lights = { mode: 'done', since: performance.now() };
+    const loop = (now) => {
+      if (lights.mode !== 'done') return;
+      if (now - lights.since > 1600) lights = { mode: 'idle', since: now };
+      draw();
+      if (lights.mode === 'done') requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
   }
 
   const indexAtPointer = () => {
@@ -195,7 +177,8 @@ export function createWheel(root) {
       for (const it of r.items) {
         if (it.src) loadImage(it.src).then((img) => img && (images.set(it.src, img), draw()));
       }
-      document.fonts.load(`900 24px ${FONT}`, r.items.map((it) => it.label).join('')).then(draw, draw);
+      const skin = skinFor(r.style);
+      document.fonts.load(`${skin.weight ?? '900'} 24px ${skin.font ?? FONT}`, `${r.items.map((it) => it.label).join('')}柔`).then(draw, draw);
       resize();
     },
     hide() {
@@ -217,6 +200,7 @@ export function createWheel(root) {
       const creepMs = fx.chance && !reduced ? CHANCE_MS : 0;
       const creep = creepMs ? CREEP * (winner.end - winner.start) * TAU : 0;
       rainbowPointer = fx.kakutei === 'pointer';
+      lights = { mode: 'spin', since: performance.now() };
       let last = indexAtPointer();
       await new Promise((resolve) => {
         const t0 = performance.now();
@@ -244,6 +228,7 @@ export function createWheel(root) {
       rotation = norm(rotation);
       pointerKick = 0;
       root.classList.remove('chance');
+      celebrate();
       draw();
     },
   };

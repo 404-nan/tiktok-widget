@@ -99,6 +99,7 @@ export class SlotEngine {
     this.payout = null;
     this.trigger = null;
     this.timer = null;
+    this.resultTimer = null;
   }
 
   setBus(bus) { this.bus = bus || null; }
@@ -157,7 +158,9 @@ export class SlotEngine {
 
   close() {
     clearTimeout(this.timer);
+    clearTimeout(this.resultTimer);
     this.timer = null;
+    this.resultTimer = null;
   }
 
   #begin(trigger) {
@@ -183,9 +186,13 @@ export class SlotEngine {
     };
     this.#emit('start');
     this.bus?.emit('slot.result', { result: this.result, payout: this.payout, trigger: this.trigger });
-    const wait = slotTimeline(this.result, this.config.reelStopMs).holdUntil;
-    this.timer = setTimeout(() => this.#finish(), wait);
+    const { resultAt, holdUntil } = slotTimeline(this.result, this.config.reelStopMs);
+    this.timer = setTimeout(() => this.#finish(), holdUntil);
     if (typeof this.timer.unref === 'function') this.timer.unref();
+    // 結果が画面に出るころに知らせる（カットインの大当たり演出用）
+    const shown = { type: 'slotResult', seq: this.seq, result: this.result, payout: { id: this.payout.id, text: this.payout.text } };
+    this.resultTimer = setTimeout(() => this.hub.broadcast(shown), resultAt);
+    if (typeof this.resultTimer.unref === 'function') this.resultTimer.unref();
     return { ok: true, queued: false, phase: this.phase, seq: this.seq, result: this.result };
   }
 

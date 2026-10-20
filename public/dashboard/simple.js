@@ -170,7 +170,7 @@ export const SIMPLE = {
     groups: [
       { title: 'いつ出す', presets: [CUTIN_SCALE], fields: ['gifts'] },
       { title: '文字と音', fields: ['textWeight', 'redText', 'goldText', 'rainbowText', 'sound'] },
-      { title: 'ルーレットの当たり', fields: ['rouletteWin', 'rouletteWinText'] },
+      { title: 'ルーレット・スロットの当たり', fields: ['rouletteWin', 'rouletteWinText', 'slotWin'] },
     ],
   },
   imageCutins: {
@@ -223,6 +223,7 @@ export const SIMPLE = {
   slots: {
     groups: [
       { title: 'いつ回す', fields: ['trigger'] },
+      { title: '見た目', fields: ['look'] },
       { title: '絵柄と役', fields: ['symbols', 'payouts'] },
       { title: '演出の割合', fields: ['revivalRate', 'nearMissRate', 'reelStopMs'] },
     ],
