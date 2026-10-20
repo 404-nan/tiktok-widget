@@ -142,3 +142,8 @@ canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity:
 .jackpot .flash { animation: flash .22s ease-out 5 alternate; }
 .jackpot .word { animation: pump .36s ease-in-out .36s infinite alternate; }
 @keyframes pump { to { transform: translate(-50%, -50%) skewX(-10deg) scale(1.08); } }
+
+/* ギリギリ演出の大写し: ルーレットの針のまわりを画面いっぱいに */
+.closeup { position: absolute; inset: 0; display: grid; justify-items: center; align-content: start; background: rgba(0, 0, 0, .55); opacity: 0; transition: opacity .25s linear; overflow: hidden; }
+.closeup.on { opacity: 1; }
+.closeup canvas { margin-top: 26vh; transform: scale(3); transform-origin: 50% 0; filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .5)); }

@@ -1,4 +1,6 @@
 import { brushImage as bandImage } from './brush.js';
+import { createWheel, creepRotation } from './roulette-wheel.js';
+import { prepareRoulette, CHANCE_MS } from './roulette.js';
 import { setupWidget, mediaUrl, loadConfig, list, connect, giftNode, avatarNode, giftNamed, giftLabel, fmt, createQueue, sleep } from './overlay.js';
 
 const STAGE = `
@@ -15,6 +17,7 @@ const STAGE = `
   </div>
   <div class="flash"></div>
   <div class="freeze" id="freeze"><span>・・・</span></div>
+  <div class="closeup" id="closeup"><canvas></canvas></div>
 </div>
 `;
 
@@ -335,11 +338,14 @@ export async function startCutin(section) {
   }
 
   // --- 1回分 ---
-  // win はルーレットの当たり（サーバーの spin）。そのときは虹の帯・フリーズ・ファンファーレで出す
-  async function play({ e, win }) {
-    const tier = win ? 'rainbow' : tierFor(e);
+  // job: { e } はギフトなど。ルーレットの演出は tier・text・tag（テロップ）・hold・freeze・jackpot（大当たり）を決めて渡す。
+  // deadline を過ぎたもの（前のカットインが長引いてルーレットに間に合わない）は出さない
+  async function play(job) {
+    if (job.deadline && performance.now() > job.deadline) return;
+    const { e } = job;
+    const tier = job.tier ?? tierFor(e);
     const t = TIERS[tier];
-    const text = win ? p.rouletteWinText : TEXT[tier];
+    const text = job.text ?? TEXT[tier];
     const W = innerWidth, H = innerHeight;
     const unit = Math.min(W, H);
     const bw = Math.round(Math.max(W, H) * 1.5);
@@ -432,9 +438,9 @@ export async function startCutin(section) {
     const name = document.createElement('span');
     name.textContent = e.user?.name ?? '';
     tag.append(name);
-    if (win) {
+    if (job.tag != null) {
       const what = document.createElement('span');
-      what.textContent = win.label;
+      what.textContent = job.tag;
       tag.append(what);
     } else if (e.kind === 'gift') {
       const what = document.createElement('span');
@@ -451,7 +457,7 @@ export async function startCutin(section) {
     await Promise.all(wait.map((img) => img.decode().catch(() => {})));
 
     // 虹: フリーズ（暗転して無音）→ キュイン
-    if (tier === 'rainbow' && (p.freeze || win)) {
+    if (job.freeze ?? (tier === 'rainbow' && p.freeze)) {
       $('freeze').classList.add('on');
       await sleep(1100);
       $('freeze').classList.remove('on');
@@ -461,14 +467,13 @@ export async function startCutin(section) {
     const rect = $('rig').getBoundingClientRect();
     startLines(rect.left, rect.top, t.accent);
     stage.classList.add('play');
-    if (win) stage.classList.add('jackpot');
+    if (job.jackpot) stage.classList.add('jackpot');
     sfx('fween');
     await sleep(200);
     sfx('slam');
-    if (win) sfx('fanfare');
+    if (job.jackpot) sfx('fanfare');
     await sleep(140);
-    // 当たりは長めに揺らして余韻を残す
-    const hold = win ? p.hold * 2 : p.hold;
+    const hold = job.hold ?? p.hold;
     sfx('gagaga', hold);
     await shake(hold);
     sfx('out');
@@ -479,14 +484,72 @@ export async function startCutin(section) {
     await sleep(120);
   }
 
+  // --- ルーレットの演出（通常カットインだけ。画像付きカットインでは出さない） ---
+  const { config: fullConfig, defaults } = await loadConfig();
+  const wheel = createWheel($('closeup'));
+
+  // ギリギリ演出の大写し: 針のまわりを画面いっぱいに映し、ルーレットと同じ動きで境目へにじり寄る（丸型だけ）
+  async function closeup(spin) {
+    const entry = fullConfig?.roulettes?.[spin.id];
+    if (!entry || (entry.style ?? 'wheel') !== 'wheel') return;
+    const r = prepareRoulette(spin.id, entry, defaults?.roulettes);
+    const winner = r.items[spin.index];
+    if (!winner) return;
+    wheel.show(r);
+    $('closeup').classList.add('on');
+    const t0 = performance.now();
+    await new Promise((resolve) => {
+      const frame = (now) => {
+        const t = Math.min(1, (now - t0) / CHANCE_MS);
+        wheel.setRotation(creepRotation(winner, spin.land, t));
+        if (t < 1) requestAnimationFrame(frame);
+        else resolve();
+      };
+      requestAnimationFrame(frame);
+    });
+    await sleep(700); // 止まったところを少し見せる
+    $('closeup').classList.remove('on');
+  }
+
+  // 確定演出の暗転: 画面が止まって無音 → キュイン
+  async function blackout() {
+    $('freeze').classList.add('on');
+    await sleep(1100);
+    $('freeze').classList.remove('on');
+    sfx('kyuin');
+  }
+
+  // ルーレットが回り始めたときに届く。ルーレットの画面は順番待ちをするので、サーバーの時刻（revealAt）から逆算する
+  function onSpin(spin) {
+    const toReveal = spin.revealAt - spin.at;
+    const toStart = Math.max(0, toReveal - (spin.spinMs ?? 0));
+    const later = (ms, fn) => setTimeout(fn, Math.max(0, ms));
+    const e = spin.trigger ?? {};
+    if (spin.kakutei === 'freeze') later(toStart, blackout);
+    if (spin.kakutei === 'rainbow') {
+      later(toStart, () => queue.push({ e, tier: 'rainbow', text: p.rainbowText, tag: spin.name, hold: 0.8, freeze: false, deadline: performance.now() + 1500 }));
+    }
+    if (spin.chance) {
+      const creepAt = toReveal - CHANCE_MS;
+      // 帯の出入りでおよそ1.2秒。にじり寄りが始まるころに抜けるように出す
+      later(creepAt - 1250, () => queue.push({ e, tier: spin.chance, text: TEXT[spin.chance], tag: spin.name, hold: 0.5, freeze: false, deadline: performance.now() + 400 }));
+      later(creepAt, () => closeup(spin));
+    }
+  }
+
   const queue = createQueue(play, { max: 20 });
   connect({
     event(e) {
       if (shouldShow(e)) queue.push({ e });
     },
-    // ルーレットで当たりの項目が出た（結果が画面に出るタイミングで届く）。画像付きカットインでは出さない
+    roulette(m) {
+      if (!isImage && p.rouletteWin && m.spin) onSpin(m.spin);
+    },
+    // ルーレットで当たりの項目が出た（結果が画面に出るタイミングで届く）: 虹の帯・フリーズ・ファンファーレ
     rouletteResult(m) {
-      if (!isImage && p.rouletteWin && m.spin?.win) queue.push({ e: m.spin.trigger ?? {}, win: m.spin });
+      const spin = m.spin;
+      if (isImage || !p.rouletteWin || !spin?.win) return;
+      queue.push({ e: spin.trigger ?? {}, tier: 'rainbow', text: p.rouletteWinText, tag: spin.label, hold: p.hold * 2, freeze: true, jackpot: true });
     },
   });
 }

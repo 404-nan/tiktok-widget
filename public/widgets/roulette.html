@@ -23,7 +23,11 @@
   @keyframes wipe-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 
   /* 丸型 */
-  .wheel-view canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); }
+  .wheel-view canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); transition: transform .5s cubic-bezier(.2, .9, .3, 1); transform-origin: 50% 0; }
+  /* ギリギリ演出: 針のまわりを大きく写す */
+  .wheel-view.chance canvas { transform: scale(1.7); }
+  .strip-view .window { transition: transform .5s cubic-bezier(.2, .9, .3, 1); }
+  .strip-view.chance .window { transform: scale(1.3); }
   .style-wheel .result { top: 58%; }
 
   /* 横スライド型 */
@@ -80,6 +84,9 @@
   .marker i:last-child { bottom: -8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
   .marker.kick i:first-child { transform: translateX(-5px) rotate(-8deg); }
   .marker.kick i:last-child { transform: translateX(-5px) rotate(8deg); }
+  /* 確定演出: 針が虹色に変わり続ける */
+  .marker.rainbow i { background: #ff2d55; animation: pointer-hue .6s linear infinite; }
+  @keyframes pointer-hue { to { filter: hue-rotate(360deg); } }
   .style-strip .queue { top: -12px; right: 0; }
   .style-strip .result { top: calc(var(--window-h, 150px) + 14px); }
 

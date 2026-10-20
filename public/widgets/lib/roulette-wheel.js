@@ -3,13 +3,27 @@
 // 画像のある項目は画像と文字を「針の位置に来たとき正立する」向きで置く。
 
 import { loadImage, resolveColor } from './overlay.js';
-import { tick } from './roulette.js';
+import { tick, CHANCE_MS } from './roulette.js';
 
 const TAU = Math.PI * 2;
 const POINTER = -Math.PI / 2;
 const FONT = '"Zen Kaku Gothic New", "Hiragino Sans", sans-serif';
 const norm = (a) => ((a % TAU) + TAU) % TAU;
 const PAPER = () => resolveColor('paper');
+const CREEP = 0.6; // ギリギリ演出で、最後ににじり寄る長さ（扇の幅に対する割合）
+const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
+
+/** 当たりの扇の land（0〜1）の位置が針に来る回転 */
+export function landRotation(winner, land) {
+  return norm(POINTER - (winner.start + land * (winner.end - winner.start)) * TAU);
+}
+
+/** ギリギリ演出の最後（t: 0〜1）の回転。ルーレットとカットインの大写しで同じ動きにする */
+export function creepRotation(winner, land, t) {
+  const creep = CREEP * (winner.end - winner.start) * TAU;
+  return landRotation(winner, land) - creep * (1 - easeOutQuad(t));
+}
 
 export function createWheel(root) {
   const canvas = root.querySelector('canvas');
@@ -19,6 +33,7 @@ export function createWheel(root) {
   let size = 0;
   let rotation = 0;
   let pointerKick = 0;
+  let rainbowPointer = false; // 確定演出: 針が虹色に変わり続ける
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function resize() {
@@ -143,7 +158,7 @@ export function createWheel(root) {
     ctx.lineWidth = 4;
     ctx.strokeStyle = r.frame;
     ctx.stroke();
-    ctx.fillStyle = r.pointer;
+    ctx.fillStyle = rainbowPointer ? `hsl(${(performance.now() / 3) % 360} 95% 55%)` : r.pointer;
     ctx.fill();
     ctx.restore();
   }
@@ -171,19 +186,32 @@ export function createWheel(root) {
     hide() {
       root.hidden = true;
     },
-    async spin(_r, winner) {
-      const land = (winner.start + (0.15 + Math.random() * 0.7) * (winner.end - winner.start)) * TAU;
+    /** カットインの大写し用: 回転を外から決めて描く */
+    setRotation(a) {
+      rotation = a;
+      draw();
+    },
+    // fx はサーバーの spin（land: 止まる位置、chance: ギリギリ演出、kakutei: 確定演出）
+    async spin(_r, winner, fx = {}) {
+      const land = fx.land ?? 0.15 + Math.random() * 0.7;
       const turns = reduced ? 0 : 5 + Math.floor(Math.random() * 3);
       const from = rotation;
-      const to = from + norm(POINTER - land - from) + turns * TAU;
+      const to = from + norm(landRotation(winner, land) - from) + turns * TAU;
       const duration = reduced ? 300 : r.duration * 1000;
+      // ギリギリ演出: いったん止まりかけてから、CHANCE_MS かけて境目へにじり寄る
+      const creepMs = fx.chance && !reduced ? CHANCE_MS : 0;
+      const creep = creepMs ? CREEP * (winner.end - winner.start) * TAU : 0;
+      rainbowPointer = fx.kakutei === 'pointer';
       let last = indexAtPointer();
       await new Promise((resolve) => {
         const t0 = performance.now();
         let prev = t0;
         const frame = (now) => {
-          const t = Math.min(1, (now - t0) / duration);
-          rotation = from + (to - from) * (1 - Math.pow(1 - t, 4));
+          const elapsed = now - t0;
+          if (elapsed < duration) rotation = from + (to - creep - from) * easeOutQuart(elapsed / duration);
+          else rotation = to - creep * (1 - easeOutQuad(Math.min(1, (elapsed - duration) / (creepMs || 1))));
+          root.classList.toggle('chance', creepMs > 0 && elapsed >= duration);
+          const t = Math.min(1, elapsed / (duration + creepMs));
           const idx = indexAtPointer();
           if (idx !== last) {
             pointerKick = -0.32;
@@ -200,6 +228,7 @@ export function createWheel(root) {
       });
       rotation = norm(rotation);
       pointerKick = 0;
+      root.classList.remove('chance');
       draw();
     },
   };

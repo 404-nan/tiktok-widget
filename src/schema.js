@@ -337,6 +337,7 @@ export const SCHEMA = {
       fontScale: num(1, '項目の文字の大きさの倍率', { min: 0.5, max: 2 }),
       scale: num(1, 'ルーレット全体の大きさの倍率（1 がふつう）', { min: 0.5, max: 2 }),
       rushOdds: bool(false, 'RUSH中は確率を変える'),
+      chance: bool(true, 'ギリギリ演出: 当たりの両隣や当たりが出たとき、最後にゆっくり境目へにじり寄る（カットインのチャンス演出つき）。当たりのときは確定演出が出ることもある。当たりの項目（win: true）があるときだけ'),
       sameSize: bool(false, '丸型の扇を全部同じ大きさにする（当たりやすさは weight のまま）'),
       items: {
         type: 'items',
@@ -392,7 +393,7 @@ SCHEMA.cutins = {
     ...cutinFields(),
     textWeight: oneOf(['normal', 'bold'], 'normal', '文字だけの太さ。normal 普通 / bold 太字'),
     yieldToImage: bool(false, '画像付きカットインが出るギフトのときは、こちらを出さない（両方を OBS に入れて重ならないように）'),
-    rouletteWin: bool(true, 'ルーレットで当たり（win: true の項目）が出たら、専用の演出を出す'),
+    rouletteWin: bool(true, 'ルーレットの演出を出す（当たりの「大当たり」、ギリギリのときの「チャンス」と大写し、確定演出）'),
     rouletteWinText: str('大当たり', 'ルーレットの当たりで出す文字'),
   },
 };

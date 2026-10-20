@@ -20,6 +20,14 @@ const FALLBACK = {
  * 設定からルーレットの一覧を作る。
  * ?ids=a,b で絞り込み。?style= などの URL パラメータは全部のルーレットに効く。
  */
+/** ギリギリ演出で、最後にゆっくり境目へにじり寄る時間（サーバーの CHANCE_MS と同じ） */
+export const CHANCE_MS = 3000;
+
+/** 設定の roulettes.<id> を、描画に使う形にする（カットインの大写しでも使う） */
+export function prepareRoulette(id, entry, defaults = {}) {
+  return prepare(id, params({ ...FALLBACK, ...defaults, ...entry }));
+}
+
 export async function loadRoulettes() {
   const { config, defaults } = await loadConfig();
   applyTheme(config?.theme);
@@ -178,7 +186,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     el.replaceChildren();
   }
 
-  async function run({ r, index, trigger }) {
+  async function run({ r, index, trigger, spin }) {
     renderQueue();
     setSpinBy(trigger); // 回り始めたときから、誰のギフトかを出す
     await enter();
@@ -187,7 +195,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
       await sleep(450); // 切り替わったことが見えるよう少し待つ（サーバーの SWITCH_MS と同じ）
     }
     const winner = r.items[index] ?? pickWeighted(r.items);
-    await viewOf(r).spin(r, winner);
+    await viewOf(r).spin(r, winner, spin);
 
     hideSpinBy();
     $('resultName').textContent = winner.label;
@@ -229,7 +237,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     roulette({ spin }) {
       const r = roulettes.find((x) => x.id === spin.id);
       if (!r) return; // ?ids= でこの画面に出さないルーレット
-      queue.push({ r, index: spin.index, trigger: spin.trigger });
+      queue.push({ r, index: spin.index, trigger: spin.trigger, spin });
       renderQueue();
     },
     control(msg) {
