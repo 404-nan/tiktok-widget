@@ -732,7 +732,11 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
   for (const section of SECTIONS) {
     const def = SCHEMA[section];
     if (def.kind !== 'map') {
-      if (def.page && def.size) out.push({ section, id: null, title: def.title, url: `${base}/widgets/${def.page}.html`, size: def.size(config[section] ?? {}) });
+      if (!def.page || !def.size) continue;
+      out.push({ section, id: null, title: def.title, url: `${base}/widgets/${def.page}.html`, size: def.size(config[section] ?? {}) });
+      for (const x of def.extraPages ?? []) {
+        out.push({ section, id: null, extra: true, title: x.title, url: `${base}/widgets/${x.page}.html`, size: x.size(config[section] ?? {}) });
+      }
       continue;
     }
     const entries = Object.entries(config[section] ?? {});

@@ -86,6 +86,8 @@ test('ウィジェットの URL と推奨サイズ', () => {
   assert.deepEqual(reward.size, [820, 330]);
   const elixir = list.find((w) => w.section === 'jars' && w.id === 'elixir');
   assert.equal(elixir.url, 'http://x/widgets/gift-jar.html?id=elixir');
+  const omikuji = list.find((w) => w.section === 'gacha' && w.extra);
+  assert.equal(omikuji.url, 'http://x/widgets/omikuji.html');
 });
 
 test('置き場所は範囲内の初期値で、重ねない', () => {

@@ -119,5 +119,6 @@ test('ページから、どのウィジェットかがわかる', () => {
   assert.equal(featureOfPage('wins-fx.html'), 'winsFx');
   assert.equal(featureOfPage('wins.html'), 'wins');
   assert.equal(featureOfPage('roulette-strip.html'), 'roulettes');
+  assert.equal(featureOfPage('omikuji.html'), 'gacha');
   assert.equal(featureOfPage('locked.html'), null);
 });

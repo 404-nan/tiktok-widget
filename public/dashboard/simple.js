@@ -216,7 +216,44 @@ export const SIMPLE = {
     groups: [
       { title: '使う', fields: ['enabled'] },
       { title: 'いつ回す', fields: ['minCoins', 'gifts'] },
-      { title: 'レアリティと天井', fields: ['tiers', 'pity'] },
+      {
+        title: 'レアリティと天井',
+        presets: [
+          {
+            title: '中身',
+            confirm: '今のレアリティを、この型に入れ替えますか？',
+            options: [
+              {
+                label: 'ガチャ',
+                value: {
+                  pity: 0,
+                  tiers: [
+                    { id: 'common', label: 'ふつう', weight: 70, pity: false },
+                    { id: 'rare', label: 'レア', weight: 25, pity: false },
+                    { id: 'legend', label: '激アツ', weight: 5, pity: true },
+                  ],
+                },
+              },
+              {
+                // 画面は /widgets/omikuji.html。名前に「大吉」「凶」があると色が変わる
+                label: 'おみくじ',
+                value: {
+                  pity: 0,
+                  tiers: [
+                    { id: 'daikichi', label: '大吉', weight: 10, pity: false },
+                    { id: 'chukichi', label: '中吉', weight: 15, pity: false },
+                    { id: 'shokichi', label: '小吉', weight: 20, pity: false },
+                    { id: 'kichi', label: '吉', weight: 25, pity: false },
+                    { id: 'suekichi', label: '末吉', weight: 20, pity: false },
+                    { id: 'kyo', label: '凶', weight: 10, pity: false },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+        fields: ['tiers', 'pity'],
+      },
     ],
   },
   slots: {

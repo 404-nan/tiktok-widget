@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>おみくじ</title>
+<!-- おみくじ。ガチャと同じ抽選（/api/gacha）を、みくじ筒と縦書きのみくじ紙で見せる。結果の名前に「大吉」「凶」があれば色を変える -->
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  body { display: grid; place-items: center; padding: 16px; }
+  .idle { display: none; margin: 0; font-weight: 900; color: var(--paper); }
+  body.preview:not(.on) .idle { display: block; }
+  .stage { display: none; position: relative; width: 300px; height: 460px; }
+  body.on .stage { display: block; }
+
+  /* みくじ筒（六角の箱）。回転中だけ出して振る */
+  .tube {
+    position: absolute; left: 50%; top: 40px; width: 150px; height: 300px; margin-left: -75px;
+    display: none; place-items: center;
+    background: var(--ink-2); border-radius: var(--r);
+    box-shadow: inset 0 10px 0 var(--signal), inset 0 -10px 0 var(--signal), var(--lift);
+    transform-origin: 50% 90%;
+  }
+  .tube span {
+    writing-mode: vertical-rl; font-family: "Dela Gothic One", var(--font);
+    font-size: 48px; letter-spacing: .1em; color: var(--paper);
+  }
+  .stage[data-phase="rolling"] .tube { display: grid; animation: shake .5s ease-in-out infinite; }
+
+  /* みくじ紙。結果から出る */
+  .slip {
+    position: absolute; left: 50%; top: 0; width: 200px; height: 440px; margin-left: -100px;
+    display: none; grid-template-rows: auto 1fr auto; justify-items: center;
+    padding: 18px 0 20px;
+    background: var(--paper); color: var(--ink);
+    border-radius: 2px; box-shadow: inset 0 0 0 6px var(--paper), inset 0 0 0 8px var(--signal), var(--lift);
+    --mark: var(--signal);
+  }
+  .stage[data-phase="reveal"] .slip, .stage[data-phase="done"] .slip { display: grid; }
+  .stage[data-phase="reveal"] .slip { animation: unroll var(--reveal, 2.5s) var(--ease-out) both; }
+  .stage[data-phase="done"] .slip { animation: fadeout var(--done, 1.2s) linear both; }
+  .head { margin: 0; font-size: 16px; font-weight: 900; letter-spacing: .3em; color: var(--mark); }
+  .result {
+    margin: 0; align-self: center;
+    writing-mode: vertical-rl; font-family: "Dela Gothic One", var(--font);
+    font-size: 96px; line-height: 1; color: var(--ink);
+  }
+  .stage[data-phase="reveal"] .result { animation: slam .6s var(--ease-out) .25s both; }
+  .who { margin: 0; max-width: 176px; font-size: 18px; font-weight: 900; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stage[data-luck="great"] .slip { background: var(--gold); box-shadow: inset 0 0 0 6px var(--gold), inset 0 0 0 8px var(--ink), var(--lift); --mark: var(--ink); }
+  .stage[data-luck="bad"] .slip { background: var(--ink-3); color: var(--paper); box-shadow: inset 0 0 0 6px var(--ink-3), inset 0 0 0 8px var(--paper-dim), var(--lift); --mark: var(--paper-dim); }
+  .stage[data-luck="bad"] .result { color: var(--paper); }
+
+  @keyframes shake {
+    0%, 100% { transform: rotate(-14deg); }
+    50% { transform: rotate(14deg); }
+  }
+  @keyframes unroll {
+    0% { clip-path: inset(0 0 100% 0); }
+    30% { clip-path: inset(0 0 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
+  }
+  @keyframes slam {
+    0% { transform: scale(1.6); opacity: 0; }
+    100% { transform: none; opacity: 1; }
+  }
+  @keyframes fadeout {
+    0% { opacity: 1; }
+    65% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<p class="idle">おみくじ・待機</p>
+<div class="stage" id="stage" data-phase="idle">
+  <div class="tube" aria-hidden="true"><span>おみくじ</span></div>
+  <div class="slip">
+    <p class="head">運勢</p>
+    <p class="result" id="result"></p>
+    <p class="who" id="who"></p>
+  </div>
+</div>
+<script>
+(function () {
+  var stageEl = document.getElementById('stage');
+  var resultEl = document.getElementById('result');
+  var whoEl = document.getElementById('who');
+  var base = '';
+  var pathMatch = location.pathname.match(/^\/t\/[^/]+/);
+  if (pathMatch) base = pathMatch[0];
+  if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
+  var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
+
+  function seconds(n) {
+    var x = Number(n);
+    if (!isFinite(x) || x < 0) x = 0;
+    return (x / 1000) + 's';
+  }
+
+  // 名前で見分ける（レアリティの id は配信者が自由に付けるので使わない）
+  function luckOf(label) {
+    if (label.indexOf('大吉') >= 0) return 'great';
+    if (label.indexOf('凶') >= 0) return 'bad';
+    return '';
+  }
+
+  function show(data) {
+    if (!data) return;
+    var phase = data.phase || 'idle';
+    var tier = data.tier;
+    var shown = (phase === 'reveal' || phase === 'done') && tier;
+    var label = shown ? String(tier.label || tier.id || '') : '';
+    var user = data.trigger && data.trigger.user;
+    resultEl.textContent = label;
+    whoEl.textContent = user && user.name ? user.name + ' さん' : '';
+    stageEl.setAttribute('data-phase', phase);
+    stageEl.setAttribute('data-luck', luckOf(label));
+    var d = data.durations || {};
+    stageEl.style.setProperty('--reveal', seconds(d.revealMs));
+    stageEl.style.setProperty('--done', seconds(d.doneMs));
+    if (phase === 'idle') document.body.classList.remove('on');
+    else document.body.classList.add('on');
+  }
+
+  function connect() {
+    var ws = new WebSocket(wsProto + '//' + location.host + base + '/ws');
+    ws.onmessage = function (ev) {
+      var data;
+      try { data = JSON.parse(ev.data); } catch (e) { return; }
+      if (data && data.type === 'gacha') show(data);
+    };
+    ws.onclose = function () { setTimeout(connect, 1000); };
+  }
+
+  var req = new XMLHttpRequest();
+  req.open('GET', base + '/api/gacha', true);
+  req.onreadystatechange = function () {
+    if (req.readyState !== 4 || req.status !== 200) return;
+    try { show(JSON.parse(req.responseText)); } catch (e) {}
+  };
+  req.send(null);
+  connect();
+})();
+</script>
+</body>
+</html>

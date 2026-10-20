@@ -53,6 +53,7 @@ export const FEATURES = Object.fromEntries(
     const def = SCHEMA[key];
     const pages = def.page ? [`${def.page}.html`] : [];
     if (key === 'roulettes') pages.push('roulette-strip.html');
+    if (key === 'gacha') pages.push('omikuji.html');
     return [key, { label: def.title, pages, premium: PREMIUM_KEYS.includes(key) }];
   }),
 );
