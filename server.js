@@ -20,6 +20,7 @@ import { createPinLogin, readCookie, COOKIE_DAYS } from './src/pinlogin.js';
 import { AiTokenStore } from './src/ai-tokens.js';
 import { createAiControl } from './src/ai-api.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
+import { healthz } from './src/healthz.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -67,7 +68,7 @@ const app = express();
 app.set('trust proxy', true);
 app.use(express.json());
 // 動いているかの確認（Cloudflare が定期的に呼ぶ）
-app.get('/healthz', (_req, res) => res.json({ ok: true }));
+app.get('/healthz', healthz({ local, tenants }));
 
 // ライブラリ・フォント・アイコンは node_modules から直接配る（OBS がオフラインでも表示できる）
 app.get('/vendor/matter.min.js', (_req, res) => {
