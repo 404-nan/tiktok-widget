@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rouletteFor, pickWeighted } from '../src/roulette.js';
+import { rouletteFor, pickWeighted, RouletteEngine } from '../src/roulette.js';
+import { EventEmitter } from 'node:events';
 import { giftUserName } from '../public/widgets/lib/roulette-gift.js';
 
 const gift = (name, totalDiamonds) => ({ kind: 'gift', gift: { name, id: '1' }, totalDiamonds });
@@ -41,4 +42,19 @@ test('ギフトした人の名前があるときだけ出す（手動は出さ�
   const name = giftUserName({ user: { name: 'たろう' } });
   assert.equal(name ? `${name}さんのギフトで回転中` : '', 'たろうさんのギフトで回転中');
   assert.equal(name ? `${name}さんのギフト` : '', 'たろうさんのギフト');
+});
+
+test('連打 ×5 は既定で5回まわす（perCount: false なら1回）', () => {
+  const spinsFor = (perCount) => {
+    const hub = new EventEmitter();
+    let spins = 0;
+    hub.broadcast = (m) => { if (m.type === 'roulette') spins++; };
+    const engine = new RouletteEngine(hub);
+    engine.setConfig({ roulettes: { r: { gifts: ['Rose'], duration: 1, hold: 1, items: [{ label: 'a', weight: 1 }], ...(perCount == null ? {} : { perCount }) } } });
+    hub.emit('event', { kind: 'gift', gift: { name: 'Rose', id: '1', count: 5 }, totalDiamonds: 5 });
+    engine.clear();
+    return spins;
+  };
+  assert.equal(spinsFor(undefined), 5);
+  assert.equal(spinsFor(false), 1);
 });

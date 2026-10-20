@@ -103,7 +103,8 @@ export class RouletteEngine {
   onEvent(e, opts = {}) {
     const r = rouletteFor(this.roulettes, e);
     if (!r) return;
-    const times = r.perCount && e.kind === 'gift' ? Math.min(20, e.gift.count) : 1;
+    // 連打 ×N は1件で届くので、既定で個数分まわす（perCount: false で1回だけ）
+    const times = r.perCount !== false && e.kind === 'gift' ? Math.min(20, e.gift.count) : 1;
     for (let i = 0; i < times; i++) this.spin(r, e, opts);
   }
 

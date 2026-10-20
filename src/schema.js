@@ -325,7 +325,7 @@ export const SCHEMA = {
       minCoins: num(0, '合計コインがこれ以上のギフトでも回す（0 で無効）', { min: 0 }),
       maxCoins: num(0, 'minCoins で回すときの上限コイン（0 で上限なし）', { min: 0 }),
       events: list([], 'フォロー・シェアでも回す', ['follow', 'share']),
-      perCount: bool(false, '×5 なら 5 回まわす（最大 20 回）'),
+      perCount: bool(true, '×5 なら 5 回まわす（最大 20 回）。false で連打でも1回だけ'),
       duration: num(6, '回る秒数', { min: 1, max: 30 }),
       hold: num(4, '結果を出しておく秒数', { min: 1, max: 30 }),
       hint: str('', '下に出す案内文（空なら条件から自動）'),
