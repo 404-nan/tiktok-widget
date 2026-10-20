@@ -102,6 +102,21 @@ export function createWheel(root) {
           ctx.textBaseline = 'middle';
           ctx.fillText(fitText(it.label, Math.max(fs * 2, span * (dist - box / 2) * 0.9)), 0, y);
         }
+      } else if (r.labelDirection === 'around') {
+        // 文字は円周にそって横向き。針の位置（真上）に来たとき正立する
+        ctx.rotate(mid + Math.PI / 2);
+        const dist = rad * 0.7;
+        const maxWidth = span * dist * 0.85;
+        let fs = Math.max(12, Math.min(rad * 0.12, span * dist * 0.4)) * r.fontScale;
+        ctx.font = `900 ${fs}px ${FONT}`;
+        // 横向きは幅が狭いので、長い文字はまず小さくして収める（それでも入らなければ … で切る）
+        while (fs > 12 && ctx.measureText(it.label).width > maxWidth) {
+          fs = Math.max(12, fs * 0.92);
+          ctx.font = `900 ${fs}px ${FONT}`;
+        }
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(fitText(it.label, maxWidth), 0, -dist);
       } else {
         // 文字は扇の中心線に沿って、外周側に右寄せ
         ctx.rotate(mid);

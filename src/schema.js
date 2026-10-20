@@ -334,6 +334,7 @@ export const SCHEMA = {
       palette: list(['accent', 'paper', 'gold', 'ink-2'], '色を指定していない項目に順番に使う色'),
       pointerColor: color('accent', '針の色'),
       frameColor: color('ink', '縁・枠の色'),
+      labelDirection: oneOf(['radial', 'around'], 'radial', '丸型の文字の向き。radial 中心から外へ向かう線にそろえる / around 円周にそって横向き（針の位置で正立する）。画像のある項目はいつも横向き'),
       fontScale: num(1, '項目の文字の大きさの倍率', { min: 0.5, max: 2 }),
       scale: num(1, 'ルーレット全体の大きさの倍率（1 がふつう）', { min: 0.5, max: 2 }),
       rushOdds: bool(false, 'RUSH中は確率を変える'),

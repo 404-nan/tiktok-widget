@@ -18,7 +18,7 @@ const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', '
 const ENUM_LABELS = {
   dark: 'ダーク', light: 'ライト', top: '上', center: '中央', bottom: '下', left: '左', right: '右',
   jar: '保存瓶', heart: 'ハート', potion: 'エリクサーのフラスコ', auto: '自動', on: '表示', off: '表示しない',
-  wheel: '丸（ホイール）', strip: '横スライド', row: '横', column: '縦',
+  wheel: '丸（ホイール）', strip: '横スライド', radial: '中心から外へ', around: '円周にそって横向き', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
@@ -69,7 +69,7 @@ const LABELS = {
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
   'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
-  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', chance: 'ギリギリ演出', items: '項目',
+  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', labelDirection: '文字の向き', chance: 'ギリギリ演出', items: '項目',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
@@ -85,7 +85,7 @@ const LABELS = {
 const BASIC = {
   alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
   chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
-  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'sameSize', 'chance', 'items'],
+  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'sameSize', 'chance', 'labelDirection', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],

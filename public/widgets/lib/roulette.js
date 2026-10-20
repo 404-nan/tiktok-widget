@@ -11,7 +11,7 @@ export { giftUserName };
 
 // config.yaml がないとき（古い URL パラメータだけで使うとき）の初期値
 const FALLBACK = {
-  name: '', style: 'wheel', gifts: [], minCoins: 30, maxCoins: 0, events: [], perCount: true, sameSize: false, duration: 6, hold: 4,
+  name: '', style: 'wheel', gifts: [], minCoins: 30, maxCoins: 0, events: [], perCount: true, sameSize: false, labelDirection: 'radial', duration: 6, hold: 4,
   hint: '', sound: true, volume: 0.3, palette: ['accent', 'paper', 'gold', 'ink-2'], pointerColor: 'accent',
   frameColor: 'ink', fontScale: 1, items: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],
 };
