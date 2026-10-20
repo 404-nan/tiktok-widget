@@ -462,6 +462,17 @@ export async function startCutin(section) {
     el.style.transform = '';
   }
 
+  // --- フリーズ（暗転して無音 → キュイン）。虹のカットインと、ルーレットの確定演出で使う ---
+  // 確定演出はキューの外で出るので、重なっても先に終わったほうが暗転を消さないよう数える
+  let freezing = 0;
+  async function freeze() {
+    freezing++;
+    $('freeze').classList.add('on');
+    await sleep(1100);
+    if (--freezing === 0) $('freeze').classList.remove('on');
+    sfx('kyuin');
+  }
+
   // --- 1回分 ---
   // job: { e } はギフトなど。ルーレットの演出は tier・text・tag（テロップ）・hold・freeze・jackpot（大当たり）を決めて渡す。
   // deadline を過ぎたもの（前のカットインが長引いてルーレットに間に合わない）は出さない
@@ -582,12 +593,7 @@ export async function startCutin(section) {
     await Promise.all(wait.map((img) => img.decode().catch(() => {})));
 
     // 虹: フリーズ（暗転して無音）→ キュイン
-    if (job.freeze ?? (tier === 'rainbow' && p.freeze)) {
-      $('freeze').classList.add('on');
-      await sleep(1100);
-      $('freeze').classList.remove('on');
-      sfx('kyuin');
-    }
+    if (job.freeze ?? (tier === 'rainbow' && p.freeze)) await freeze();
 
     // ルーレットの形ごとの当たり（job.look）。スロット台は 7 が1つずつ叩きつけられてから帯が入る
     const look = job.jackpot ? lookOf(job.look) : {};
@@ -660,13 +666,6 @@ export async function startCutin(section) {
     $('closeup').classList.remove('on');
   }
 
-  // 確定演出の暗転: 画面が止まって無音 → キュイン
-  async function blackout() {
-    $('freeze').classList.add('on');
-    await sleep(1100);
-    $('freeze').classList.remove('on');
-    sfx('kyuin');
-  }
 
   // 当たりの演出は、止まったところ（そろった絵柄・針の先）を少し見せてから入れる
   const REVEAL_LOOK_MS = 600;
@@ -677,7 +676,7 @@ export async function startCutin(section) {
     const toStart = Math.max(0, toReveal - (spin.spinMs ?? 0));
     const later = (ms, fn) => setTimeout(fn, Math.max(0, ms));
     const e = spin.trigger ?? {};
-    if (spin.kakutei === 'freeze') later(toStart, blackout);
+    if (spin.kakutei === 'freeze') later(toStart, freeze);
     if (spin.kakutei === 'rainbow') {
       later(toStart, () => queue.push({ e, tier: 'rainbow', text: p.rainbowText, tag: spin.name, hold: 0.8, freeze: false, deadline: performance.now() + 1500 }));
     }
