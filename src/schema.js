@@ -337,12 +337,13 @@ export const SCHEMA = {
       fontScale: num(1, '項目の文字の大きさの倍率', { min: 0.5, max: 2 }),
       scale: num(1, 'ルーレット全体の大きさの倍率（1 がふつう）', { min: 0.5, max: 2 }),
       rushOdds: bool(false, 'RUSH中は確率を変える'),
+      sameSize: bool(false, '丸型の扇を全部同じ大きさにする（当たりやすさは weight のまま）'),
       items: {
         type: 'items',
         default: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],
         desc:
           '項目の一覧。「歌う*2」のような文字か、{ label, weight, rushWeight, color, textColor, image, commands } で書く。' +
-          'weight は当たりやすさ（丸型では扇の大きさも比例）。' +
+          'weight は当たりやすさ（丸型では扇の大きさも比例。sameSize: true なら扇は同じ大きさ）。' +
           'rushWeight は RUSH 中の当たりやすさ（0 以上の数。書かなければ weight と同じ。rushOdds が true のときだけ使う）。' +
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +

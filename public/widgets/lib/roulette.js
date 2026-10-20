@@ -11,7 +11,7 @@ export { giftUserName };
 
 // config.yaml がないとき（古い URL パラメータだけで使うとき）の初期値
 const FALLBACK = {
-  name: '', style: 'wheel', gifts: [], minCoins: 30, maxCoins: 0, events: [], perCount: true, duration: 6, hold: 4,
+  name: '', style: 'wheel', gifts: [], minCoins: 30, maxCoins: 0, events: [], perCount: true, sameSize: false, duration: 6, hold: 4,
   hint: '', sound: true, volume: 0.3, palette: ['accent', 'paper', 'gold', 'ink-2'], pointerColor: 'accent',
   frameColor: 'ink', fontScale: 1, items: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],
 };
@@ -44,13 +44,15 @@ function prepare(id, r) {
   if (items.length === 0) items.push({ label: '？', weight: 1 });
 
   const palette = list(r.palette).length ? list(r.palette) : FALLBACK.palette;
-  const total = items.reduce((a, b) => a + b.weight, 0);
+  // sameSize: 扇の大きさをそろえる（当たりやすさはサーバーの weight のまま）
+  const size = (it) => (r.sameSize ? 1 : it.weight);
+  const total = items.reduce((a, b) => a + size(b), 0);
   let acc = 0;
   let auto = 0; // 色を指定していない項目の何番目か
   items.forEach((it, i) => {
     it.index = i;
     it.start = acc / total;
-    acc += it.weight;
+    acc += size(it);
     it.end = acc / total;
     if (!it.color) {
       let pi = auto++ % palette.length;

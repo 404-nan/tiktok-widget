@@ -69,7 +69,7 @@ const LABELS = {
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
   'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
-  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', items: '項目',
+  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', items: '項目',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
@@ -85,7 +85,7 @@ const LABELS = {
 const BASIC = {
   alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
   chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
-  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'items'],
+  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'sameSize', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
