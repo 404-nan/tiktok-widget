@@ -1,0 +1,7 @@
+[Unit]
+Description=tiktok-widget の自動反映を1分ごとに確かめる
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+[Install]
+WantedBy=timers.target

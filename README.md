@@ -144,7 +144,7 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 ### いまの公開先（widget.lul.works）
 
 いまは LuLServer で動かし、`https://widget.lul.works` で公開しています。
-- サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。更新は `git pull` のあと `systemctl --user restart tiktok-widget.service`
+- サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。更新は自動です。このフォルダに新しいコミットが入ると、誰も配信していないときに `npm test` を通してから再起動します（`deploy/server/`。配信中は終わるまで待つ）
 - トンネル: `~/.config/systemd/user/tiktok-widget-tunnel.service`（設定は `~/.cloudflared/tiktok-widget.yml`、`widget.lul.works` → `http://127.0.0.1:3939`）
 - 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
 - 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
@@ -372,6 +372,7 @@ cloudflare/            Cloudflare（有料）に置くための入り口（worke
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
+deploy/server/          lulserver の本番を、配信していないときに自動で新しくする（1分ごと）
 ```
 
 `src/` の各ファイルの役目とつながりは [src/README.md](src/README.md) にまとめています。
@@ -384,4 +385,4 @@ npm test
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にして上書きします（前に取れた分は残ります。ログイン・API キー・有料プランは不要）。終わったら `npm test` で確かめてコミットしてください。AI 向けの決まりは `AGENTS.md` にあります。
 
-最後に直した日: 2026-10-19
+最後に直した日: 2026-10-20

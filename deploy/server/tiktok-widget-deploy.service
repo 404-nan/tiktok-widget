@@ -1,0 +1,6 @@
+[Unit]
+Description=tiktok-widget: 新しいコミットを配信していないときに本番へ反映する
+[Service]
+Type=oneshot
+Environment=PATH=/home/lul/.hermes/node/bin:/home/lul/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/lul/tiktok-widget/deploy/server/auto-deploy.sh
