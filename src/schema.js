@@ -532,7 +532,7 @@ SCHEMA.slots = {
   kind: 'object',
   page: 'slot',
   title: 'スロット',
-  size: () => [720, 520],
+  size: () => [1080, 600],
   desc:
     'ギフトで回る3リールのスロット。結果はサーバーで先に決まり、画面はリーチ・ニアミス・復活を含む開示演出だけを行う。' +
     '景品は演出・特典のみで、賭博・現金の表現は使わない。URL は /widgets/slot.html',
@@ -546,18 +546,22 @@ SCHEMA.slots = {
     symbols: {
       type: 'items',
       default: [
-        { label: 'さくらんぼ', weight: 40 },
-        { label: 'ベル', weight: 30 },
-        { label: 'スター', weight: 20 },
-        { label: '7', weight: 10 },
+        { label: 'チェリー', weight: 25 },
+        { label: 'ベル', weight: 20 },
+        { label: 'スイカ', weight: 20 },
+        { label: 'リプレイ', weight: 20 },
+        { label: 'BAR', weight: 10 },
+        { label: '7', weight: 5 },
       ],
-      desc: '絵柄と出現の重み。payouts の symbols にはここで書いた絵柄名を使う',
+      desc:
+        '絵柄と出現の重み。絵は 7 / BAR / ベル / スイカ / チェリー / リプレイ の 6 種（さくらんぼ→チェリー、スター→BAR に読み替え。' +
+        'ほかの名前は空いている絵を割り当てる）。payouts の symbols にはここで書いた絵柄名を使う',
     },
     payouts: {
       type: 'slotPayouts',
       default: [
         { id: 'lose', text: 'はずれ', tier: 'lose', weight: 70, symbols: [] },
-        { id: 'small', text: '小当たり', tier: 'small', weight: 20, symbols: ['さくらんぼ', 'さくらんぼ', 'ベル'] },
+        { id: 'small', text: '小当たり', tier: 'small', weight: 20, symbols: ['チェリー', 'チェリー', 'ベル'] },
         { id: 'big', text: '大当たり', tier: 'big', weight: 9, symbols: ['ベル', 'ベル', 'ベル'] },
         { id: 'jackpot', text: 'ジャックポット', tier: 'jackpot', weight: 1, symbols: ['7', '7', '7'] },
       ],
@@ -566,6 +570,7 @@ SCHEMA.slots = {
     revivalRate: num(20, '当たりのうち復活演出で見せる割合（0〜100）', { min: 0, max: 100 }),
     nearMissRate: num(30, '外れのうちニアミス演出にする割合（0〜100）', { min: 0, max: 100 }),
     reelStopMs: num(700, 'リール1本が止まる間隔（ミリ秒）', { min: 100, max: 10000 }),
+    idleMode: oneOf(['small', 'hide'], 'small', '回していないとき。small 右下に小さく「（ギフト名）で回せ！」を出す / hide 何も出さない'),
   },
 };
 

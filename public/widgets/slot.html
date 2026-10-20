@@ -4,37 +4,234 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>スロット</title>
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/900.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
 <style>
-  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
-  body { color: #f6f5f1; font-family: sans-serif; }
-  #slot { box-sizing: border-box; width: min(96vw, 720px); min-height: 320px; margin: 2vh auto; padding: 28px; background: #111113; border: 4px solid #f6f5f1; text-align: center; }
-  #title { margin: 0 0 18px; font-size: clamp(24px, 5vw, 48px); letter-spacing: .12em; }
-  #reels { display: flex; gap: 12px; justify-content: center; }
-  .reel { box-sizing: border-box; flex: 1; min-width: 0; height: clamp(110px, 18vw, 170px); display: grid; place-items: center; overflow: hidden; background: #25262b; border: 3px solid #f6f5f1; }
-  .symbol { max-width: 100%; padding: 6px; font-size: clamp(22px, 5vw, 54px); font-weight: 800; overflow-wrap: anywhere; }
-  .reel.spin .symbol { animation: shake .12s linear infinite; }
-  #message { min-height: 1.2em; margin: 22px 0 8px; font-size: clamp(24px, 5vw, 52px); font-weight: 800; }
-  #meta { min-height: 1.4em; margin: 0; font-size: clamp(14px, 2.4vw, 22px); }
-  #slot[data-tier="small"] #message { color: #6fc3ff; }
-  #slot[data-tier="big"] #message { color: #72df9b; }
-  #slot[data-tier="jackpot"] #message { color: #ffc53d; }
-  #slot.reach { animation: reach .18s linear 2; }
-  #slot.revival { animation: revival .22s linear 3; }
-  #slot.near-miss { border-color: #6fc3ff; }
-  #slot.flash { background: #f6f5f1; color: #111113; }
-  @keyframes shake { 0% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 100% { transform: translateX(-3px); } }
-  @keyframes reach { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
-  @keyframes revival { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(7px, -3px); } }
+/* 見た目は docs/slot-design/spec.md と mock.html が正。枠は 1080×600 で作り、画面の幅に合わせて丸ごと縮める（中の文字は折り返さない）。
+   Chromium 103 で動く CSS だけ（spec.md 9 節）。グラデーション・半透明の面・ぼかしも使わない */
+:root {
+  --sumi: #111113;
+  --shiro: #F6F5F1;
+  --aka: #D8121B;
+  --koaka: #B00D16;
+  --kin: #FFC53D;
+  --usukin: #FFE08A;
+  --keshi: #3A3A40;
+  --nibi: #C9C9D1;
+  --f-ja: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --f-slam: "Dela Gothic One", "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+body { color: var(--shiro); font-family: var(--f-ja); }
+#stage { position: absolute; left: 0; top: 0; width: 1080px; height: 600px; overflow: hidden; transform-origin: 0 0; white-space: nowrap; }
+
+/* ===== 筐体（1032×480・上から 8px。下 112px は空ける） ===== */
+.cab-wrap { position: absolute; left: 24px; top: 8px; width: 1032px; height: 480px; visibility: hidden; transform: translateY(600px); transition: transform 240ms ease-in, visibility 0s linear 240ms; }
+.cab-wrap.up { visibility: visible; transform: translateY(0); transition: transform 280ms cubic-bezier(.2,.8,.2,1), visibility 0s; }
+.cab {
+  position: relative; box-sizing: border-box; width: 1032px; height: 480px; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--aka); border: 8px solid var(--kin); border-radius: 16px;
+  box-shadow: 0 0 0 4px var(--sumi);
+}
+.flash { display: none; position: absolute; left: -8px; top: -8px; right: -8px; bottom: -8px; z-index: 5; background: var(--shiro); border-radius: 16px; }
+.cab.flash-on .flash { display: block; }
+
+/* 帯: ひと言（左）＋送った人（右） */
+.band { box-sizing: border-box; height: 96px; flex: none; display: flex; border: 4px solid var(--sumi); border-radius: 8px; overflow: hidden; }
+.call { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--sumi); }
+.call-text { position: relative; display: block; max-width: 100%; box-sizing: border-box; padding: 0 16px; overflow: hidden; text-overflow: ellipsis; font-family: var(--f-slam); font-size: 60px; line-height: 1; letter-spacing: .04em; color: var(--kin); }
+.call-text.slam { animation: slam 160ms ease-out; }
+.call-text.slam-big { animation: slam-big 200ms ease-out; }
+.queue { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); padding: 4px 10px; background: var(--aka); color: var(--shiro); border: 3px solid var(--shiro); border-radius: 6px; font-size: 26px; font-weight: 900; line-height: 1.2; }
+.queue[hidden] { display: none; }
+.burst { display: none; position: absolute; left: 50%; top: 50%; width: 1200px; height: 1200px; margin: -600px 0 0 -600px; fill: var(--usukin); }
+.who { box-sizing: border-box; width: 320px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: var(--shiro); color: var(--sumi); border-left: 4px solid var(--sumi); }
+.who[hidden] { display: none; }
+.avatar { box-sizing: border-box; width: 60px; height: 60px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--kin); border: 4px solid var(--sumi); border-radius: 6px; font-size: 30px; font-weight: 900; line-height: 1; }
+.avatar img { display: block; width: 52px; height: 52px; object-fit: cover; border-radius: 2px; }
+.who-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.name, .gift { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name { font-size: 34px; line-height: 1.15; font-weight: 900; }
+.gift { font-size: 26px; line-height: 1.2; font-weight: 700; color: var(--koaka); }
+
+/* リール窓 */
+.window { position: relative; box-sizing: border-box; height: 332px; flex: none; padding: 12px 28px; background: var(--sumi); border-radius: 10px; }
+.reels { display: flex; gap: 24px; }
+.reel { position: relative; box-sizing: border-box; width: 296px; height: 288px; flex: none; overflow: hidden; background: var(--shiro); border: 6px solid #2A2A30; border-radius: 4px; }
+.reel::after { content: ""; position: absolute; left: 0; right: 0; top: 92px; height: 92px; box-sizing: border-box; border-top: 4px solid var(--aka); border-bottom: 4px solid var(--aka); pointer-events: none; }
+.strip { will-change: transform; }
+.cell { height: 92px; display: flex; align-items: center; justify-content: center; }
+.sym { width: 76px; height: 76px; display: block; }
+.mark { position: absolute; top: 144px; width: 0; height: 0; border-top: 12px solid transparent; border-bottom: 12px solid transparent; }
+.mark--l { left: 6px; border-left: 16px solid var(--aka); }
+.mark--r { right: 6px; border-right: 16px solid var(--aka); }
+.lamps { display: flex; gap: 24px; margin-top: 8px; }
+.lamp { display: block; width: 296px; height: 12px; flex: none; border-radius: 6px; background: var(--keshi); }
+.lamp.on { background: var(--kin); }
+
+/* 回転中: 1 周 6 コマ＝552px を下向きに流す。止まると白とくっきりした絵へ戻る */
+.reel.spin { background: #E9E7DF; }
+.reel.spin .strip { animation: spin 240ms linear infinite; }
+.reel.spin .sym { transform: scaleY(1.4); opacity: .55; }
+.reel.spin.d1 .strip { animation-delay: -80ms; }
+.reel.spin.d2 .strip { animation-delay: -160ms; }
+.reel.spin.slow .strip { animation-duration: 600ms; }
+/* 止まる: 3 コマ流れて下へ 10px 行き過ぎ、120ms で戻る */
+.strip.stop { animation: reel-stop 240ms both; }
+/* ニアミス: 止まる直前の 1 コマだけ遅くする */
+.strip.stop-near { animation: reel-stop-near 310ms both; }
+/* 復活: 1 コマ下へ落とす */
+.strip.drop { animation: reel-drop 160ms cubic-bezier(.3,0,.3,1) both; }
+
+/* 当たり列: 中段のコマを金にし、2 回点滅してから点けたまま */
+.cell.win { background: var(--kin); animation: win-blink 500ms steps(1) 2; }
+.reel.win::after { border-top-color: var(--kin); border-bottom-color: var(--kin); animation: win-line 500ms steps(1) 2; }
+
+/* ===== 状態ごと ===== */
+.cab.is-reach .call { animation: reach-band 400ms steps(1) infinite; }
+.cab.is-reach .call-text { font-size: 64px; animation: reach-text 400ms steps(1) infinite; }
+.cab.is-reach .call-text.slam { animation: slam 160ms ease-out, reach-text 400ms steps(1) infinite; }
+.cab.is-reach .mark--l, .cab.is-big .mark--l, .cab.is-jackpot .mark--l { border-left-color: var(--kin); }
+.cab.is-reach .mark--r, .cab.is-big .mark--r, .cab.is-jackpot .mark--r { border-right-color: var(--kin); }
+.reel.slow { outline: 6px solid var(--kin); animation: reach-reel 400ms steps(1) infinite; }
+
+.cab.is-pause .call-text { visibility: hidden; }
+.cab.is-revival .call { background: var(--aka); }
+.cab.is-revival .call-text { color: var(--shiro); text-shadow: 0 5px 0 var(--sumi); }
+
+.cab.is-lose .call-text { font-family: var(--f-ja); font-weight: 900; font-size: 52px; letter-spacing: 0; color: var(--nibi); }
+.cab.is-small .call { background: var(--aka); }
+.cab.is-small .call-text { color: var(--shiro); text-shadow: 0 5px 0 var(--sumi); }
+.cab.is-big .call, .cab.is-jackpot .call { background: var(--kin); }
+.cab.is-big .call-text, .cab.is-jackpot .call-text { font-size: 72px; color: var(--koaka); }
+.cab.is-big { animation: shake 240ms linear 1; }
+.cab.is-jackpot { animation: shake 240ms linear 1, cab-flash 500ms steps(1) infinite; }
+.cab.is-jackpot .burst { display: block; animation: burst 6000ms linear infinite; }
+
+@keyframes spin { from { transform: translateY(-552px); } to { transform: translateY(0); } }
+@keyframes reel-stop {
+  0% { transform: translateY(-276px); animation-timing-function: linear; }
+  50% { transform: translateY(10px); animation-timing-function: ease-out; }
+  100% { transform: translateY(0); }
+}
+@keyframes reel-stop-near {
+  0% { transform: translateY(-276px); animation-timing-function: linear; }
+  26% { transform: translateY(-92px); animation-timing-function: linear; }
+  61% { transform: translateY(10px); animation-timing-function: ease-out; }
+  100% { transform: translateY(0); }
+}
+@keyframes reel-drop { from { transform: translateY(-92px); } to { transform: translateY(0); } }
+@keyframes slam { from { transform: scale(1.4); } to { transform: scale(1); } }
+@keyframes slam-big { from { transform: scale(1.6); } to { transform: scale(1); } }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  17% { transform: translateX(-6px); } 33% { transform: translateX(6px); }
+  50% { transform: translateX(-6px); } 67% { transform: translateX(6px); }
+  83% { transform: translateX(-6px); }
+}
+@keyframes reach-band { 0% { background: var(--kin); } 50% { background: var(--aka); } }
+@keyframes reach-text { 0% { color: var(--koaka); } 50% { color: var(--shiro); } }
+@keyframes reach-reel { 0% { outline-color: var(--kin); } 50% { outline-color: var(--aka); } }
+@keyframes win-blink { 0% { background: var(--kin); } 50% { background: var(--shiro); } }
+@keyframes win-line { 0% { border-top-color: var(--kin); border-bottom-color: var(--kin); } 50% { border-top-color: var(--aka); border-bottom-color: var(--aka); } }
+@keyframes cab-flash { 0% { border-color: var(--kin); } 50% { border-color: var(--shiro); } }
+@keyframes burst { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ===== 待機（小表示 376×112・右下。筐体の下端にそろえる） ===== */
+.mini {
+  position: absolute; right: 24px; bottom: 112px;
+  box-sizing: border-box; width: 376px; height: 112px; padding: 0 14px;
+  display: flex; align-items: center; gap: 14px;
+  background: var(--aka); border: 6px solid var(--kin); border-radius: 12px;
+  box-shadow: 0 0 0 4px var(--sumi);
+  transform-origin: 100% 100%;
+  animation: mini-lamp 2000ms steps(1) infinite;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
+}
+.mini.off { transform: scale(.8); opacity: 0; transition: transform 160ms ease-in, opacity 160ms ease-in; }
+.mini[hidden] { display: none; }
+.mini-reels { display: flex; gap: 6px; flex: none; }
+.mini-reel { box-sizing: border-box; width: 48px; height: 72px; display: flex; align-items: center; justify-content: center; background: var(--shiro); border: 4px solid var(--sumi); border-radius: 4px; }
+.mini-reel svg { width: 36px; height: 36px; display: block; }
+.mini-text { margin: 0; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 32px; font-weight: 900; line-height: 1.15; color: var(--shiro); text-shadow: 0 3px 0 var(--sumi); }
+.mini-gift { display: block; box-sizing: border-box; max-width: 166px; padding: 0 8px; background: var(--sumi); color: var(--kin); border-radius: 4px; text-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-call { display: block; white-space: nowrap; }
+@keyframes mini-lamp { 0% { border-color: var(--kin); } 50% { border-color: var(--shiro); } }
 </style>
 </head>
 <body>
-<main id="slot" data-tier="lose" aria-live="polite">
-  <h1 id="title">スロット</h1>
-  <div id="reels"><div class="reel"><span class="symbol">？</span></div><div class="reel"><span class="symbol">？</span></div><div class="reel"><span class="symbol">？</span></div></div>
-  <p id="message"></p>
-  <p id="meta"></p>
-</main>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- 7: 赤・墨の太縁・金の内線 -->
+  <symbol id="s-7" viewBox="0 0 100 100">
+    <path d="M16 10 H86 V28 L56 92 H30 L59 32 H34 V40 H16 Z" fill="#D8121B" stroke="#111113" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M24 18 H78" stroke="#FFC53D" stroke-width="5" stroke-linecap="round" fill="none"/>
+  </symbol>
+  <!-- BAR: 墨の板に白抜き文字（線で描く） -->
+  <symbol id="s-bar" viewBox="0 0 100 100">
+    <rect x="6" y="26" width="88" height="48" rx="6" fill="#111113" stroke="#FFC53D" stroke-width="5"/>
+    <g fill="none" stroke="#F6F5F1" stroke-width="6" stroke-linejoin="round" stroke-linecap="square">
+      <path d="M18 38 V62 H28 Q35 62 35 56 Q35 50 28 50 H18 M18 50 H27 Q33 50 33 44 Q33 38 27 38 H18"/>
+      <path d="M41 62 L50 38 L59 62 M44 54 H56"/>
+      <path d="M66 62 V38 H76 Q83 38 83 44.5 Q83 51 76 51 H66 M74 51 L83 62"/>
+    </g>
+  </symbol>
+  <!-- ベル: 金・墨の太縁 -->
+  <symbol id="s-bell" viewBox="0 0 100 100">
+    <circle cx="50" cy="83" r="9" fill="#FFC53D" stroke="#111113" stroke-width="5"/>
+    <path d="M50 14 C31 14 27 32 27 48 C27 60 22 66 15 74 H85 C78 66 73 60 73 48 C73 32 69 14 50 14 Z" fill="#FFC53D" stroke="#111113" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M38 30 C35 36 35 44 35 52" stroke="#F6F5F1" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <circle cx="50" cy="11" r="5" fill="#111113"/>
+  </symbol>
+  <!-- スイカ: 緑の玉に濃緑のしま -->
+  <symbol id="s-suika" viewBox="0 0 100 100">
+    <circle cx="50" cy="52" r="40" fill="#1E9E4A" stroke="#111113" stroke-width="6"/>
+    <g fill="none" stroke="#0B4F26" stroke-width="6" stroke-linejoin="round">
+      <path d="M50 13 L44 24 L54 34 L44 46 L54 58 L44 70 L50 91"/>
+      <path d="M30 18 L26 30 L34 42 L26 54 L34 66 L28 82"/>
+      <path d="M70 18 L74 30 L66 42 L74 54 L66 66 L72 82"/>
+    </g>
+  </symbol>
+  <!-- チェリー: 赤い実ふたつ・緑の柄 -->
+  <symbol id="s-cherry" viewBox="0 0 100 100">
+    <path d="M30 64 C34 44 46 26 64 12 M70 62 C68 44 66 28 64 12" fill="none" stroke="#111113" stroke-width="10" stroke-linecap="round"/>
+    <path d="M30 64 C34 44 46 26 64 12 M70 62 C68 44 66 28 64 12" fill="none" stroke="#1E9E4A" stroke-width="4" stroke-linecap="round"/>
+    <path d="M64 12 C74 6 88 10 92 20 C80 24 70 22 64 12 Z" fill="#1E9E4A" stroke="#111113" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="28" cy="72" r="18" fill="#D8121B" stroke="#111113" stroke-width="5"/>
+    <circle cx="70" cy="72" r="18" fill="#D8121B" stroke="#111113" stroke-width="5"/>
+    <circle cx="22" cy="66" r="4.5" fill="#F6F5F1"/>
+    <circle cx="64" cy="66" r="4.5" fill="#F6F5F1"/>
+  </symbol>
+  <!-- リプレイ: 青い板に白い回る矢印 -->
+  <symbol id="s-replay" viewBox="0 0 100 100">
+    <rect x="10" y="10" width="80" height="80" rx="16" fill="#1F5FD6" stroke="#111113" stroke-width="6"/>
+    <path d="M70 44 A21 21 0 1 0 66 66" fill="none" stroke="#F6F5F1" stroke-width="9" stroke-linecap="round"/>
+    <path d="M58 40 L76 46 L78 27 Z" fill="#F6F5F1" stroke="#F6F5F1" stroke-width="3" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+<div id="stage">
+  <div class="cab-wrap" id="cabWrap">
+    <section class="cab" id="cab" aria-label="スロット" aria-live="polite">
+      <header class="band">
+        <div class="call"><svg class="burst" viewBox="-600 -600 1200 1200" aria-hidden="true"><polygon points="0,0 -60,-600 60,-600" transform="rotate(0)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(30)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(60)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(90)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(120)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(150)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(180)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(210)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(240)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(270)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(300)"/><polygon points="0,0 -60,-600 60,-600" transform="rotate(330)"/></svg><span class="call-text" id="call"></span><span class="queue" id="queue" hidden></span></div>
+        <div class="who" id="who" hidden><span class="avatar" id="avatar" aria-hidden="true"></span><span class="who-text"><b class="name" id="name"></b><span class="gift" id="gift"></span></span></div>
+      </header>
+      <div class="window">
+        <span class="mark mark--l" aria-hidden="true"></span><span class="mark mark--r" aria-hidden="true"></span>
+        <div class="reels"><div class="reel"><div class="strip"></div></div><div class="reel d1"><div class="strip"></div></div><div class="reel d2"><div class="strip"></div></div></div>
+        <div class="lamps"><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i></div>
+      </div>
+      <i class="flash" aria-hidden="true"></i>
+    </section>
+  </div>
+  <aside class="mini" id="mini" aria-label="スロット" hidden>
+    <div class="mini-reels"><span class="mini-reel"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#s-7"/></svg></span><span class="mini-reel"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#s-7"/></svg></span><span class="mini-reel"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#s-7"/></svg></span></div>
+    <p class="mini-text"><b class="mini-gift" id="miniGift">ギフト</b><span class="mini-call">で回せ！</span></p>
+  </aside>
+</div>
 <script src="lib/gift-name.js"></script>
+<script src="lib/slot-core.js"></script>
 <script src="slot.js"></script>
 </body>
 </html>
