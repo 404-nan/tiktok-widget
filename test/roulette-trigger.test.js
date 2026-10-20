@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rouletteFor, pickWeighted, RouletteEngine } from '../src/roulette.js';
+import { normalize } from '../src/config.js';
 import { EventEmitter } from 'node:events';
 import { giftUserName } from '../public/widgets/lib/roulette-gift.js';
 
@@ -57,4 +58,16 @@ test('連打 ×5 は既定で5回まわす（perCount: false なら1回）', () 
   };
   assert.equal(spinsFor(undefined), 5);
   assert.equal(spinsFor(false), 1);
+});
+
+test('win: true の項目が出ると、結果に win が付く（カットインの大当たり用）', async () => {
+  const { config, errors, warnings } = normalize({ roulettes: { r: { duration: 1, hold: 1, items: [{ label: '大当たり', win: true }] } } });
+  assert.deepEqual([errors, warnings.filter((w) => w.includes('win'))], [[], []]);
+  assert.equal(config.roulettes.r.items[0].win, true);
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  const engine = new RouletteEngine(hub);
+  engine.setConfig(config);
+  assert.equal(engine.spin('r').win, true);
+  engine.clear();
 });

@@ -55,7 +55,7 @@ const LABELS = {
   forwardGifts: 'ギフトをマイクラ側の演出に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
-  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', rouletteWin: 'ルーレットの当たりで出す', rouletteWinText: '当たりの文字', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   textWeight: '文字の太さ', imageStyle: '画像のスタイル', crop: '切り抜き',
   'bosses.name': 'ボスの名前', hp: '最大 HP', hpScale: '次のボスの HP の倍率', 'bosses.image': 'ボスの画像', damageFrom: 'ダメージにするもの',
   rankSource: '順位の参照', rivalCoins: '相手のコイン',
@@ -90,7 +90,7 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'textWeight', 'yieldToImage'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'textWeight', 'yieldToImage', 'rouletteWin', 'rouletteWinText'],
   imageCutins: ['photo', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
@@ -1598,6 +1598,7 @@ export function createEditor({ api, setMessage }) {
         if (r.superstreamGift) out.superstreamGift = r.superstreamGift;
         if (r.superstreamAction) out.superstreamAction = r.superstreamAction;
         if (r.rush) out.rush = true;
+        if (r.win) out.win = true;
         const ready = (r.actions || []).filter(actionReady).map(actionClean);
         if (ready.length) out.actions = ready;
         const keys = Object.keys(out);
@@ -1917,9 +1918,15 @@ export function createEditor({ api, setMessage }) {
       const top = document.createElement('div');
       top.className = 'item-top';
       top.append(thumb, file, label, weight, more, del);
+      // 当たりの項目: 出たらカットインの「大当たり」演出が入る
+      const win = Object.assign(document.createElement('label'), { className: 'check', title: '出たらカットインで「大当たり」を出す' });
+      const winBox = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!r.win });
+      winBox.addEventListener('change', () => ((r.win = winBox.checked || undefined), commit(0)));
+      win.append(winBox, '当たり');
+
       const bottom = document.createElement('div');
       bottom.className = 'item-bottom';
-      bottom.append(color, picker, image, url);
+      bottom.append(color, picker, image, url, win);
 
       if (!usesMinecraft()) {
         row.append(top, rushBox, actionsBox, bottom);

@@ -347,7 +347,7 @@ export const SCHEMA = {
           'rushWeight は RUSH 中の当たりやすさ（0 以上の数。書かなければ weight と同じ。rushOdds が true のときだけ使う）。' +
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。' +
+          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。win: true は当たりの項目で、出たらカットインの「大当たり」演出が入る。' +
           'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start。id を書くとそのタイマー・WIN数・ボスだけ',
       },
     },
@@ -385,12 +385,15 @@ SCHEMA.cutins = {
   desc:
     '通常カットイン。筆でかすれた帯がフィーンと入り、「激アツ」の文字が叩きつけられ、ガガガと揺れてスッと抜ける。' +
     'ギフトのコインで 青→緑→赤→金→虹 と格上げし、虹は画面が止まってから入る（フリーズ）。' +
+    'ルーレットで当たり（項目の win: true）が出ると、専用の「大当たり」演出が入る。' +
     '配信画面いっぱいに重ねる。URL は /widgets/cutin.html?id=<名前>',
   size: () => [1080, 1920],
   fields: {
     ...cutinFields(),
     textWeight: oneOf(['normal', 'bold'], 'normal', '文字だけの太さ。normal 普通 / bold 太字'),
     yieldToImage: bool(false, '画像付きカットインが出るギフトのときは、こちらを出さない（両方を OBS に入れて重ならないように）'),
+    rouletteWin: bool(true, 'ルーレットで当たり（win: true の項目）が出たら、専用の演出を出す'),
+    rouletteWinText: str('大当たり', 'ルーレットの当たりで出す文字'),
   },
 };
 

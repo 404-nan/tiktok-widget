@@ -184,11 +184,12 @@ function checkItems(value, where, issues) {
     if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
     checkSuperStream(raw, item, at, issues);
     if (raw.rush != null) item.rush = raw.rush === true || raw.rush === 'true';
+    if (raw.win != null) item.win = raw.win === true || raw.win === 'true';
     if (raw.actions != null) {
       const actions = checkActions(raw.actions, `${at}.actions`, issues);
       if (actions.length) item.actions = actions;
     }
-    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'actions'];
+    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'win', 'actions'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });

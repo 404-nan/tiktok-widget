@@ -127,7 +127,7 @@ export class RouletteEngine {
     this.leftAt = this.busyUntil + LEAVE_MS;
     this.active = r.id;
 
-    const spin = { seq: ++this.seq, id: r.id, name: r.name || r.id, index, label: item.label, trigger: slim(trigger), at: now, revealAt: reveal };
+    const spin = { seq: ++this.seq, id: r.id, name: r.name || r.id, index, label: item.label, win: item.win === true, trigger: slim(trigger), at: now, revealAt: reveal };
     this.hub.broadcast({ type: 'roulette', spin });
 
     // 当たりが画面に出るころに結果を知らせる（Minecraft・履歴・モニター）

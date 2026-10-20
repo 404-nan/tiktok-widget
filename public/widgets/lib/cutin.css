@@ -137,3 +137,8 @@ canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity:
 .freeze { position: absolute; inset: 0; background: #000; opacity: 0; display: grid; place-items: center; }
 .freeze.on { opacity: .94; }
 .freeze span { font-family: var(--font-num); color: rgba(255, 255, 255, .5); font-size: 28px; letter-spacing: .4em; }
+
+/* ルーレットの大当たり: 白い光が何度も走り、文字が脈打つ */
+.jackpot .flash { animation: flash .22s ease-out 5 alternate; }
+.jackpot .word { animation: pump .36s ease-in-out .36s infinite alternate; }
+@keyframes pump { to { transform: translate(-50%, -50%) skewX(-10deg) scale(1.08); } }

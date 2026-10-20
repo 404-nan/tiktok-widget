@@ -21,7 +21,7 @@ const STAGE = `
 const TIER_DEFAULTS = {
   minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
   blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
-  word: true, yieldToImage: false, angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
+  word: true, yieldToImage: false, rouletteWin: true, rouletteWinText: '大当たり', angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
 };
 
 /**
@@ -265,6 +265,23 @@ export async function startCutin(section) {
       o.stop(t + seconds);
       lfo.stop(t + seconds);
     },
+    // ファンファーレ: ルーレットの大当たりで、ド・ミ・ソ・ドと駆け上がる
+    fanfare() {
+      const a = audio(), t = a.currentTime, v = p.volume;
+      [523, 659, 784, 1047, 1319].forEach((f, i) => {
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = 'square';
+        o.frequency.value = f;
+        const at = t + i * 0.07;
+        const long = i === 4 ? 0.9 : 0.12;
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.18 * v, at + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + long);
+        o.connect(g).connect(a.destination);
+        o.start(at);
+        o.stop(at + long + 0.05);
+      });
+    },
     // スッ: 抜けていく音
     out() {
       const a = audio(), t = a.currentTime, v = p.volume;
@@ -318,9 +335,11 @@ export async function startCutin(section) {
   }
 
   // --- 1回分 ---
-  async function play(e) {
-    const tier = tierFor(e);
+  // win はルーレットの当たり（サーバーの spin）。そのときは虹の帯・フリーズ・ファンファーレで出す
+  async function play({ e, win }) {
+    const tier = win ? 'rainbow' : tierFor(e);
     const t = TIERS[tier];
+    const text = win ? p.rouletteWinText : TEXT[tier];
     const W = innerWidth, H = innerHeight;
     const unit = Math.min(W, H);
     const bw = Math.round(Math.max(W, H) * 1.5);
@@ -332,7 +351,7 @@ export async function startCutin(section) {
     stage.style.setProperty('--vw', `${W}px`);
     // 写真は帯からはみ出すくらい大きく
     stage.style.setProperty('--vs', `${Math.round(p.image === 'photo' ? Math.min(bh * 1.6, W * 0.55) : Math.min(bh * 1.1, W * 0.42))}px`);
-    stage.style.setProperty('--fs', `${Math.round(Math.min(bh * 0.5, (W * 0.5) / Math.max(2, TEXT[tier].length)))}px`);
+    stage.style.setProperty('--fs', `${Math.round(Math.min(bh * 0.5, (W * 0.5) / Math.max(2, text.length)))}px`);
     stage.style.setProperty('--angle', `${p.angle}deg`);
     stage.style.setProperty('--word-fill', t.word);
     stage.style.setProperty('--tag-accent', t.accent);
@@ -363,7 +382,7 @@ export async function startCutin(section) {
       wait = mounted ? mounted.wait : [];
       visual.replaceChildren();
       word.style.left = '0px';
-      const fs = Math.round(Math.min((mounted?.bandHeight ?? bh) * 0.46, (size.w * 0.72) / Math.max(2, TEXT[tier].length)));
+      const fs = Math.round(Math.min((mounted?.bandHeight ?? bh) * 0.46, (size.w * 0.72) / Math.max(2, text.length)));
       stage.style.setProperty('--fs', `${fs}px`);
     } else if (p.style === 'photo') {
       // 写真の帯（縁が木炭のかすれ線）
@@ -374,7 +393,7 @@ export async function startCutin(section) {
       $('band').replaceChildren(...strip.nodes);
       wait = strip.wait;
       visual.replaceChildren();
-      const fs = Math.round(Math.min(sh * 0.36, (W * 0.46) / Math.max(2, TEXT[tier].length)));
+      const fs = Math.round(Math.min(sh * 0.36, (W * 0.46) / Math.max(2, text.length)));
       stage.style.setProperty('--fs', `${fs}px`);
       Object.assign(word.style, { left: `${W * 0.16}px`, top: `${sh * 0.46}px` });
       Object.assign(tagEl.style, { top: `${sh * 0.5 + fs * 0.5}px` });
@@ -407,13 +426,17 @@ export async function startCutin(section) {
     if (p.style !== 'photo' && !visual.childElementCount) word.style.left = '0px';
 
     // 文字とテロップ
-    for (const s of $('word').children) s.textContent = TEXT[tier];
+    for (const s of $('word').children) s.textContent = text;
     const tag = $('tag');
     tag.replaceChildren();
     const name = document.createElement('span');
     name.textContent = e.user?.name ?? '';
     tag.append(name);
-    if (e.kind === 'gift') {
+    if (win) {
+      const what = document.createElement('span');
+      what.textContent = win.label;
+      tag.append(what);
+    } else if (e.kind === 'gift') {
       const what = document.createElement('span');
       what.textContent = `${giftLabel(e.gift)} ×${e.gift.count}`;
       const coins = document.createElement('span');
@@ -428,7 +451,7 @@ export async function startCutin(section) {
     await Promise.all(wait.map((img) => img.decode().catch(() => {})));
 
     // 虹: フリーズ（暗転して無音）→ キュイン
-    if (tier === 'rainbow' && p.freeze) {
+    if (tier === 'rainbow' && (p.freeze || win)) {
       $('freeze').classList.add('on');
       await sleep(1100);
       $('freeze').classList.remove('on');
@@ -438,12 +461,16 @@ export async function startCutin(section) {
     const rect = $('rig').getBoundingClientRect();
     startLines(rect.left, rect.top, t.accent);
     stage.classList.add('play');
+    if (win) stage.classList.add('jackpot');
     sfx('fween');
     await sleep(200);
     sfx('slam');
+    if (win) sfx('fanfare');
     await sleep(140);
-    sfx('gagaga', p.hold);
-    await shake(p.hold);
+    // 当たりは長めに揺らして余韻を残す
+    const hold = win ? p.hold * 2 : p.hold;
+    sfx('gagaga', hold);
+    await shake(hold);
     sfx('out');
     stage.classList.add('out');
     await sleep(220);
@@ -455,7 +482,11 @@ export async function startCutin(section) {
   const queue = createQueue(play, { max: 20 });
   connect({
     event(e) {
-      if (shouldShow(e)) queue.push(e);
+      if (shouldShow(e)) queue.push({ e });
+    },
+    // ルーレットで当たりの項目が出た（結果が画面に出るタイミングで届く）。画像付きカットインでは出さない
+    rouletteResult(m) {
+      if (!isImage && p.rouletteWin && m.spin?.win) queue.push({ e: m.spin.trigger ?? {}, win: m.spin });
     },
   });
 }
