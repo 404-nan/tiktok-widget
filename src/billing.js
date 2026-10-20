@@ -42,6 +42,7 @@ const DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year:
 const FLAG_GROUPS = [
   ['bosses', 'boss'],
   ['gacha'],
+  ['omikuji'],
   ['mediaAlerts', 'media'],
   ['giftSounds', 'sounds'],
   ['slots'],

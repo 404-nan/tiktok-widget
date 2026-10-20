@@ -347,7 +347,7 @@ export const SCHEMA = {
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
           'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。' +
-          'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start。id を書くとそのタイマー・WIN数・ボスだけ',
+          'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start / omikuji.start。id を書くとそのタイマー・WIN数・ボスだけ',
       },
     },
   },
@@ -521,6 +521,34 @@ SCHEMA.gacha = {
     },
   },
 };
+
+// おみくじ: ガチャと同じ仕組みで、運勢を引く。pity は使わない
+SCHEMA.omikuji = {
+  ...SCHEMA.gacha,
+  page: 'omikuji',
+  title: 'おみくじ',
+  desc:
+    'ギフトで引くおみくじ。待機 → 引いている → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
+    'きっかけ: gifts のギフト / minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
+  fields: {
+    ...SCHEMA.gacha.fields,
+    enabled: bool(true, 'おみくじを使う'),
+    rollMs: num(2500, '引いているミリ秒', { min: 0, max: 60000 }),
+    tiers: {
+      type: 'gachaTiers',
+      default: [
+        { id: 'daikichi', label: '大吉', weight: 10, pity: false },
+        { id: 'chukichi', label: '中吉', weight: 20, pity: false },
+        { id: 'shokichi', label: '小吉', weight: 25, pity: false },
+        { id: 'kichi', label: '吉', weight: 25, pity: false },
+        { id: 'suekichi', label: '末吉', weight: 15, pity: false },
+        { id: 'kyo', label: '凶', weight: 5, pity: false },
+      ],
+      desc: '運勢。id / label / weight（出やすさ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo なら色が付く',
+    },
+  },
+};
+delete SCHEMA.omikuji.fields.pity;
 
 SCHEMA.slots = {
   kind: 'object',

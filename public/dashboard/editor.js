@@ -12,7 +12,7 @@ import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gi
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -62,6 +62,7 @@ const LABELS = {
   'mediaAlerts.enabled': 'メディア通知を使う', 'gacha.enabled': 'ガチャを使う',
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
+  'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
   coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
@@ -99,6 +100,7 @@ const BASIC = {
   mediaAlerts: ['enabled', 'rules'],
   giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
   gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
+  omikuji: ['enabled', 'minCoins', 'gifts', 'tiers'],
   slots: ['enabled', 'trigger', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
@@ -1508,6 +1510,7 @@ export function createEditor({ api, setMessage }) {
       ['boss.damage', 'ボスにダメージ'],
       ['boss.heal', 'ボスを回復'],
       ['gacha.start', 'ガチャを回す'],
+      ['omikuji.start', 'おみくじを引く'],
     ];
     const actionReady = (a) => {
       if (!a?.type) return false;
@@ -1521,7 +1524,7 @@ export function createEditor({ api, setMessage }) {
         return true;
       }
       if (a.type === 'boss.damage' || a.type === 'boss.heal') return Number(a.amount) > 0;
-      return a.type === 'rush.start' || a.type === 'gacha.start';
+      return a.type === 'rush.start' || a.type === 'gacha.start' || a.type === 'omikuji.start';
     };
     const actionClean = (a) => {
       const out = { type: a.type };
@@ -1835,7 +1838,7 @@ export function createEditor({ api, setMessage }) {
           idInput.setAttribute('aria-label', '対象の名前');
           idInput.value = a.id ?? '';
           const sync = () => {
-            const needsValue = a.type !== 'rush.start' && a.type !== 'gacha.start';
+            const needsValue = a.type !== 'rush.start' && a.type !== 'gacha.start' && a.type !== 'omikuji.start';
             const needsId = a.type === 'timer.add' || a.type === 'wins.add' || a.type === 'boss.damage' || a.type === 'boss.heal';
             valueInput.hidden = !needsValue;
             volumeInput.hidden = a.type !== 'sound.play';

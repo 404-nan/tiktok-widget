@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>おみくじ</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  /* 動きと表示の流れは gacha.js と共通。運勢の色は data-tier（運勢の id）で決める */
+  body { display: grid; place-items: center; padding: 16px; }
+  .idle { display: none; margin: 0; font-weight: 900; color: var(--paper); }
+  body.preview:not(.on) .idle { display: block; }
+  .stage { display: none; width: min(92vw, 360px); }
+  body.on .stage { display: block; }
+  .plate {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 14px;
+    min-height: 320px;
+    padding: 28px 24px;
+    background: var(--surface);
+    color: var(--on-surface);
+    border-radius: var(--r);
+    --tier: #8E8E96;
+    box-shadow: inset 10px 0 0 var(--tier), var(--lift);
+    overflow: hidden;
+  }
+  .stage[data-phase="rolling"] .plate { --tier: var(--signal); animation: shake .12s linear infinite; }
+  .stage[data-tier="daikichi"] .plate { --tier: var(--gold); }
+  .stage[data-tier="chukichi"] .plate,
+  .stage[data-tier="shokichi"] .plate { --tier: var(--signal); }
+  .stage[data-tier="kyo"] .plate { --tier: #4A4A52; }
+  .kicker { margin: 0; font-size: 14px; font-weight: 900; letter-spacing: .16em; color: var(--signal); }
+  .result {
+    margin: 0;
+    min-height: 1em;
+    font-family: "Dela Gothic One", var(--font);
+    font-size: 120px;
+    line-height: 1;
+    writing-mode: vertical-rl;
+    opacity: 0;
+    color: var(--paper);
+  }
+  .stage[data-phase="reveal"] .result { opacity: 1; animation: slam var(--reveal, 2.5s) var(--ease-out) both; }
+  .stage[data-phase="done"] .result { opacity: 1; }
+  .stage[data-tier="daikichi"] .result { color: var(--gold); }
+  .stage[data-tier="chukichi"] .result,
+  .stage[data-tier="shokichi"] .result { color: var(--signal); }
+  .stage[data-tier="kyo"] .result { color: #8E8E96; }
+  .stage[data-phase="done"] .plate { animation: fadeout var(--done, 1.2s) linear both; }
+  .time { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+  @keyframes slam {
+    0% { transform: scale(1.7) rotate(-6deg); opacity: 0; }
+    16% { transform: scale(1) rotate(-2deg); opacity: 1; }
+    100% { transform: none; opacity: 1; }
+  }
+  @keyframes fadeout {
+    0% { opacity: 1; }
+    65% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body data-kind="omikuji">
+<p class="idle" id="idle">おみくじ・待機</p>
+<div class="stage" id="stage" data-phase="idle">
+  <div class="plate" id="plate">
+    <p class="kicker" id="phase">待機</p>
+    <p class="result" id="result"></p>
+    <p class="time" id="time"></p>
+  </div>
+</div>
+<script src="gacha.js"></script>
+</body>
+</html>

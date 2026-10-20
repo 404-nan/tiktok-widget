@@ -43,7 +43,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -61,7 +61,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -110,15 +110,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
+  const omikuji = new Gacha(hub, { bus, name: 'omikuji' });
   const slot = new SlotEngine(hub, { bus });
   boss.setBus(bus);
-  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, bus });
+  const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, omikuji, bus });
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
     mediaAlerts.onEvent(e);
     giftSounds.onEvent(e);
     gacha.onEvent(e);
+    omikuji.onEvent(e);
     slot.onEvent(e);
   });
   let lastIssues = { errors: [], warnings: [] };
@@ -138,6 +140,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     mediaAlerts.setConfig(config.mediaAlerts);
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
+    omikuji.setConfig(config.omikuji);
     slot.setConfig(config.slots);
   };
   hub.on('config', applyEngines);
@@ -544,6 +547,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
         return res.json({ ok: true, gacha: started });
       }
+      if (body.target === 'omikuji') {
+        const started = omikuji.start({ kind: 'dev', source: 'dev' });
+        if (!started) return res.status(400).json({ error: 'おみくじはオフです' });
+        return res.json({ ok: true, omikuji: started });
+      }
       if (body.target === 'slot') {
         const started = slot.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
         if (!started) return res.status(400).json({ error: 'スロットはオフです' });
@@ -555,6 +563,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     }
   });
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
+  r.get('/api/omikuji', (_req, res) => res.json(omikuji.snapshot()));
   r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
   r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
   r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
@@ -766,6 +775,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       clearInterval(history.timer);
       timer.close();
       gacha.close();
+      omikuji.close();
       slot.close();
       giftSounds.close();
       boss.flush();

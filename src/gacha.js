@@ -1,4 +1,4 @@
-// 高額ギフトなどのガチャ。待機 → 回転 → 結果 → 終了。一度に1回で、重なった分は待ち列。
+// 高額ギフトなどのガチャ（name='omikuji' ならおみくじ。同じ仕組みで設定・画面・イベント名だけ別）。待機 → 回転 → 結果 → 終了。一度に1回で、重なった分は待ち列。
 // 画面は /widgets/gacha.html。各段階の長さはイベントに載せる。
 
 import { defaultsFor } from './schema.js';
@@ -31,11 +31,12 @@ export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.rand
 }
 
 export class Gacha {
-  constructor(hub, { bus = null, random = null } = {}) {
+  constructor(hub, { bus = null, random = null, name = 'gacha' } = {}) {
+    this.name = name;
     this.hub = hub;
     this.bus = bus;
     this.random = typeof random === 'function' ? random : Math.random;
-    this.config = defaultsFor('gacha');
+    this.config = defaultsFor(name);
     this.phase = 'idle';
     this.seq = 0;
     this.pityCount = 0;
@@ -52,7 +53,7 @@ export class Gacha {
   }
 
   setConfig(cfg) {
-    const base = defaultsFor('gacha');
+    const base = defaultsFor(this.name);
     this.config = { ...base, ...(cfg ?? {}) };
     if (!Array.isArray(this.config.tiers) || !this.config.tiers.length) this.config.tiers = base.tiers;
   }
@@ -153,8 +154,8 @@ export class Gacha {
       forced: show ? this.forced : false,
       event: name,
     };
-    this.hub.broadcast({ type: 'gacha', ...payload });
-    const type = name === 'start' ? 'gacha.start' : `gacha.${name}`;
+    this.hub.broadcast({ type: this.name, ...payload });
+    const type = `${this.name}.${name}`;
     this.bus?.emit(type, payload);
   }
 

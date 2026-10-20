@@ -1,7 +1,7 @@
 // ルーレットの当たりなどで実行する動作。
-// 設定の actions を検証し、タイマー・WIN数・RUSH・メディア・効果音・ボス・ガチャへ渡す。
+// 設定の actions を検証し、タイマー・WIN数・RUSH・メディア・効果音・ボス・ガチャ・おみくじへ渡す。
 
-export const ACTION_TYPES = ['timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'gacha.start'];
+export const ACTION_TYPES = ['timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'gacha.start', 'omikuji.start'];
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 
 /** 動作1件を検証する。壊れていれば null（issues.errors に理由） */
@@ -96,6 +96,12 @@ function runOne(action, deps) {
       if (!deps.gacha) throw new Error('ガチャがありません');
       const started = deps.gacha.start({ kind: 'action', source: 'action' });
       if (!started) throw new Error('ガチャはオフです');
+      return started;
+    }
+    case 'omikuji.start': {
+      if (!deps.omikuji) throw new Error('おみくじがありません');
+      const started = deps.omikuji.start({ kind: 'action', source: 'action' });
+      if (!started) throw new Error('おみくじはオフです');
       return started;
     }
     default:

@@ -611,6 +611,7 @@ function notesDetail() {
 const FLAG_ALIASES = {
   bosses: ['bosses', 'boss'],
   gacha: ['gacha'],
+  omikuji: ['omikuji'],
   mediaAlerts: ['mediaAlerts', 'media'],
   giftSounds: ['giftSounds', 'sounds'],
   roulettes: ['roulettes'],

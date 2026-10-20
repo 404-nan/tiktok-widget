@@ -61,6 +61,8 @@
     if (healBtn) healBtn.onclick = function () { trigger({ target: 'boss', action: 'heal', amount: Number(num('devBossAmount')) }); };
     if (mediaBtn) mediaBtn.onclick = function () { trigger({ target: 'media', mediaId: num('devMediaId') }); };
     if (gachaBtn) gachaBtn.onclick = function () { trigger({ target: 'gacha' }); };
+    var omikujiBtn = document.getElementById('devOmikujiBtn');
+    if (omikujiBtn) omikujiBtn.onclick = function () { trigger({ target: 'omikuji' }); };
     if (slotBtn) slotBtn.onclick = function () { trigger({ target: 'slot' }); };
   }
 

@@ -10,7 +10,7 @@ import { giftLabel } from '/widgets/lib/overlay.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
   ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'slots']],
+  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -38,6 +38,7 @@ export const INFO = {
   mediaAlerts: { icon: 'clapperboard', desc: 'ギフトやフォローで、動画・音声・画像を出す' },
   giftSounds: { icon: 'volume-2', desc: 'ギフトごとに効果音を重ねて鳴らす' },
   gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
+  omikuji: { icon: 'scroll', desc: 'ギフトでおみくじを引いて、大吉や凶を出す' },
   slots: { icon: 'disc-3', desc: 'ギフトで3つの絵柄をそろえるスロット演出' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
@@ -219,6 +220,13 @@ export const SIMPLE = {
       { title: 'レアリティと天井', fields: ['tiers', 'pity'] },
     ],
   },
+  omikuji: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      { title: 'いつ引く', fields: ['minCoins', 'gifts'] },
+      { title: '運勢と出やすさ', fields: ['tiers'] },
+    ],
+  },
   slots: {
     groups: [
       { title: 'いつ回す', fields: ['trigger'] },
@@ -272,6 +280,7 @@ export const SIMPLE_LABELS = {
   'mediaAlerts.enabled': 'メディア通知を使う', 'mediaAlerts.rules': '再生のきっかけ',
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
+  'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
   'cutins.gifts': 'このギフトなら必ず出す', 'cutins.redText': '赤の文字', 'cutins.goldText': '金の文字', 'cutins.rainbowText': '虹の文字', 'cutins.sound': '効果音',
   'cutins.textWeight': '文字の太さ',
@@ -310,6 +319,7 @@ const SUMMARY = {
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
+  omikuji: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では引かない'}・${e.tiers?.length ?? 0} 種類`),
   slots: (e) => (e.enabled === false ? '使わない設定' : `${e.revivalRate}% 復活・${e.nearMissRate}% ニアミス`),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),

@@ -32,6 +32,6 @@
 ## 主な地図
 
 - 入力・接続: `src/tiktok.js`, `src/normalize.js`, `src/hub.js`
-- 機能: `src/roulette.js`, `src/timer.js`, `src/wins.js`, `src/boss.js`, `src/rush.js`, `src/gacha.js`, `src/slot.js`
+- 機能: `src/roulette.js`, `src/timer.js`, `src/wins.js`, `src/boss.js`, `src/rush.js`, `src/gacha.js`（おみくじも同じクラス）, `src/slot.js`
 - 操作: `mcp/server.js`, `bin/tw.js`, `src/admin.js`
 - 公開画面: `public/`。仕様と判断は [docs/DESIGN.md](../../docs/DESIGN.md)、[docs/IDEAS.md](../../docs/IDEAS.md) にある。

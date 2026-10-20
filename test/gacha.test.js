@@ -108,3 +108,16 @@ test('close すると段階は進まない', async (t) => {
   t.mock.timers.tick(10000);
   assert.equal(gacha.phase, 'rolling');
 });
+
+test('おみくじは同じ仕組みで、別の設定・イベント名で動く', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const hub = new EventEmitter();
+  const sent = [];
+  hub.broadcast = (msg) => sent.push(msg);
+  const omikuji = new Gacha(hub, { bus: createEventBus(), random: () => 0, name: 'omikuji' });
+  assert.equal(omikuji.config.tiers[0].label, '大吉');
+  assert.equal(omikuji.start({ kind: 'dev' }).ok, true);
+  finish(omikuji, t);
+  assert.ok(sent.every((m) => m.type === 'omikuji'));
+  assert.equal(sent.find((m) => m.event === 'reveal').tier.id, 'daikichi');
+});

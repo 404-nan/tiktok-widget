@@ -75,7 +75,7 @@ function checkValue(field, value, where, issues) {
     case 'soundRules':
       return checkSoundRules(value, where, issues);
     case 'gachaTiers':
-      return checkGachaTiers(value, where, issues);
+      return checkGachaTiers(value, where, issues, where.startsWith('omikuji') ? 'omikuji' : 'gacha');
     case 'slotTrigger':
       return checkSlotTrigger(value, where, issues);
     case 'slotPayouts':
@@ -284,8 +284,8 @@ function checkSoundRules(value, where, issues) {
 }
 
 const TIER_ID = /^[A-Za-z0-9_-]+$/;
-function checkGachaTiers(value, where, issues) {
-  const fallback = structuredClone(SCHEMA.gacha.fields.tiers.default);
+function checkGachaTiers(value, where, issues, section = 'gacha') {
+  const fallback = structuredClone(SCHEMA[section].fields.tiers.default);
   if (value == null) return fallback;
   if (!Array.isArray(value) || value.length === 0) {
     issues.errors.push(`${where}: レアリティを1つ以上書いてください`);
@@ -766,7 +766,7 @@ export function reference() {
     '',
     `場所: ${CONFIG_PATH}`,
     '',
-    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / giftSounds / gacha / slots など。',
+    'セクションは theme（共通）と、ウィジェットごとの alerts / chats / jars / goals / counters / roulettes / wins / timers / bosses / mediaAlerts / giftSounds / gacha / omikuji / slots など。',
     'theme 以外は「名前: { 設定 }」で何個でも作れる。名前は英数字と - _ だけ。',
     '書かなかった項目は初期値になる。保存すると開いているウィジェットに自動で反映される。',
     'ギフト名は TikTok の英語名・日本語名・ID のどれでも書けます。画面には TikTok の日本語名を出します。list_gifts で確認できます。',

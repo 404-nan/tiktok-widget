@@ -1,16 +1,19 @@
-/* ガチャ。待機 → 回転中 → 結果 → 終了。段階の長さはサーバーの durations に合わせる。 */
+/* ガチャ・おみくじ共通（body の data-kind で切り替え）。待機 → 回転中 → 結果 → 終了。段階の長さはサーバーの durations に合わせる。 */
 (function () {
   var phaseEl = document.getElementById('phase');
   var resultEl = document.getElementById('result');
   var timeEl = document.getElementById('time');
   var stageEl = document.getElementById('stage');
   var plateEl = document.getElementById('plate');
+  var kind = document.body.getAttribute('data-kind') || 'gacha';
   var base = '';
   var pathMatch = location.pathname.match(/^\/t\/[^/]+/);
   if (pathMatch) base = pathMatch[0];
   if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
-  var phases = { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' };
+  var phases = (kind === 'omikuji'
+    ? { idle: '待機', rolling: '引いています', reveal: '運勢', done: '終了' }
+    : { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' });
 
   function seconds(n) {
     var x = Number(n);
@@ -20,6 +23,7 @@
 
   function toneOf(tier) {
     if (!tier) return '';
+    if (kind === 'omikuji') return String(tier.id || '');
     var id = String(tier.id || '');
     if (id === 'legend' || tier.pity) return 'legend';
     if (id === 'rare') return 'rare';
@@ -52,7 +56,7 @@
   function onText(text) {
     var data;
     try { data = JSON.parse(text); } catch (e) { return; }
-    if (!data || data.type !== 'gacha') return;
+    if (!data || data.type !== kind) return;
     show(data);
   }
 
@@ -63,7 +67,7 @@
   }
 
   var req = new XMLHttpRequest();
-  req.open('GET', base + '/api/gacha', true);
+  req.open('GET', base + '/api/' + kind, true);
   req.onreadystatechange = function () {
     if (req.readyState !== 4 || req.status !== 200) return;
     try { show(JSON.parse(req.responseText)); } catch (e) {}
