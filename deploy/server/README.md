@@ -14,3 +14,5 @@ lulserver の本番（127.0.0.1:3939）を、再起動の手作業なしで新�
 - 配信中は待ち、終わってから反映します。未コミットの変更があるときも待ちます
 - テストが通らなかったコミットは出しません（`~/.local/state/tiktok-widget/last-test.log`）。次のコミットでもう一度試します
 - `tw-flow` は `ln -s ~/tiktok-widget/deploy/server/tw-flow ~/.local/bin/tw-flow` で入れる。本番には触らない
+
+最後に直した日: 2026-10-21

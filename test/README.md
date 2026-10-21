@@ -1,154 +1,72 @@
 # test/
 
-Node.jsの組み込みテストランナーで、サーバーの機能と受け入れ条件を確かめるフォルダです。
+Node.js の組み込みテストランナーで、サーバーの機能、公開画面の配線、受け入れ条件を確かめるフォルダです。
 
 | ファイル | 役目 |
 | --- | --- |
-| `acceptance/guard.test.js` | ガード機能の受け入れテスト |
-| `acceptance/guard-round2.test.js` | ガード2巡目の受け入れテスト |
-| `acceptance/guard-round3.test.js` | ガード3巡目の受け入れテスト |
-| `acceptance/ingest.test.js` | ingest AC-1〜13の受け入れテスト |
-| `acceptance/ingest-round2.test.js` | ingest AC-14〜21の受け入れテスト |
-| `acceptance/ingest-round3.test.js` | ingest AC-22〜24の受け入れテスト |
-| `acceptance/ingest-review.test.js` | ingest 3巡目レビューのHTTP境界テスト |
-| `acceptance/ingest-status.test.js` | ingest-status AC-1〜4の画面・説明の受け入れテスト |
+| `acceptance/guard.test.js` / `guard-round2.test.js` / `guard-round3.test.js` | ガード機能の受け入れテスト |
+| `acceptance/ingest.test.js` / `ingest-round2.test.js` / `ingest-round3.test.js` | ingest AC-1〜24の受け入れテスト |
+| `acceptance/ingest-review.test.js` / `ingest-review.test.js` | ingestレビューのHTTP境界・単体テスト |
+| `acceptance/ingest-status.test.js` | ingest-statusの画面・説明の受け入れテスト |
+| `acceptance/dareba.test.js` / `dareba-wiring.test.js` | ダレ場の判定、状態、停止、配線を確認する |
+| `acceptance/peka.test.js` / `peka-wiring.test.js` | ペカの完成条件と配線を確認する |
+| `acceptance/throne.test.js` / `throne-wiring.test.js` | 王座の完成条件と配線を確認する |
+| `acceptance/ootori.test.js` / `ootori-wiring.test.js` | 大トリの完成条件と配線を確認する |
+| `acceptance/relay-stop.test.js` / `relay-stop-wiring.test.js` | リレー停止の完成条件と配線を確認する |
+| `acceptance/mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確認する |
+| `acceptance/mc-goal-alert.test.js` / `mc-goal-alert-wiring.test.js` | ゴール距離、段階警報、RCON、公開画面を確認する |
+| `acceptance/obs.test.js` | 偽obs-websocketを使ったOBS連携の受け入れテスト |
+| `acceptance/templates.test.js` / `pre-ship-review-templates.test.js` | 配信テンプレートの完成条件と画面のつなぎ目を確認する |
+| `acceptance/push-button.test.js` | 押しボタンの設定・集計・操作入口・公開コードを確認する |
+| `acceptance/participation-vote-review.test.js` | コメント投票のレビュー条件を確認する |
+| `acceptance/cheer.test.js` / `cheer-public.test.js` | いいね応援の設定・集計・操作入口・公開コードを確認する |
+| `acceptance/combo.test.js` / `combo-wiring.test.js` / `combo-pre-ship.test.js` | コンボの回数・段階・終了・配線・公開スクリプトを確認する |
+| `acceptance/cutin-premium.test.js` | カットインのプレミア演出カードを確認する |
+| `acceptance/info-feed.test.js` | ニュースティッカーと最近のサポーターを確認する |
+| `acceptance/visitors.test.js` | 初見・常連の匿名記録と来場テロップを確認する |
+| `acceptance/perf-hub.test.js` / `perf-history.test.js` / `perf-cleanup.test.js` | WebSocket差分、履歴保存、後片付けを確認する |
+| `acceptance/pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューの回帰条件を確認する |
+| `acceptance/ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界を確認する |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
-| `ai.test.js` | AI設定のテスト |
-| `ai-control.test.js` | AI操作制御のテスト |
-| `billing.test.js` | 利用制限と課金のテスト |
-| `boss.test.js` | ボス機能のテスト |
-| `boss-rank.test.js` | ボス順位のテスト |
+| `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト |
+| `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
+| `boss.test.js` / `boss-rank.test.js` | ボス機能と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
 | `coins-nan.test.js` | コイン値の異常系テスト |
-| `config.test.js` | 設定読み書きのテスト |
+| `config.test.js` / `keep-settings.test.js` | 設定読み書きと保持のテスト |
 | `cutin-style.test.js` | カットイン設定のテスト |
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
 | `env.test.js` | 環境判定のテスト |
 | `es5-public.test.js` | 公開ウィジェットのES5検査 |
+| `widget-tenant-paths.test.js` | overlay.js を使わない公開ウィジェットが、配信者ごとの URL の下の API と WebSocket を使うか |
 | `events.test.js` | イベントバスのテスト |
 | `gacha.test.js` | ガチャのテスト |
-| `gift-display.test.js` | ギフト表示のテスト |
-| `gift-names.test.js` | ギフト名対応表のテスト |
-| `gifts.test.js` | ギフト処理のテスト |
-| `gift-sounds.test.js` | ギフト音のテスト |
-| `history.test.js` | 履歴保存のテスト |
-| `history-test-send.test.js` | 履歴のテスト送信 |
+| `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
+| `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
+| `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |
 | `hub.test.js` | イベント集計と配信のテスト |
 | `ingest-keys.test.js` | ingest鍵の保存・作り直し・削除の単体テスト |
-| `ingest-review.test.js` | ingest 3巡目レビューの単体テスト |
-| `keep-settings.test.js` | 設定保持のテスト |
 | `media-alerts.test.js` | メディア通知のテスト |
 | `minecraft.test.js` | Minecraft連携のテスト |
 | `monitor-status.test.js` | モニター状態のテスト |
 | `normalize.test.js` | 入力正規化のテスト |
-| `obs-gift-names.test.js` | OBS向けギフト名のテスト |
 | `pinlogin.test.js` | PINログインのテスト |
 | `reconnect.test.js` | 再接続のテスト |
-| `rental.test.js` | 利用期間のテスト |
-| `roulette-actions.test.js` | ルーレットアクションのテスト |
-| `roulette-trigger.test.js` | ルーレット起動のテスト |
-| `rush.test.js` | RUSHのテスト |
-| `rush-odds.test.js` | RUSH抽選率のテスト |
+| `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
+| `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
-| `slot.test.js` | スロットのテスト |
+| `slot.test.js` / `timer.test.js` / `timer-length.test.js` | スロットとタイマーのテスト |
 | `tenants.test.js` | 配信者管理のテスト |
 | `tiktok.test.js` | TikTok接続のテスト |
-| `timer.test.js` | タイマーのテスト |
-| `timer-length.test.js` | タイマー長さのテスト |
 | `vault.test.js` | データ退避のテスト |
 | `weight.test.js` | 重み付き抽選のテスト |
 | `wins.test.js` | WIN数のテスト |
 
-`npm.cmd test` で全テストを実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `data/` には触れません。
-Node標準テストで、サーバー側の仕組みと公開画面の配線を確認します。
-
-| ファイル | 何をするか |
-| --- | --- |
-| `acceptance/dareba.test.js` | ダレ場の判定、状態、停止、テスト送信の受け入れ条件を確かめる |
-| `dareba-wiring.test.js` | 設定・機能一覧・ダッシュボード・公開ウィジェットの配線を確かめる |
-| `acceptance/peka.test.js` | Pekaの完成条件ごとの受け入れテスト |
-| `peka-wiring.test.js` | ランタイム、API、CLI、MCP、ダッシュボード、公開画面の配線テスト |
-| `acceptance/throne.test.js` | 動く王座の完成条件ごとの受け入れテスト |
-| `throne-wiring.test.js` | 王座の設定、操作経路、公開画面の配線テスト |
-| `acceptance/ootori.test.js` | 大トリの完成条件ごとの受け入れテスト |
-| `ootori-wiring.test.js` | 大トリの設定、操作経路、公開画面の配線テスト |
-| `acceptance/relay-stop.test.js` | リレー停止の完成条件ごとの受け入れテスト |
-| `acceptance/mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確かめる |
-| `acceptance/mc-goal-alert.test.js` | ゴール距離の問い合わせ、段階警報、再武装、ゴール到達、テスト隔離を確かめる |
-| `pre-ship-regressions.test.js` | 本番前レビューの実接続・再起動・二重処理の再現条件を確かめる |
-| `mc-goal-alert-wiring.test.js` | ゴール接近警報の設定、ランタイム、RCON、公開画面の配線を確かめる |
-| `relay-stop-wiring.test.js` | リレー停止の設定、操作経路、公開画面の配線テスト |
-| `*.test.js` | 既存機能のテスト |
-
 ## つながり
 
-テストは `npm test` で実行します。本番の `config.yaml` や `data/` は使いません。
-サーバー・公開ウィジェット・受け入れ条件の自動テストです。
+テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-| ファイル | 役目 |
-| --- | --- |
-| `acceptance/obs.test.js` | 偽obs-websocketを使ったOBS連携の受け入れテスト |
-| `es5-public.test.js` | 公開JavaScriptのES5検査 |
-
-全体は `npm.cmd test`、OBS連携だけは `node --test test/acceptance/obs.test.js` で実行します。
-Node.js 標準テストで、設定・サーバー API・画面に見える動きを確かめます。
-
-| ファイル | 何をするか |
-| --- | --- |
-| `acceptance/templates.test.js` | 配信テンプレートの完成条件を一時設定で受け入れテストする |
-| `pre-ship-review.test.js` | 本番前レビューで見つかった投票・押しボタン・応援の状態のずれと、地図の漏れを再現する |
-| `pre-ship-review-templates.test.js` | 本番前レビューで見つかった画面とテンプレートのつなぎ目を確認する |
-| `*.test.js` | 各機能の既存テスト |
-
-`npm test` から実行され、本番の `config.yaml` と `data/` は使いません。
-Node標準のテストで、サーバーの設定・配信状態・AI操作を本番データなしで確かめます。
-
-| ファイル | 何をするか |
-| --- | --- |
-| `ai-screenshot.test.js` | 開発用撮影の入力検証、テナント境界、テスト送信順、画像返却を受け入れテストする |
-| `ai-streamer-entry.test.js` | 配信者専用AI入口の範囲、提案、テスト送信、失効を確認する |
-| `pre-ship-review-ai.test.js` | 本番前レビューの安全境界、トークン上限、権限表示、期限表示を確認する |
-| `*.test.js` | 各機能の単体テストと受け入れテストを行う |
-| `helpers/guard-harness.js` | 安全柵のテストで使う一時サーバー補助 |
-
-## つながり
-
-- 使うもの: `../src/` の各機能と一時ディレクトリ
-- 使われるところ: `npm test` が `node --test` でまとめて実行する
-Node.js の標準テストランナーで、サーバーの処理と公開画面の契約を確かめる。
-
-| ファイル | 何をするか |
-| --- | --- |
-| `acceptance/visitors.test.js` | 実際の visitors map、設定変更、再起動、匿名化、保存期間、テスト送信、ウィジェットの完成条件を確かめる |
-| `acceptance/` | カード単位の受け入れテストを置く |
-
-## つながり
-
-- 使うもの: `src/` と `public/widgets/`
-- 使われ方: `npm test`（実行時のコードからは使わない）
-本番に近い入力と公開画面のつなぎ方を確認するテストです。
-
-| ファイル | 役目 |
-| --- | --- |
-| `acceptance/combo.test.js` | コンボエンジンの回数・段階・終了・テスト分離を確認する |
-| `acceptance/combo-wiring.test.js` | 設定・Runtime・管理操作の配線を確認する |
-| `acceptance/combo-pre-ship.test.js` | `combo.html` の実スクリプトを簡易ブラウザで動かし、レビュー指摘を確認する |
-
-テストは `npm.cmd test` で実行します。
-Node標準のテストです。実データを使わず、一時ファイルやメモリ上のイベントで確かめます。
-
-| ファイル | 何をするか |
-| --- | --- |
-| `acceptance/cutin-premium.test.js` | カットインのプレミア演出カードの受け入れ条件を確かめる |
-| `es5-public.test.js` | 公開ウィジェットのJavaScriptがES5か確かめる |
-| `cutin-style.test.js` | カットインの既存設定と写真の切り抜きを確かめる |
-| `acceptance/pre-ship-review.test.js` | 本番前レビュー5件を、公開側とHubのつなぎ方で再現する |
-| `acceptance/` | 受け入れ条件のテストをまとめる |
-
-## つながり
-
-- `npm test` が `node --test` でこのフォルダを実行する。
-- 受け入れテストは `src/` と `public/` の利用者から見える結果を確認する。
+最後に直した日: 2026-10-21

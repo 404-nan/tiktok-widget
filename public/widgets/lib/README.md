@@ -1,63 +1,35 @@
 # public/widgets/lib/
 
-複数の公開ウィジェットから使うブラウザ側の共通処理です。
+複数の公開ウィジェットから使うブラウザ側の共通 JavaScript と CSS です。公開側は ES5、外部 CDN なしで動かします。
 
 | ファイル | 役目 |
 | --- | --- |
-| `sha256.js` | OBS WebSocketのパスワード認証に使うES5 SHA-256 |
-
-各ファイルは `public/widgets/*.html` から読み込まれます。
-公開ウィジェットが共有するブラウザ側の部品です。OBS から各ウィジェットの HTML が読み込みます。
-
-| ファイル | 役目 |
-| --- | --- |
-| `overlay.js` | WebSocket 接続、設定、イベントと compact 差分の状態復元を担当する。 |
-| `*.js` / `*.css` | ギフト名、演出、チャット、ルーレットなどの共有部品。 |
-
-公開画面の制約に合わせ、外部 CDN は使いません。
-# public/widgets/lib
-
-ウィジェット（`public/widgets/*.html`）が共通で使う JavaScript と CSS。
-各ウィジェットの HTML から読み込まれ、サーバー（`server.js` / `src/`）とは WebSocket と `/api/` だけでつながる。
-ES5 で書くもの（LIVE Studio の古い Chromium 向け）は `test/es5-public.test.js` で確かめている。
-
-## 共通
-
-| ファイル | 役目 |
-| --- | --- |
-| `overlay.js` | 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など |
+| `overlay.js` | WebSocket接続、設定、URLパラメータ、イベントとcompact差分の状態復元、数値表示を担当する |
 | `overlay.css` | ウィジェット共通のデザイン（色・文字・チップ） |
-| `fonts.css` | 和文と数字の書体（node_modules から配信） |
-| `gift-names.js` / `gift-names-ja.js` | ギフトの日本語名（`gift-names-ja.js` はスクリプトが作る。手で直さない） |
-| `gift-name.js` | ギフト名の引き方（ES5 のウィジェット用） |
-| `brush.js` | 筆でかすれた帯の画像（カットイン・RUSH） |
-| `chat.js` | コメント欄の決まりごと（どのコメントを出すか等）。テストからも使う |
+| `fonts.css` | 和文と数字のローカルフォント定義 |
+| `gift-names.js` / `gift-names-ja.js` | ギフト名データ。`gift-names-ja.js` はスクリプトが作る |
+| `gift-name.js` | ES5ウィジェット用のギフト名の引き方 |
+| `brush.js` | 筆でかすれた帯や木炭の線の描画 |
+| `chat.js` | コメント欄の表示対象と読み上げの決まり |
 | `vessels.js` | ギフト瓶の入れ物の形 |
-
-## カットイン
-
-| ファイル | 役目 |
-| --- | --- |
-| `cutin.js` | カットインの動き。ギフトの段階の色、ルーレットのチャンス・大写し・確定演出、ルーレットの形ごとの当たり（大当たり / ジャックポット / ビッグボーナス / 一本）、スロットの大当たり |
-| `cutin.css` | カットインの見た目（帯・文字・集中線・フリーズ・大写し・金貨・電球の縁・7・判） |
-| `cutin-style.js` | 画像付きカットインの縦長フレームと切り抜き（ES5） |
-
-## ルーレット（`roulette.html`）
-
-| ファイル | 役目 |
-| --- | --- |
-| `roulette.js` | 設定の読み込み、待ち列、結果カード、止まる時間の定数（`CHANCE_MS`）。カットインの大写しも `prepareRoulette` を使う |
+| `sha256.js` | OBS WebSocketのパスワード認証用ES5 SHA-256 |
+| `cutin.js` | カットインの動き、段階色、ルーレットの当たり、スロット大当たり |
+| `cutin.css` | カットインの帯・柄・光・揺れ・金貨・電球・7・判の見た目 |
+| `cutin-style.js` | 画像付きカットインの縦長フレームと切り抜き |
+| `cutin-premium.js` | プレミア柄をSVGで作り、昇格を含む結果を解決する |
+| `roulette.js` | ルーレット設定、待ち列、結果カード、停止時間、カットイン連携 |
 | `roulette.css` | 案内チップ、待ち回数、結果カード |
-| `roulette-wheel.js` | 丸型の描画と回し方（wheel / casino / judo）。ギリギリ演出の動き（`creepRotation`）はカットインの大写しと共通 |
-| `roulette-skins.js` | 丸型の塗り分け。wheel いつもの形 / casino 金の縁・電球・赤と黒の盤 / judo 畳・畳縁・黒帯 |
-| `roulette-strip.js` | 横スライド型（strip） |
-| `roulette-reel.js` / `roulette-reel.css` | スロット台型（slot 1本 / slot3 3本）。赤い筐体、電球の看板、縦に回るリール、レバー |
-| `reel-plan.js` | スロット台で各リールをどの項目で止めるか（3本のリーチ）。画面に触らない。`test/reel-plan.test.js` |
-| `roulette-gift.js` | 「◯◯さんのギフトで回転中」の名前 |
+| `roulette-wheel.js` | 丸型・カジノ・柔道の描画、ギリギリ演出 |
+| `roulette-skins.js` | 丸型、カジノ、柔道の塗り分け |
+| `roulette-strip.js` | 横スライド型ルーレット |
+| `roulette-reel.js` / `roulette-reel.css` | スロット台型のリール、筐体、電球、レバー |
+| `reel-plan.js` | スロット台で各リールを止める項目と3本のリーチ計画 |
+| `roulette-gift.js` | ギフトを送った人の名前 |
+| `slot-core.js` | スロット絵柄の対応表と開示演出の時刻表 |
+| `slot-casino.css` | カジノ風スロットの見た目 |
 
-## スロット（`slot.html`）
+## つながり
 
-| ファイル | 役目 |
-| --- | --- |
-| `slot-core.js` | 絵柄の対応表と、開示演出の時刻表（ES5。`src/slot.js` と同じ数字） |
-| `slot-casino.css` | カジノの見た目（`slots.look: casino` のときだけ効く）。和パチスロの見た目は `slot.html` の中 |
+各ウィジェットの HTML から読み込まれ、サーバー（`server.js` / `src/`）とは WebSocket と `/api/` でつながります。`test/es5-public.test.js` で公開 JavaScript の ES5 条件を確認します。
+
+最後に直した日: 2026-10-21

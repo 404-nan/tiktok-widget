@@ -513,6 +513,7 @@ const SUMMARY = {
   omikuji: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では引かない'}・${e.tiers?.length ?? 0} 種類`),
   slots: (e) => (e.enabled === false ? '使わない設定' : `${e.revivalRate}% 復活・${e.nearMissRate}% ニアミス`),
   peka: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins} コインから・当たり ${Math.round(e.chance * 100)}%`),
+  relayStop: (e) => (e.enabled ? `1本 ${Math.round((e.waitMs ?? 10000) / 1000)} 秒で自動停止` : '使わない設定'),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),
 };

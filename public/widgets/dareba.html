@@ -67,8 +67,10 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
     if (message && message.type === 'hello') show(message.dareba);
     if (message && message.type === 'dareba') show(message.dareba);
   }
-  fetch('/api/dareba').then(function (r) { return r.json(); }).then(show).catch(function () {});
-  var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
+  var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
+  fetch(base + '/api/dareba').then(function (r) { return r.json(); }).then(show).catch(function () {});
+  var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws');
   ws.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (error) {} };
 }());
 </script>

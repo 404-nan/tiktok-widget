@@ -23,7 +23,10 @@ const KANA = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const b64sha = (text) => crypto.createHash('sha256').update(text).digest('base64');
 
-async function waitFor(cond, ms = 3000, what = '条件') {
+// 起きるまで待つ上限。全テストを並べて走らせると重くなり、3秒では足りずに落ちることがあった
+const WAIT_MS = 10000;
+
+async function waitFor(cond, ms = WAIT_MS, what = '条件') {
   const end = Date.now() + ms;
   for (;;) {
     const v = cond();
@@ -226,7 +229,7 @@ test('AC-2 クライアント部は DOM なしの vm で読め、OBSBridge.creat
 test('AC-2 公式仕様の例(パスワード supersecretpassword)で正しい authentication を作り、Identified の前に Request を送らない', async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE()] }, { fake: { password: 'supersecretpassword' }, page: { hash: '#pw=supersecretpassword' } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 0, 3000, '認証後の命令');
+  await waitFor(() => obs.sets().length > 0, WAIT_MS, '認証後の命令');
   assert.equal(obs.identifies.length, 1);
   const expected = b64sha(b64sha('supersecretpassword' + SALT) + CHALLENGE);
   assert.equal(obs.identifies[0].authentication, expected);
@@ -238,7 +241,7 @@ test('AC-2 公式仕様の例(パスワード supersecretpassword)で正しい a
 test('AC-2 パスワードが無いとき(Hello に authentication なし)は authentication を付けずに Identify する', async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE()] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 0, 3000, '命令');
+  await waitFor(() => obs.sets().length > 0, WAIT_MS, '命令');
   assert.equal(obs.identifies[0].authentication, undefined);
   assert.deepEqual(obs.violations, []);
 });
@@ -271,7 +274,7 @@ function noDisplay(page) {
 test('AC-4 パスワード違い(close 4009)は例外なく何も出さず、その動きだけ捨てる', async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE()] }, { fake: { password: 'right' }, page: { hash: '#pw=wrong' } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.identifies.length > 0, 3000, 'Identify');
+  await waitFor(() => obs.identifies.length > 0, WAIT_MS, 'Identify');
   await sleep(300);
   assert.equal(obs.requests.length, 0);
   noDisplay(page);
@@ -290,7 +293,7 @@ test('AC-4 接続できないとき、つなぎ直しは 5・10・20・40・60 �
 test('AC-4 返事が来ない(5 秒)ときは例外なくその動きを捨て、あとの動きは続けられる', async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE()], cooldownSeconds: 0 }, { fake: { silent: true }, page: { fast: true } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.requests.length > 0, 3000, '最初の命令');
+  await waitFor(() => obs.requests.length > 0, WAIT_MS, '最初の命令');
   await sleep(300); // 5 秒の待ちは 5ms に縮めてある
   assert.equal(obs.sets().length, 0);
   obs.silent = false;
@@ -302,7 +305,7 @@ test('AC-4 返事が来ない(5 秒)ときは例外なくその動きを捨て�
 test('AC-4 ソースが無い(code 600)ときは何も動かさず、例外も画面も出さない', async () => {
   const { obs, page } = await bridgeWith({ source: 'nosuch', rules: [SHAKE()] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.requests.some((r) => r.type === 'GetSceneItemId'), 3000, 'GetSceneItemId');
+  await waitFor(() => obs.requests.some((r) => r.type === 'GetSceneItemId'), WAIT_MS, 'GetSceneItemId');
   await sleep(300);
   assert.equal(obs.sets().length, 0);
   noDisplay(page);
@@ -312,8 +315,8 @@ test('AC-4 ソースが無い(code 600)ときは何も動かさず、例外も�
 test('AC-5 揺れ: positionX/Y の変化は大きさの設定値 % 以内、間隔 33ms 以上、最後に元の値へ戻る', async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE({ strength: 1.5, seconds: 0.5 })] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, '揺れ');
-  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, 3000, '元の値へ戻る');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, '揺れ');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, WAIT_MS, '元の値へ戻る');
   const sets = obs.sets();
   const limit = 0.015 * 1000;
   for (const r of sets) {
@@ -331,8 +334,8 @@ test('AC-5 揺れ: positionX/Y の変化は大きさの設定値 % 以内、間�
 test('AC-5 reduce で揺れの強さは半分、秒数は 0.6 倍', async () => {
   const { obs, page } = await bridgeWith({ reduce: true, rules: [SHAKE({ strength: 3, seconds: 1 })] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, '揺れ');
-  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 200, 3000, '終わり');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, '揺れ');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 200, WAIT_MS, '終わり');
   const sets = obs.sets();
   for (const r of sets) {
     assert.ok(Math.abs(moved(r).positionX - ORIGINAL.positionX) <= 0.015 * 1000 + 1e-6);
@@ -344,7 +347,7 @@ test('AC-5 reduce で揺れの強さは半分、秒数は 0.6 倍', async () => 
 test('AC-5 途中で off を受けたらすぐ元に戻し、そのあと動かさない', async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE({ seconds: 3 })] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, '揺れ');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, '揺れ');
   await page.emit({ type: 'control', target: 'obs', action: 'off', data: {} });
   await waitFor(() => restored(obs), 1000, '元に戻る');
   const n = obs.sets().length;
@@ -356,7 +359,7 @@ test('AC-5 途中で off を受けたらすぐ元に戻し、そのあと動か�
 test('AC-5 設定で enabled:false にしてもすぐ元に戻る', async () => {
   const { obs, page, config } = await bridgeWith({ rules: [SHAKE({ seconds: 3 })] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, '揺れ');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, '揺れ');
   await page.emit({ type: 'config', config: { ...config, obs: { ...config.obs, enabled: false } } });
   await waitFor(() => restored(obs), 1000, '元に戻る');
   const n = obs.sets().length;
@@ -367,7 +370,7 @@ test('AC-5 設定で enabled:false にしてもすぐ元に戻る', async () => 
 test('AC-5 接続が切れても、つながったとき最初に保存した値へ戻す', { timeout: 15000 }, async () => {
   const { obs, page } = await bridgeWith({ rules: [SHAKE({ seconds: 3 })] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3 && !restored(obs), 3000, '揺れの途中');
+  await waitFor(() => obs.sets().length > 3 && !restored(obs), WAIT_MS, '揺れの途中');
   obs.dropAll();
   await waitFor(() => obs.identifies.length >= 2 && restored(obs), 9000, '再接続後に元の値へ戻る');
 });
@@ -377,8 +380,8 @@ test('AC-6 ズーム: scale が 1 倍 → scale → 1 倍。左上以外の alig
   const centered = { transform: { ...ORIGINAL, alignment: 0 } };
   const { obs, page } = await bridgeWith({ rules: [{ on: 'rainbow', do: 'zoom', scale: 1.2, seconds: 0.5 }] }, { fake: { items: { camera: { id: 7, enabled: true, ...centered } } } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, 'ズーム');
-  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, 3000, '元の倍率');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, 'ズーム');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, WAIT_MS, '元の倍率');
   const scales = obs.sets().map((r) => moved(r).scaleX);
   const peak = Math.max(...scales);
   assert.ok(Math.abs(peak - 1.2) < 0.005, `最大 ${peak}`);
@@ -394,16 +397,16 @@ test('AC-6 boundsType が OBS_BOUNDS_NONE 以外のときも位置を補正せ�
   const bounded = { transform: { ...ORIGINAL, boundsType: 'OBS_BOUNDS_STRETCH' } };
   const { obs, page } = await bridgeWith({ rules: [{ on: 'rainbow', do: 'zoom', scale: 1.2, seconds: 0.4 }] }, { fake: { items: { camera: { id: 7, enabled: true, ...bounded } } } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, 'ズーム');
-  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, 3000, '元の倍率');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, 'ズーム');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, WAIT_MS, '元の倍率');
   for (const r of obs.sets()) assert.deepEqual(Object.keys(moved(r)).filter((k) => /^position/.test(k)), []);
 });
 
 test('AC-6 reduce でズームの幅は半分', async () => {
   const { obs, page } = await bridgeWith({ reduce: true, rules: [{ on: 'rainbow', do: 'zoom', scale: 1.2, seconds: 1 }] });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 3, 3000, 'ズーム');
-  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, 3000, '元の倍率');
+  await waitFor(() => obs.sets().length > 3, WAIT_MS, 'ズーム');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, WAIT_MS, '元の倍率');
   const peak = Math.max(...obs.sets().map((r) => moved(r).scaleX));
   assert.ok(peak <= 1.1 + 0.005 && peak > 1.02, `最大 ${peak}`);
 });
@@ -424,7 +427,7 @@ test('AC-7 場面: GetCurrentProgramScene で元を覚え、SetCurrentProgramSce
 test('AC-7 backSeconds が 0 なら戻さない', async () => {
   const { obs, page } = await bridgeWith({ rules: [{ on: 'jackpot', do: 'scene', name: 'Party', backSeconds: 0 }] });
   await testRule(page, 'jackpot');
-  await waitFor(() => obs.scene === 'Party', 3000, '場面が替わる');
+  await waitFor(() => obs.scene === 'Party', WAIT_MS, '場面が替わる');
   await sleep(500);
   assert.equal(obs.scene, 'Party');
 });
@@ -512,14 +515,14 @@ test('AC-8 見本モード(hello の sample が on)では動かさず、enabled:
 test('AC-9 同じ on はクールダウン内に続けて動かさず、別の on は動かす', async () => {
   const { obs, page } = await bridgeWith({ cooldownSeconds: 4, rules: [SHAKE({ seconds: 0.2 }), { on: 'rushStart', do: 'zoom', scale: 1.1, seconds: 0.3 }] });
   await page.emit(gift(20000));
-  await waitFor(() => obs.sets().length > 2, 3000, '1 回目の揺れ');
-  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, 3000, '1 回目の終わり');
+  await waitFor(() => obs.sets().length > 2, WAIT_MS, '1 回目の揺れ');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 150, WAIT_MS, '1 回目の終わり');
   const n = obs.sets().length;
   await page.emit(gift(20000));
   await sleep(500);
   assert.equal(obs.sets().length, n, '2 回目が動いた');
   await page.emit({ type: 'rush', rush: {}, event: { kind: 'start' } });
-  await waitFor(() => obs.sets().some((r) => moved(r).scaleX > 1.05), 3000, '別の on');
+  await waitFor(() => obs.sets().some((r) => moved(r).scaleX > 1.05), WAIT_MS, '別の on');
 });
 
 test('AC-9 揺れとズームは同じソースに重ならず、上から順に動く', async () => {
@@ -547,7 +550,7 @@ test('レビュー3: 無効で始めても設定変更でOBSへつながり、�
   const { obs, page, config } = await bridgeWith({ enabled: false, rules: [SHAKE({ seconds: 0.2 })] });
   await page.emit({ type: 'config', config: { obs: { ...config.obs, enabled: true }, cutins: { default: { goldCoins: 50, rainbowCoins: 100 } }, active: { cutins: 'default' } } });
   await page.emit(gift(120));
-  await waitFor(() => obs.sets().length > 0, 3000, '再有効化後の演出');
+  await waitFor(() => obs.sets().length > 0, WAIT_MS, '再有効化後の演出');
   assert.equal(obs.identifies.length, 1);
 });
 
@@ -556,7 +559,7 @@ test('レビュー4: 演出中に別のonが来ても、最初の動きの元の
   await testRule(page, 'rainbow');
   await sleep(100);
   await testRule(page, 'rushStart');
-  await waitFor(() => restored(obs), 3000, '重なった演出の復元');
+  await waitFor(() => restored(obs), WAIT_MS, '重なった演出の復元');
   const sets = obs.sets();
   assert.ok(sets.some((r) => moved(r).positionX !== ORIGINAL.positionX), '最初の演出が動いていない');
   assert.ok(!sets.some((r) => moved(r).scaleX > 1.05), '後の演出が重なっている');
@@ -567,7 +570,7 @@ test('AC-10 パスワードは location.hash の pw= から読み、読んだら
   const pw = 'hunter2-secret-pw';
   const { obs, page } = await bridgeWith({ rules: [SHAKE()] }, { fake: { password: pw }, page: { hash: `#pw=${pw}` } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 0, 3000, '認証して動く');
+  await waitFor(() => obs.sets().length > 0, WAIT_MS, '認証して動く');
   assert.ok(page.replace.length >= 1, 'history.replaceState を呼んでいない');
   assert.equal(page.sandbox.location.hash, '');
   assert.ok(page.replace.every((a) => !String(a[2] ?? '').includes(pw) && !String(a[2] ?? '').includes('#')));
@@ -580,7 +583,7 @@ test('AC-10 パスワードは search(?pw=)からは読まない', async () => {
   const pw = 'from-query-string';
   const { obs, page } = await bridgeWith({ rules: [SHAKE()] }, { fake: { password: pw }, page: { search: `?pw=${pw}` } });
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.identifies.length > 0, 3000, 'Identify');
+  await waitFor(() => obs.identifies.length > 0, WAIT_MS, 'Identify');
   await sleep(200);
   assert.equal(obs.requests.length, 0);
 });

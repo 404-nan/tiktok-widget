@@ -62,12 +62,14 @@
   }
 
   function connect() {
-    var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+    // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
+    var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
+    var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws');
     socket.onmessage = function (event) {
       var message = JSON.parse(event.data);
       if (message.type === 'hello') {
         config = (message.config && message.config.cheers && message.config.cheers[id]) || config;
-        fetch('/api/cheer').then(function (response) { return response.json(); }).then(function (all) { if (all[id]) state = all[id]; draw(); });
+        fetch(base + '/api/cheer').then(function (response) { return response.json(); }).then(function (all) { if (all[id]) state = all[id]; draw(); });
       } else if (message.type === 'cheer') apply(message);
     };
     socket.onclose = function () { setTimeout(connect, 1500); };

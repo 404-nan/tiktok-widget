@@ -12,3 +12,5 @@
 ## 使われるところ
 
 受け入れテスト `test/acceptance/perf-*.test.js` から呼ばれます。詳しい条件と数字の読み方は [`docs/knowledge/performance.md`](../../docs/knowledge/performance.md) を見てください。
+
+最後に直した日: 2026-10-21

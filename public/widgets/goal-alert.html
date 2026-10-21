@@ -62,11 +62,13 @@
         if (event.type === 'hello' && event.goalAlert && event.goalAlert.distance != null) show(event.goalAlert);
       }
 
-      fetch('/api/minecraft/goal-alert').then(function (response) { return response.json(); }).then(function (state) {
+      // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
+      var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
+      fetch(base + '/api/minecraft/goal-alert').then(function (response) { return response.json(); }).then(function (state) {
         if (state && state.distance != null && state.stage && state.stage !== 'safe') show({ type: 'goalAlert', stage: state.stage, distance: state.distance, message: state.stage === 'final' ? '最終防衛ライン' : 'ゴールまで ' + state.distance + 'm' });
       }).catch(function () {});
 
-      var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+      var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws');
       socket.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (e) {} };
     }());
   </script>
