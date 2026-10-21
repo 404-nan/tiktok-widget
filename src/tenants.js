@@ -439,7 +439,6 @@ export class Tenants {
     const t = this.get(id);
     if (!t) throw new Error('その配信者は見つかりません');
     t.template = template == null ? null : (String(template).trim() || 'custom');
-    t.guideDone = false;
     this.#save();
     this.#notify(id);
     return t;

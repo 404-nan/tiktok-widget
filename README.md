@@ -1,8 +1,21 @@
-# TikTok LIVE ウィジェット
+# ライコネ
 
 最終更新: 2026-10-19
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
+ライコネは TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
+
+## 機能の状態
+
+| 機能 | 何ができるか | 状態 | コードの場所 |
+| --- | --- | --- | --- |
+| 製品名 | 配信者向けの画面と説明を「ライコネ」にそろえる | できた | `public/dashboard/`、`public/help/`、`public/admin/` |
+| 配信テンプレート | 妨害マイクラ・罰ゲーム雑談・耐久・目標配信を選び、差分を確認して設定を入れ、元に戻せる | できた | `src/templates/`、`src/templates.js`、`public/dashboard/templates.js` |
+| 配信画面の遊び方選択 | 配信画面の見本で、耐久・目標配信などの使うものを選び、配置を保存する | できた | `public/dashboard/stage.js`、`src/runtime.js` |
+| ウィジェット | ギフト・コメント・目標・ルーレットなどを OBS に表示する | できた | `public/widgets/` |
+| AI にたのむ | 設定変更の案を見てから反映し、元に戻す | できた | `src/ai.js`、`public/dashboard/ai.js` |
+
+配信テンプレートは、ダッシュボードの「かんたん」→「配信テンプレート」から使います。CLI は `npm run tw -- templates`、MCP は `list_templates` / `preview_template` / `apply_template` です。
 
 ## 機能の状態
 
@@ -384,6 +397,8 @@ src/vote.js            コメントの番号投票を1人1票で集計し、結�
 src/cheer.js           いいね応援ゲージをメモリで集計し、満タンと状態を配る
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
 src/ootori.js          ラスト10分の席、大トリ、参加者、エンドロールをサーバーで管理
+src/templates.js       配信テンプレートの読み込み・検証・差分計算
+src/templates/         妨害マイクラ・罰ゲーム雑談・耐久・目標配信のテンプレートデータ
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）。受け口の鍵はキャッシュして照合する
 src/ingest.js          外部ツールからのイベントを受け、重複・直接接続との競合を整理して hub へ流す
@@ -408,6 +423,9 @@ src/demo.js            デモ・テスト用のイベント
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
 public/dashboard/ingest.js  外部ツールの受け口の状態表示と鍵の作成 UI
+public/dashboard/      設定画面（テンプレートの失敗表示と配信画面の配置を含む）
+public/dashboard/stage.js 配信画面の見本、遊び方選択、配置保存
+public/dashboard/templates.js テンプレートの一覧・差分・適用・元戻しと失敗表示
 public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（`ootori.html` など。lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）

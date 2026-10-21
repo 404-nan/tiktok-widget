@@ -1,0 +1,17 @@
+{
+  "id": "endurance",
+  "name": "耐久・目標配信",
+  "desc": "目標まで終われず、ギフトで時間が延びる配信",
+  "flow": "目標まで終われない配信で、ギフトや反応に合わせて残り時間を延ばす",
+  "peaks": ["目標達成", "残り時間がなくなる直前"],
+  "widgets": ["timers", "goals", "alerts", "rankings", "cutins"],
+  "optionalWidgets": [],
+  "changes": [
+    { "op": "merge", "path": "timers.default", "value": { "title": "残り", "startMinutes": 60, "maxHours": 12, "coinSeconds": 10, "followSeconds": 30, "likeEvery": 100, "likeSeconds": 10, "warnMinutes": 10, "dangerMinutes": 1 }, "label": "残り時間を作る" },
+    { "op": "merge", "path": "goals.default", "value": { "title": "目標コイン", "metric": "diamonds", "goal": 10000, "step": 10000 }, "label": "目標コインを作る" },
+    { "op": "merge", "path": "alerts.default", "value": { "events": ["gift", "follow"], "bigCoins": 100 }, "label": "ギフト通知を出す" },
+    { "op": "merge", "path": "rankings.default", "value": { "metric": "coins", "limit": 5 }, "label": "コイン順のランキングを出す" },
+    { "op": "merge", "path": "cutins.default", "value": { "minCoins": 100, "greenCoins": 300, "redCoins": 1000, "goldCoins": 5000, "rainbowCoins": 20000 }, "label": "カットインの境目をふつうにする" }
+  ],
+  "notes": ["ステップアップなどの新しい演出は、今は入れていません"]
+}

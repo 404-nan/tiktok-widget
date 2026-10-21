@@ -71,10 +71,12 @@ test('AC-2・3: いいねを足し、満タン後の目標と余りを更新す�
 
 test('AC-4: loop false は満タンのまま止まる', () => {
   const { hub, engine } = setup({ loop: false });
+  // now は呼んだ時刻なので比べない（1ミリ秒ずれると落ちていた）
+  const state = () => ({ ...engine.snapshot().default, now: undefined });
   like(hub, 500);
-  const full = engine.snapshot().default;
+  const full = state();
   like(hub, 100);
-  assert.deepEqual(engine.snapshot().default, full);
+  assert.deepEqual(state(), full);
 });
 
 test('AC-5・6: 動作を満タンごとに一度だけ動かし、加減算とリセットを行う', () => {

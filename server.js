@@ -482,7 +482,7 @@ setInterval(() => {
 server.listen(PORT, HOST, () => {
   vault?.start();
   const base = `http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`;
-  console.log(`\n  TikTok LIVE ウィジェット`);
+  console.log(`\n  ライコネ`);
   if (local) console.log(`  ダッシュボード  ${base}/dashboard/`);
   console.log(`  管理画面        ${base}/admin/  （合言葉: ${process.env.TW_ADMIN_TOKEN ? '環境変数 TW_ADMIN_TOKEN' : ADMIN_TOKEN_FILE}）\n`);
 

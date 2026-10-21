@@ -255,8 +255,10 @@ function statusOf(t) {
 }
 
 const TEMPLATE_NAMES = {
-  talk: 'おしゃべり・歌', roulette: 'ルーレット企画', endurance: '耐久・カウントダウン',
+  talk: 'おしゃべり・歌', roulette: 'ルーレット企画',
   clear: 'クリア数', boss: 'ボス討伐', custom: '自分で選ぶ',
+  bougai: '妨害マイクラ', bakkin: '罰ゲーム雑談',
+  endurance: '耐久・目標配信',
 };
 
 function tenantNote(t) {

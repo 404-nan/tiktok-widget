@@ -37,6 +37,16 @@ test('遊び方を保存でき、案内を閉じた状態も配信者ごとに�
   assert.equal(again.info(a.id).guideDone, true);
 });
 
+test('遊び方を入れ直しても、閉じた案内をもう一度出さない', () => {
+  const t = setup();
+  const a = t.create({ name: '案内済み' });
+  t.setTemplate(a.id, 'bougai');
+  t.setGuideDone(a.id, true);
+  t.setTemplate(a.id, 'endurance');
+  assert.equal(t.info(a.id).template, 'endurance');
+  assert.equal(t.info(a.id).guideDone, true);
+});
+
 test('今まで設定を使っている配信者は custom とみなし、管理者が止めたものは選べない', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-'));
   fs.mkdirSync(path.join(dir, 'tenants', 'old'), { recursive: true });

@@ -40,8 +40,10 @@ import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 import { giftNamesDocument } from './gift-display.js';
 import { isDevEnv } from './env.js';
 import { Ingest } from './ingest.js';
+import { getTemplate, previewTemplate, templateList } from './templates.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const sectionOfChange = (change) => String(change.path).split('.')[0];
 
 // 延長タイマーの秒数は seconds・minutes・value（秒）のどれでも受ける
 const timerSeconds = (o) => {
@@ -500,12 +502,73 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.status(result.ok ? 200 : 422).json({ ...result, ...configPayload(req) });
   });
 
+  // 配信テンプレート。変更内容はサーバー側の JSON から作り直し、画面の本文は信じない。
+  const templateContext = (template) => {
+    const me = info();
+    return { config: hub.config, widgets: me.widgets ?? [], tenant: me.mode === 'tenant', entitled };
+  };
+  const previewOne = (template) => ({ ...previewTemplate(template, templateContext(template)), live: hub.status.mode === 'live' });
+  r.get('/api/templates', (_req, res) => res.json(templateList()));
+  r.post('/api/templates/preview', (req, res) => {
+    const template = getTemplate(req.body?.id);
+    if (!template) return res.status(404).json({ error: 'その配信テンプレートはありません' });
+    res.json(previewOne(template));
+  });
+
+  const currentUndoState = () => ({ widgets: info().mode === 'tenant' ? [...(info().widgets ?? [])] : null, template: info().mode === 'tenant' ? (info().template ?? null) : null });
+  const matchesUndoState = (entry) => {
+    if (!entry) return false;
+    const current = currentUndoState();
+    return store.readText() === entry.after && JSON.stringify(current) === JSON.stringify(entry.afterState ?? { widgets: null, template: null });
+  };
+  const applyTemplate = (template, req) => {
+    const before = store.readText();
+    const context = templateContext(template);
+    const allowed = template.changes.filter((change) => context.entitled(sectionOfChange(change)));
+    const checked = checkChanges(allowed, { allowedSections: SECTIONS.filter((section) => entitled(section)) });
+    if (checked.errors.length) return { status: 422, body: { error: checked.errors[0], errors: checked.errors } };
+    const next = cfg.applyChanges(before, checked.changes);
+    if (!next.ok) return { status: 422, body: { error: `反映できませんでした: ${next.errors.join(' / ')}`, errors: next.errors } };
+    const result = store.replaceText(next.text);
+    if (!result.ok) return { status: 422, body: { error: `反映できませんでした: ${result.errors.join(' / ')}`, errors: result.errors } };
+    const beforeState = currentUndoState();
+    const templateWidgets = [...(template.widgets ?? []), ...(template.optionalWidgets ?? [])];
+    if (setWidgets) setWidgets([...new Set([...(info().widgets ?? []), ...templateWidgets.filter((section) => entitled(section))])]);
+    if (setTemplate) setTemplate(template.id);
+    const afterState = currentUndoState();
+    aiUndo = { before, after: store.readText(), beforeState, afterState };
+    applyConfigResult(result);
+    return { status: 200, body: { ok: true, id: template.id, warnings: result.warnings, canUndo: true, ...configPayload(req) } };
+  };
+  r.post('/api/templates/apply', (req, res) => {
+    const template = getTemplate(req.body?.id);
+    if (!template) return res.status(404).json({ error: 'その配信テンプレートはありません' });
+    if (hub.status.mode === 'live' && req.body?.confirmLive !== true) return res.status(409).json({ error: '配信中です。確認してから入れてください' });
+    const out = applyTemplate(template, req);
+    res.status(out.status).json(out.body);
+  });
+  r.post('/api/templates/undo', (req, res) => undoTemplate(req, res));
+
   // --- AI にたのむ ---
   // たのむ → 案を見る → 反映する → 気に入らなければ元に戻す。1日の回数は管理者が決める
   const aiUse = { day: '', count: 0, busy: false };
   // 反映の前と後の設定ファイルの文字。反映のあとに別の変更が入っていたら、元に戻さない（その変更まで消してしまうので）
   let aiUndo = null;
-  const canUndo = () => aiUndo != null && store.readText() === aiUndo.after;
+  function undoTemplate(req, res) {
+    if (aiUndo == null) return res.status(400).json({ error: '元に戻せるものがありません' });
+    if (!canUndo()) {
+      aiUndo = null;
+      return res.status(409).json({ error: '入れたあとに別の変更があるので、まとめて元には戻せません（変えたところを手で直してください）' });
+    }
+    const result = store.replaceText(aiUndo.before);
+    if (!result.ok) return res.status(422).json({ ok: false, error: `元に戻せませんでした: ${result.errors.join(' / ')}` });
+    if (aiUndo.beforeState && setWidgets && aiUndo.beforeState.widgets !== null) setWidgets(aiUndo.beforeState.widgets);
+    if (aiUndo.beforeState && setTemplate) setTemplate(aiUndo.beforeState.template);
+    aiUndo = null;
+    applyConfigResult(result);
+    res.json({ ok: true, ...configPayload(req) });
+  }
+  const canUndo = () => matchesUndoState(aiUndo);
   const aiLeft = () => {
     const day = new Date().toDateString();
     if (aiUse.day !== day) Object.assign(aiUse, { day, count: 0 });
@@ -557,7 +620,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (!next.ok) return res.status(422).json({ ok: false, error: `反映できませんでした: ${next.errors.join(' / ')}`, errors: next.errors });
     const result = store.replaceText(next.text);
     if (!result.ok) return res.status(422).json({ ok: false, error: `反映できませんでした: ${result.errors.join(' / ')}`, errors: result.errors });
-    aiUndo = { before, after: store.readText() };
+    aiUndo = { before, after: store.readText(), beforeState: currentUndoState(), afterState: currentUndoState() };
     applyConfigResult(result);
     res.json({ ok: true, warnings: result.warnings, state: aiState(), ...configPayload(req) });
   });
@@ -569,6 +632,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     }
     const result = store.replaceText(aiUndo.before);
     if (!result.ok) return res.status(422).json({ ok: false, error: `元に戻せませんでした: ${result.errors.join(' / ')}` });
+    if (aiUndo.beforeState && setWidgets && aiUndo.beforeState.widgets !== null) setWidgets(aiUndo.beforeState.widgets);
+    if (aiUndo.beforeState && setTemplate) setTemplate(aiUndo.beforeState.template);
     aiUndo = null;
     applyConfigResult(result);
     res.json({ ok: true, state: aiState(), ...configPayload(req) });

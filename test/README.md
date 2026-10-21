@@ -94,3 +94,13 @@ Node標準テストで、サーバー側の仕組みと公開画面の配線を�
 | `es5-public.test.js` | 公開JavaScriptのES5検査 |
 
 全体は `npm.cmd test`、OBS連携だけは `node --test test/acceptance/obs.test.js` で実行します。
+Node.js 標準テストで、設定・サーバー API・画面に見える動きを確かめます。
+
+| ファイル | 何をするか |
+| --- | --- |
+| `acceptance/templates.test.js` | 配信テンプレートの完成条件を一時設定で受け入れテストする |
+| `pre-ship-review.test.js` | 本番前レビューで見つかった投票・押しボタン・応援の状態のずれと、地図の漏れを再現する |
+| `pre-ship-review-templates.test.js` | 本番前レビューで見つかった画面とテンプレートのつなぎ目を確認する |
+| `*.test.js` | 各機能の既存テスト |
+
+`npm test` から実行され、本番の `config.yaml` と `data/` は使いません。
