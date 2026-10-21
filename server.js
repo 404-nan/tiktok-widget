@@ -326,6 +326,40 @@ app.use('/admin/api', admin);
 app.use('/ai/v1', aiControl.router);
 app.use('/ai/mcp', createAiMcpHandler(aiControl));
 
+// 配信者本人のダッシュボードから発行するAI入口。OBS鍵と管理画面の閲覧者には渡さない。
+function streamerAiResponse(req, res) {
+  if (req.role !== 'owner' || !req.tenant?.id) return res.status(403).json({ error: '配信者本人の画面だけで使えます' });
+  const tenantId = req.tenant.id;
+  try {
+    if (req.method === 'GET') {
+      return res.json({
+        title: 'AIとの接続',
+        tenant: tenantId,
+        explanation: '自分の配信者だけを読み取り、設定の提案と開発環境のテスト送信ができます。保存・操作・課金申請はできません。',
+        tokens: aiTokens.listForTenant(tenantId),
+        connection: { api: `${origin(req)}/ai/v1`, mcp: `${origin(req)}/ai/mcp`, tenant: tenantId },
+      });
+    }
+    if (req.method === 'POST') {
+      const issued = aiTokens.issueStreamer({ tenantId, name: req.body?.name, days: req.body?.days });
+      return res.status(201).json({
+        ok: true,
+        token: issued.token,
+        value: issued.value,
+        connection: { api: `${origin(req)}/ai/v1`, mcp: `${origin(req)}/ai/mcp`, tenant: tenantId, tokenHeader: 'Authorization: Bearer <発行直後のトークン>' },
+        warning: 'このトークンの値は今だけ表示します。コピーして外部AIの秘密の欄に貼り、画面を閉じると再表示できません。',
+      });
+    }
+    if (req.method === 'DELETE') {
+      aiTokens.revokeStreamer(req.params.id, tenantId);
+      return res.json({ ok: true });
+    }
+    return res.status(405).json({ error: 'その操作は使えません' });
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+}
+
 // --- 短い URL と 4桁の数字（/d/<短いID>） ---
 // 正しい数字かクッキーがあれば、今までのダッシュボードの URL（/t/<鍵>/dashboard/）へ送る
 
@@ -398,6 +432,11 @@ app.use('/t/:key', (req, res, next) => {
       return res.status(403).json({ error: 'この配信者の利用は止められています', value: null });
     }
     return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
+  }
+  if (p === '/api/ai/streamer' || p.startsWith('/api/ai/streamer/')) {
+    if (p !== '/api/ai/streamer' && req.method !== 'DELETE') return res.status(404).json({ error: 'その操作はありません' });
+    req.params.id = p.slice('/api/ai/streamer/'.length);
+    return streamerAiResponse(req, res);
   }
   // OBS 用の鍵で開けるのはウィジェットと画像と、ウィジェットが読む API だけ
   if (role === 'obs' && !(p === '/widgets' || p.startsWith('/widgets/') || p.startsWith('/media/') || p.startsWith('/api/'))) {

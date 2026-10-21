@@ -2,6 +2,7 @@ import { connect, fmt, icon, giftLabel, BASE, ensureGiftNames } from '/widgets/l
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
 import { setupIngest } from './ingest.js';
+import { setupStreamerAi } from './ai-streamer.js';
 import { $, store, api, setupChrome, statusText, createStatusGate } from './common.js';
 
 // --- 接続状態 ---
@@ -289,6 +290,7 @@ editor
   .start()
   .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
   .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
+setupStreamerAi({ box: $('streamerAiView'), intro: $('streamerAiIntro'), body: $('streamerAiBody'), api });
 
 // WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）。
 // 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。

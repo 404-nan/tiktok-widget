@@ -8,6 +8,7 @@ import { z } from 'zod';
 import * as admin from '../src/admin.js';
 import { giftDisplayName } from '../src/gift-display.js';
 import { AI_MCP_INSTRUCTIONS, registerAiTools, callAiHttp } from '../src/ai-mcp.js';
+import { isDevelopmentServer } from '../src/ai-screenshot.js';
 
 // TW_AI_TOKEN と TW_SERVER があるときは /ai/v1 を呼ぶ。無ければ今までの1人用のまま。
 const remote = Boolean(process.env.TW_AI_TOKEN && process.env.TW_SERVER);
@@ -449,7 +450,11 @@ server.registerTool(
 }
 
 if (remote) {
-  registerAiTools(server, (tool, args) => callAiHttp(process.env.TW_SERVER, process.env.TW_AI_TOKEN, tool, args));
+  registerAiTools(
+    server,
+    (tool, args) => callAiHttp(process.env.TW_SERVER, process.env.TW_AI_TOKEN, tool, args),
+    { isDevelopment: () => isDevelopmentServer(process.env.TW_SERVER) },
+  );
 }
 
 await server.connect(new StdioServerTransport());

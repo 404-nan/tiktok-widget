@@ -151,6 +151,11 @@
     <!-- かんたん: 左のサイドバー（押すと右が切り替わる） -->
     <nav class="side" id="side" aria-label="設定するもの" data-simple></nav>
     <div class="shell-main">
+    <!-- 配信者本人だけが使える外部AIの接続入口 -->
+    <section class="streamer-ai" id="streamerAiView" hidden aria-labelledby="streamerAiTitle">
+      <div class="view-title"><h3 id="streamerAiTitle">AIとの接続</h3><p class="desc" id="streamerAiIntro"></p></div>
+      <div id="streamerAiBody"></div>
+    </section>
     <!-- AI にたのむ -->
     <div class="ai-view" id="aiView">
       <div class="view-title" data-simple><h3>AI にたのむ</h3><p class="desc">どうしたいかを、ふつうの言葉で書いてください。AI が案を出すので、よければ「この内容で変える」を押します（押すまで何も変わりません）。</p></div>
