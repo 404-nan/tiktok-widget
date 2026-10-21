@@ -6,6 +6,8 @@
 <title>ギフトルーレット</title>
 <link rel="stylesheet" href="lib/overlay.css">
 <link rel="stylesheet" href="lib/roulette.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<link rel="stylesheet" href="lib/roulette-reel.css">
 <style>
   body { display: grid; grid-template-columns: minmax(0, 1fr); }
   body.style-wheel { place-items: center; }
@@ -23,8 +25,14 @@
   @keyframes wipe-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 
   /* 丸型 */
-  .wheel-view canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); }
+  .wheel-view canvas { display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .35)); transition: transform .5s cubic-bezier(.2, .9, .3, 1); transform-origin: 50% 0; }
+  /* ギリギリ演出: 針のまわりを大きく写す */
+  .wheel-view.chance canvas { transform: scale(1.7); }
+  .strip-view .window { transition: transform .5s cubic-bezier(.2, .9, .3, 1); }
+  .strip-view.chance .window { transform: scale(1.3); }
   .style-wheel .result { top: 58%; }
+  /* スロット台は、結果をリールの下（スピーカーの上）に出してリールを隠さない */
+  .style-slot .result { top: 74%; }
 
   /* 横スライド型 */
   .window {
@@ -80,6 +88,9 @@
   .marker i:last-child { bottom: -8px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
   .marker.kick i:first-child { transform: translateX(-5px) rotate(-8deg); }
   .marker.kick i:last-child { transform: translateX(-5px) rotate(8deg); }
+  /* 確定演出: 針が虹色に変わり続ける */
+  .marker.rainbow i { background: #ff2d55; animation: pointer-hue .6s linear infinite; }
+  @keyframes pointer-hue { to { filter: hue-rotate(360deg); } }
   .style-strip .queue { top: -12px; right: 0; }
   .style-strip .result { top: calc(var(--window-h, 150px) + 14px); }
 
@@ -91,6 +102,22 @@
 <body>
 <div class="stage" id="stage">
   <div class="view wheel-view" id="wheelView" hidden><canvas></canvas></div>
+  <div class="view slot-view" id="slotView" hidden>
+    <div class="cab">
+      <div class="cab-top">
+        <div class="cab-bulbs top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="cab-title"></div>
+        <div class="cab-bulbs bottom"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="cab-window">
+        <div class="reels"></div>
+        <div class="reel-shade"></div>
+        <div class="payline"><i></i><i></i></div>
+      </div>
+      <div class="cab-bottom"></div>
+    </div>
+    <div class="lever"><div class="lever-base"></div><div class="lever-arm"><i></i></div></div>
+  </div>
   <div class="view strip-view" id="stripView" hidden>
     <div class="window">
       <div class="viewport"><div class="track"></div></div>
@@ -115,13 +142,17 @@
   import { loadRoulettes, startRoulettes } from './lib/roulette.js';
   import { createWheel } from './lib/roulette-wheel.js';
   import { createStrip } from './lib/roulette-strip.js';
+  import { createReel } from './lib/roulette-reel.js';
 
   (async () => {
   const roulettes = await loadRoulettes();
   const stage = document.getElementById('stage');
+  const reelView = createReel(document.getElementById('slotView'));
   const views = {
     wheel: createWheel(document.getElementById('wheelView')),
     strip: createStrip(document.getElementById('stripView')),
+    slot: reelView,
+    slot3: reelView,
   };
 
   startRoulettes({
@@ -133,6 +164,7 @@
       if (!q.get('scale') && q.get('preview') !== '1') document.documentElement.style.zoom = String(Number(r.scale) || 1);
       document.body.classList.toggle('style-wheel', style !== 'strip');
       document.body.classList.toggle('style-strip', style === 'strip');
+      document.body.classList.toggle('style-slot', style === 'slot' || style === 'slot3');
       const win = document.querySelector('#stripView .window');
       stage.style.setProperty('--window-h', `${win.offsetHeight}px`);
       stage.classList.remove('swap');

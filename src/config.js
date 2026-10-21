@@ -228,11 +228,12 @@ function checkItems(value, where, issues) {
     if (raw.commands != null) item.commands = checkCommands(raw.commands, `${at}.commands`, issues);
     checkSuperStream(raw, item, at, issues);
     if (raw.rush != null) item.rush = raw.rush === true || raw.rush === 'true';
+    if (raw.win != null) item.win = raw.win === true || raw.win === 'true';
     if (raw.actions != null) {
       const actions = checkActions(raw.actions, `${at}.actions`, issues);
       if (actions.length) item.actions = actions;
     }
-    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'actions'];
+    const known = ['label', 'name', 'weight', 'rushWeight', 'color', 'textColor', 'image', 'commands', 'superstreamGift', 'superstreamAction', 'rush', 'win', 'actions'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     return item;
   });
@@ -819,9 +820,10 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
     if (section === 'roulettes') {
       if (entries.length) {
         const styles = [...new Set(entries.map(([, e]) => e.style))];
-        const hasWheel = styles.includes('wheel');
+        // strip 以外（丸型・スロットなど）は縦長の枠を使う
         const hasStrip = styles.includes('strip');
-        const size = hasWheel && hasStrip ? [820, 680] : hasWheel ? [600, 680] : [820, 330];
+        const hasTall = styles.some((s) => s !== 'strip');
+        const size = hasTall && hasStrip ? [820, 680] : hasTall ? [600, 680] : [820, 330];
         out.push({ section, id: '*', title: 'ルーレット（全部）', url: `${base}/widgets/roulette.html`, size });
       }
       continue;

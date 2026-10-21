@@ -139,3 +139,72 @@ canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity:
 .freeze { position: absolute; inset: 0; background: #000; opacity: 0; display: grid; place-items: center; }
 .freeze.on { opacity: .94; }
 .freeze span { font-family: var(--font-num); color: rgba(255, 255, 255, .5); font-size: 28px; letter-spacing: .4em; }
+
+/* ルーレットの大当たり: 白い光が何度も走り、文字が脈打つ */
+.jackpot .flash { animation: flash .22s ease-out 5 alternate; }
+.jackpot .word { animation: pump .36s ease-in-out .36s infinite alternate; }
+@keyframes pump { to { transform: translate(-50%, -50%) skewX(-10deg) scale(1.08); } }
+
+/* ギリギリ演出の大写し: ルーレットの針のまわりを画面いっぱいに */
+.closeup { position: absolute; inset: 0; display: grid; justify-items: center; align-content: start; background: rgba(0, 0, 0, .55); opacity: 0; transition: opacity .25s linear; overflow: hidden; }
+.closeup.on { opacity: 1; }
+.closeup canvas { margin-top: 26vh; transform: scale(3); transform-origin: 50% 0; filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .5)); }
+
+/* ---- ルーレットの形ごとの当たり（cutin.js の LOOKS） ---- */
+.coins { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.dim-on .dim { opacity: .38; }
+
+/* スロット台: 帯の上に 7 が3つ、1つずつ叩きつけられる */
+.sevens { position: absolute; left: 0; top: calc(var(--bh) * -0.5 - var(--fs) * 1.75); display: flex; gap: calc(var(--fs) * .08); transform: translateX(-50%) skewX(-8deg); }
+.sevens span {
+  display: block;
+  font-family: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+  font-size: calc(var(--fs) * 1.7);
+  line-height: 1;
+  color: #E0141F;
+  -webkit-text-stroke: calc(var(--fs) * .07) #FFE27A;
+  text-shadow: calc(var(--fs) * .04) calc(var(--fs) * .07) 0 #111, calc(var(--fs) * .08) calc(var(--fs) * .14) 0 rgba(0, 0, 0, .5);
+  opacity: 0;
+  transform: scale(2.6);
+}
+.sevens span.in { opacity: 1; transform: none; transition: transform .13s cubic-bezier(.5, 0, .9, .6), opacity .04s linear; }
+.look-slot.jackpot .sevens span { animation: seven-glow .5s ease-in-out .5s infinite alternate; }
+@keyframes seven-glow { to { color: #FF5A3D; } }
+
+/* 柔道: 白い文字の黒帯に、紅い判 */
+.seal {
+  position: absolute;
+  left: calc(var(--fs) * 1.3);
+  top: calc(var(--fs) * -.2);
+  width: calc(var(--fs) * 1.05);
+  height: calc(var(--fs) * 1.05);
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--fs) * .1);
+  background: #C3121E;
+  box-shadow: inset 0 0 0 calc(var(--fs) * .055) #FFF3E8, inset 0 0 0 calc(var(--fs) * .1) #C3121E, inset 0 0 0 calc(var(--fs) * .125) #FFF3E8;
+  color: #FFF3E8;
+  font-family: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+  font-size: calc(var(--fs) * .66);
+  line-height: 1;
+  opacity: 0;
+  transform: rotate(-12deg) scale(3.2);
+}
+.seal.stamp { opacity: .96; transform: rotate(-12deg); transition: transform .12s cubic-bezier(.5, 0, .9, .6), opacity .04s linear; }
+.look-judo.jackpot .flash { animation: flash .3s ease-out 2; }
+.look-judo .word .back { -webkit-text-stroke-color: #000; }
+
+/* カジノ: 画面のふちに電球が並び、追いかけるように流れる */
+.bulb-frame { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.bulb-frame i { position: absolute; --dot: radial-gradient(circle, #FFFFFF 0 3px, #FFE08A 4px, #F59E0B 6px, rgba(245, 158, 11, 0) 10px); }
+.bulb-frame i:nth-child(1), .bulb-frame i:nth-child(2) { left: 0; right: 0; height: 28px; background: var(--dot) 0 50% / 32px 28px repeat-x; }
+.bulb-frame i:nth-child(1) { top: 4px; }
+.bulb-frame i:nth-child(2) { bottom: 4px; }
+.bulb-frame i:nth-child(3), .bulb-frame i:nth-child(4) { top: 36px; bottom: 36px; width: 28px; background: var(--dot) 50% 0 / 28px 32px repeat-y; }
+.bulb-frame i:nth-child(3) { left: 4px; }
+.bulb-frame i:nth-child(4) { right: 4px; }
+.look-casino.jackpot .bulb-frame { opacity: 1; transition: opacity .1s linear; }
+.look-casino.jackpot .bulb-frame i:nth-child(-n + 2) { animation: dots-x .32s steps(1) infinite; }
+.look-casino.jackpot .bulb-frame i:nth-child(n + 3) { animation: dots-y .32s steps(1) infinite; }
+@keyframes dots-x { 50% { background-position: 16px 50%; } }
+@keyframes dots-y { 50% { background-position: 50% 16px; } }

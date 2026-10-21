@@ -14,7 +14,7 @@ test('レビュー1: 昇格は段階の色・文字・画像を上の段階へ�
   const source = cutin();
   assert.match(source, /result\.from/);
   assert.match(source, /const tier = result\.from \|\| result\.tier/);
-  assert.match(source, /await play\(e, \{ \.\.\.result, from: null \}\)/);
+  assert.match(source, /await play\(job, \{ \.\.\.result, from: null, promoted: true \}\)/);
   assert.match(source, /TEXT\[tier\]/);
 });
 
@@ -31,7 +31,9 @@ test('レビュー3: cutinDraw が無い古い接続は従来どおりランダ�
 test('レビュー4: 昇格して虹になったときのキュインは1回だけ', () => {
   const source = cutin();
   assert.match(source, /result\.from[\s\S]*sfx\('kyuin'\)/);
-  assert.match(source, /tier === 'rainbow'[\s\S]*!result\.from[\s\S]*sfx\('kyuin'\)/);
+  // 描き直し(promoted)のフリーズではキュインを鳴らさない
+  assert.match(source, /tier === 'rainbow'[\s\S]*freeze\(!result\.promoted\)/);
+  assert.match(source, /if \(withSound\) sfx\('kyuin'\)/);
 });
 
 test('レビュー5: prepare listenerの例外でpublish全体を止めない', () => {

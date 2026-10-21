@@ -1,7 +1,9 @@
 // 横スライド型ルーレットの描画。カードが横に流れ、中央の針で止まる。
 // 画像のないカードは文字を上下左右の中央に、画像のあるカードは画像の下に文字を置く。
 
-import { pickWeighted, tick } from './roulette.js';
+import { pickWeighted, tick, CHANCE_MS } from './roulette.js';
+
+const CREEP = 0.6; // ギリギリ演出で、最後ににじり寄る長さ（カードの幅に対する割合）
 
 export function createStrip(root) {
   const win = root.querySelector('.window');
@@ -84,7 +86,8 @@ export function createStrip(root) {
     hide() {
       root.hidden = true;
     },
-    async spin(_r, winner) {
+    // fx はサーバーの spin（land: 止まる位置、chance: ギリギリ演出、kakutei: 確定演出）
+    async spin(_r, winner, fx = {}) {
       win.classList.remove('settled');
       track.querySelector('.win')?.classList.remove('win');
 
@@ -97,19 +100,34 @@ export function createStrip(root) {
       const target = seq.length;
       seq.push(winner.index);
       for (let i = 0; i < 8; i++) seq.push(randomPick(seq[seq.length - 1]));
+      // ギリギリ演出: 丸型と同じく、手前に「次の項目」、後ろに「前の項目」を並べる（当たりの隣でギリギリになるように）
+      const n = r.items.length;
+      if (fx.chance) {
+        seq[target - 1] = (winner.index + 1) % n;
+        seq[target + 1] = (winner.index - 1 + n) % n;
+      }
       renderTrack();
+      marker.classList.toggle('rainbow', fx.kakutei === 'pointer');
 
       // 当たりのカードの中で止まる位置も毎回ずらす
       const from = x;
-      const to = xFor(target, (Math.random() - 0.5) * T * 0.7);
+      // land（0〜1）は丸型と同じ向き: 0 に近いほど、次に来るカードの側
+      const land = fx.land ?? 0.15 + Math.random() * 0.7;
+      const to = xFor(target, (0.5 - land) * T);
       const duration = reduced ? 300 : r.duration * 1000;
+      const creepMs = fx.chance && !reduced ? CHANCE_MS : 0;
+      const creep = creepMs ? CREEP * T : 0;
       let last = indexAt(from);
       let kickTimer = null;
       await new Promise((resolve) => {
         const t0 = performance.now();
         const frame = (now) => {
-          const t = Math.min(1, (now - t0) / duration);
-          x = from + (to - from) * (1 - Math.pow(1 - t, 4));
+          const elapsed = now - t0;
+          // いったん止まりかけてから、CHANCE_MS かけて境目へにじり寄る
+          if (elapsed < duration) x = from + (to + creep - from) * (1 - Math.pow(1 - elapsed / duration, 4));
+          else x = to + creep * Math.pow(1 - Math.min(1, (elapsed - duration) / (creepMs || 1)), 2);
+          root.classList.toggle('chance', creepMs > 0 && elapsed >= duration);
+          const t = Math.min(1, elapsed / (duration + creepMs));
           track.style.transform = `translate3d(${x}px, 0, 0)`;
           const idx = indexAt(x);
           if (idx !== last) {
@@ -124,6 +142,7 @@ export function createStrip(root) {
         };
         requestAnimationFrame(frame);
       });
+      root.classList.remove('chance');
       track.children[target].classList.add('win');
       win.classList.add('settled');
     },

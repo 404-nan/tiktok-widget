@@ -6,6 +6,10 @@ import { eventCoinTotal, giftMatches, giftDisplayName } from './gifts.js';
 
 export const PENDING_CAP = 20;
 const RANDOM_MAX = 1000000;
+// 開示演出の時刻（public/widgets/lib/slot-core.js の timeline と同じ数字）
+export const RESULT_HOLD_MS = 2500;
+const BOUNCE_MS = 120;
+const REVIVAL_MS = 900 + 80 + 160 + 600;
 
 function positive(value, fallback) {
   const n = Number(value);
@@ -19,6 +23,14 @@ function rate(value) {
 
 function randomRate(randomInt, percent) {
   return randomInt(0, RANDOM_MAX) < rate(percent) * RANDOM_MAX / 100;
+}
+
+/** 画面が結果を出す時刻と、最低限見せ終わる時刻（start からのミリ秒）。done はこの holdUntil に送る */
+export function slotTimeline(result, reelStopMs) {
+  const stop = positive(reelStopMs, 700);
+  const settleAt = stop * 3 + BOUNCE_MS;
+  const resultAt = result?.revival ? settleAt + REVIVAL_MS : settleAt;
+  return { resultAt, holdUntil: resultAt + RESULT_HOLD_MS };
 }
 
 export function weightedPick(list, randomInt = crypto.randomInt) {
@@ -54,7 +66,8 @@ function symbolsFor(config, payout, randomInt) {
 }
 
 function hasReach(symbols) {
-  return symbols.length === 3 && (symbols[0] === symbols[1] || symbols[1] === symbols[2]);
+  // リーチは左から止まるので「1本目と2本目がそろった」ときだけ（確率は変えない）
+  return symbols.length === 3 && symbols[0] === symbols[1];
 }
 
 export function rollSlot(config, randomInt = crypto.randomInt) {
@@ -86,6 +99,7 @@ export class SlotEngine {
     this.payout = null;
     this.trigger = null;
     this.timer = null;
+    this.resultTimer = null;
   }
 
   setBus(bus) { this.bus = bus || null; }
@@ -137,13 +151,16 @@ export class SlotEngine {
       gift: event.gift || null,
       giftLabel: giftDisplayName(event.gift),
       coins: eventCoinTotal(event),
-      user: event.user ? { id: event.user.id, name: event.user.name } : null,
+      count: Math.max(1, Number(event.gift?.count) || 1),
+      user: event.user ? { id: event.user.id, name: event.user.name, avatar: event.user.avatar || null } : null,
     });
   }
 
   close() {
     clearTimeout(this.timer);
+    clearTimeout(this.resultTimer);
     this.timer = null;
+    this.resultTimer = null;
   }
 
   #begin(trigger) {
@@ -169,9 +186,13 @@ export class SlotEngine {
     };
     this.#emit('start');
     this.bus?.emit('slot.result', { result: this.result, payout: this.payout, trigger: this.trigger });
-    const wait = Math.max(0, Number(this.config.reelStopMs) || 700) * 3 + 1800;
-    this.timer = setTimeout(() => this.#finish(), wait);
+    const { resultAt, holdUntil } = slotTimeline(this.result, this.config.reelStopMs);
+    this.timer = setTimeout(() => this.#finish(), holdUntil);
     if (typeof this.timer.unref === 'function') this.timer.unref();
+    // 結果が画面に出るころに知らせる（カットインの大当たり演出用）
+    const shown = { type: 'slotResult', seq: this.seq, result: this.result, payout: { id: this.payout.id, text: this.payout.text } };
+    this.resultTimer = setTimeout(() => this.hub.broadcast(shown), resultAt);
+    if (typeof this.resultTimer.unref === 'function') this.resultTimer.unref();
     return { ok: true, queued: false, phase: this.phase, seq: this.seq, result: this.result };
   }
 

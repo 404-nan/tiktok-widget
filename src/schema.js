@@ -320,12 +320,12 @@ export const SCHEMA = {
     fields: {
       ...placementFields(40, 43),
       name: str('', '表示名（ダッシュボード用）'),
-      style: oneOf(['wheel', 'strip'], 'wheel', 'wheel 丸いホイール / strip 横に流れるカード'),
+      style: oneOf(['wheel', 'strip', 'casino', 'slot', 'slot3', 'judo'], 'wheel', 'wheel 丸いホイール / strip 横に流れるカード / casino 金の縁と電球のカジノ台 / slot リールが縦に回るスロット台 / slot3 3本のリールが左から止まってそろうスロット（当たりの隣はリーチから最後の1本がギリギリで外れる） / judo 畳と畳縁の柔道場。当たりのカットインも形に合わせて変わる'),
       gifts: list([], 'このギフト名（または ID）で回す。ギフト名の指定は minCoins より優先される'),
       minCoins: num(0, '合計コインがこれ以上のギフトでも回す（0 で無効）', { min: 0 }),
       maxCoins: num(0, 'minCoins で回すときの上限コイン（0 で上限なし）', { min: 0 }),
       events: list([], 'フォロー・シェアでも回す', ['follow', 'share']),
-      perCount: bool(false, '×5 なら 5 回まわす（最大 20 回）'),
+      perCount: bool(true, '×5 なら 5 回まわす（最大 20 回）。false で連打でも1回だけ'),
       duration: num(6, '回る秒数', { min: 1, max: 30 }),
       hold: num(4, '結果を出しておく秒数', { min: 1, max: 30 }),
       hint: str('', '下に出す案内文（空なら条件から自動）'),
@@ -334,19 +334,22 @@ export const SCHEMA = {
       palette: list(['accent', 'paper', 'gold', 'ink-2'], '色を指定していない項目に順番に使う色'),
       pointerColor: color('accent', '針の色'),
       frameColor: color('ink', '縁・枠の色'),
+      labelDirection: oneOf(['radial', 'around'], 'radial', '丸型の文字の向き。radial 中心から外へ向かう線にそろえる / around 円周にそって横向き（針の位置で正立する）。画像のある項目はいつも横向き'),
       fontScale: num(1, '項目の文字の大きさの倍率', { min: 0.5, max: 2 }),
       scale: num(1, 'ルーレット全体の大きさの倍率（1 がふつう）', { min: 0.5, max: 2 }),
       rushOdds: bool(false, 'RUSH中は確率を変える'),
+      chance: bool(true, 'ギリギリ演出: 当たりの両隣や当たりが出たとき、最後にゆっくり境目へにじり寄る（カットインのチャンス演出つき）。当たりのときは確定演出が出ることもある。当たりの項目（win: true）があるときだけ'),
+      sameSize: bool(false, '丸型の扇を全部同じ大きさにする（当たりやすさは weight のまま）'),
       items: {
         type: 'items',
         default: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],
         desc:
           '項目の一覧。「歌う*2」のような文字か、{ label, weight, rushWeight, color, textColor, image, commands } で書く。' +
-          'weight は当たりやすさ（丸型では扇の大きさも比例）。' +
+          'weight は当たりやすさ（丸型では扇の大きさも比例。sameSize: true なら扇は同じ大きさ）。' +
           'rushWeight は RUSH 中の当たりやすさ（0 以上の数。書かなければ weight と同じ。rushOdds が true のときだけ使う）。' +
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。' +
+          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。win: true は当たりの項目で、出たらカットインの「大当たり」演出が入る。' +
           'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start / omikuji.start。id を書くとそのタイマー・WIN数・ボスだけ',
       },
     },
@@ -390,12 +393,16 @@ SCHEMA.cutins = {
   desc:
     '通常カットイン。筆でかすれた帯がフィーンと入り、「激アツ」の文字が叩きつけられ、ガガガと揺れてスッと抜ける。' +
     'ギフトのコインで 青→緑→赤→金→虹 と格上げし、虹は画面が止まってから入る（フリーズ）。' +
+    'ルーレットで当たり（項目の win: true）が出ると、専用の「大当たり」演出が入る。' +
     '配信画面いっぱいに重ねる。URL は /widgets/cutin.html?id=<名前>',
   size: () => [1080, 1920],
   fields: {
     ...cutinFields(),
     textWeight: oneOf(['normal', 'bold'], 'normal', '文字だけの太さ。normal 普通 / bold 太字'),
     yieldToImage: bool(false, '画像付きカットインが出るギフトのときは、こちらを出さない（両方を OBS に入れて重ならないように）'),
+    rouletteWin: bool(true, 'ルーレットの演出を出す（当たりの「大当たり」、ギリギリのときの「チャンス」と大写し、確定演出）'),
+    slotWin: bool(true, 'スロットの大当たり・ジャックポットで、画面いっぱいの演出を出す（スロットの見た目に合わせる）'),
+    rouletteWinText: str('', 'ルーレットの当たりで出す文字。空ならルーレットの形に合わせる（大当たり / カジノ ジャックポット / スロット台 ビッグボーナス / 柔道 一本）'),
   },
 };
 
@@ -668,7 +675,7 @@ SCHEMA.slots = {
   kind: 'object',
   page: 'slot',
   title: 'スロット',
-  size: () => [720, 520],
+  size: () => [1080, 600],
   desc:
     'ギフトで回る3リールのスロット。結果はサーバーで先に決まり、画面はリーチ・ニアミス・復活を含む開示演出だけを行う。' +
     '景品は演出・特典のみで、賭博・現金の表現は使わない。URL は /widgets/slot.html',
@@ -682,18 +689,22 @@ SCHEMA.slots = {
     symbols: {
       type: 'items',
       default: [
-        { label: 'さくらんぼ', weight: 40 },
-        { label: 'ベル', weight: 30 },
-        { label: 'スター', weight: 20 },
-        { label: '7', weight: 10 },
+        { label: 'チェリー', weight: 25 },
+        { label: 'ベル', weight: 20 },
+        { label: 'スイカ', weight: 20 },
+        { label: 'リプレイ', weight: 20 },
+        { label: 'BAR', weight: 10 },
+        { label: '7', weight: 5 },
       ],
-      desc: '絵柄と出現の重み。payouts の symbols にはここで書いた絵柄名を使う',
+      desc:
+        '絵柄と出現の重み。絵は 7 / BAR / ベル / スイカ / チェリー / リプレイ の 6 種（さくらんぼ→チェリー、スター→BAR に読み替え。' +
+        'ほかの名前は空いている絵を割り当てる）。payouts の symbols にはここで書いた絵柄名を使う',
     },
     payouts: {
       type: 'slotPayouts',
       default: [
         { id: 'lose', text: 'はずれ', tier: 'lose', weight: 70, symbols: [] },
-        { id: 'small', text: '小当たり', tier: 'small', weight: 20, symbols: ['さくらんぼ', 'さくらんぼ', 'ベル'] },
+        { id: 'small', text: '小当たり', tier: 'small', weight: 20, symbols: ['チェリー', 'チェリー', 'ベル'] },
         { id: 'big', text: '大当たり', tier: 'big', weight: 9, symbols: ['ベル', 'ベル', 'ベル'] },
         { id: 'jackpot', text: 'ジャックポット', tier: 'jackpot', weight: 1, symbols: ['7', '7', '7'] },
       ],
@@ -702,6 +713,8 @@ SCHEMA.slots = {
     revivalRate: num(20, '当たりのうち復活演出で見せる割合（0〜100）', { min: 0, max: 100 }),
     nearMissRate: num(30, '外れのうちニアミス演出にする割合（0〜100）', { min: 0, max: 100 }),
     reelStopMs: num(700, 'リール1本が止まる間隔（ミリ秒）', { min: 100, max: 10000 }),
+    look: oneOf(['wa', 'casino'], 'wa', '見た目。wa 和パチスロ（赤と金の平らな色） / casino カジノ（黒い筐体に金の縁、上下に電球が流れる、クロームのリール）。当たりのカットインも見た目に合わせる'),
+    idleMode: oneOf(['small', 'hide'], 'small', '回していないとき。small 右下に小さく「（ギフト名）で回せ！」を出す / hide 何も出さない'),
   },
 };
 

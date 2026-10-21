@@ -7,6 +7,7 @@ const SWITCH_MS = 450; // 別のルーレットに切り替わるときの待ち
 const AFTER_MS = 400; // 結果を消すアニメーション
 const ENTER_MS = 500; // 何も回っていないときは、画面の外からすべり込む時間（ウィジェットと合わせる）
 const LEAVE_MS = 500; // 終わって画面の外へ戻る時間
+export const CHANCE_MS = 3000; // ギリギリ演出で、最後にゆっくり境目へにじり寄る時間（ウィジェットと合わせる）
 import { giftMatches } from './gifts.js';
 
 const named = (gift, names) => {
@@ -67,6 +68,48 @@ export function pickWeighted(items, random = Math.random) {
   return items[items.length - 1];
 }
 
+// チャンス演出の色（信頼度）。当たりのときほど赤・金が出やすい
+const CHANCE_TIERS = {
+  win: [['blue', 10], ['green', 20], ['red', 40], ['gold', 30]],
+  near: [['blue', 50], ['green', 30], ['red', 17], ['gold', 3]],
+};
+// 確定演出（当たりのときだけ出る）: 暗転 / 虹の「確定」帯 / 針が虹色
+export const KAKUTEI = ['freeze', 'rainbow', 'pointer'];
+const WIN_CHANCE_RATE = 0.5; // 当たりのとき、ギリギリ演出で入る割合
+const KAKUTEI_RATE = 0.35; // 当たりのとき、確定演出が出る割合
+
+function pickTier(tiers, x) {
+  const total = tiers.reduce((a, [, w]) => a + w, 0);
+  let n = x * total;
+  for (const [tier, w] of tiers) if ((n -= w) < 0) return tier;
+  return tiers[tiers.length - 1][0];
+}
+
+/**
+ * 当たった項目の中のどこで針が止まるか（land: 0〜1）と、演出を決める。
+ * 針の下は index の大きい項目から小さい項目へ流れる。
+ * - 次に来る項目（index - 1）が当たり: 当たりの手前ギリギリで止まる
+ * - 通り過ぎた項目（index + 1）が当たり: 当たりからギリギリ抜けて止まる
+ * - 当たり: ときどき、隣からギリギリ入って止まる
+ */
+export function spinFx(r, index, random = Math.random) {
+  const items = r.items ?? [];
+  const n = items.length;
+  const isWin = (i) => items[(i + n) % n]?.win === true;
+  const fx = { land: 0.15 + random() * 0.7, chance: null, kakutei: null };
+  if (r.chance === false || n < 3 || !items.some((it) => it?.win === true)) return fx;
+  const win = isWin(index);
+  const nextWin = isWin(index - 1);
+  const near = !win && (nextWin || isWin(index + 1));
+  if (near || (win && random() < WIN_CHANCE_RATE)) {
+    const edge = 0.03 + random() * 0.05;
+    fx.land = !win && nextWin ? edge : 1 - edge;
+    fx.chance = pickTier(CHANCE_TIERS[win ? 'win' : 'near'], random());
+  }
+  if (win && random() < KAKUTEI_RATE) fx.kakutei = KAKUTEI[Math.floor(random() * KAKUTEI.length)];
+  return fx;
+}
+
 const slim = (e) =>
   e && {
     kind: e.kind,
@@ -84,6 +127,7 @@ export class RouletteEngine {
     this.seq = 0;
     this.timers = new Set();
     const opts = options || {};
+    this.random = typeof opts.random === 'function' ? opts.random : Math.random;
     this.isRushActive = typeof opts.isRushActive === 'function' ? opts.isRushActive : () => false;
     hub.on('event', (e) => this.onEvent(e));
     hub.on('testEvent', (e) => this.onEvent(e, { dry: true }));
@@ -103,7 +147,8 @@ export class RouletteEngine {
   onEvent(e, opts = {}) {
     const r = rouletteFor(this.roulettes, e);
     if (!r) return;
-    const times = r.perCount && e.kind === 'gift' ? Math.min(20, e.gift.count) : 1;
+    // 連打 ×N は1件で届くので、既定で個数分まわす（perCount: false で1回だけ）
+    const times = r.perCount !== false && e.kind === 'gift' ? Math.min(20, e.gift.count) : 1;
     for (let i = 0; i < times; i++) this.spin(r, e, opts);
   }
 
@@ -121,12 +166,14 @@ export class RouletteEngine {
     // 待ちがなければ（画面の外にいるので）すべり込む時間を足す。戻っている途中なら、戻りきるのを待つ
     const idle = now >= this.busyUntil;
     const start = idle ? Math.max(now, this.leftAt ?? 0) + ENTER_MS : this.busyUntil;
-    const reveal = start + (this.active === r.id ? 0 : SWITCH_MS) + r.duration * 1000;
+    const fx = spinFx(r, index, this.random);
+    const spinMs = r.duration * 1000 + (fx.chance ? CHANCE_MS : 0);
+    const reveal = start + (this.active === r.id ? 0 : SWITCH_MS) + spinMs;
     this.busyUntil = reveal + r.hold * 1000 + AFTER_MS;
     this.leftAt = this.busyUntil + LEAVE_MS;
     this.active = r.id;
 
-    const spin = { seq: ++this.seq, id: r.id, name: r.name || r.id, index, label: item.label, trigger: slim(trigger), at: now, revealAt: reveal };
+    const spin = { seq: ++this.seq, id: r.id, name: r.name || r.id, style: r.style ?? 'wheel', index, label: item.label, win: item.win === true, ...fx, spinMs, trigger: slim(trigger), at: now, revealAt: reveal };
     this.hub.broadcast({ type: 'roulette', spin });
 
     // 当たりが画面に出るころに結果を知らせる（Minecraft・履歴・モニター）

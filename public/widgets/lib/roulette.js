@@ -1,5 +1,5 @@
 // ルーレット共通: 設定の読み込み、どのルーレットを回すかの判定、抽選、待ち列、結果の表示。
-// 見た目（丸型・横スライド）は roulette-wheel.js / roulette-strip.js が受け持つ。
+// 見た目は roulette-wheel.js（丸型。カジノ・柔道も）/ roulette-strip.js（横スライド）/ roulette-reel.js（スロット台）が受け持つ。
 
 import {
   loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
@@ -11,7 +11,7 @@ export { giftUserName };
 
 // config.yaml がないとき（古い URL パラメータだけで使うとき）の初期値
 const FALLBACK = {
-  name: '', style: 'wheel', gifts: [], minCoins: 30, maxCoins: 0, events: [], perCount: false, duration: 6, hold: 4,
+  name: '', style: 'wheel', gifts: [], minCoins: 30, maxCoins: 0, events: [], perCount: true, sameSize: false, labelDirection: 'radial', duration: 6, hold: 4,
   hint: '', sound: true, volume: 0.3, palette: ['accent', 'paper', 'gold', 'ink-2'], pointerColor: 'accent',
   frameColor: 'ink', fontScale: 1, items: ['ハズレ', '歌う*2', '一発ギャグ', 'ハズレ', '変顔*2', '質問に答える*2'],
 };
@@ -20,6 +20,14 @@ const FALLBACK = {
  * 設定からルーレットの一覧を作る。
  * ?ids=a,b で絞り込み。?style= などの URL パラメータは全部のルーレットに効く。
  */
+/** ギリギリ演出で、最後にゆっくり境目へにじり寄る時間（サーバーの CHANCE_MS と同じ） */
+export const CHANCE_MS = 3000;
+
+/** 設定の roulettes.<id> を、描画に使う形にする（カットインの大写しでも使う） */
+export function prepareRoulette(id, entry, defaults = {}) {
+  return prepare(id, params({ ...FALLBACK, ...defaults, ...entry }));
+}
+
 export async function loadRoulettes() {
   const { config, defaults } = await loadConfig();
   applyTheme(config?.theme);
@@ -44,13 +52,18 @@ function prepare(id, r) {
   if (items.length === 0) items.push({ label: '？', weight: 1 });
 
   const palette = list(r.palette).length ? list(r.palette) : FALLBACK.palette;
-  const total = items.reduce((a, b) => a + b.weight, 0);
+  // sameSize: 扇の大きさをそろえる（当たりやすさはサーバーの weight のまま）
+  const size = (it) => (r.sameSize ? 1 : it.weight);
+  const total = items.reduce((a, b) => a + size(b), 0);
   let acc = 0;
   let auto = 0; // 色を指定していない項目の何番目か
+  let order = 0; // 当たり以外の何番目か（カジノ・柔道の見た目で2色を交互に塗る）
   items.forEach((it, i) => {
     it.index = i;
+    it.autoColor = !it.color;
+    if (!it.win) it.order = order++;
     it.start = acc / total;
-    acc += it.weight;
+    acc += size(it);
     it.end = acc / total;
     if (!it.color) {
       let pi = auto++ % palette.length;
@@ -176,7 +189,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     el.replaceChildren();
   }
 
-  async function run({ r, index, trigger }) {
+  async function run({ r, index, trigger, spin }) {
     renderQueue();
     setSpinBy(trigger); // 回り始めたときから、誰のギフトかを出す
     await enter();
@@ -185,7 +198,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
       await sleep(450); // 切り替わったことが見えるよう少し待つ（サーバーの SWITCH_MS と同じ）
     }
     const winner = r.items[index] ?? pickWeighted(r.items);
-    await viewOf(r).spin(r, winner);
+    await viewOf(r).spin(r, winner, spin);
 
     hideSpinBy();
     $('resultName').textContent = winner.label;
@@ -227,7 +240,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     roulette({ spin }) {
       const r = roulettes.find((x) => x.id === spin.id);
       if (!r) return; // ?ids= でこの画面に出さないルーレット
-      queue.push({ r, index: spin.index, trigger: spin.trigger });
+      queue.push({ r, index: spin.index, trigger: spin.trigger, spin });
       renderQueue();
     },
     control(msg) {

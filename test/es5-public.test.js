@@ -20,6 +20,7 @@ const files = [
   'public/widgets/swarm.js',
   'public/widgets/slot.js',
   'public/widgets/vote.js',
+  'public/widgets/lib/slot-core.js',
   'public/widgets/sounds.js',
   'public/widgets/ticker.js',
   'public/widgets/supporters.js',

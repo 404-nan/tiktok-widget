@@ -22,7 +22,7 @@ const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'votes', 
 const ENUM_LABELS = {
   dark: 'ダーク', light: 'ライト', top: '上', center: '中央', bottom: '下', left: '左', right: '右',
   jar: '保存瓶', heart: 'ハート', potion: 'エリクサーのフラスコ', auto: '自動', on: '表示', off: '表示しない',
-  wheel: '丸（ホイール）', strip: '横スライド', row: '横', column: '縦',
+  wheel: '丸（ホイール）', strip: '横スライド', casino: 'カジノ', slot: 'スロット台（1本）', slot3: 'スロット（3本）', judo: '柔道', wa: '和パチスロ', radial: '中心から外へ', around: '円周にそって横向き', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
@@ -37,6 +37,7 @@ const ENUM_LABELS = {
   'mode.hp': '固定HP', 'mode.rank-gap': '上の人とのコイン差',
   'rankSource.manual': '手入力', 'rankSource.live': '配信の順位（無ければ手入力）',
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
+  'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない',
 };
 // 項目の短い名前（説明は下に小さく出す）
 const LABELS = {
@@ -59,7 +60,7 @@ const LABELS = {
   forwardGifts: 'ギフトをマイクラ側の演出に渡す',
   greenCoins: '緑になるコイン', redCoins: '赤（激アツ）になるコイン', goldCoins: '金になるコイン', rainbowCoins: '虹（確定）になるコイン',
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
-  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
+  image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', rouletteWin: 'ルーレットの演出を出す', slotWin: 'スロットの大当たりで出す', rouletteWinText: '当たりの文字', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   textWeight: '文字の太さ', imageStyle: '画像のスタイル', crop: '切り抜き',
   premium: 'まれな柄を使う', premiumRate: '柄が出る割合（%）', premiumPatterns: '使う柄', promote: '昇格を見せる', promoteRate: '昇格の割合（%）', rushBoost: 'RUSH中は1段階上げる',
   bluePhoto: '青の写真', greenPhoto: '緑の写真', redPhoto: '赤の写真', goldPhoto: '金の写真', rainbowPhoto: '虹の写真',
@@ -69,7 +70,7 @@ const LABELS = {
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
-  'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
+  'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔', 'slots.idleMode': '待機中の表示',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
@@ -78,7 +79,7 @@ const LABELS = {
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
   'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
-  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', items: '項目',
+  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', labelDirection: '文字の向き', chance: 'ギリギリ演出', items: '項目',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
@@ -94,12 +95,12 @@ const LABELS = {
 const BASIC = {
   alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
   chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
-  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'items'],
+  roulettes: ['name', 'style', 'gifts', 'minCoins', 'events', 'rushOdds', 'sameSize', 'chance', 'labelDirection', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost', 'word', 'textWeight', 'yieldToImage'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost', 'word', 'textWeight', 'yieldToImage', 'rouletteWin', 'rouletteWinText', 'slotWin'],
   imageCutins: ['photo', 'bluePhoto', 'greenPhoto', 'redPhoto', 'goldPhoto', 'rainbowPhoto', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
@@ -109,7 +110,7 @@ const BASIC = {
   giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
   gacha: ['enabled', 'minCoins', 'gifts', 'pity', 'tiers'],
   omikuji: ['enabled', 'minCoins', 'gifts', 'tiers'],
-  slots: ['enabled', 'trigger', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs'],
+  slots: ['enabled', 'trigger', 'look', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
   cheers: ['title', 'goal', 'growth', 'loop', 'fullText', 'fullActions', 'sound', 'volume', 'color', 'fullColor'],
   pushButtons: ['label', 'seconds', 'keyword', 'likesPerPush', 'steps', 'blueActions', 'greenActions', 'redActions', 'goldActions', 'missText', 'sound', 'volume', 'color'],
@@ -1627,6 +1628,7 @@ export function createEditor({ api, setMessage }) {
         if (r.superstreamGift) out.superstreamGift = r.superstreamGift;
         if (r.superstreamAction) out.superstreamAction = r.superstreamAction;
         if (r.rush) out.rush = true;
+        if (r.win) out.win = true;
         const ready = (r.actions || []).filter(actionReady).map(actionClean);
         if (ready.length) out.actions = ready;
         const keys = Object.keys(out);
@@ -1946,9 +1948,15 @@ export function createEditor({ api, setMessage }) {
       const top = document.createElement('div');
       top.className = 'item-top';
       top.append(thumb, file, label, weight, more, del);
+      // 当たりの項目: 出たらカットインの「大当たり」演出が入る
+      const win = Object.assign(document.createElement('label'), { className: 'check', title: '出たらカットインで「大当たり」を出す' });
+      const winBox = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!r.win });
+      winBox.addEventListener('change', () => ((r.win = winBox.checked || undefined), commit(0)));
+      win.append(winBox, '当たり');
+
       const bottom = document.createElement('div');
       bottom.className = 'item-bottom';
-      bottom.append(color, picker, image, url);
+      bottom.append(color, picker, image, url, win);
 
       if (!usesMinecraft()) {
         row.append(top, rushBox, actionsBox, bottom);
