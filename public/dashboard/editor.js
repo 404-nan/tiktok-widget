@@ -61,6 +61,8 @@ const LABELS = {
   blueText: '青の文字', greenText: '緑の文字', redText: '赤の文字', goldText: '金の文字', rainbowText: '虹の文字',
   image: '帯に乗せる画像', character: 'キャラ画像', photo: '写真', word: '文字を出す', 'imageCutins.layout': '写真の置き方', yieldToImage: '画像付きが出るときは出さない', angle: '帯の傾き', shake: '揺れの強さ', freeze: 'フリーズ演出', lines: '集中線', show: '表示する数値', layout: '並べ方', labels: 'ラベル', hearts: 'ハート',
   textWeight: '文字の太さ', imageStyle: '画像のスタイル', crop: '切り抜き',
+  premium: 'まれな柄を使う', premiumRate: '柄が出る割合（%）', premiumPatterns: '使う柄', promote: '昇格を見せる', promoteRate: '昇格の割合（%）', rushBoost: 'RUSH中は1段階上げる',
+  bluePhoto: '青の写真', greenPhoto: '緑の写真', redPhoto: '赤の写真', goldPhoto: '金の写真', rainbowPhoto: '虹の写真',
   'bosses.name': 'ボスの名前', hp: '最大 HP', hpScale: '次のボスの HP の倍率', 'bosses.image': 'ボスの画像', damageFrom: 'ダメージにするもの',
   rankSource: '順位の参照', rivalCoins: '相手のコイン',
   'mediaAlerts.enabled': 'メディア通知を使う', 'gacha.enabled': 'ガチャを使う',
@@ -97,8 +99,8 @@ const BASIC = {
   counters: ['show', 'layout', 'align', 'color'],
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
-  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'word', 'textWeight', 'yieldToImage'],
-  imageCutins: ['photo', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts'],
+  cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost', 'word', 'textWeight', 'yieldToImage'],
+  imageCutins: ['photo', 'bluePhoto', 'greenPhoto', 'redPhoto', 'goldPhoto', 'rainbowPhoto', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
   bosses: ['name', 'mode', 'rankSource', 'rivalCoins', 'hp', 'hpScale', 'image', 'damageFrom', 'coinDamage', 'likeDamage', 'gifts', 'nextNames', 'roulette', 'commands'],
@@ -1082,7 +1084,7 @@ export function createEditor({ api, setMessage }) {
       control.value = (value ?? []).join('\n');
       control.placeholder = 'say {user} が {boss} を討伐！\ngive {user} diamond 3';
       control.addEventListener('input', () => save(key, control.value.split('\n').map((c) => c.trim()).filter(Boolean), 700));
-    } else if (key === 'photo' || (tab === 'bosses' && key === 'image')) {
+    } else if (key === 'photo' || (tab === 'imageCutins' && /Photo$/.test(key)) || (tab === 'bosses' && key === 'image')) {
       // media/ の画像を候補に出す（URL も書ける）
       control = document.createElement('input');
       control.value = value ?? '';

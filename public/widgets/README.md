@@ -151,3 +151,21 @@ OBS・TikTok LIVE Studio に置く公開ウィジェット本体と、その画�
 - サーバー側の状態は `../src/runtime.js` と `../src/hub.js` が `/api/*` と WebSocket で配る。
 - 設定とウィジェット URL は `../src/schema.js` と `../src/config.js` が決める。
 - `combo.html` は `/api/combo` の初期 snapshot と WebSocket の `combo` メッセージを読む。
+OBS や TikTok LIVE Studio に読み込ませる公開ウィジェットです。カットインはサーバーのイベントと設定を受け、画面側では抽選をやり直しません。
+
+| ファイル | 何をするか |
+| --- | --- |
+| `cutin.html` | 通常カットインを読み込む入口 |
+| `image-cutin.html` | 写真付きカットインを読み込む入口 |
+| `lib/cutin.js` | 帯・文字・写真・音・プレミア柄・昇格結果の演出を動かす |
+| `lib/cutin.css` | カットインの帯、柄、光、揺れの見た目を定義する |
+| `lib/cutin-premium.js` | ES5でプレミア柄をSVGとして作り、結果を解決する |
+| `lib/brush.js` | 筆の帯や木炭の線をSVGデータとして作る |
+| `lib/cutin-style.js` | 写真付き縦長フレームの見た目と切り抜きを扱う |
+
+## つながり
+
+- `cutin.html` と `image-cutin.html` が `lib/cutin-premium.js` と `lib/cutin.js` を読む。
+- `lib/cutin.js` が WebSocket の `event.cutinDraw` と設定を使い、`lib/brush.js` と `lib/cutin-premium.js` で帯を描く。昇格時は下の段階を表示してから同じ抽選結果で上の段階を再描画する。
+- `lib/cutin-style.js` の縦長フレームは上下の縞を、写真帯は上下の縁をプレミア柄の対象にする。
+- 公開JavaScriptはES5、外部CDNなしで動かす。

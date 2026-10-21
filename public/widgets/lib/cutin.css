@@ -22,6 +22,7 @@ canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity:
   opacity: 0;
 }
 .band img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.band .premium-pattern { opacity: .62; mix-blend-mode: screen; }
 .band .ink { transform: translate(1.6%, 9%); filter: brightness(0); opacity: .85; }
 .tier-rainbow .band .paint { animation: hue 1.2s linear infinite; }
 @keyframes hue { to { filter: hue-rotate(360deg); } }
@@ -108,6 +109,7 @@ canvas.lines { position: absolute; inset: 0; width: 100%; height: 100%; opacity:
 /* --- タイムライン --- */
 .play .dim { opacity: .38; transition: opacity .08s linear; }
 .play .flash { animation: flash .22s ease-out; }
+.promote .flash { opacity: .9; animation: flash .18s ease-out; }
 @keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
 .play canvas.lines { opacity: 1; transition: opacity .06s linear; }
 .play .band { transform: none; opacity: 1; transition: transform .24s cubic-bezier(.05, .9, .1, 1), opacity .05s linear; }

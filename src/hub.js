@@ -82,6 +82,13 @@ export class Hub extends EventEmitter {
   publish(event) {
     if (!event) return;
     const e = { id: ++this.seq, ts: Date.now(), ...event };
+    // 配る前に、サーバー側の仕組みがイベントへ共有用の印を付けられるようにする。
+    try {
+      this.emit('prepare', e);
+    } catch (error) {
+      // 共有入口の補助機能が壊れても、集計と画面配信は続ける。
+      console.warn(`[hub] prepare の処理に失敗しました: ${error?.message ?? error}`);
+    }
     // テスト送信（test: true）は、本番の数を汚さない:
     // - 配信中（TikTok につないでいる間）は画面に出すだけ。集計・ランキングは変えず、
     //   ほかの仕組み（WIN数・タイマー・ボス・ルーレット・Minecraft・記録）にも渡さない

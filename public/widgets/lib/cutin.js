@@ -1,3 +1,5 @@
+// カットインを段階・柄・写真・効果音まで公開画面で再生する。
+// サーバーの抽選結果を使い、古い接続にも安全な既定値で表示する。
 import { brushImage as bandImage } from './brush.js';
 import { setupWidget, mediaUrl, loadConfig, list, connect, giftNode, avatarNode, giftNamed, giftLabel, fmt, createQueue, sleep } from './overlay.js';
 
@@ -97,7 +99,7 @@ export async function startCutin(section) {
    * 写真の帯: 斜めの帯の中いっぱいに写真が入り、上下の縁が木炭でかすれた線になる。
    * 帯の画像は上下に 0.3 倍ずつ余白を持つので、要素の高さは見える帯の 1.6 倍。
    */
-  function buildPhotoStrip(e, t, bw, sh, seed) {
+  function buildPhotoStrip(e, t, bw, sh, seed, photoSource) {
     const pad = sh * 0.3;
     const full = sh * 1.6;
     const parts = [];
@@ -107,7 +109,7 @@ export async function startCutin(section) {
     photo.className = 'strip-photo';
     const mask = bandImage(bw, sh, ['#fff', '#fff'], seed);
     photo.style.webkitMaskImage = photo.style.maskImage = `url("${mask.src}")`;
-    const src = p.photo || '';
+    const src = photoSource || '';
     if (src) {
       const img = new Image();
       img.className = 'photo-img';
@@ -148,7 +150,7 @@ export async function startCutin(section) {
     for (const img of edges) img.classList.add('edge');
     edges[0].classList.add('accent');
     edges[1].classList.add('accent');
-    return { nodes: [photo, ...edges], wait: [mask, ...parts], full };
+    return { nodes: [photo, ...edges], edges, wait: [mask, ...parts], full };
   }
 
   // --- 集中線 ---
@@ -318,8 +320,12 @@ export async function startCutin(section) {
   }
 
   // --- 1回分 ---
-  async function play(e) {
-    const tier = tierFor(e);
+  async function play(e, forcedResult = null) {
+    const baseTier = tierFor(e);
+    const result = forcedResult || (window.CutinPremium ? window.CutinPremium.resolve(e.cutinDraw, baseTier, p) : { tier: baseTier, from: null, pattern: null });
+    // 昇格前は from の段階を描き、180ms 後に同じ結果の最終段階を描く。
+    const tier = result.from || result.tier;
+    if (!tier) return;
     const t = TIERS[tier];
     const W = innerWidth, H = innerHeight;
     const unit = Math.min(W, H);
@@ -337,7 +343,11 @@ export async function startCutin(section) {
     stage.style.setProperty('--word-fill', t.word);
     stage.style.setProperty('--tag-accent', t.accent);
 
-    const seed = Math.floor(Math.random() * 900) + 1;
+    // 古いサーバーやローカルの見本には抽選値が無いので、以前と同じく毎回形を変える。
+    const seed = e.cutinDraw && e.cutinDraw.seed >= 1 && e.cutinDraw.seed <= 900
+      ? e.cutinDraw.seed
+      : Math.floor(Math.random() * 900) + 1;
+    const photoSource = p[tier + 'Photo'] || p.photo || '';
     const visual = $('visual');
     const word = $('word');
     const tagEl = $('tag');
@@ -347,6 +357,15 @@ export async function startCutin(section) {
     word.hidden = !p.word;
 
     const hatch = isImage && window.CutinStyle && window.CutinStyle.isHatch(p.imageStyle);
+    const patternImage = (pattern, width, height, patternSeed) => {
+      if (!pattern || !window.CutinPremium) return null;
+      const painted = window.CutinPremium.paint(pattern, width, height, patternSeed, Math.max(8, Math.round(height / 18)));
+      if (!painted) return null;
+      const image = new Image();
+      image.className = 'premium-pattern';
+      image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '"><defs>' + painted.defs + '</defs>' + painted.fill + '</svg>');
+      return image;
+    };
     if (hatch) {
       const size = window.CutinStyle.frameSize(W, H);
       const mounted = window.CutinStyle.mount($('band'), {
@@ -354,7 +373,7 @@ export async function startCutin(section) {
         height: size.h,
         style: p.imageStyle,
         crop: p.crop && typeof p.crop === 'object' ? p.crop : { x: 0.5, y: 0.5, scale: 1 },
-        photo: p.photo ? mediaUrl(p.photo) : '',
+        photo: photoSource ? mediaUrl(photoSource) : '',
         accent: t.accent,
       });
       stage.classList.add('style-hatch');
@@ -365,14 +384,39 @@ export async function startCutin(section) {
       word.style.left = '0px';
       const fs = Math.round(Math.min((mounted?.bandHeight ?? bh) * 0.46, (size.w * 0.72) / Math.max(2, TEXT[tier].length)));
       stage.style.setProperty('--fs', `${fs}px`);
+      if (result.pattern && mounted?.patternTargets) {
+        for (const target of mounted.patternTargets) {
+          const pattern = patternImage(result.pattern, size.w, size.h, seed);
+          if (pattern) {
+            target.append(pattern);
+            wait.push(pattern);
+          }
+        }
+      }
     } else if (p.style === 'photo') {
       // 写真の帯（縁が木炭のかすれ線）
       const sh = Math.round(H > W ? Math.min(H * 0.3, W * 0.62) : H * 0.42);
-      const strip = buildPhotoStrip(e, t, bw, sh, seed);
+      const strip = buildPhotoStrip(e, t, bw, sh, seed, photoSource);
       stage.classList.add('style-photo');
       stage.style.setProperty('--bh', `${strip.full}px`);
       $('band').replaceChildren(...strip.nodes);
       wait = strip.wait;
+      if (result.pattern) {
+        for (const edge of strip.edges.slice(0, 2)) {
+          const pattern = patternImage(result.pattern, bw, sh * 0.06 * 1.6, seed);
+          if (pattern) {
+            Object.assign(pattern.style, {
+              left: edge.style.left,
+              top: edge.style.top,
+              width: edge.style.width,
+              height: edge.style.height,
+              opacity: '.5',
+            });
+            $('band').append(pattern);
+            wait.push(pattern);
+          }
+        }
+      }
       visual.replaceChildren();
       const fs = Math.round(Math.min(sh * 0.36, (W * 0.46) / Math.max(2, TEXT[tier].length)));
       stage.style.setProperty('--fs', `${fs}px`);
@@ -386,17 +430,29 @@ export async function startCutin(section) {
       paint.className = 'paint';
       const glint = bandImage(bw, bh, ['#fff', '#fff'], seed + 23, { glint: true });
       glint.style.opacity = '.35';
-      $('band').replaceChildren(ink, paint, glint);
       wait = [ink, paint, glint];
+      const nodes = [ink, paint];
+      if (result.pattern && window.CutinPremium) {
+        const pattern = window.CutinPremium.paint(result.pattern, bw, bh, seed, Math.max(8, Math.round(bh / 18)));
+        if (pattern) {
+          const premium = new Image();
+          premium.className = 'premium-pattern';
+          premium.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + bw + ' ' + bh + '"><defs>' + pattern.defs + '</defs>' + pattern.fill + '</svg>');
+          nodes.push(premium);
+          wait.push(premium);
+        }
+      }
+      nodes.push(glint);
+      $('band').replaceChildren(...nodes);
     }
 
     // 色の帯に乗せるもの。写真を指定したときだけ写真を乗せ、なければ帯と文字だけ
     // 縦長フレームは帯の中に写真を入れてあるので、横の写真は足さない
     if (!hatch) visual.replaceChildren();
     if (!hatch && p.style !== 'photo') {
-      if (p.image === 'photo' && p.photo) {
+      if (p.image === 'photo' && photoSource) {
         const img = new Image();
-        img.src = mediaUrl(p.photo);
+        img.src = mediaUrl(photoSource);
         if (p.crop && typeof p.crop === 'object') img.style.objectPosition = `${Number(p.crop.x) * 100}% ${Number(p.crop.y) * 100}%`;
         visual.replaceChildren(img);
         wait.push(img);
@@ -427,12 +483,23 @@ export async function startCutin(section) {
     // 画像の読み込みを待つ（帯の SVG はここで描かれる）
     await Promise.all(wait.map((img) => img.decode().catch(() => {})));
 
+    if (result.from) {
+      stage.classList.add('promote');
+      sfx('kyuin');
+      await sleep(180);
+      stage.classList.remove('promote');
+      // 下の段階を見せてから、同じイベントを上の段階で描き直す。
+      // 再抽選はせず、サーバーから届いた tier / pattern / seed をそのまま使う。
+      await play(e, { ...result, from: null });
+      return;
+    }
+
     // 虹: フリーズ（暗転して無音）→ キュイン
     if (tier === 'rainbow' && p.freeze) {
       $('freeze').classList.add('on');
       await sleep(1100);
       $('freeze').classList.remove('on');
-      sfx('kyuin');
+      if (!result.from) sfx('kyuin');
     }
 
     const rect = $('rig').getBoundingClientRect();

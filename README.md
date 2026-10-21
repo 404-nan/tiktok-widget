@@ -105,6 +105,13 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 最終更新: 2026-10-19
 | コンボ `combo` | 同じ人が一定時間内に続けてギフトを送ると ×2、×3…と数え、送信者・回数・段階・合計を受信順に表示する。背景は透明、終了カード・リセット・開発用テスト表示・WebAudio に対応（状態: できた） | 1080 × 1920（`public/widgets/combo.html`） |
 
+## 機能の状態
+
+| 機能 | 状態 | コードの場所 |
+| --- | --- | --- |
+| カットインのプレミア柄・昇格・RUSH格上げ・段階写真 | できた | `src/cutin-draw.js`、`public/widgets/lib/cutin-premium.js` |
+| カットインの画面撮影と本番反映 | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
+
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
 最後に直した日: 2026-10-19
@@ -441,6 +448,7 @@ src/templates.js       配信テンプレートの読み込み・検証・差分
 src/templates/         妨害マイクラ・罰ゲーム雑談・耐久・目標配信のテンプレートデータ
 src/visitors.js        来場回数を HMAC で匿名化して保存し、初見・常連の通知を配る
 src/info-feed.js       フォロー・ギフト・シェアの最近の一覧をメモリで持つ
+src/README.md           サーバー側コードの役目とつながり
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）。受け口の鍵はキャッシュして照合する
 src/ingest.js          外部ツールからのイベントを受け、重複・直接接続との競合を整理して hub へ流す
@@ -490,6 +498,11 @@ test/                  node --test のテスト（acceptance/obs.test.js は偽O
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 public/widgets/visitors.html / visitors.js  初見・常連の来場テロップ
 test/                  node --test のテスト（acceptance/visitors.test.js は来場テロップの完成条件）
+public/dashboard/      設定画面（[README](public/dashboard/README.md)、common.js / charts.js は3画面で共通）
+public/monitor/        配信中モニター
+public/history/        統計・履歴
+public/widgets/        各ウィジェット（[README](public/widgets/README.md)、lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
+test/                  node --test のテスト（[README](test/README.md)）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
@@ -499,6 +512,17 @@ deploy/server/          lulserver の本番を、配信していないときに�
 
 `src/` の各ファイルの役目とつながりは [src/README.md](src/README.md) にまとめています。
 最後に直した日: 2026-10-19
+
+最後に直した日: 2026-10-19
+
+## 機能の状態と本番前レビュー
+
+- 配信・集計・設定・各ウィジェット: できた
+- カットインの段階表示、プレミア柄、昇格、RUSH抽選: できた。公開側はES5・CDNなし
+- 本番前レビューの回帰確認: できた（`test/acceptance/pre-ship-review.test.js`）
+- 作りかけ・未実装: なし（現在の実装範囲）
+
+コードを変えたときは、対応するフォルダのREADMEとこの機能一覧・地図を同じ変更で更新する。
 
 ```bash
 npm test

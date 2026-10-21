@@ -20,6 +20,7 @@ import { RushEngine } from './rush.js';
 import { StepupEngine } from './stepup.js';
 import { SwarmEngine } from './swarm.js';
 import { ComboEngine } from './combo.js';
+import { drawCutin } from './cutin-draw.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
@@ -124,6 +125,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const stepup = new StepupEngine(hub);
   const swarm = new SwarmEngine(hub);
   const combo = new ComboEngine(hub);
+  // 画面ごとに別のくじを引かないよう、配信直前に1回だけ作る。
+  hub.on('prepare', (event) => {
+    if (!['gift', 'follow', 'share'].includes(event.kind)) return;
+    event.cutinDraw = drawCutin({ rush: rush.state.active === true });
+  });
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
   roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));

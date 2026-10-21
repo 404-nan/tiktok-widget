@@ -176,7 +176,7 @@
     frame.appendChild(view);
     frame.appendChild(bottom);
     el.appendChild(frame);
-    return { wait: wait, bandHeight: metrics.bandH };
+    return { wait: wait, bandHeight: metrics.bandH, patternTargets: [top, bottom] };
   }
 
   global.CutinStyle = {
