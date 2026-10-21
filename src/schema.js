@@ -253,6 +253,7 @@ export const SCHEMA = {
       'ギフトのコイン（といいね）がダメージになり、視聴者みんなでボスの HP を削る。HP が 0 になったら討伐。' +
       'ダメージで HP バーが削れて白い残像が追いかけ、数字が飛び、ボスが揺れる。大ダメージは画面ごと揺れる。' +
       '討伐で「討伐!」のハンコと金の演出、とどめを刺した人のアイコン。少し待つと HP を hpScale 倍にした次のボスが出てくる。' +
+      '討伐から次のボスが出るまでのダメージは「オーバーキル」として数字だけ出し、次のボスには持ち越さない。' +
       '討伐でルーレットを回したり（roulette）、Minecraft にコマンドを送ったり（commands）できる。' +
       'HP はサーバーの data/boss.json に残るので、OBS を読み込み直しても続きから。URL は /widgets/boss.html?id=<名前>',
     size: () => [720, 260],
@@ -489,7 +490,7 @@ SCHEMA.stepup = {
     step4Text: str('STEP 4', 'STEP 4 の表示文字'),
     step5Text: str('STEP 5', 'STEP 5 の表示文字'),
     finalText: str('虹確定', 'STEP 5 に届いたときの表示文字'),
-    cooldownSeconds: num(10, 'STEP 5 または時間切れのあとに待つ秒数', { min: 0, max: 120 }),
+    cooldownSeconds: num(10, 'STEP 5 または時間切れのあとに待つ秒数（この間のギフトは数えない）', { min: 0, max: 120 }),
     sound: bool(true, '段が上がったときに効果音を鳴らす'),
     volume: num(0.5, '効果音の音量', { min: 0, max: 1 }),
     edge: oneOf(['right', 'left'], 'right', '段が積み上がる側'),
@@ -507,7 +508,7 @@ SCHEMA.swarm = {
     windowSeconds: num(5, 'ギフトの個数を数える秒数', { min: 2, max: 30 }),
     scale: oneOf(['small', 'medium', 'large', 'custom'], 'medium', '配信の規模に合わせた境目'),
     threshold: num(30, 'custom のときに群を起こす個数', { min: 1 }),
-    cooldownSeconds: num(20, '群を出したあと次に数え始めるまでの秒数', { min: 0, max: 300 }),
+    cooldownSeconds: num(20, '群を出したあと次に数え始めるまでの秒数（この間のギフトは数えない）', { min: 0, max: 300 }),
     text: str('群', '群の演出に出す文字（1〜2文字）', { maxLength: 2 }),
     maxIcons: num(60, '一度に飛ばすギフトのアイコンの上限', { min: 10, max: 120 }),
     sound: bool(true, '効果音を鳴らす'),

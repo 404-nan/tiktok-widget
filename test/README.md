@@ -59,6 +59,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `reconnect.test.js` | 再接続のテスト |
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
+| `gift-streaks.test.js` | 連打ギフトが途中で切れても数え落とさない・二重に数えないか |
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
 | `slot.test.js` / `timer.test.js` / `timer-length.test.js` | スロットとタイマーのテスト |

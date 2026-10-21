@@ -32,6 +32,7 @@
 | `hub.js` | イベントを集計し、画面へ配る |
 | `media-alerts.js` | 画像・動画・音声の通知を管理する |
 | `minecraft.js` | ギフトや演出を Minecraft の RCON へつなぐ |
+| `gift-streaks.js` | 連打ギフトの終わりの合図が来ないまま切れても、投げた分を数え落とさない（`tiktok.js` から使う） |
 | `normalize.js` | TikTok のイベントを共通の形にそろえる |
 | `notes.js` | 管理画面のお知らせを保存する |
 | `pinlogin.js` | 短い URL と数字のログインを扱う |

@@ -10,6 +10,7 @@ import {
   normalizeShare,
   normalizeViewers,
 } from './normalize.js';
+import { GiftStreaks } from './gift-streaks.js';
 
 const log = (msg) => console.log(`[tiktok] ${new Date().toISOString()} ${msg}`);
 const RETRY_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000];
@@ -58,6 +59,8 @@ export class TikTokSource {
   constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed } = {}) {
     this.hub = hub;
     this.gifts = gifts;
+    // 連打の終わりの合図が来ないまま切れても、投げた分を数え落とさない
+    this.streaks = new GiftStreaks((data) => this.#publishGift(data));
     this.connection = null;
     this.username = null;
     this.signApiKey = undefined;
@@ -116,6 +119,7 @@ export class TikTokSource {
 
   // ソケットとタイマーだけ止める。stay と username は触らない
   async #close() {
+    this.streaks.flushAll();
     clearTimeout(this.retryTimer);
     this.retryTimer = null;
     this.#clearWatchdog();
@@ -184,7 +188,15 @@ export class TikTokSource {
         console.warn('[tiktok] イベントの変換に失敗:', err);
       }
     };
-    conn.on(WebcastEvent.GIFT, pub((data) => normalizeGift(data, this.gifts)));
+    conn.on(WebcastEvent.GIFT, (data) => {
+      try {
+        if (!data?.repeatEnd && !normalizeGift(data, this.gifts)) return this.streaks.progress(data); // 連打の途中
+        const done = this.streaks.end(data);
+        if (done) this.#publishGift(done);
+      } catch (err) {
+        console.warn('[tiktok] イベントの変換に失敗:', err);
+      }
+    });
     conn.on(WebcastEvent.LIKE, pub(normalizeLike));
     conn.on(WebcastEvent.ROOM_USER, pub(normalizeViewers));
     conn.on(WebcastEvent.CHAT, pub(normalizeChat));
@@ -197,6 +209,7 @@ export class TikTokSource {
       this.connection = null;
       this.connected = false;
       this.#clearWatchdog();
+      this.streaks.flushAll();
       log(`@${this.username} の配信が終了しました`);
       this.hub.setStatus({ mode: 'ended', message: '配信が終了しました' });
       if (this.stay) this.#scheduleRetry('配信終了');
@@ -207,10 +220,20 @@ export class TikTokSource {
       this.connection = null;
       this.connected = false;
       this.#clearWatchdog();
+      this.streaks.flushAll();
       const why = reasonText(reason);
       log(`@${this.username} から切断しました（${why || '接続が切れた'}）`);
       this.#scheduleRetry(why || '接続が切れた');
     });
+  }
+
+  #publishGift(data) {
+    try {
+      const event = normalizeGift(data, this.gifts);
+      if (event) this.hub.publish({ ...event, source: 'tiktok' });
+    } catch (err) {
+      console.warn('[tiktok] イベントの変換に失敗:', err);
+    }
   }
 
   #armWatchdog() {
@@ -232,6 +255,7 @@ export class TikTokSource {
   }
 
   #forceReconnect(reason) {
+    this.streaks.flushAll();
     const conn = this.connection;
     this.connection = null;
     this.connected = false;
