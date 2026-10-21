@@ -3,7 +3,11 @@
 
 const IDLE_MS = 15000; // 最後の途中経過からこれだけ何も来なければ、終わったとみなす
 
-const keyOf = (data) => `${data?.user?.userId ?? data?.user?.uniqueId ?? ''}:${data?.giftId ?? data?.gift?.id ?? ''}`;
+// 人の見分けは normalize.js の normalizeUser と同じ順。groupId があれば別の連打として分ける
+const keyOf = (data) => {
+  const u = data?.user ?? {};
+  return [u.userId, u.uniqueId || u.displayId || u.username, data?.giftId ?? data?.gift?.id, data?.groupId].map((v) => v ?? '').join(':');
+};
 const countOf = (data) => Math.max(1, Number(data?.repeatCount) || 1);
 
 export class GiftStreaks {

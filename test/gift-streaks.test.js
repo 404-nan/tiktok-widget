@@ -52,3 +52,12 @@ test('何も来なくなったら、待ち時間のあとに出す', async () =>
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(out[0].repeatCount, 2);
 });
+
+test('別の人の連打は混ぜない', () => {
+  const out = [];
+  const s = new GiftStreaks((d) => out.push(d), { idleMs: 60000 });
+  s.progress({ user: { uniqueId: 'a' }, giftId: '1', repeatCount: 3 });
+  s.progress({ user: { uniqueId: 'b' }, giftId: '1', repeatCount: 2 });
+  s.flushAll();
+  assert.deepEqual(out.map((d) => `${d.user.uniqueId}${d.repeatCount}`), ['a3', 'b2']);
+});
