@@ -4,7 +4,6 @@ import crypto from 'node:crypto';
 import { defaultsFor } from './schema.js';
 import { eventCoinTotal, giftMatches, giftDisplayName } from './gifts.js';
 
-export const PENDING_CAP = 20;
 const RANDOM_MAX = 1000000;
 // 開示演出の時刻（public/widgets/lib/slot-core.js の timeline と同じ数字）
 export const RESULT_HOLD_MS = 2500;
@@ -128,13 +127,9 @@ export class SlotEngine {
     if (this.config.enabled === false) return null;
     const next = trigger && typeof trigger === 'object' ? trigger : { kind: 'action' };
     if (this.phase !== 'idle') {
-      if (this.pending.length >= PENDING_CAP) {
-        this.pending.shift();
-        this.pending.push(next);
-        return { ok: true, queued: true, dropped: true, pending: this.pending.length, phase: this.phase, seq: this.seq };
-      }
+      // 待ちに上限はつけない。投げた分は全部回す
       this.pending.push(next);
-      return { ok: true, queued: true, dropped: false, pending: this.pending.length, phase: this.phase, seq: this.seq };
+      return { ok: true, queued: true, pending: this.pending.length, phase: this.phase, seq: this.seq };
     }
     return this.#begin(next);
   }

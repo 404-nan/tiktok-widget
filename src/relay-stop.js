@@ -1,6 +1,5 @@
 // 既存スロットの固定結果を、ギフトを送った人ごとに順番に開示するサーバー側の進行管理。
 // 抽選は SlotEngine に任せ、このファイルでは停止順・待機列・再接続用状態だけを持つ。
-import { PENDING_CAP } from './slot.js';
 import { eventCoinTotal, giftMatches } from './gifts.js';
 
 const REEL_COUNT = 3;
@@ -63,7 +62,6 @@ export class RelayStopEngine {
 
   start(trigger = {}) {
     if (this.state !== 'idle') {
-      if (this.pending.length >= PENDING_CAP) return { ok: false, error: '待機列が満杯です（最大20件）', pending: this.pending.length };
       this.pending.push(trigger);
       return { ok: true, queued: true, pending: this.pending.length, state: this.state };
     }

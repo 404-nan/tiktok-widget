@@ -10,7 +10,6 @@ const JST = 'Asia/Tokyo';
 
 const DENY = {
   cooldown: 'まだ続けて回せません',
-  full: '待ちが上限です',
   'no-credits': '回数がありません',
   follow: 'フォローすると無料で回せます',
   disabled: 'ガチャはオフです',

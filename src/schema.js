@@ -520,7 +520,7 @@ SCHEMA.combo = {
   page: 'combo',
   title: 'コンボ(擬似連)',
   size: () => [1080, 1920],
-  desc: '同じ人が短い間隔でギフトを続けるとコンボの回数と段階を数える。途切れると合計コインを知らせる。URL は /widgets/combo.html',
+  desc: '同じ人が短い間隔でギフトを続けるとコンボの回数と段階を数える。途切れると合計コインを知らせる。画面の順番待ちは20件までで、超えると古いものから出さずに飛ばす。URL は /widgets/combo.html',
   fields: {
     enabled: bool(true, 'コンボを使う'),
     seconds: num(10, 'この秒数以内に続けて送ればコンボがつながる', { min: 1, max: 120 }),
@@ -543,7 +543,7 @@ SCHEMA.mediaAlerts = {
   title: 'メディア通知',
   size: () => [640, 360],
   desc:
-    'ギフト・フォロー・ルーレットの動作で、動画・音声・画像を順番に再生する。' +
+    'ギフト・フォロー・ルーレットの動作で、動画・音声・画像を順番に再生する。順番待ちは30件までで、超えると古いものから再生せずに飛ばす。' +
     'ファイルは配信者のデータの alert-media に置く。URL は /widgets/media.html',
   fields: {
     enabled: bool(true, 'メディア通知を使う'),
@@ -570,7 +570,7 @@ SCHEMA.giftSounds = {
   size: () => [1080, 1920],
   desc:
     'ギフト・フォロー・シェアで効果音を重ねて鳴らす。音源はメディア通知に入れた音声を使う。' +
-    '上から順に見て、最初に合ったルールだけ鳴らす。同時に鳴らせる数と、鳴らし終わるまでの待ちには上限がある。' +
+    '上から順に見て、最初に合ったルールだけ鳴らす。同時に鳴らせる数には上限がある。鳴らし終わるまでの待ちは10件までで、超えると古いものから鳴らさずに飛ばす。' +
     'URL は /widgets/sounds.html',
   fields: {
     enabled: bool(true, 'ギフト別サウンドを使う'),
@@ -801,7 +801,8 @@ SCHEMA.minecraft = {
   desc:
     'Minecraft サーバーの RCON にコマンドを送る。マイクラ側の演出プラグインのコマンドもそのまま書ける。' +
     'server.properties で enable-rcon=true / rcon.port / rcon.password を設定しておく。' +
-    'コマンドの中の {user} {userId} {gift} {giftId} {count} {coins} {item} {roulette} は置き換わる（{user} などは記号を取り除いた安全な文字になる）',
+    'コマンドの中の {user} {userId} {gift} {giftId} {count} {coins} {item} {roulette} は置き換わる（{user} などは記号を取り除いた安全な文字になる）。' +
+    'コマンドは全部順番に送る（上限なし）。ただしサーバーにつながらない間のコマンドは送らずに捨て、記録に「接続できないため送りませんでした」と残す',
   fields: {
     enabled: bool(false, 'コマンドを送る'),
     host: str('127.0.0.1', 'Minecraft サーバーのアドレス'),
@@ -915,7 +916,7 @@ SCHEMA.visitors = {
     showFirst: bool(true, '初見さんを迎える'), showReturning: bool(false, 'おかえりの人を迎える'), showRegular: bool(true, '常連さんを迎える'),
     regularVisits: num(3, '何回目から常連さんとして迎えるか', { min: 2, max: 100 }),
     firstText: str('はじめまして！ゆっくりしていってね', '初見さんの文'), returningText: str('また来てくれてありがとう', 'おかえりの文'), regularText: str('{visits}回目の来場、いつもありがとう', '常連さんの文。{visits} は回数に置き換わる'),
-    duration: num(4, '1件を出す秒数', { min: 1, max: 30 }), maxQueue: num(5, '待たせる最大人数', { min: 1, max: 50 }), avatars: bool(true, 'アイコンを出す'),
+    duration: num(4, '1件を出す秒数', { min: 1, max: 30 }), maxQueue: num(5, '待たせる最大人数（超えると古い人から出さずに飛ばす）', { min: 1, max: 50 }), avatars: bool(true, 'アイコンを出す'),
     keepDays: num(90, '記録を残す日数', { min: 1, max: 365 }),
   },
 };

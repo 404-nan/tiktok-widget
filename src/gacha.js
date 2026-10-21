@@ -4,7 +4,6 @@
 import { defaultsFor } from './schema.js';
 import { giftDisplayName, giftMatches } from './gifts.js';
 
-const PENDING_CAP = 20;
 
 /**
  * レアリティを1つ引く。pityEvery 回以上、天井対象以外が続いたら次は天井。
@@ -78,7 +77,7 @@ export class Gacha {
     if (this.config.enabled === false) return null;
     const next = trigger && typeof trigger === 'object' ? trigger : { kind: 'action' };
     if (this.phase !== 'idle') {
-      if (this.pending.length >= PENDING_CAP) return { ok: false, queued: false, reason: 'full' };
+      // 待ちに上限はつけない。投げた分は全部回す
       this.pending.push(next);
       return { ok: true, queued: true, pending: this.pending.length, phase: this.phase, seq: this.seq };
     }

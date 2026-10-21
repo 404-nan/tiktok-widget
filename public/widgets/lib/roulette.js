@@ -228,7 +228,7 @@ export function startRoulettes({ roulettes, views, onSwitch }) {
     if (queue.size <= 1) await leave();
   }
 
-  const queue = createQueue(run, { max: Infinity }) // 投げた分は全部回す。古い回を捨てない;
+  const queue = createQueue(run); // 上限なし。投げた分は全部回す
   function renderQueue() {
     const waiting = queue.size - 1;
     $('queueNum').textContent = String(waiting);

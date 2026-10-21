@@ -190,7 +190,7 @@ test('同じ人は最短間隔を空け、ほかの人は待たない', () => {
   }
 });
 
-test('全体の待ちは20までで、あふれた分は回数を消費しない', () => {
+test('全体の待ちに上限はなく、回した分は全部待ちに入る', () => {
   const { gacha, viewers } = setup({ cooldownSec: 0, freePerReset: 1, rollMs: 60_000 });
   try {
     for (let i = 0; i < 21; i++) {
@@ -198,10 +198,8 @@ test('全体の待ちは20までで、あふれた分は回数を消費しない
       assert.equal(started.ok, true, `${i}:${started.reason}`);
     }
     assert.equal(gacha.snapshot().pending, 20);
-    const full = viewers.spin({ id: 'overflow', name: 'あふれた' });
-    assert.equal(full.reason, 'full');
-    assert.equal(viewers.public('overflow'), null);
-    assert.equal(viewers.public('u20').free.used, 1);
+    assert.equal(viewers.spin({ id: 'u21', name: 'n21' }).ok, true);
+    assert.equal(gacha.snapshot().pending, 21);
   } finally {
     viewers.close();
     gacha.close();

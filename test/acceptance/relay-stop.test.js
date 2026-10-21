@@ -88,13 +88,10 @@ test('AC-3/7: 各停止待ちは10秒で自動停止し、待機中はあと1人
   relay.close();
 });
 
-test('AC-4: 進行中は1台だけ、待機列は20件で満杯を理由付きで返す', () => {
+test('AC-4: 進行中は1台だけ、待機列に上限はなく投げた分を捨てない', () => {
   const { relay, slot } = makeHarness();
   relay.start(gift('active'));
-  for (let i = 0; i < 20; i++) assert.equal(relay.start(gift(`queued-${i}`)).queued, true);
-  const full = relay.start(gift('full'));
-  assert.equal(full.ok, false);
-  assert.match(full.error, /待機/);
+  for (let i = 0; i < 100; i++) assert.equal(relay.start(gift(`queued-${i}`)).queued, true);
   assert.equal(slot.starts, 1);
   relay.close();
 });

@@ -4,7 +4,6 @@
 import { defaultsFor } from './schema.js';
 import { eventCoinTotal, giftDisplayName } from './gifts.js';
 
-export const PENDING_CAP = 20;
 
 const numberInRange = (value, min, max, fallback) => {
   const n = Number(value);
@@ -28,7 +27,6 @@ export class Peka {
     this.seq = 0;
     this.current = null;
     this.pending = [];
-    this.lastRejected = null;
     this.timer = null;
   }
 
@@ -45,7 +43,6 @@ export class Peka {
       pending: this.pending.length,
       queue: this.pending.map((item) => ({ ...item })),
       current: this.current ? { ...this.current, trigger: { ...this.current.trigger } } : null,
-      lastRejected: this.lastRejected,
       bonusSeconds: Number(this.config.bonusSeconds) || 0,
       sound: this.config.sound !== false,
       volume: numberInRange(this.config.volume, 0, 1, 0.3),
@@ -73,10 +70,7 @@ export class Peka {
       trigger,
     };
     if (this.phase !== 'idle') {
-      if (this.pending.length >= PENDING_CAP) {
-        this.lastRejected = { reason: 'full', cap: PENDING_CAP, receivedAt: item.receivedAt };
-        return { ok: false, queued: false, ...this.lastRejected };
-      }
+      // 待ちに上限はつけない。投げた分は全部光らせる
       this.pending.push(item);
       this.#emit('queued');
       return { ok: true, queued: true, pending: this.pending.length };
@@ -103,7 +97,6 @@ export class Peka {
     this.phase = 'idle';
     this.current = null;
     this.pending = [];
-    this.lastRejected = null;
     this.#emit('reset');
   }
 
@@ -150,7 +143,6 @@ export class Peka {
       pending: this.pending.length,
       queue: this.pending.map((item) => ({ ...item })),
       current: this.current ? { ...this.current, trigger: { ...this.current.trigger } } : null,
-      lastRejected: this.lastRejected,
       bonusSeconds: Number(this.config.bonusSeconds) || 0,
       sound: this.config.sound !== false,
       volume: numberInRange(this.config.volume, 0, 1, 0.3),

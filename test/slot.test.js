@@ -38,16 +38,14 @@ test('演出率を変えても、先に決めた役の並びは変わらない',
   assert.deepEqual(high, low);
 });
 
-test('待ち行列は20件で、あふれたら古い順に捨てる', () => {
+test('待ち行列に上限はなく、投げた分は捨てない', () => {
   const hub = new EventEmitter();
   hub.broadcast = () => {};
   const slot = new SlotEngine(hub, { randomInt: () => 0 });
   slot.setConfig({ ...config, reelStopMs: 10000 });
   slot.start({ id: 'first' });
-  for (let i = 0; i < 20; i++) slot.start({ id: i });
-  const dropped = slot.start({ id: 'newest' });
-  assert.equal(dropped.dropped, true);
-  assert.equal(slot.snapshot().pending, 20);
+  for (let i = 0; i < 100; i++) slot.start({ id: i });
+  assert.equal(slot.snapshot().pending, 100);
   slot.close();
 });
 

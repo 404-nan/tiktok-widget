@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { Peka, rollPekaDelay, PENDING_CAP } from '../../src/peka.js';
+import { Peka, rollPekaDelay } from '../../src/peka.js';
 import { defaultsFor } from '../../src/schema.js';
 
 function setup(over = {}, random = () => 0) {
@@ -59,12 +59,11 @@ test('AC-4/8: 点灯通知に送った人、段階色、音の設定を載せる
   peka.close();
 });
 
-test('AC-5: 点灯を解決するまで保持し、解決前の当たりを20件まで待たせる', () => {
+test('AC-5: 点灯を解決するまで保持し、解決前の当たりは上限なく全部待たせる', () => {
   const { peka } = setup({ chance: 1 }, () => 0.5);
   peka.onEvent(gift());
-  for (let i = 0; i < PENDING_CAP + 1; i++) peka.onEvent(gift({ user: { id: `u${i}`, name: `人${i}` } }));
-  assert.equal(peka.snapshot().pending, PENDING_CAP);
-  assert.equal(peka.snapshot().lastRejected.reason, 'full');
+  for (let i = 0; i < 100; i++) peka.onEvent(gift({ user: { id: `u${i}`, name: `人${i}` } }));
+  assert.equal(peka.snapshot().pending, 100);
   peka.resolve('bonusResolved');
   assert.equal(peka.snapshot().phase, 'pending');
   peka.close();

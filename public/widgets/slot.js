@@ -6,7 +6,6 @@
   var CELL = Core.CELL_PX;
   var STAGE_W = 1080;
   var STAGE_H = 600;
-  var QUEUE_CAP = 20;
   var STOP_LEAD_MS = 120;
   var NEAR_LEAD_MS = 190;
   var SAFETY_MS = 5000;
@@ -365,7 +364,6 @@
   // 結果は最低 2.5 秒見せる。見せ終わる前に次の start が来たら、見せ終わるまで待たせる
   function onStart(data) {
     if (active && current && now() < holdUntil) {
-      if (queue.length >= QUEUE_CAP) queue.shift();
       queue.push(data);
       scheduleQueue();
       return;

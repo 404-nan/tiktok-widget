@@ -7,7 +7,6 @@ import { NamedSabotageEngine, namedSabotageCleanupCommands } from './minecraft-n
 import { GoalAlertEngine } from './mc-goal-alert.js';
 
 const MAX_REPEAT = 50;
-const MAX_QUEUE = 500;
 const GAP_MS = 60; // コマンドの間隔（サーバーを詰まらせない）
 const RETRY_AFTER_MS = 5000;
 
@@ -202,7 +201,6 @@ export class Minecraft {
 
   enqueue(commands, vars, source) {
     for (const c of commands) {
-      if (this.queue.length >= MAX_QUEUE) break;
       this.queue.push({ command: fill(c, vars), source });
     }
     this.#drain();

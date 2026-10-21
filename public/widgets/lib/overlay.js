@@ -493,7 +493,7 @@ export function chime(kind = 'gift', volume = 0.3) {
 }
 
 /** 順番に1件ずつ処理するキュー（アラートやルーレット用） */
-export function createQueue(run, { max = 50 } = {}) {
+export function createQueue(run, { max = Infinity } = {}) {
   const items = [];
   let busy = false;
   const next = async () => {
