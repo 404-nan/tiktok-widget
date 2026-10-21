@@ -11,7 +11,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers']],
   ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba']],
-  ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
+  ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -53,6 +53,8 @@ export const INFO = {
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
+  stepup: { icon: 'trending-up', desc: 'みんなのギフトの合計で STEP 1 から STEP 5 まで一段ずつ上がる' },
+  swarm: { icon: 'groups', desc: '短い時間にギフトが集まると、ギフトの大群が画面を横切る' },
   minecraft: { icon: 'box', desc: 'マイクラの枠の時間が分かります。枠の間は自動で TikTok につながります' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
 };
@@ -256,6 +258,48 @@ export const SIMPLE = {
       { title: '中身', fields: ['duration', 'text', 'enterText'] },
     ],
   },
+  stepup: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      {
+        title: 'いつ上がる',
+        presets: [
+          {
+            title: '配信の大きさ',
+            options: [
+              { label: '小さめ', value: { scale: 'small' } },
+              { label: 'ふつう', value: { scale: 'medium' } },
+              { label: '大きい', value: { scale: 'large' } },
+            ],
+          },
+        ],
+        fields: ['windowSeconds', 'scale', 'minCoins'],
+      },
+      { title: '表示する文字', fields: ['step1Text', 'step2Text', 'step3Text', 'step4Text', 'step5Text', 'finalText'] },
+      { title: '音と待ち時間', fields: ['cooldownSeconds', 'sound', 'volume', 'edge'] },
+    ],
+  },
+  swarm: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      {
+        title: 'いつ出る',
+        presets: [
+          {
+            title: '配信の大きさ',
+            options: [
+              { label: '小さめ', value: { scale: 'small' } },
+              { label: 'ふつう', value: { scale: 'medium' } },
+              { label: '大きい', value: { scale: 'large' } },
+            ],
+          },
+        ],
+        fields: ['windowSeconds', 'scale', 'threshold', 'cooldownSeconds'],
+      },
+      { title: '見た目', fields: ['text', 'maxIcons'] },
+      { title: '音', fields: ['sound', 'volume'] },
+    ],
+  },
   mediaAlerts: {
     groups: [
       { title: '使う', fields: ['enabled'] },
@@ -358,6 +402,11 @@ export const SIMPLE_LABELS = {
   'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
   'dareba.enabled': 'ダレ場の事件を使う', 'dareba.type': '起こす事件',
   'minecraft.goalAlert': 'ゴール接近警報',
+  'stepup.enabled': 'ステップアップ予告を使う', 'stepup.windowSeconds': '数える時間', 'stepup.scale': '配信の大きさ', 'stepup.minCoins': '何コインから数える',
+  'stepup.step1Text': 'STEP 1 の文字', 'stepup.step2Text': 'STEP 2 の文字', 'stepup.step3Text': 'STEP 3 の文字', 'stepup.step4Text': 'STEP 4 の文字', 'stepup.step5Text': 'STEP 5 の文字', 'stepup.finalText': '最後の文字',
+  'stepup.cooldownSeconds': '次までの待ち時間', 'stepup.sound': '効果音', 'stepup.volume': '音量', 'stepup.edge': '積み上がる側',
+  'swarm.enabled': '群予告を使う', 'swarm.windowSeconds': '数える時間', 'swarm.scale': '配信の大きさ', 'swarm.threshold': '群を出す個数',
+  'swarm.cooldownSeconds': '次までの待ち時間', 'swarm.text': '出す文字', 'swarm.maxIcons': '飛ばすアイコンの上限', 'swarm.sound': '効果音', 'swarm.volume': '音量',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
 
@@ -394,6 +443,8 @@ const SUMMARY = {
   cutins: (e) => `${e.minCoins} コインから・${e.textWeight === 'bold' ? '太字' : '普通'}`,
   imageCutins: (e) => `${e.minCoins} コインから${{ stripe: '・縞・標準', invert: '・縞・反転', thick: '・縞・枠太' }[e.imageStyle] ?? ''}${e.photo ? '' : '・写真なし'}`,
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
+  stepup: (e) => (e.enabled ? `${e.windowSeconds} 秒で ${e.scale === 'small' ? '小さめ' : e.scale === 'large' ? '大きめ' : 'ふつう'}の境目` : '使わない設定'),
+  swarm: (e) => (e.enabled ? `${e.windowSeconds} 秒で ${e.scale === 'small' ? '小さめ' : e.scale === 'large' ? '大きめ' : e.scale === 'custom' ? `${e.threshold} 個` : 'ふつう'}の群` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),

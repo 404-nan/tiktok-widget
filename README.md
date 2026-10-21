@@ -2,6 +2,8 @@
 
 最終更新: 2026-10-19
 
+最終更新: 2026-10-19
+
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 ライコネは TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
@@ -70,6 +72,8 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | Minecraft ゴール接近警報 `goal-alert` | ゴールまでの距離をサーバーで測り、50m・20m・5mでゲーム内のボスバーと画面へ警報を出す。ゴール到達は既存のWIN処理へ一度だけ渡す | できた（開発確認まで）・640 × 180 |
 
 配信者向けの使い方は [docs/guide/](docs/guide/README.md)、更新のお知らせは [docs/news/](docs/news/2026-10-v1.md) にあります(2026-10-19 に追加)。
+| ステップアップ `stepup` | ギフトの合計で STEP 1〜5 の段を積み、設定した文字・左右・音量を使った段階演出と STEP 5 の虹確定を出す | できた・1080 × 1920 |
+| 群予告 `swarm` | ギフトの大群が画面を横切り、設定した文字・音量で揺れながら送った人を表示する | できた・1080 × 1920 |
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
@@ -407,6 +411,8 @@ src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増�
 src/timer.js           延長タイマー（残り時間・延長・一時停止をサーバーで持ち、data/timers.json に残す）
 src/boss.js            ボス討伐（ギフトのダメージで HP を削り、討伐・次のボスを配る。data/boss.json に残す）
 src/rush.js            RUSH（確変）モードの状態と時間（突入・延長・終了を全画面に配る）
+src/stepup.js          ステップアップ予告の合計・段階・冷却と配信イベント
+src/swarm.js           群予告の個数・種類・冷却と配信イベント
 src/minecraft.js       マイクラ連携（ルール・ルーレットの結果 → RCON）
 src/minecraft-name.js  名前入り妨害の安全化・状態保存・再起動時の片付け
 src/mc-goal-alert.js   ゴール距離の段階警報と到達判定

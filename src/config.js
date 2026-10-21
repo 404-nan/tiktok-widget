@@ -25,7 +25,10 @@ function checkValue(field, value, where, issues) {
   const err = (msg) => issues.errors.push(`${where}: ${msg}`);
   switch (field.type) {
     case 'string':
-      if (typeof value === 'string') return value;
+      if (typeof value === 'string') {
+        if (field.maxLength != null && [...value].length > field.maxLength) return err(`${field.maxLength}文字以内にしてください`), value.slice(0, field.maxLength);
+        return value;
+      }
       if (typeof value === 'number') return String(value);
       return err('文字で書いてください'), field.default;
     case 'number': {
@@ -554,7 +557,18 @@ function checkFields(section, raw, where, issues) {
           ? (issues.errors.push(`${where}.${key}: 空にはできません`), String(value))
           : checkValue(fields[key], value, `${where}.${key}`, issues);
   }
+  if (section === 'stepup' && out.scale === 'custom') checkStepupThresholds(out, where, issues);
   return out;
+}
+
+function checkStepupThresholds(config, where, issues) {
+  for (let step = 2; step <= 5; step++) {
+    const previous = config[`step${step - 1}Coins`];
+    const current = config[`step${step}Coins`];
+    if (current <= previous) {
+      issues.errors.push(`${where}.step${step}Coins: 前の段より大きい数にしてください`);
+    }
+  }
 }
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;

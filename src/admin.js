@@ -244,6 +244,29 @@ export async function rush(action = 'status') {
   return r.last ? `待機中（前回 合計 ${r.last.total} コイン / ギフト ${r.last.gifts} 個）` : '待機中';
 }
 
+/** ステップアップ予告を操作・確認する */
+export async function stepup(action = 'status') {
+  if (['start', 'stop', 'reset', 'demo'].includes(action)) {
+    const { stepup: state } = await callServer('/api/control', { method: 'POST', body: { target: 'stepup', action } });
+    if (action === 'reset') return 'ステップアップ予告を待機に戻しました';
+    if (action === 'demo') return 'ステップアップ予告の見本を送りました';
+    return state?.active ? `ステップアップ予告中: STEP ${state.step}` : 'ステップアップ予告は待機中です';
+  }
+  const state = await callServer('/api/stepup');
+  return state.active ? `ステップアップ予告中: STEP ${state.step} / ${state.total} コイン` : state.last ? `前回のステップアップ: STEP ${state.last.step} / ${state.last.total} コイン` : 'ステップアップ予告は待機中です';
+}
+
+/** 群予告を見本・待機・状態確認する */
+export async function swarm(action = 'status') {
+  if (['trigger', 'reset'].includes(action)) {
+    const { swarm: state } = await callServer('/api/control', { method: 'POST', body: { target: 'swarm', action } });
+    if (action === 'reset') return '群予告を待機に戻しました';
+    return '群予告の見本を送りました';
+  }
+  const state = await callServer('/api/swarm');
+  return state.active ? `群予告中: ${state.last?.count ?? 0} 個` : state.last ? `前回の群予告: ${state.last.count} 個` : '群予告は待機中です';
+}
+
 export async function control(target, action, data) {
   await callServer('/api/control', { method: 'POST', body: { target, action, data } });
   return `${target} に ${action} を送りました`;
