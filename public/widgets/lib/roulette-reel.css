@@ -85,6 +85,17 @@
   box-shadow: 0 0 0 5px #1A0204, 0 0 0 9px #C9CED6, 0 0 0 11px #3A0509;
   transition: transform .5s cubic-bezier(.2, .9, .3, 1);
 }
+.reels { position: absolute; inset: 0; display: flex; }
+.reel { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+/* 3本（slot3）: リールの間に墨の仕切り、文字は少し小さく */
+.three .reel + .reel { border-left: 5px solid #1A0204; }
+.three .reel-tile { padding: 0 8px; font-size: 22px; }
+.three .reel-tile.has-image { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 2px; padding: 6px 8px; font-size: 16px; }
+.three .reel-tile.has-image img { width: 100%; height: 100%; min-height: 0; }
+/* リーチ: 3本目の枠が金に光って点滅、当たり線も点滅 */
+.reach .reel:last-child { box-shadow: inset 0 0 0 4px #FFC53D, inset 0 0 18px rgba(255, 197, 61, .8); animation: reach-blink .3s linear infinite; }
+.reach .payline { animation: reach-blink .3s linear infinite; }
+@keyframes reach-blink { 50% { filter: brightness(1.6); } }
 .reel-track { position: absolute; left: 0; right: 0; top: var(--row); height: var(--row); will-change: transform; }
 .reel-tile {
   position: absolute;
@@ -109,7 +120,7 @@
 .reel-tile.has-image img { height: calc(var(--row) * .72); width: calc(var(--row) * .72); object-fit: contain; }
 /* 当たりのコマは金地に紅の文字 */
 .reel-tile.is-win { background: linear-gradient(180deg, #FFEDB0, #F5B92E 50%, #FFE08A); color: #9E0B12; text-shadow: 0 2px 0 rgba(255, 255, 255, .6); }
-.fast .reel-tile { transform: scaleY(1.35); opacity: .55; }
+.reel.fast .reel-tile { transform: scaleY(1.35); opacity: .55; }
 .reel-tile.hit { animation: tile-hit .5s ease-out 2; }
 @keyframes tile-hit { 50% { filter: brightness(1.25); transform: scale(1.06); } }
 

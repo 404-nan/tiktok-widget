@@ -31,6 +31,8 @@
   .strip-view .window { transition: transform .5s cubic-bezier(.2, .9, .3, 1); }
   .strip-view.chance .window { transform: scale(1.3); }
   .style-wheel .result { top: 58%; }
+  /* スロット台は、結果をリールの下（スピーカーの上）に出してリールを隠さない */
+  .style-slot .result { top: 74%; }
 
   /* 横スライド型 */
   .window {
@@ -108,7 +110,7 @@
         <div class="cab-bulbs bottom"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       </div>
       <div class="cab-window">
-        <div class="reel-track"></div>
+        <div class="reels"></div>
         <div class="reel-shade"></div>
         <div class="payline"><i></i><i></i></div>
       </div>
@@ -145,10 +147,12 @@
   (async () => {
   const roulettes = await loadRoulettes();
   const stage = document.getElementById('stage');
+  const reelView = createReel(document.getElementById('slotView'));
   const views = {
     wheel: createWheel(document.getElementById('wheelView')),
     strip: createStrip(document.getElementById('stripView')),
-    slot: createReel(document.getElementById('slotView')),
+    slot: reelView,
+    slot3: reelView,
   };
 
   startRoulettes({
@@ -160,6 +164,7 @@
       if (!q.get('scale') && q.get('preview') !== '1') document.documentElement.style.zoom = String(Number(r.scale) || 1);
       document.body.classList.toggle('style-wheel', style !== 'strip');
       document.body.classList.toggle('style-strip', style === 'strip');
+      document.body.classList.toggle('style-slot', style === 'slot' || style === 'slot3');
       const win = document.querySelector('#stripView .window');
       stage.style.setProperty('--window-h', `${win.offsetHeight}px`);
       stage.classList.remove('swap');

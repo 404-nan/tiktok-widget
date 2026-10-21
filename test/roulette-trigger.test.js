@@ -120,7 +120,7 @@ test('ギリギリ演出のぶん、結果が出るのが遅れる', () => {
 });
 
 test('ルーレットの形（casino / slot / judo）を設定でき、結果に形が付く（カットインの見た目用）', () => {
-  for (const style of ['casino', 'slot', 'judo']) {
+  for (const style of ['casino', 'slot', 'slot3', 'judo']) {
     const { config, errors } = normalize({ roulettes: { r: { style, duration: 1, hold: 1, items: [{ label: '当たり', win: true }, 'ハズレ'] } } });
     assert.deepEqual(errors, []);
     assert.equal(config.roulettes.r.style, style);

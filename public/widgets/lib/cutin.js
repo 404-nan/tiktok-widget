@@ -103,6 +103,7 @@ export async function startCutin(section) {
     strip: { win: '大当たり', tier: 'rainbow' },
     casino: { win: 'ジャックポット', tier: 'casino', coins: true, bulbs: true },
     slot: { win: 'ビッグボーナス', tier: 'slot', sevens: true, chance: 'リーチ' },
+    slot3: { win: 'ビッグボーナス', tier: 'slot', sevens: true, chance: 'リーチ' },
     judo: { win: '一本', tier: 'judo', seal: true, chance: '技あり', freeze: false },
   };
   const lookOf = (style) => LOOKS[style] ?? LOOKS.wheel;

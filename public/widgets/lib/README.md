@@ -34,7 +34,8 @@ ES5 で書くもの（LIVE Studio の古い Chromium 向け）は `test/es5-publ
 | `roulette-wheel.js` | 丸型の描画と回し方（wheel / casino / judo）。ギリギリ演出の動き（`creepRotation`）はカットインの大写しと共通 |
 | `roulette-skins.js` | 丸型の塗り分け。wheel いつもの形 / casino 金の縁・電球・赤と黒の盤 / judo 畳・畳縁・黒帯 |
 | `roulette-strip.js` | 横スライド型（strip） |
-| `roulette-reel.js` / `roulette-reel.css` | スロット台型（slot）。赤い筐体、電球の看板、縦に回るリール、レバー |
+| `roulette-reel.js` / `roulette-reel.css` | スロット台型（slot 1本 / slot3 3本）。赤い筐体、電球の看板、縦に回るリール、レバー |
+| `reel-plan.js` | スロット台で各リールをどの項目で止めるか（3本のリーチ）。画面に触らない。`test/reel-plan.test.js` |
 | `roulette-gift.js` | 「◯◯さんのギフトで回転中」の名前 |
 
 ## スロット（`slot.html`）
