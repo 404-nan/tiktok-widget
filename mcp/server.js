@@ -189,6 +189,12 @@ server.registerTool(
   wrap(async ({ kind, ...opts }) => text(await admin.testEvent(kind, opts))),
 );
 
+server.registerTool('obs', {
+  title: 'OBS演出を試す',
+  description: 'OBSブリッジに演出を試しに送る。',
+  inputSchema: { rule: z.enum(['rainbow', 'gold', 'jackpot', 'slotBig', 'rushStart', 'rushEnd', 'bossDefeat', 'gachaTop']) },
+}, wrap(async ({ rule }) => text(await admin.control('obs', 'test', { rule }))));
+
 server.registerTool(
   'relay_stop',
   {

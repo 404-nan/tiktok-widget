@@ -30,6 +30,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
+| OBS連携 `obs-bridge` | できた（偽OBS v5形の受け入れテスト済み・実機確認待ち）。虹・大当たり・RUSH・ボス討伐などでOBSのカメラを揺らす・拡大する。パスワードはURLの#以降だけで扱う | 透明ブラウザソース / 320 × 120 |
 | ギフト通知 `gift-alert` | ギフト・フォロー・シェアを中継テロップのように表示。高額ギフトは金色 | 760 × 200 |
 | コメント欄 `chat` | 配信のコメントを下から積み上げて表示（テロップ風か吹き出し風）。この配信でギフトを送った人のコメントは金の帯・縁と送ったコインの合計で目立たせ、多く送った人ほど目立つ（3段階）。NG ワード・隠すユーザー・「!」のコマンドは出さない。読み上げもできる | 460 × 640 |
 | カットイン `cutin` | パチンコのカットイン。筆でかすれた帯が入り、「激アツ」の文字が叩きつけられ、ガガガと揺れて抜ける。コインで 青→緑→赤（激アツ）→金→虹（確定・フリーズつき） | 配信画面と同じ大きさ（例 1080 × 1920） |
@@ -405,6 +406,11 @@ public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（`ootori.html` など。lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト
+public/help/           配信者向けの使い方（OBS連携の接続手順を含む）
+public/monitor/        配信中モニター
+public/history/        統計・履歴
+public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
+test/                  node --test のテスト（acceptance/obs.test.js は偽OBS v5形の受け入れテスト）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
@@ -417,6 +423,8 @@ deploy/server/          lulserver の本番を、配信していないときに�
 ```bash
 npm test
 ```
+
+最後に直した日: 2026-10-19
 
 ## ギフトの日本語名の対応表
 

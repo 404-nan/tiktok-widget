@@ -8,6 +8,8 @@ import vm from 'node:vm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
+  'public/widgets/obs-bridge.js',
+  'public/widgets/lib/sha256.js',
   'public/dashboard/dev-features.js',
   'public/dashboard/cutin-crop.js',
   'public/widgets/lib/cutin-style.js',

@@ -17,3 +17,12 @@ OBSやTikTok LIVE Studioのブラウザソースで開く公開ウィジェッ�
 ## つながり
 
 設定と状態はサーバー側の `src/peka.js` / `src/throne.js` / `src/ootori.js` / `src/dareba.js` / `src/mc-goal-alert.js` が持ち、画面は対応するAPIとWebSocketの通知を表示します。
+OBSや配信画面に入れる公開ウィジェットです。今回のOBS連携は透明なブラウザソースからローカルのobs-websocketへ命令します。
+
+| ファイル | 役目 |
+| --- | --- |
+| `obs-bridge.html` | 何も描かないOBS用ブラウザソース |
+| `obs-bridge.js` | ライコネのイベントをOBSの演出へ変換 |
+| `lib/sha256.js` | OBS WebSocket認証用のES5 SHA-256 |
+
+設定は `src/schema.js`、受信イベントはサーバーの `/ws` から使います。

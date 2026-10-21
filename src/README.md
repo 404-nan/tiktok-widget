@@ -126,3 +126,12 @@
 ## つながり
 
 Peka、動く王座、リレー停止、大トリ、ダレ場、ゴール接近警報は `runtime.js` から `hub.js` のイベントを購読し、公開ウィジェットへAPIとWebSocketで状態を渡します。既存のイベントは `testEvent` を集計しません。
+設定検証、配信状態、管理操作などサーバー側の中心部です。
+
+| ファイル | 役目 |
+| --- | --- |
+| `schema.js` | `obs`を含む設定項目・既定値・日本語説明 |
+| `config.js` | 設定値とOBSルールの検証・既定値への補完 |
+| `admin.js` | CLI・MCPから共通利用する操作 |
+
+`server.js`からruntimeが使い、CLIは`bin/tw.js`、MCPは`mcp/server.js`から呼びます。
