@@ -46,18 +46,19 @@ test('ギフトした人の名前があるときだけ出す（手動は出さ�
 });
 
 test('連打 ×5 は既定で5回まわす（perCount: false なら1回）', () => {
-  const spinsFor = (perCount) => {
+  const spinsFor = (perCount, count = 5) => {
     const hub = new EventEmitter();
     let spins = 0;
     hub.broadcast = (m) => { if (m.type === 'roulette') spins++; };
     const engine = new RouletteEngine(hub);
     engine.setConfig({ roulettes: { r: { gifts: ['Rose'], duration: 1, hold: 1, items: [{ label: 'a', weight: 1 }], ...(perCount == null ? {} : { perCount }) } } });
-    hub.emit('event', { kind: 'gift', gift: { name: 'Rose', id: '1', count: 5 }, totalDiamonds: 5 });
+    hub.emit('event', { kind: 'gift', gift: { name: 'Rose', id: '1', count }, totalDiamonds: 5 });
     engine.clear();
     return spins;
   };
   assert.equal(spinsFor(undefined), 5);
   assert.equal(spinsFor(false), 1);
+  assert.equal(spinsFor(undefined, 99), 99); // 上限なし。投げた分は全部回す
 });
 
 test('win: true の項目が出ると、結果に win が付く（カットインの大当たり用）', async () => {
