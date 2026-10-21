@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const knowledgeDir = path.join(root, 'docs', 'knowledge');
-const expected = ['README.md', 'architecture.md', 'environments.md', 'dev-flow.md', 'operating.md', 'minecraft.md', 'design.md', 'decisions.md'];
+const expected = ['README.md', 'architecture.md', 'environments.md', 'dev-flow.md', 'operating.md', 'minecraft.md', 'design.md', 'decisions.md', 'performance.md'];
 
 function markdownFiles() {
   return ['AGENTS.md', ...expected.map((name) => path.join('docs', 'knowledge', name))];

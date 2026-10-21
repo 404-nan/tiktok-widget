@@ -1,0 +1,12 @@
+{
+  "widgets": {
+    "cpuPercent": 30,
+    "heapGrowthMB": 20,
+    "droppedFramePercent": 5
+  },
+  "server": {
+    "simulateP95Ms": 250,
+    "websocketBytesPerEvent": 20000,
+    "memoryGrowthMB": 100
+  }
+}

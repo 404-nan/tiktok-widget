@@ -9,3 +9,4 @@
 - [minecraft.md](minecraft.md): WIN数、演出、SuperStream、RCON の技術的な決まり。
 - [design.md](design.md): デザイン方針と既存の設計資料の使い分け。
 - [decisions.md](decisions.md): 技術・製品の決定を新しい順に記録。
+- [performance.md](performance.md): 一時環境でウィジェットとサーバーの性能を測る方法・上限・結果。
