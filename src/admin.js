@@ -210,6 +210,28 @@ export async function boss(action = 'status', id = null, value) {
   return Object.entries(out).map(([k, b]) => line(k, b)).join('\n');
 }
 
+/** コメント投票を始める・締める・結果を出す・リセットする・見る */
+export async function vote(action = 'status', id = null, opts = {}) {
+  if (action === 'status') return callServer('/api/vote');
+  const target = encodeURIComponent(id || 'active');
+  return callServer(`/api/vote/${target}/${encodeURIComponent(action)}`, { method: 'POST', body: opts });
+}
+
+/** いいね応援ゲージを足す・満タンにする・リセットする・見る。 */
+export async function cheer(action = 'status', id = null, value) {
+  if (action === 'status') return callServer('/api/cheer');
+  const target = encodeURIComponent(id || 'active');
+  if (action === 'add' && value != null) return callServer(`/api/cheer/${target}/add?value=${encodeURIComponent(value)}`);
+  return callServer(`/api/cheer/${target}/${encodeURIComponent(action)}`, { method: 'POST', body: {} });
+}
+
+/** 押しボタンを始める・締める・リセットする・見る。 */
+export async function pushButton(action = 'status', id = null, opts = {}) {
+  if (action === 'status') return callServer('/api/push-button');
+  const target = encodeURIComponent(id || 'active');
+  return callServer(`/api/push-button/${target}/${encodeURIComponent(action)}`, { method: 'POST', body: opts });
+}
+
 /** RUSH に入る・終わらせる・今の状態（サーバーが必要） */
 export async function rush(action = 'status') {
   if (action === 'start' || action === 'stop') {

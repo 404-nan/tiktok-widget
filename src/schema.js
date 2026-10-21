@@ -743,6 +743,49 @@ SCHEMA.obs = {
   },
 };
 
+SCHEMA.votes = {
+  kind: 'map',
+  page: 'vote',
+  title: 'コメント投票',
+  desc:
+    'コメントの「1」「2」など、選択肢の番号を1人1票で集計する。始める・締める・結果を出すはダッシュボード、Stream Deck、MCP、CLIから操作できる。' +
+    'URL は /widgets/vote.html?id=<名前>',
+  size: () => [720, 360],
+  fields: {
+    ...placementFields(8, 55),
+    title: str('どれにする?', '投票の見出し'),
+    options: list(['A', 'B', 'C'], '番号で選ぶ選択肢（2〜9個）'),
+    durationSeconds: num(60, '投票を受け付ける秒数（0 で時間では締めない）', { min: 0, max: 3600 }),
+    autoReveal: bool(true, '時間で締め切ったら続けて結果を出す'),
+    resultActions: { type: 'actions', default: [], desc: '結果が出たときに1回だけ動かす動作の一覧' },
+    showNames: bool(true, '直近に投票した人の名前を表示する'),
+    sound: bool(true, '結果発表の効果音'),
+    volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    color: color('accent', '投票バーの色'),
+  },
+};
+
+SCHEMA.cheers = {
+  kind: 'map', page: 'cheer', title: 'いいね応援ゲージ', desc: 'いいねをみんなでためて満タンにする応援ゲージ。URL は /widgets/cheer.html?id=<名前>', size: () => [560, 160],
+  fields: {
+    ...placementFields(8, 72), title: str('みんなで応援', '応援ゲージの見出し'), goal: num(500, '満タンまでのいいね数', { min: 1, max: 1000000 }), growth: num(1.5, '満タン後に目標を何倍にするか', { min: 1, max: 10 }), loop: bool(true, '満タン後に次の周を始める'), fullText: str('満タン!', '満タンのときの文'), fullActions: { type: 'actions', default: [], desc: '満タンのときに1回だけ動かす動作の一覧' }, sound: bool(true, '満タンの効果音'), volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }), color: color('accent', 'ゲージの色'), fullColor: color('gold', '満タンの色'),
+  },
+};
+
+// コメントといいねで押す、時間制の参加型ボタン。
+SCHEMA.pushButtons = {
+  kind: 'map', page: 'push-button', title: '押しボタン',
+  desc: 'コメント「押」か、いいねの連打で参加する PUSH ボタン。', size: () => [640, 360],
+  fields: {
+    ...placementFields(8, 55), label: str('押せ!', '画面に出す文字'), seconds: num(5, '受付時間（1〜60秒）', { min: 1, max: 60 }),
+    keyword: str('押', '押しとして数えるコメント'), likesPerPush: num(5, '何いいねで1押しか（0で数えない）', { min: 0, max: 1000 }),
+    steps: list([3, 10, 30, 100], '青・緑・赤・金になる押し数（4個、昇順）'),
+    blueActions: { type: 'actions', default: [], desc: '青の動作' }, greenActions: { type: 'actions', default: [], desc: '緑の動作' },
+    redActions: { type: 'actions', default: [], desc: '赤の動作' }, goldActions: { type: 'actions', default: [], desc: '金の動作' },
+    missText: str('不発', '届かなかったときの文字'), sound: bool(true, '効果音'), volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }), color: color('accent', 'ボタンの色'),
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {

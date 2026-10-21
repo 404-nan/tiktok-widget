@@ -288,6 +288,31 @@ server.registerTool(
 );
 
 server.registerTool(
+  'vote',
+  {
+    title: 'コメント投票',
+    description: 'コメントの番号投票を始める・締める・結果を出す・リセットする・状態を見る。id は votes の名前（省くと今の投票）。',
+    inputSchema: {
+      action: z.enum(['status', 'start', 'close', 'result', 'reset']).default('status'),
+      id: z.string().optional().describe('votes の名前'),
+      options: z.array(z.string()).optional().describe('start のときだけ使う今回の選択肢'),
+      seconds: z.number().optional().describe('start のときだけ使う今回の秒数'),
+    },
+  },
+  wrap(async ({ action, id, options, seconds }) => text(await admin.vote(action, id ?? null, { options, seconds }))),
+);
+
+server.registerTool(
+  'cheer',
+  {
+    title: 'いいね応援ゲージ',
+    description: 'いいね応援ゲージを足す・満タンにする・リセットする・状態を見る。',
+    inputSchema: { action: z.enum(['status', 'add', 'fill', 'reset']).default('status'), id: z.string().optional().describe('cheers の名前'), value: z.number().optional().describe('add の数') },
+  },
+  wrap(async ({ action, id, value }) => text(await admin.cheer(action, id ?? null, value))),
+);
+
+server.registerTool(
   'rush',
   {
     title: 'RUSH',
@@ -305,6 +330,16 @@ server.registerTool(
     inputSchema: { action: z.enum(['status', 'start', 'stop']).default('status') },
   },
   wrap(async ({ action }) => text(await admin.dareba(action))),
+);
+
+server.registerTool(
+  'push_button',
+  {
+    title: '押しボタン',
+    description: '押しボタンを始める・締める・リセットする・状態を見る。',
+    inputSchema: { action: z.enum(['status', 'start', 'finish', 'reset']).default('status'), id: z.string().optional(), seconds: z.number().optional() },
+  },
+  wrap(async ({ action, id, seconds }) => text(await admin.pushButton(action, id ?? null, { seconds }))),
 );
 
 server.registerTool(

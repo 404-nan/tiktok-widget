@@ -26,12 +26,12 @@ const map = {
   alerts: ['gift-alert', [760, 200]], chats: ['chat', [460, 640]], jars: ['gift-jar', [500, 700]],
   goals: ['goal', [640, 180]], wins: ['wins', [600, 200]], timers: ['timer', [720, 260]],
   bosses: ['boss', [720, 260]], counters: ['counter', [560, 220]], rankings: ['ranking', [420, 416]],
-  roulettes: ['roulette', [600, 680]],
+  roulettes: ['roulette', [600, 680]], votes: ['vote', [720, 360]], cheers: ['cheer', [560, 160]], pushButtons: ['push-button', [640, 360]],
 };
 const objects = new Set(['slots']);
 const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx', 'giftSounds']);
 const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx', giftSounds: 'sounds' };
-const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット', slots: 'スロット' };
+const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット', votes: 'コメント投票', cheers: 'いいね応援', pushButtons: '押しボタン', slots: 'スロット' };
 
 const pageUrl = (page, id, extra = '') => {
   const q = new URLSearchParams(extra);
@@ -56,7 +56,7 @@ const sizeFor = (section, entry) => {
   return map[section]?.[1] ?? [600, 200];
 };
 const place = (section, entry, index) => {
-  const defaults = { alerts: [4, 9], chats: [55, 4], jars: [10, 22], goals: [40, 18], wins: [4, 84], timers: [52, 70], bosses: [5, 39], counters: [4, 55], rankings: [60, 48], roulettes: [40, 43], slots: [18, 40] }[section] ?? [8, 9];
+  const defaults = { alerts: [4, 9], chats: [55, 4], jars: [10, 22], goals: [40, 18], wins: [4, 84], timers: [52, 70], bosses: [5, 39], counters: [4, 55], rankings: [60, 48], roulettes: [40, 43], votes: [8, 55], cheers: [8, 72], pushButtons: [8, 55], slots: [18, 40] }[section] ?? [8, 9];
   const scale = Math.max(.2, Math.min(3, Number(entry.posScale) || 1));
   const size = sizeFor(section, entry);
   const maxX = Math.max(0, 100 - size[0] * scale / 1080 * 100);
