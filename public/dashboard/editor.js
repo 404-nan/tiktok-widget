@@ -5,11 +5,14 @@ import { icon, mediaUrl, BASE, giftLabel } from '/widgets/lib/overlay.js';
 import { copyText, flashCopied } from './common.js';
 import { WEIGHT_INPUT, parseWeight } from './weight.js';
 import { GROUPS, INFO, SIMPLE, SIMPLE_LABELS, UNITS, summaryOf, presetActive } from './simple.js';
+import { widgetDescription } from './dashboard-descriptions.js';
+import { shouldRenderDetails } from './editor-layout.js';
 import { createStage } from './stage.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 import { giftPicker } from './gift-picker.js';
 import { giftSoundRulesView, giftSoundStatusView, masterVolumeField } from './gift-sounds-form.js';
 import { TIMER_COIN_SECONDS } from './timer-length.js';
+import { renderRouletteUrls as renderRouletteUrlBox } from './roulette-urls.js';
 
 const $ = (id) => document.getElementById(id);
 const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'minecraft', 'theme'];
@@ -128,6 +131,8 @@ export function createEditor({ api, setMessage }) {
   let yamlDirty = false;
   let superstream = { gifts: [] };
   let stage = null;
+  let rouletteUrlsBox = null;
+  let rouletteUrlsTarget = null;
   // 「かんたん」は、左のサイドバーで選ぶと右が切り替わる:
   //   detail（ウィジェット1つの設定）/ catalog（出すものを足す）/ obs（OBS に入れる URL）/ ai（AI にたのむ）
   // 「くわしく」は今までのタブとフォーム
@@ -738,10 +743,11 @@ export function createEditor({ api, setMessage }) {
     if (aiView) return;
     renderEntries();
     const def = schema.sections[tab];
-    $('widgetDesc').textContent = simple() ? INFO[tab].desc : def.desc;
+    $('widgetDesc').textContent = widgetDescription(simple(), tab, INFO, def);
     $('detailTitle').textContent = def.title;
     const form = $('settings');
     form.replaceChildren();
+    rouletteUrlsTarget = null;
     showIssues();
 
     const values = isObj(tab) ? payload.config[tab] : payload.config[tab]?.[id];
@@ -780,7 +786,7 @@ export function createEditor({ api, setMessage }) {
       // まとまりに入っていない項目は、ここに畳んでおく（押したときだけ開く）
       const shown = new Set(easy.groups.flatMap((g) => g.fields));
       const others = Object.keys(def.fields).filter((k) => !shown.has(k) && !unusable(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
-      if (others.length || streamDeckUrls().length) {
+      if (shouldRenderDetails({ tab, restCount: others.length, streamDeckUrlCount: streamDeckUrls().length })) {
         const more = document.createElement('details');
         more.className = 'more others';
         more.open = store.get(`others-open:${tab}`, false);
@@ -789,6 +795,7 @@ export function createEditor({ api, setMessage }) {
         summary.textContent = `ほかの項目（${others.length}）`;
         const inner = document.createElement('div');
         inner.className = 'settings';
+        if (tab === 'roulettes') rouletteUrlsTarget = inner;
         withHints = true;
         try {
           for (const key of others) inner.append(fieldFor(key, def.fields[key], values[key]));
@@ -822,7 +829,7 @@ export function createEditor({ api, setMessage }) {
     const basic = easy ? [] : (BASIC[tab] ?? Object.keys(def.fields)).filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
     for (const key of basic) form.append(fieldFor(key, def.fields[key], values[key]));
     const rest = easy ? [] : Object.keys(def.fields).filter((k) => k !== 'kindName' && !basic.includes(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
-    if (rest.length) {
+    if (shouldRenderDetails({ tab, restCount: rest.length, streamDeckUrlCount: 0 })) {
       const more = document.createElement('details');
       more.className = 'more';
       more.open = store.get('more-open', false);
@@ -831,6 +838,7 @@ export function createEditor({ api, setMessage }) {
       summary.textContent = '詳しい設定';
       const inner = document.createElement('div');
       inner.className = 'settings';
+      if (tab === 'roulettes') rouletteUrlsTarget = inner;
       for (const key of rest) inner.append(fieldFor(key, def.fields[key], values[key]));
       more.append(summary, inner);
       form.append(more);
@@ -1974,71 +1982,24 @@ export function createEditor({ api, setMessage }) {
   function currentWidget() {
     if (tab === 'minecraft') return null;
     const section = tab === 'theme' ? 'alerts' : tab;
-    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : isObj(tab) ? null : id;
+    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : tab === 'roulettes' ? '*' : isObj(tab) ? null : id;
     return payload.widgets.find((w) => w.section === section && w.id === wid && !w.extra);
   }
 
   let previewTimer = null;
   let previewUrl = null;
-  function rouletteSourceUrl(w, rid) {
-    const u = new URL(w.url, location.origin);
-    u.searchParams.delete('ids');
-    if (rid == null) return u.href;
-    return `${u.href}${u.search ? '&' : '?'}ids=${encodeURIComponent(rid)}`;
-  }
 
   function renderRouletteUrls(w) {
-    let box = $('rouletteUrls');
-    if (tab !== 'roulettes' || !w) {
-      if (box) box.replaceChildren();
-      return;
-    }
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'rouletteUrls';
-      box.className = 'roulette-urls';
-      $('sizeHint').insertAdjacentElement('afterend', box);
-    }
-    box.replaceChildren();
-    const title = document.createElement('span');
-    title.className = 'field-label';
-    title.textContent = 'LIVE Studio / OBS に入れるURL';
-    const hint = document.createElement('p');
-    hint.className = 'hint';
-    hint.textContent = 'ルーレットごとに別のブラウザソースにするときは各URL、1つで全部出すときは一番下のURL';
-    box.append(title, hint);
-    const saved = Object.entries(payload.config.roulettes ?? {});
-    const rows = [];
-    saved.forEach(([name, entry], index) => {
-      if (!Array.isArray(entry?.items) || entry.items.length === 0) return;
-      const label = entry.kindName || entry.name || entry.title || `${schema.sections.roulettes.title} ${index + 1}`;
-      rows.push([label, name]);
+    rouletteUrlsBox = renderRouletteUrlBox({
+      existingBox: rouletteUrlsBox,
+      widget: tab === 'roulettes' ? w : null,
+      roulettes: payload.config.roulettes ?? {},
+      schemaTitle: schema.sections.roulettes.title,
+      target: rouletteUrlsTarget,
+      fallback: $('previewCol'),
+      copyText,
+      flashCopied,
     });
-    rows.push(['全部まとめて（届いたギフトに合うものが出る）', null]);
-    for (const [label, rid] of rows) {
-      const row = document.createElement('div');
-      row.className = 'roulette-url';
-      const lab = document.createElement('span');
-      lab.className = 'field-label';
-      lab.textContent = label;
-      const line = document.createElement('div');
-      line.className = 'stage-url';
-      const input = document.createElement('input');
-      input.readOnly = true;
-      input.value = rouletteSourceUrl(w, rid);
-      input.setAttribute('aria-label', label);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn primary pressable';
-      btn.textContent = 'コピー';
-      btn.addEventListener('click', () => {
-        copyText(input.value, input);
-        flashCopied(btn, btn);
-      });
-      line.append(input, btn);
-      row.append(lab, line);
-      box.append(row);
-    }
   }
 
   function updateUrl(immediate = false) {
@@ -2052,7 +2013,7 @@ export function createEditor({ api, setMessage }) {
     $('widgetUrl').value = explicit;
     $('sizeHint').textContent =
       tab === 'roulettes'
-        ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加します。全部のルーレットを1つのソースで使うときは …/widgets/roulette.html（届いたギフトに合うものに切り替わります）。`
+        ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加してください。`
         : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
     if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]}`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す

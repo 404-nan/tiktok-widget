@@ -1,4 +1,5 @@
 import { giftLabel } from '/widgets/lib/overlay.js';
+import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 
 // 「かんたん」モードの中身。
 // iPhone の設定のように、まとまりごとの一覧 → 押すと中に入る、という形にする:
@@ -30,7 +31,7 @@ export const INFO = {
   counters: { icon: 'heart', desc: 'いいねや視聴者の数を出す' },
   goals: { icon: 'target', desc: '「フォロー 100 人」のような目標までのバー' },
   rankings: { icon: 'trophy', desc: 'たくさんギフトをくれた人の順位' },
-  roulettes: { icon: 'dices', desc: 'ギフトで回る、罰ゲームやごほうびのルーレット' },
+  roulettes: { icon: 'dices', desc: ROULETTE_DESCRIPTION },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
   timers: { icon: 'timer', desc: 'ギフトで延びる残り時間（耐久配信）' },

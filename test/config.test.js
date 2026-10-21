@@ -81,9 +81,8 @@ test('merge は指定したキーだけ変え、削除もできる', () => {
 test('ウィジェットの URL と推奨サイズ', () => {
   const list = cfg.widgetList(cfg.load().config, 'http://x');
   assert.deepEqual(list[0], { section: 'all', id: null, title: '全部まとめて', url: 'http://x/widgets/all.html', size: [1080, 1920] });
-  const reward = list.find((w) => w.section === 'roulettes' && w.id === 'reward');
-  assert.equal(reward.url, 'http://x/widgets/roulette.html?ids=reward');
-  assert.deepEqual(reward.size, [820, 330]);
+  const roulettes = list.filter((w) => w.section === 'roulettes');
+  assert.deepEqual(roulettes, [{ section: 'roulettes', id: '*', title: 'ルーレット（全部）', url: 'http://x/widgets/roulette.html', size: [820, 680] }]);
   const elixir = list.find((w) => w.section === 'jars' && w.id === 'elixir');
   assert.equal(elixir.url, 'http://x/widgets/gift-jar.html?id=elixir');
 });

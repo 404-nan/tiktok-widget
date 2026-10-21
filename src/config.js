@@ -739,11 +739,10 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
     if (section === 'roulettes') {
       if (entries.length) {
         const styles = [...new Set(entries.map(([, e]) => e.style))];
-        const size = styles.includes('wheel') ? [600, 680] : [820, 330];
+        const hasWheel = styles.includes('wheel');
+        const hasStrip = styles.includes('strip');
+        const size = hasWheel && hasStrip ? [820, 680] : hasWheel ? [600, 680] : [820, 330];
         out.push({ section, id: '*', title: 'ルーレット（全部）', url: `${base}/widgets/roulette.html`, size });
-      }
-      for (const [id, e] of entries) {
-        out.push({ section, id, title: `ルーレット: ${e.name || id}`, url: `${base}/widgets/roulette.html?ids=${id}`, size: def.size(e) });
       }
       continue;
     }
