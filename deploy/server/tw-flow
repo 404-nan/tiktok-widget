@@ -39,8 +39,13 @@ preview() {
   git rev-parse --verify -q "$b^{commit}" >/dev/null || { echo "ブランチがありません: $b"; exit 1; }
   command git -C "$DEV_WT" diff --quiet HEAD -- || { echo "$DEV_WT に未コミットの変更があるので切り替えません"; exit 1; }
   command git -C "$DEV_WT" checkout -q --detach "$b" || exit 1
-  # package.json が変わったブランチでも動くように、依存を合わせる
-  (cd "$DEV_WT" && npm ci --silent >/dev/null 2>&1 || npm install --silent >/dev/null 2>&1)
+  # package.json が変わったブランチでも動くように、依存を合わせる。
+  # node_modules がリンク（本番などと共有）のときは触らない。npm ci がリンク先を空にするため
+  if [ -L "$DEV_WT/node_modules" ]; then
+    echo "node_modules がリンクなので入れ直しません（$(readlink "$DEV_WT/node_modules")）"
+  else
+    (cd "$DEV_WT" && npm ci --silent >/dev/null 2>&1) || { echo "npm ci が失敗しました"; exit 1; }
+  fi
   if ! (cd "$DEV_WT" && npm test >/tmp/tw-flow-test.log 2>&1); then
     echo "テストが通りません（/tmp/tw-flow-test.log）。開発サーバーは再起動していません"; exit 1
   fi
