@@ -465,6 +465,11 @@ SCHEMA.mediaAlerts = {
         '条件: gifts（ギフトIDか名前）/ minCoins（この合計コイン以上）/ events（follow）。' +
         'mediaId はアップロードしたメディアのID。条件が無いルールは再生しない',
     },
+    namedSabotage: {
+      type: 'mcNamedSabotage',
+      default: { enabled: false, mediumSeconds: 15, largeSeconds: 60, largeMinCoins: 1000, sheepLimit: 30, queueLimit: 30 },
+      desc: '送信者名入りの安全な妨害。タイトル・ボスバー・名札だけを使い、ダメージ・爆発・ブロック変更はしない',
+    },
   },
 };
 
@@ -549,6 +554,33 @@ SCHEMA.omikuji = {
   },
 };
 delete SCHEMA.omikuji.fields.pity;
+SCHEMA.peka = {
+  kind: 'object',
+  page: 'peka',
+  title: '遅れて光る告知ランプ',
+  size: () => [360, 180],
+  desc: 'ギフトのあと、サーバーが決めた時刻に隅のランプだけを光らせる。URL は /widgets/peka.html',
+  fields: {
+    enabled: bool(true, '遅れて光る告知ランプを使う'),
+    minCoins: num(1, 'この合計コイン未満のギフトは抽選しない', { min: 0 }),
+    chance: num(0.3, '当たりになる確率（0〜1）', { min: 0, max: 1 }),
+    bonusSeconds: num(5, '当たりからボーナスを始めるまでの秒数', { min: 0, max: 3600 }),
+    sound: bool(true, 'ランプが光るときに「カコッ」と鳴らす'),
+    volume: num(0.3, '「カコッ」の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
+SCHEMA.dareba = {
+  kind: 'object',
+  page: 'dareba',
+  title: 'ダレ場の小さな事件',
+  size: () => [640, 240],
+  desc: 'ギフトの勢いが落ちたときだけ、野良ボス・宝箱・号外の小さな事件を1つ出す。判定の数字は画面に出さない。URL は /widgets/dareba.html',
+  fields: {
+    enabled: bool(true, 'ダレ場の事件を使う'),
+    type: oneOf(['野良ボス', '宝箱', '号外'], '野良ボス', '自動で起こす事件の種類'),
+  },
+};
 
 SCHEMA.slots = {
   kind: 'object',
@@ -591,6 +623,19 @@ SCHEMA.slots = {
   },
 };
 
+SCHEMA.relayStop = {
+  kind: 'object',
+  page: 'slot',
+  title: 'リレー停止',
+  size: () => [720, 520],
+  desc: '既存スロットの結果を固定し、ギフトを送った人が3本を順番に止める。URL は /widgets/slot.html',
+  fields: {
+    enabled: bool(false, 'リレー停止を使う'),
+    trigger: { type: 'slotTrigger', default: { gifts: ['5655'], minCoins: 0 }, desc: '開始するギフト、または必要な最低コイン' },
+    waitMs: num(10000, '各リールを待つ時間（ミリ秒）', { min: 0, max: 10000 }),
+  },
+};
+
 SCHEMA.rankings = {
   kind: 'map',
   page: 'ranking',
@@ -609,8 +654,42 @@ SCHEMA.rankings = {
 // ランキングは右側の空いた場所に置く。
 SCHEMA.rankings.fields = { ...placementFields(60, 48), ...SCHEMA.rankings.fields };
 
+SCHEMA.throne = {
+  kind: 'map',
+  page: 'throne',
+  title: '動く王座',
+  desc: '直近10分のギフト合計で王を決め、接近したときだけ VS と王冠移動を出す。URL は /widgets/throne.html?id=<名前>',
+  size: () => [900, 500],
+  fields: {
+    ...placementFields(4, 4),
+    enabled: bool(true, '王座の集計と演出を使う'),
+    approachPercent: num(15, '接近と判定する王との差（%）', { min: 0, max: 100 }),
+    showDifference: bool(true, '防衛の差を表示する'),
+    maxMoves: num(12, '1配信で王冠を動かす回数の上限', { min: 0, max: 100 }),
+  },
+};
+
+SCHEMA.ootori = {
+  kind: 'object',
+  page: 'ootori',
+  title: '最後の一投とエンドロール',
+  desc: 'ラスト10分の最後に受けたギフトの送信者を大トリにし、参加者を最大20組ずつ表示する。URL は /widgets/ootori.html',
+  size: () => [900, 600],
+  fields: {
+    enabled: bool(true, '大トリ企画を使う'),
+    mode: oneOf(['anyone', 'raise'], 'anyone', '誰でも式は有効なギフト、せり上げ式は現在の席よりコインが多いギフトだけ'),
+    durationMs: num(600000, 'ラスト10分の長さ（ミリ秒）', { min: 0, max: 600000 }),
+    seatChangedMs: num(350, '席の差し替え演出の長さ（0〜700ミリ秒）', { min: 0, max: 700 }),
+    rollMaxMs: num(9000, 'エンドロールの特別枠（最大9000ミリ秒）', { min: 0, max: 9000 }),
+    staticAfterMs: num(3000, '一覧を静止表示へ切り替えるまで（最大3000ミリ秒）', { min: 0, max: 3000 }),
+    hideWords: list([], '参加者名に含まれると表示しない言葉。除外した人数だけを残す'),
+  },
+};
+
 SCHEMA.minecraft = {
   kind: 'object',
+  page: 'goal-alert',
+  size: () => [640, 180],
   title: 'マイクラ連携',
   desc:
     'Minecraft サーバーの RCON にコマンドを送る。マイクラ側の演出プラグインのコマンドもそのまま書ける。' +
@@ -627,6 +706,13 @@ SCHEMA.minecraft = {
       '届いたギフトをマイクラ側の演出に渡して、そのギフトの演出を実行する（ss test profile）。' +
         'マイクラ側でプロフィールを start していないとき用（両方動かすと演出が二重になる）',
     ),
+    goalAlert: {
+      type: 'object',
+      default: { enabled: false, world: '', x: null, y: null, z: null, winsId: 'default' },
+      desc:
+        'ゴールのワールドと座標を登録すると、50m・20m・5mでゲーム内と画面へ警報を出す。' +
+        'ワールドと座標がないと距離を推測せず無効。距離・警報・ゴール到達はサーバーで管理する。URL は /widgets/goal-alert.html',
+    },
     superstreamFile: str('', 'マイクラ側の演出プロフィールのファイルの場所。書くと、設定済みのギフト ID と演出をダッシュボードや AI で確認できる'),
     rules: {
       type: 'mcRules',

@@ -12,7 +12,31 @@
 <script type="module">
   // 通常カットイン: 筆の帯と文字だけ。設定は config.yaml の cutins
   import { startCutin } from './lib/cutin.js';
+  import { connect } from './lib/overlay.js';
   startCutin('cutins');
+  // サーバーが決めた安全化済み表示名だけを、カットインと同じ画面に短く重ねる。
+  connect({ 'named-sabotage': (msg) => {
+    if (msg.type !== 'named-sabotage' || msg.test) return;
+    const item = msg.namedSabotage?.active?.[0];
+    if (!item?.displayName) return;
+    const name = document.createElement('div');
+    name.textContent = item.displayName.slice(0, 12);
+    name.style.cssText = 'position:fixed;z-index:20;left:50%;top:22%;transform:translateX(-50%);color:#F6F5F1;background:#111113;padding:.2em .6em;font:700 8vw sans-serif;';
+    document.body.append(name);
+    try {
+      const audio = new AudioContext();
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.frequency.value = 180;
+      gain.gain.setValueAtTime(0.0001, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.04, audio.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.18);
+      oscillator.connect(gain).connect(audio.destination);
+      oscillator.start();
+      oscillator.stop(audio.currentTime + 0.2);
+    } catch {}
+    setTimeout(() => name.remove(), 300);
+  }});
 </script>
 </body>
 </html>

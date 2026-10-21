@@ -26,6 +26,11 @@ import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { Gacha } from './gacha.js';
 import { SlotEngine } from './slot.js';
+import { RelayStopEngine } from './relay-stop.js';
+import { Peka } from './peka.js';
+import { ThroneEngine } from './throne.js';
+import { OotoriEngine } from './ootori.js';
+import { DarebaEngine } from './dareba.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
@@ -44,13 +49,14 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'ai', 'minecraft'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'ai', 'minecraft'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'winsFx'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
     if (key === 'winsFx') return [key, { label: 'WIN数の全画面演出', pages: ['wins-fx.html'], premium: true }];
     // 文章でたのむと設定の案を作る（1回ごとに AI の料金がかかるので、初めは使えない）
     if (key === 'ai') return [key, { label: 'AI にたのむ', pages: [], premium: true }];
+    if (key === 'relayStop') return [key, { label: 'リレー停止', pages: ['slot.html'], premium: false }];
     const def = SCHEMA[key];
     const pages = def.page ? [`${def.page}.html`] : [];
     if (key === 'roulettes') pages.push('roulette-strip.html');
@@ -62,7 +68,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -100,12 +106,18 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()) });
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
-  const minecraft = new Minecraft(hub);
+  const minecraft = new Minecraft(hub, { namedSabotageStatePath: path.join(dataDir, 'named-sabotage.json') });
   const history = new History(hub, path.join(dataDir, 'sessions'));
   const rush = new RushEngine(hub);
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
   roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
+  minecraft.setGoalReachedHandler(() => {
+    minecraft.enqueue(['bossbar set tw:goal_alert visible false'], {}, 'goal-alert');
+    const setting = hub.config?.minecraft?.goalAlert ?? {};
+    const id = setting.winsId || cfg.activeId(hub.config, 'wins');
+    wins.apply(id, 'win');
+  });
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   const bus = createEventBus();
@@ -114,16 +126,48 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const gacha = new Gacha(hub, { bus });
   const omikuji = new Gacha(hub, { bus, name: 'omikuji' });
   const slot = new SlotEngine(hub, { bus });
+  const relayStop = new RelayStopEngine(hub, { slot });
+  const peka = new Peka(hub);
+  const throne = new ThroneEngine({ broadcast: (message) => hub.broadcast(message) });
+  const ootori = new OotoriEngine({ broadcast: (message) => hub.broadcast(message) });
+  const dareba = new DarebaEngine({ hub });
   boss.setBus(bus);
   const actionDeps = () => ({ timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, omikuji, bus });
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
+    dareba.record(e);
+    throne.onEvent(e);
     mediaAlerts.onEvent(e);
     giftSounds.onEvent(e);
     gacha.onEvent(e);
     omikuji.onEvent(e);
-    slot.onEvent(e);
+    const relay = relayStop.onEvent(e);
+    if (!relay) slot.onEvent(e);
+    peka.onEvent(e);
+    ootori.onEvent(e);
+  });
+  hub.on('testEvent', (e) => peka.onEvent(e));
+  hub.on('testEvent', (e) => throne.testEvent(e));
+  hub.on('testEvent', (e) => ootori.testEvent(e));
+  hub.on('testEvent', (e) => dareba.testEvent(e));
+  hub.on('testEvent', (e) => relayStop.onEvent(e));
+  hub.on('testEvent', (e) => minecraft.testNamedSabotage(e));
+  hub.on('reset', () => peka.reset());
+  hub.on('reset', () => throne.reset());
+  hub.on('reset', () => ootori.reset());
+  let darebaLiveSession = false;
+  hub.on('status', (status, prev) => {
+    if (status?.mode === 'ended') throne.finish();
+    if (status?.mode === 'live' && throne.snapshot().state === 'finished') throne.reset();
+    if (status?.mode === 'live' && !darebaLiveSession && prev?.mode !== 'live') {
+      darebaLiveSession = true;
+      dareba.startLive(status.startedAt ?? Date.now());
+    }
+    if (status?.mode === 'idle' || status?.mode === 'ended' || status?.mode === 'demo') {
+      darebaLiveSession = false;
+      dareba.resetForLive(null);
+    }
   });
   let lastIssues = { errors: [], warnings: [] };
   const auto = new Map();
@@ -144,6 +188,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     gacha.setConfig(config.gacha);
     omikuji.setConfig(config.omikuji);
     slot.setConfig(config.slots);
+    relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
+    peka.setConfig(config.peka);
+    throne.setConfig(config.throne);
+    ootori.setConfig(config.ootori);
+    dareba.setConfig(config.dareba);
   };
   hub.on('config', applyEngines);
   // ルーレットの当たりが出たら、その項目のコマンドを Minecraft に送る
@@ -270,6 +319,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
 
   // Minecraft・RUSH・WIN数
   r.get('/api/minecraft', (_req, res) => res.json(minecraft.status));
+  r.get('/api/minecraft/goal-alert', (_req, res) => res.json(minecraft.goalAlertSnapshot()));
+  r.get('/api/minecraft/named-sabotage', (_req, res) => res.json(minecraft.namedSabotage.snapshot()));
   r.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
   r.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
   // Stream Deck やブラウザのブックマークから押せるように GET でも受ける
@@ -569,6 +620,15 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'スロットはオフです' });
         return res.json({ ok: true, slot: started });
       }
+      if (body.target === 'relay-stop') {
+        const started = relayStop.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
+        if (!started.ok) return res.status(400).json(started);
+        return res.json({ ok: true, relayStop: started, visualOnly: true });
+      }
+      if (body.target === 'peka') {
+        const result = peka.onEvent({ kind: 'gift', gift: { name: 'テストギフト', count: 1, diamonds: 1 }, totalDiamonds: 1, user: { name: 'テストさん' }, test: true });
+        return res.json({ ok: true, peka: result });
+      }
       return res.status(400).json({ error: '不明な target です' });
     } catch (err) {
       return res.status(400).json({ error: err.message });
@@ -577,6 +637,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
   r.get('/api/omikuji', (_req, res) => res.json(omikuji.snapshot()));
   r.get('/api/slot', (_req, res) => res.json(slot.snapshot()));
+  r.get('/api/relay-stop', (_req, res) => res.json(relayStop.snapshot()));
+  r.get('/api/peka', (_req, res) => res.json(peka.snapshot()));
+  r.get('/api/throne', (_req, res) => res.json(throne.snapshot()));
+  r.get('/api/ootori', (_req, res) => res.json(ootori.snapshot()));
+  r.get('/api/dareba', (_req, res) => res.json(dareba.snapshot()));
   r.get('/api/media-alerts', (_req, res) => res.json(mediaAlerts.snapshot()));
   r.post('/api/media-alerts', express.raw({ type: () => true, limit: '32mb' }), (req, res) => {
     try {
@@ -649,6 +714,31 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return spin ? { status: 200, body: { ok: true, spin } } : { status: 404, body: { error: 'ルーレットの設定がありません' } };
     }
     if (target === 'roulette' && action === 'reset') roulette.clear();
+    if (target === 'peka') {
+      if (action !== 'bonusResolved' && action !== 'resolve') return { status: 400, body: { error: 'Peka は bonusResolved で解決してください' } };
+      return { status: 200, body: { ok: true, peka: peka.resolve('bonusResolved') } };
+    }
+    if (target === 'throne') {
+      if (action === 'status') return { status: 200, body: { ok: true, throne: throne.snapshot() } };
+      if (action === 'reset') return { status: 200, body: { ok: true, throne: throne.reset() } };
+      if (action === 'finish' || action === 'end') return { status: 200, body: { ok: true, throne: throne.finish() } };
+      if (action === 'stop') return { status: 200, body: { ok: true, throne: throne.stopEffects() } };
+      return { status: 400, body: { error: '王座は status / reset / finish / stop を指定してください' } };
+    }
+    if (target === 'ootori') {
+      if (action === 'status') return { status: 200, body: { ok: true, ootori: ootori.snapshot() } };
+      if (action === 'start') return { status: 200, body: { ok: true, ootori: ootori.start() } };
+      if (action === 'finish' || action === 'end') return { status: 200, body: { ok: true, ootori: ootori.finish() } };
+      if (action === 'reset') return { status: 200, body: { ok: true, ootori: ootori.reset() } };
+      return { status: 400, body: { error: '大トリは status / start / finish / reset を指定してください' } };
+    }
+    if (target === 'dareba') {
+      if (action === 'status') return { status: 200, body: { ok: true, dareba: dareba.snapshot() } };
+      if (action === 'stop') return { status: 200, body: { ok: true, dareba: dareba.stop() } };
+      if (action === 'start') return { status: 200, body: { ok: true, dareba: dareba.trigger({ user: data?.user ?? null }) ? dareba.snapshot() : dareba.snapshot() } };
+      return { status: 400, body: { error: 'ダレ場は status / start / stop を指定してください' } };
+    }
+    if (target === 'relay-stop' || target === 'relayStop') return { status: 200, body: { ok: true, relayStop: relayStop.snapshot() } };
     // RUSH はサーバーで状態を持つ
     if (target === 'rush') {
       if (action === 'status') return { status: 200, body: { ok: true, rush: rush.snapshot() } };
@@ -769,6 +859,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
     readRush() { return rush.snapshot(); },
+    readRelayStop() { return relayStop.snapshot(); },
+    readThrone() { return throne.snapshot(); },
+    readOotori() { return ootori.snapshot(); },
+    readDareba() { return dareba.snapshot(); },
+    readGoalAlert() { return minecraft.goalAlertSnapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();
@@ -793,6 +888,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       gacha.close();
       omikuji.close();
       slot.close();
+      relayStop.close();
+      ootori.close();
+      dareba.close();
+      minecraft.goalAlert.stop();
       giftSounds.close();
       boss.flush();
     },

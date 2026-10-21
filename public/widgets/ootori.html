@@ -1,0 +1,32 @@
+<!-- サーバーが確定したラスト10分の席とエンドロールを表示する公開ウィジェット（ES5・外部素材なし）。 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>最後の一投とエンドロール</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:"Yu Gothic",Meiryo,sans-serif;color:#F6F5F1}
+#seat{position:fixed;top:3vh;left:50%;width:min(88vw,760px);transform:translateX(-50%);box-sizing:border-box;padding:18px 24px;background:#111113;border:5px solid #FFC53D;text-align:center;opacity:0;transition:opacity .2s ease}
+#seat.show{opacity:1}#seat small{display:block;color:#F6F5F1;font-size:16px}#seatName{display:block;color:#FFC53D;font-size:clamp(28px,5vw,58px);font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#finale{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#111113;text-align:center;z-index:3}#finale.show{display:flex;animation:dark .6s ease-out both}#finale h1{margin:0;color:#FFC53D;font-size:clamp(40px,9vw,100px)}#finale p{margin:12px 0 0;font-size:clamp(24px,5vw,56px);font-weight:800;overflow-wrap:anywhere}
+#roll{position:fixed;right:4vw;bottom:4vh;width:min(88vw,760px);max-height:58vh;box-sizing:border-box;padding:18px 24px;background:#111113;border-left:8px solid #FF4F1F;display:none;z-index:2}#roll.show{display:block}.roll-title{margin:0 0 10px;color:#FF4F1F;font-size:24px}.names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 22px;font-size:19px}.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.last{grid-column:1/-1;color:#FFC53D;font-size:30px;font-weight:900}.other{margin-top:10px;color:#F6F5F1;font-size:17px}
+@keyframes dark{from{opacity:0}to{opacity:1}}@media(max-width:560px){#roll{right:2vw;bottom:2vh;width:96vw}.names{grid-template-columns:1fr;font-size:17px}.last{font-size:25px}}
+</style></head>
+<body>
+<section id="seat" aria-live="polite"><small id="stateText">ラスト10分</small><span id="seatName">まだ大トリはいません</span></section>
+<section id="finale" aria-live="assertive"><div><h1>本日の大トリ</h1><p id="finaleName"></p></div></section>
+<section id="roll" aria-live="polite"><h2 class="roll-title">参加者</h2><div class="names" id="names"></div><div class="other" id="other"></div></section>
+<script>
+/* 抽選・順番・終了状態はサーバーから受け取り、名前は textContent で表示する（ES5）。 */
+(function(){
+  var base='', match=location.pathname.match(/^\/t\/[^/]+/); if(match) base=match[0];
+  var seat=document.getElementById('seat'), seatName=document.getElementById('seatName'), stateText=document.getElementById('stateText'), finale=document.getElementById('finale'), finaleName=document.getElementById('finaleName'), roll=document.getElementById('roll'), names=document.getElementById('names'), other=document.getElementById('other'), lastSeat=null, audio=null, finaleAt=0;
+  function sound(){var C=window.AudioContext||window.webkitAudioContext,g,o;if(!C)return;try{audio=audio||new C();if(audio.resume)audio.resume();g=audio.createOscillator();o=audio.createGain();g.frequency.value=420;o.gain.value=.045;g.connect(o);o.connect(audio.destination);g.start();g.stop(audio.currentTime+.1);}catch(e){}}
+  function person(user){return user&&user.name?String(user.name):'ギフトを送った人';}
+  function renderRoll(state){var list=state.endRoll&&state.endRoll.visible?state.endRoll.visible:[], i, item, node;names.textContent='';for(i=0;i<list.length;i++){item=list[i];node=document.createElement('div');node.className='name'+(i===list.length-1?' last':'');node.textContent=person(item);names.appendChild(node);}other.textContent=state.endRoll&&state.endRoll.otherCount?'ほか'+state.endRoll.otherCount+'人':'';roll.className=list.length?'show':'';}
+  function render(state, event){if(!state)return;if(state.state==='open'){seat.className='show';stateText.textContent='ラスト10分　残り '+Math.ceil((state.remainingMs||0)/1000)+' 秒';seatName.textContent=state.seat?person(state.seat.user):'まだ大トリはいません';if(event==='seatChanged'&&state.seat&&(!lastSeat||lastSeat.receivedAt!==state.seat.receivedAt)){sound();seat.className='show';}lastSeat=state.seat;}else if(state.state==='rolling'){seat.className='';if(state.finale&&state.finale.bigTori&&finaleAt!==state.finale.finishedAt){finaleAt=state.finale.finishedAt;finale.className='';finaleName.textContent=person(state.finale.bigTori);setTimeout(function(){finale.className='show';},state.finale.silenceMs||600);setTimeout(function(){renderRoll(state);},state.finale.maxMs||3000);}else if(state.finale&&state.finale.bigTori){finaleName.textContent=person(state.finale.bigTori);}if(!state.finale||!state.finale.bigTori)renderRoll(state);}else if(state.state==='idle'){seat.className='';finale.className='';roll.className='';finaleAt=0;}}
+  function read(){var x=new XMLHttpRequest();x.open('GET',base+'/api/ootori',true);x.onreadystatechange=function(){if(x.readyState===4&&x.status===200){try{render(JSON.parse(x.responseText));}catch(e){}}};x.send(null);}
+  function connect(){var p=location.protocol.indexOf('https')===0?'wss:':'ws:';var ws=new WebSocket(p+'//'+location.host+base+'/ws');ws.onmessage=function(e){var d;try{d=JSON.parse(e.data);}catch(x){return;}if(d.type==='ootori')render(d.state||d,d.event);};ws.onclose=function(){setTimeout(connect,1000);};}
+  read();connect();
+}());
+</script></body></html>

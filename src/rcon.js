@@ -69,6 +69,19 @@ export class Rcon {
     return this.#request(COMMAND, command);
   }
 
+  /** 指定したワールドにいる最寄りのプレイヤーからゴールまでの距離を返す。 */
+  async goalDistance({ world, x, y, z }) {
+    const dimension = String(world ?? '').replace(/[^A-Za-z0-9_:.\/-]/g, '');
+    if (!dimension) throw new Error('ゴールのワールドがありません');
+    const response = await this.send(`execute if dimension ${dimension} run data get entity @p Pos`);
+    const position = parsePosition(response);
+    if (!position) throw new Error('Minecraft から位置を取得できません');
+    const dx = position[0] - Number(x);
+    const dy = position[1] - Number(y);
+    const dz = position[2] - Number(z);
+    return { distance: Math.sqrt(dx * dx + dy * dy + dz * dz), world: String(world), serverTime: Date.now() };
+  }
+
   close() {
     this.socket?.destroy();
     this.socket = null;
@@ -114,4 +127,9 @@ export class Rcon {
       }
     }
   }
+}
+
+function parsePosition(response) {
+  const values = String(response ?? '').match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  return values.length >= 3 ? values.slice(-3) : null;
 }

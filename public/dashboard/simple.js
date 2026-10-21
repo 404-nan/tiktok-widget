@@ -10,8 +10,8 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings']],
-  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses']],
-  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots']],
+  ['企画・ゲーム', ['roulettes', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba']],
+  ['豪華な演出', ['cutins', 'imageCutins', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -41,6 +41,11 @@ export const INFO = {
   gacha: { icon: 'sparkles', desc: 'ギフトでガチャを回して、結果を出す' },
   omikuji: { icon: 'scroll', desc: 'ギフトでおみくじを引いて、大吉や凶を出す' },
   slots: { icon: 'disc-3', desc: 'ギフトで3つの絵柄をそろえるスロット演出' },
+  relayStop: { icon: 'users', desc: 'ギフトを送った人がスロットを1本ずつ止める演出' },
+  peka: { icon: 'lightbulb', desc: 'ギフトのあと、隅のランプだけを遅れて光らせる' },
+  throne: { icon: 'crown', desc: '直近10分の首位を王座にして、接近したときだけ VS を出す' },
+  ootori: { icon: 'crown', desc: 'ラスト10分の最後にギフトを送った人を大トリにする' },
+  dareba: { icon: 'sparkles', desc: 'ギフトの勢いが落ちたときに小さな事件を起こす' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
@@ -104,6 +109,23 @@ export const SIMPLE = {
   },
   rankings: {
     groups: [{ title: '中身', fields: ['title', 'metric', 'limit'] }],
+  },
+  throne: {
+    groups: [
+      { title: 'いつ出す', fields: ['enabled', 'approachPercent', 'maxMoves'] },
+      { title: '見た目', fields: ['showDifference'] },
+    ],
+  },
+  ootori: {
+    groups: [
+      { title: 'いつ出す', fields: ['enabled', 'mode', 'durationMs'] },
+      { title: '演出', fields: ['seatChangedMs', 'rollMaxMs', 'staticAfterMs', 'hideWords'] },
+    ],
+  },
+  dareba: {
+    groups: [
+      { title: '使う', fields: ['enabled', 'type'] },
+    ],
   },
   roulettes: {
     groups: [
@@ -235,9 +257,18 @@ export const SIMPLE = {
       { title: '演出の割合', fields: ['revivalRate', 'nearMissRate', 'reelStopMs'] },
     ],
   },
+  relayStop: {
+    groups: [{ title: 'リレー停止', fields: ['enabled', 'trigger', 'waitMs'] }],
+  },
+  peka: {
+    groups: [
+      { title: '使う', fields: ['enabled', 'minCoins', 'chance'] },
+      { title: '光りかた', fields: ['bonusSeconds', 'sound', 'volume'] },
+    ],
+  },
   minecraft: {
-    note: 'マイクラの枠の時間を表示します。枠の間は自動で TikTok につながります。',
-    groups: [],
+    note: 'マイクラの連携とゴール接近警報を設定します。ゴールのワールドと座標がないと警報は動きません。',
+    groups: [{ title: 'ゴール接近警報', fields: ['goalAlert'] }],
   },
   theme: {
     groups: [
@@ -288,6 +319,8 @@ export const SIMPLE_LABELS = {
   'imageCutins.photo': '写真', 'imageCutins.layout': '写真の置きかた', 'imageCutins.gifts': 'このギフトなら必ず出す', 'imageCutins.redText': '赤の文字', 'imageCutins.goldText': '金の文字', 'imageCutins.sound': '効果音',
   'imageCutins.imageStyle': '画像のスタイル', 'imageCutins.crop': '切り抜き',
   'rush.enabled': 'RUSH を使う', 'rush.gifts': 'このギフトで突入', 'rush.duration': 'RUSH の長さ', 'rush.text': '帯に流れる文字', 'rush.enterText': '突入のときの文字',
+  'dareba.enabled': 'ダレ場の事件を使う', 'dareba.type': '起こす事件',
+  'minecraft.goalAlert': 'ゴール接近警報',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
 
@@ -309,6 +342,9 @@ const SUMMARY = {
   counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),
   goals: (e) => `${e.title}（目標 ${e.goal}）`,
   rankings: (e) => e.title,
+  throne: (e) => (e.enabled === false ? '使わない設定' : `直近10分・接近 ${e.approachPercent}%・移動 ${e.maxMoves} 回まで`),
+  ootori: (e) => (e.enabled === false ? '使わない設定' : `${e.mode === 'raise' ? 'せり上げ式' : '誰でも式'}・${Math.round((e.durationMs ?? 600000) / 60000)} 分`),
+  dareba: (e) => (e.enabled === false ? '使わない設定' : `${e.type || '野良ボス'}を起こす`),
   roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目${e.rushOdds ? '・RUSH中は確率が変わる' : ''}`,
   jars: (e) => ({ jar: '保存瓶', heart: 'ハート', potion: 'フラスコ' })[e.shape] ?? '',
   wins: (e) => [e.goal ? `目標 ${e.goal}` : null, e.rules?.length ? `ギフトのルール ${e.rules.length} つ` : 'ボタンで数える'].filter(Boolean).join('・'),
@@ -322,6 +358,7 @@ const SUMMARY = {
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
   omikuji: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では引かない'}・${e.tiers?.length ?? 0} 種類`),
   slots: (e) => (e.enabled === false ? '使わない設定' : `${e.revivalRate}% 復活・${e.nearMissRate}% ニアミス`),
+  peka: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins} コインから・当たり ${Math.round(e.chance * 100)}%`),
   minecraft: (e) => (e.enabled ? '連携する設定' : '連携していない'),
   theme: (e) => (e.mode === 'light' ? '明るい' : '暗い'),
 };

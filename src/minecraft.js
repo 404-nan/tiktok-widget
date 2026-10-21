@@ -3,6 +3,8 @@
 
 import { Rcon } from './rcon.js';
 import { giftMatches, giftDisplayName } from './gifts.js';
+import { NamedSabotageEngine, namedSabotageCleanupCommands } from './minecraft-name.js';
+import { GoalAlertEngine } from './mc-goal-alert.js';
 
 const MAX_REPEAT = 50;
 const MAX_QUEUE = 500;
@@ -59,7 +61,7 @@ export function varsFor(e = {}, extra = {}) {
 }
 
 export class Minecraft {
-  constructor(hub) {
+  constructor(hub, { namedSabotageStatePath = null } = {}) {
     this.hub = hub;
     this.config = null;
     this.rcon = null;
@@ -67,18 +69,31 @@ export class Minecraft {
     this.running = false;
     this.lastFailure = 0;
     this.status = { state: 'off', message: 'マイクラ連携はオフです', sent: 0 };
+    this.namedSabotage = new NamedSabotageEngine({ hub, statePath: namedSabotageStatePath });
+    this.goalBarReady = false;
+    this.goalAlert = new GoalAlertEngine({
+      hub,
+      queryDistance: (goal) => this.#client().goalDistance(goal),
+      onAlert: (event) => this.#sendGoalAlert(event),
+    });
     hub.on('event', (e) => this.onEvent(e));
   }
 
   setConfig(mc) {
     const prev = this.config;
     this.config = mc;
+    this.namedSabotage.setConfig(mc.namedSabotage ?? { enabled: false });
     const changed = !prev || prev.host !== mc.host || prev.port !== mc.port || prev.password !== mc.password;
     if (changed || !mc.enabled) {
       this.rcon?.close();
       this.rcon = null;
     }
-    if (!mc.enabled) return this.#setStatus({ state: 'off', message: 'マイクラ連携はオフです' });
+    this.goalAlert.setConfig({ ...mc, goalAlert: { ...(mc.goalAlert ?? {}), enabled: Boolean(mc.enabled && mc.goalAlert?.enabled) } });
+    if (!mc.enabled) {
+      this.goalBarReady = false;
+      return this.#setStatus({ state: 'off', message: 'マイクラ連携はオフです' });
+    }
+    for (const item of this.namedSabotage.takeStale()) this.enqueue(namedSabotageCleanupCommands(item), {}, 'named-sabotage-cleanup');
     if (changed || this.status.state === 'off') this.check();
   }
 
@@ -98,18 +113,73 @@ export class Minecraft {
   onEvent(e) {
     if (!this.config?.enabled) return;
     const profile = this.config.superstreamProfile;
+    this.#triggerNamedSabotage(e);
     // 届いたギフトをそのままマイクラ側の演出に渡す（そのギフト ID に設定された演出が動く）
     if (this.config.forwardGifts && e.kind === 'gift' && /^\d+$/.test(String(e.gift.id))) {
       const times = Math.min(MAX_REPEAT, e.gift.count ?? 1);
       for (let i = 0; i < times; i++) this.enqueue(superstreamCommands({ superstreamGift: e.gift.id }, profile), {}, 'superstream');
     }
+    let sabotage = false;
     for (const rule of this.config.rules ?? []) {
       if (!ruleMatches(rule, e)) continue;
+      sabotage = true;
       const times = rule.perCount ? Math.min(MAX_REPEAT, e.gift?.count ?? e.count ?? 1) : 1;
       const vars = varsFor(e);
       const commands = [...rule.commands, ...superstreamCommands(rule, profile)];
       for (let i = 0; i < times; i++) this.enqueue(commands, vars, rule.name);
     }
+    if (sabotage) this.goalAlert.recordSabotage(e);
+  }
+
+  /** ゴール到達時のWIN処理をランタイムから差し込む。 */
+  setGoalReachedHandler(handler) {
+    this.goalAlert.setGoalReachedHandler(handler);
+  }
+
+  goalAlertSnapshot() {
+    return this.goalAlert.snapshot();
+  }
+
+  testGoalDistance(result) {
+    return this.goalAlert.testDistance(result);
+  }
+
+  #sendGoalAlert(event) {
+    const color = event.stage === 'final' ? 'yellow' : event.stage === 'warning' ? 'red' : 'blue';
+    const text = JSON.stringify({ text: event.message });
+    const commands = [];
+    if (!this.goalBarReady) {
+      commands.push('bossbar add tw:goal_alert {"text":"ゴール接近警報"}');
+      this.goalBarReady = true;
+    }
+    commands.push(
+      `bossbar set tw:goal_alert name ${text}`,
+      `bossbar set tw:goal_alert color ${color}`,
+      'bossbar set tw:goal_alert visible true',
+    );
+    this.enqueue(commands, {}, 'goal-alert');
+  }
+
+  /** 名前入り妨害は通常のルールと別の安全なコマンド集合へ送る。 */
+  #triggerNamedSabotage(e) {
+    const setting = this.config?.namedSabotage;
+    if (!setting?.enabled || e.test || e.kind !== 'gift') return;
+    const size = Number(e.totalDiamonds ?? 0) >= Number(setting.largeMinCoins ?? 1000) ? 'large' : 'medium';
+    const item = this.namedSabotage.trigger({ ...e, size });
+    if (!item) return;
+    this.enqueue(item.commands, {}, 'named-sabotage');
+    this.namedSabotage.markSent(item.eventId);
+    const activeTimer = setTimeout(() => this.namedSabotage.markActive(item.eventId), 0);
+    activeTimer.unref?.();
+    const timer = setTimeout(() => {
+      this.enqueue(namedSabotageCleanupCommands(item), {}, 'named-sabotage');
+      this.namedSabotage.expire(item.eventId);
+    }, Math.max(1, item.expiresAt - Date.now()));
+    timer.unref?.();
+  }
+
+  testNamedSabotage(e) {
+    return this.namedSabotage.testEvent(e);
   }
 
   /** ルーレットの当たりの項目に commands やマイクラの演出があれば送る */
@@ -144,6 +214,10 @@ export class Minecraft {
     const response = await this.#client().send(command.replace(/^\//, ''));
     this.#log({ command, ok: true, response, source: 'test' });
     return response;
+  }
+
+  async #queryGoalDistance(goal) {
+    return this.#client().goalDistance(goal);
   }
 
   #client() {
@@ -184,6 +258,10 @@ export class Minecraft {
 
   #log(entry) {
     const log = { ts: Date.now(), ...entry };
+    if (log.source === 'named-sabotage') {
+      delete log.command;
+      delete log.response;
+    }
     this.hub.broadcast({ type: 'minecraft', status: this.status, log });
     this.hub.emit('minecraft', log);
   }

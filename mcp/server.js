@@ -190,6 +190,17 @@ server.registerTool(
 );
 
 server.registerTool(
+  'relay_stop',
+  {
+    title: 'リレー停止',
+    description: 'スロットのリレー停止状態を見る。ギフトを送った人が3本を順番に止める。',
+    inputSchema: { action: z.enum(['status']).default('status') },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  wrap(async ({ action }) => text(await admin.relayStop(action))),
+);
+
+server.registerTool(
   'spin_roulette',
   {
     title: 'ルーレットを回す',
@@ -197,6 +208,28 @@ server.registerTool(
     inputSchema: { id: z.string().optional().describe('roulettes の名前') },
   },
   wrap(async ({ id }) => text(await admin.spinRoulette(id))),
+);
+
+server.registerTool(
+  'peka',
+  {
+    title: '告知ランプ',
+    description: '遅れて光る告知ランプの状態を見る、またはボーナス解決を伝える。',
+    inputSchema: { action: z.enum(['status', 'bonusResolved']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.peka(action))),
+);
+
+server.registerTool(
+  'throne',
+  { title: '王座を操作', description: '王座の状態を見る、終了時の称号を確定する、演出を止める、リセットする。', inputSchema: { action: z.enum(['status', 'finish', 'stop', 'reset']).default('status') } },
+  wrap(async ({ action }) => text(await admin.throne(action))),
+);
+
+server.registerTool(
+  'ootori',
+  { title: '大トリ', description: 'ラスト10分の開始、終了、大トリの固定、リセットを操作する。', inputSchema: { action: z.enum(['status', 'start', 'finish', 'reset']).default('status') } },
+  wrap(async ({ action }) => text(await admin.ootori(action))),
 );
 
 server.registerTool(
@@ -256,6 +289,16 @@ server.registerTool(
     inputSchema: { action: z.enum(['start', 'stop', 'status']).default('status').describe('start 突入 / stop 終了 / status 状態') },
   },
   wrap(async ({ action }) => text(await admin.rush(action))),
+);
+
+server.registerTool(
+  'dareba',
+  {
+    title: 'ダレ場の小さな事件',
+    description: 'ギフトの勢いが落ちたときの小さな事件を確認・開始・停止する。判定の数字は画面に出さず、状態はサーバーが持つ。',
+    inputSchema: { action: z.enum(['status', 'start', 'stop']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.dareba(action))),
 );
 
 server.registerTool(

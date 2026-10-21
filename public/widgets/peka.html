@@ -1,0 +1,79 @@
+<!-- サーバーが決めた時刻に、隅の告知ランプを一度だけ光らせる公開ウィジェット。 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>告知ランプ</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+  body { font-family: Arial, "Yu Gothic", Meiryo, sans-serif; }
+  #peka { position: fixed; top: 3vh; right: 3vw; display: none; width: min(86vw, 320px); padding: 12px 14px; box-sizing: border-box; background: #111113; color: #F6F5F1; border-left: 8px solid #3FA9F5; border-radius: 8px; }
+  #peka.lit { display: flex; align-items: center; gap: 12px; }
+  #lamp { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%; background: #3FA9F5; box-shadow: 0 0 0 4px #F6F5F1; }
+  #peka[data-color="green"] { border-left-color: #2ECC71; } #peka[data-color="green"] #lamp { background: #2ECC71; }
+  #peka[data-color="red"] { border-left-color: #FF4F1F; } #peka[data-color="red"] #lamp { background: #FF4F1F; }
+  #peka[data-color="gold"] { border-left-color: #FFC53D; } #peka[data-color="gold"] #lamp { background: #FFC53D; }
+  #peka[data-color="rainbow"] { border-left-color: #F6F5F1; } #peka[data-color="rainbow"] #lamp { background: #F6F5F1; }
+  #avatar { width: 40px; height: 40px; flex: 0 0 40px; object-fit: cover; border-radius: 50%; display: none; }
+  #name { min-width: 0; font-size: 20px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #test { display: block; font-size: 12px; font-weight: 400; }
+</style>
+</head>
+<body>
+<div id="peka" aria-live="polite"><span id="lamp" aria-hidden="true"></span><img id="avatar" alt=""><span id="name"><span id="person"></span><span id="test"></span></span></div>
+<script>
+/* 告知ランプの状態をサーバーから復元し、画面側では抽選しない（ES5）。 */
+(function () {
+  var base = '';
+  var match = location.pathname.match(/^\/t\/[^/]+/);
+  if (match) base = match[0];
+  var box = document.getElementById('peka');
+  var person = document.getElementById('person');
+  var test = document.getElementById('test');
+  var avatar = document.getElementById('avatar');
+  var audio = null;
+
+  function shorten(value) {
+    var text = String(value || '');
+    return text.length > 12 ? text.slice(0, 11) + '…' : text;
+  }
+  function clickSound(volume) {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    var oscillator, gain;
+    if (!Ctx || volume <= 0) return;
+    try {
+      audio = audio || new Ctx(); oscillator = audio.createOscillator(); gain = audio.createGain();
+      oscillator.type = 'square'; oscillator.frequency.value = 180; gain.gain.value = Math.min(1, volume) * 0.08;
+      oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + 0.07);
+    } catch (e) {}
+  }
+  function show(data) {
+    var current = data && data.current;
+    var user = current && current.trigger && current.trigger.user;
+    if (!data || data.phase !== 'lit' || !current) { box.className = ''; return; }
+    box.setAttribute('data-color', current.color || 'blue'); box.className = 'lit';
+    person.textContent = shorten(user && user.name ? user.name : 'ギフトを送った人');
+    test.textContent = current.trigger && current.trigger.test ? 'テスト' : '';
+    avatar.style.display = 'none'; avatar.removeAttribute('src');
+    if (user && (user.avatar || user.avatarUrl)) { avatar.onload = function () { avatar.style.display = 'block'; }; avatar.onerror = function () { avatar.style.display = 'none'; }; avatar.src = user.avatar || user.avatarUrl; }
+    if (data.event === 'lit' && data.sound !== false) clickSound(data.volume == null ? 0.3 : data.volume);
+  }
+  function readState() {
+    var req = new XMLHttpRequest();
+    req.open('GET', base + '/api/peka', true); req.onreadystatechange = function () {
+      if (req.readyState !== 4 || req.status !== 200) return;
+      try { show(JSON.parse(req.responseText)); } catch (e) {}
+    }; req.send(null);
+  }
+  function connect() {
+    var proto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
+    var ws = new WebSocket(proto + '//' + location.host + base + '/ws');
+    ws.onmessage = function (event) { var data; try { data = JSON.parse(event.data); } catch (e) { return; } if (data.type === 'peka') show(data); };
+    ws.onclose = function () { setTimeout(connect, 1000); };
+  }
+  readState(); connect();
+}());
+</script>
+</body>
+</html>
