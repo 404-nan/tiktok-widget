@@ -496,6 +496,28 @@ SCHEMA.swarm = {
   },
 };
 
+SCHEMA.combo = {
+  kind: 'object',
+  page: 'combo',
+  title: 'コンボ(擬似連)',
+  size: () => [1080, 1920],
+  desc: '同じ人が短い間隔でギフトを続けるとコンボの回数と段階を数える。途切れると合計コインを知らせる。URL は /widgets/combo.html',
+  fields: {
+    enabled: bool(true, 'コンボを使う'),
+    seconds: num(10, 'この秒数以内に続けて送ればコンボがつながる', { min: 1, max: 120 }),
+    gifts: list([], 'このギフト名（または ID）だけ数える。空なら全部'),
+    minCoins: num(1, 'この合計コイン未満のギフトは数えない', { min: 1 }),
+    blueAt: num(2, 'この回数から青になる', { min: 2, max: 999 }),
+    greenAt: num(3, 'この回数から緑になる', { min: 2, max: 999 }),
+    redAt: num(4, 'この回数から赤になる', { min: 2, max: 999 }),
+    goldAt: num(5, 'この回数から金になる', { min: 2, max: 999 }),
+    rainbowAt: num(6, 'この回数から虹になる', { min: 2, max: 999 }),
+    endText: str('COMBO', 'コンボ終了時の文字'),
+    sound: bool(true, '効果音'),
+    volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+  },
+};
+
 SCHEMA.mediaAlerts = {
   kind: 'object',
   page: 'media',

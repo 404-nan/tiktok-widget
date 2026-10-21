@@ -19,6 +19,7 @@ import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
 import { StepupEngine } from './stepup.js';
 import { SwarmEngine } from './swarm.js';
+import { ComboEngine } from './combo.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
@@ -58,8 +59,8 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'ai', 'minecraft'];
-const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'ai', 'minecraft', 'combo'];
+const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
     if (key === 'winsFx') return [key, { label: 'WIN数の全画面演出', pages: ['wins-fx.html'], premium: true }];
@@ -77,7 +78,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/swarm$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/swarm$/, /^\/api\/combo$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
 
 /**
  * 配信者1人分を作る。
@@ -122,6 +123,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const rush = new RushEngine(hub);
   const stepup = new StepupEngine(hub);
   const swarm = new SwarmEngine(hub);
+  const combo = new ComboEngine(hub);
   // RUSH 中は、ルーレットの rushOdds に従って当たりやすさを変える
   roulette.setIsRushActive(() => rush.snapshot().active === true || rush.state.active === true);
   const wins = new WinsEngine(hub, path.join(dataDir, 'wins.json'));
@@ -204,6 +206,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     rush.setConfig(entitled('rush') ? config.rush : { ...config.rush, enabled: false });
     stepup.setConfig(entitled('stepup') ? config.stepup : { ...config.stepup, enabled: false });
     swarm.setConfig(entitled('swarm') ? config.swarm : { ...config.swarm, enabled: false });
+    combo.setConfig(entitled('combo') ? config.combo : { ...config.combo, enabled: false });
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
@@ -355,6 +358,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/rush', (_req, res) => res.json(rush.snapshot()));
   r.get('/api/stepup', (_req, res) => res.json(stepup.snapshot()));
   r.get('/api/swarm', (_req, res) => res.json(swarm.snapshot()));
+  r.get('/api/combo', (_req, res) => res.json(combo.snapshot()));
+  r.all('/api/combo/:action', (req, res) => {
+    const out = performControl('combo', req.params.action, { ...req.query, ...req.body });
+    res.status(out.status).json(out.body);
+  });
   r.get('/api/wins', (_req, res) => res.json(wins.snapshot()));
   // Stream Deck やブラウザのブックマークから押せるように GET でも受ける
   // 例: /api/wins/default/win（+1）・/api/wins/default/add?value=-1・/api/wins/default/undo・/api/wins/all/reset
@@ -910,6 +918,25 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       const out = action === 'reset' ? swarm.reset() : swarm.trigger();
       return { status: 200, body: { ok: true, swarm: out ?? swarm.snapshot() } };
     }
+    if (target === 'combo') {
+      if (action === 'status') return { status: 200, body: { ok: true, combo: combo.snapshot() } };
+      if (!entitled('combo')) return { status: 403, body: { error: 'コンボは管理者が使えるようにすると使えます' } };
+      if (action === 'reset') {
+        combo.reset();
+        return { status: 200, body: { ok: true, combo: combo.snapshot() } };
+      }
+      if (action === 'test') {
+        if (!isDevEnv()) return { status: 403, body: { error: 'コンボのテストは開発環境でだけ使えます' } };
+        if (data?.user !== undefined) {
+          const user = data.user;
+          const valid = user && typeof user === 'object' && (user.id || user.name);
+          if (!valid) return { status: 400, body: { error: 'テストする人は id または name を持つ必要があります' } };
+        }
+        combo.test(data?.user ?? { id: 'test', name: 'テスト' }, data?.count);
+        return { status: 200, body: { ok: true } };
+      }
+      return { status: 400, body: { error: 'コンボの操作が違います' } };
+    }
     // WIN 数もサーバーで持つ
     if (target === 'wins') {
       try {
@@ -1080,6 +1107,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readGoalAlert() { return minecraft.goalAlertSnapshot(); },
     readStepup() { return stepup.snapshot(); },
     readSwarm() { return swarm.snapshot(); },
+    readCombo() { return combo.snapshot(); },
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();
@@ -1113,6 +1141,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       ootori.close();
       dareba.close();
       minecraft.goalAlert.stop();
+      combo.close();
       giftSounds.close();
       boss.flush();
       infoFeed.close();

@@ -267,6 +267,16 @@ export async function swarm(action = 'status') {
   return state.active ? `群予告中: ${state.last?.count ?? 0} 個` : state.last ? `前回の群予告: ${state.last.count} 個` : '群予告は待機中です';
 }
 
+/** コンボをリセット・テスト・確認する（サーバーが必要） */
+export async function combo(action = 'status') {
+  if (action === 'status') {
+    const c = await callServer('/api/combo');
+    return c.active.length ? `コンボ中: ${c.active.map((x) => `${x.user?.name ?? '名前なし'} ×${x.count}`).join('、')}` : 'コンボ中ではありません';
+  }
+  await callServer('/api/control', { method: 'POST', body: { target: 'combo', action, data: action === 'test' ? { count: 5 } : {} } });
+  return action === 'reset' ? 'コンボをリセットしました' : 'コンボを試しました';
+}
+
 export async function control(target, action, data) {
   await callServer('/api/control', { method: 'POST', body: { target, action, data } });
   return `${target} に ${action} を送りました`;

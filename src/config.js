@@ -587,6 +587,11 @@ export function normalize(raw) {
     const def = SCHEMA[section];
     if (def.kind === 'object') {
       config[section] = checkFields(section, src[section], section, issues);
+      if (section === 'combo') {
+        const c = config.combo;
+        const tiers = [c.blueAt, c.greenAt, c.redAt, c.goldAt, c.rainbowAt];
+        if (tiers.some((n, i) => i > 0 && n < tiers[i - 1])) issues.errors.push('combo: 段の境目は青・緑・赤・金・虹の順に同じか大きくしてください');
+      }
       continue;
     }
     config[section] = {};

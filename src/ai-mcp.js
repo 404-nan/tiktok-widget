@@ -304,6 +304,16 @@ export function registerAiTools(server, call, options = {}) {
       tenant: z.string().optional(),
     },
   }, wrap(async (args) => shown(await call('rush', args))));
+
+  server.registerTool('combo', {
+    title: 'コンボ',
+    description: 'コンボを確認・リセット・テストする。配信中の本番では test をさせない。',
+    inputSchema: {
+      action: z.enum(['status', 'reset', 'test']).default('status'),
+      dryRun: z.boolean().optional(),
+      tenant: z.string().optional(),
+    },
+  }, wrap(async (args) => shown(await call('combo', args))));
 }
 
 export function createAiMcpHandler(control) {

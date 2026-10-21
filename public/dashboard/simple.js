@@ -11,7 +11,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors']],
   ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba']],
-  ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
+  ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -58,6 +58,7 @@ export const INFO = {
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
   stepup: { icon: 'trending-up', desc: 'みんなのギフトの合計で STEP 1 から STEP 5 まで一段ずつ上がる' },
   swarm: { icon: 'groups', desc: '短い時間にギフトが集まると、ギフトの大群が画面を横切る' },
+  combo: { icon: 'layers', desc: '続けてギフトすると ×2 ×3 と数字が出て、色が上がっていく' },
   minecraft: { icon: 'box', desc: 'マイクラの枠の時間が分かります。枠の間は自動で TikTok につながります' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
 };
@@ -324,6 +325,29 @@ export const SIMPLE = {
       { title: '音', fields: ['sound', 'volume'] },
     ],
   },
+  combo: {
+    groups: [
+      { title: '使う', fields: ['enabled'] },
+      {
+        title: 'いつつながる',
+        presets: [{ title: 'つながる速さ', options: [
+          { label: 'ゆっくり 15秒', value: { seconds: 15 } },
+          { label: 'ふつう 10秒', value: { seconds: 10 } },
+          { label: 'はやい 5秒', value: { seconds: 5 } },
+        ] }],
+        fields: ['seconds', 'gifts', 'minCoins'],
+      },
+      {
+        title: '段の境目',
+        presets: [{ title: '上がりかた', options: [
+          { label: 'すぐ上がる 2・3・4・5・6', value: { blueAt: 2, greenAt: 3, redAt: 4, goldAt: 5, rainbowAt: 6 } },
+          { label: 'ゆっくり上がる 2・4・7・12・20', value: { blueAt: 2, greenAt: 4, redAt: 7, goldAt: 12, rainbowAt: 20 } },
+        ] }],
+        fields: [],
+      },
+      { title: '文字', fields: ['endText'] },
+    ],
+  },
   mediaAlerts: {
     groups: [
       { title: '使う', fields: ['enabled'] },
@@ -434,13 +458,14 @@ export const SIMPLE_LABELS = {
   'stepup.cooldownSeconds': '次までの待ち時間', 'stepup.sound': '効果音', 'stepup.volume': '音量', 'stepup.edge': '積み上がる側',
   'swarm.enabled': '群予告を使う', 'swarm.windowSeconds': '数える時間', 'swarm.scale': '配信の大きさ', 'swarm.threshold': '群を出す個数',
   'swarm.cooldownSeconds': '次までの待ち時間', 'swarm.text': '出す文字', 'swarm.maxIcons': '飛ばすアイコンの上限', 'swarm.sound': '効果音', 'swarm.volume': '音量',
+  'combo.enabled': 'コンボを使う', 'combo.seconds': 'つながる秒数', 'combo.gifts': '数えるギフト', 'combo.minCoins': '何コインから数える', 'combo.endText': '終わるときの文字',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
 
 // 数字の後ろに付ける単位
 export const UNITS = {
   minCoins: 'コイン', bigCoins: 'コイン', fontSize: 'px', maxItems: '件', limit: '人', startMinutes: '分', maxHours: '時間',
-  coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', scale: '倍',
+  coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', seconds: '秒', scale: '倍',
   rivalCoins: 'コイン', pity: '回',
 };
 
@@ -475,6 +500,7 @@ const SUMMARY = {
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
   stepup: (e) => (e.enabled ? `${e.windowSeconds} 秒で ${e.scale === 'small' ? '小さめ' : e.scale === 'large' ? '大きめ' : 'ふつう'}の境目` : '使わない設定'),
   swarm: (e) => (e.enabled ? `${e.windowSeconds} 秒で ${e.scale === 'small' ? '小さめ' : e.scale === 'large' ? '大きめ' : e.scale === 'custom' ? `${e.threshold} 個` : 'ふつう'}の群` : '使わない設定'),
+  combo: (e) => (e.enabled ? `${e.seconds} 秒つながる・${e.blueAt} 回から出す` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),

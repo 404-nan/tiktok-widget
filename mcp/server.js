@@ -394,6 +394,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'combo',
+  {
+    title: 'コンボ',
+    description: 'コンボを確認・リセット・テストする。',
+    inputSchema: { action: z.enum(['status', 'reset', 'test']).default('status') },
+  },
+  wrap(async ({ action }) => text(await admin.combo(action))),
+);
+
+server.registerTool(
   'list_superstream_actions',
   {
     title: 'SuperStream の演出一覧',

@@ -2242,6 +2242,9 @@ export function createEditor({ api, setMessage }) {
         chip('初見さんを迎える', 'door-open', () => api('/api/simulate', { kind: 'member', visits: 1 })),
         chip('常連さんを迎える', 'users', () => api('/api/simulate', { kind: 'member', visits: e.regularVisits ?? 3 })),
       );
+    } else if (tab === 'combo') {
+      if (devMode) box.append(chip('5連続を試す', 'layers', control('combo', 'test', { count: 5 })));
+      box.append(chip('リセット', 'rotate-ccw', control('combo', 'reset')));
     } else if (tab === 'chats') {
       // コメントと、ギフトを送った人のコメント（先にその人のギフトを送り、同じ人がコメントする）
       const e = payload.config.chats?.[id] ?? {};
