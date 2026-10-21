@@ -42,9 +42,9 @@ const CHALLENGE = '+IxH4CnCiqpX1rM9scsNynZzbOe4KhDeYcTNS3PDaeY=';
 const ORIGINAL = { positionX: 100, positionY: 50, scaleX: 1, scaleY: 1, rotation: 0, width: 1000, height: 1000, sourceWidth: 1000, sourceHeight: 1000, alignment: 5, boundsType: 'OBS_BOUNDS_NONE', boundsWidth: 1000, boundsHeight: 1000 };
 
 const fakes = [];
-async function startFakeObs({ password = null, silent = false, items = {} } = {}) {
+async function startFakeObs({ password = null, silent = false, items = {}, transformDelayMs = 0 } = {}) {
   const f = {
-    requests: [], identifies: [], violations: [], silent, password, sockets: new Set(),
+    requests: [], identifies: [], violations: [], silent, password, transformDelayMs, sockets: new Set(),
     scene: 'Main',
     items: { camera: { id: 7, enabled: true, transform: { ...ORIGINAL } }, Logo: { id: 8, enabled: true, transform: { ...ORIGINAL } }, ...items },
   };
@@ -80,6 +80,8 @@ async function startFakeObs({ password = null, silent = false, items = {} } = {}
       else if (['GetSceneItemId', 'GetSceneItemTransform', 'SetSceneItemTransform', 'SetSceneItemEnabled'].includes(requestType) && data.sceneName !== f.scene) ng(500, 'sceneName is required and must be the current scene');
       else if (requestType === 'GetSceneItemId') (f.items[data.sourceName] ? ok({ sceneItemId: f.items[data.sourceName].id }) : ng(600, 'No scene items were found'));
       else if (requestType === 'GetSceneItemTransform') (item ? ok({ sceneItemTransform: { ...item.transform } }) : ng(600, 'x'));
+      // transformDelayMs: 返事の遅い OBS を真似る（演出の秒数より長くかかるとき）
+      else if (requestType === 'SetSceneItemTransform' && f.transformDelayMs) setTimeout(() => (item ? (Object.assign(item.transform, data.sceneItemTransform), ok()) : ng(600, 'x')), f.transformDelayMs);
       else if (requestType === 'SetSceneItemTransform') (item ? (Object.assign(item.transform, data.sceneItemTransform), ok()) : ng(600, 'x'));
       else if (requestType === 'SetSceneItemEnabled') (item ? (item.enabled = data.sceneItemEnabled, ok()) : ng(600, 'x'));
       else ng(204, 'unknown');
@@ -391,6 +393,14 @@ test('AC-6 ズーム: scale が 1 倍 → scale → 1 倍。左上以外の alig
     assert.equal(moved(r).scaleX, moved(r).scaleY);
     assert.deepEqual(Object.keys(moved(r)).filter((k) => /^position/.test(k)), [], '位置を補正している');
   }
+});
+
+test('OBS の返事が遅くて演出の秒数を過ぎても、カメラを元の倍率に戻して終える', async () => {
+  const { obs, page } = await bridgeWith({ rules: [{ on: 'rainbow', do: 'zoom', scale: 1.2, seconds: 0.3 }] }, { fake: { transformDelayMs: 250 } });
+  await testRule(page, 'rainbow');
+  await waitFor(() => obs.sets().length > 1, WAIT_MS, 'ズーム');
+  await waitFor(() => restored(obs) && Date.now() - obs.sets().at(-1).t > 300, WAIT_MS, '元の倍率');
+  assert.equal(moved(obs.sets().at(-1)).scaleX, 1);
 });
 
 test('AC-6 boundsType が OBS_BOUNDS_NONE 以外のときも位置を補正せず scale だけ動かす', async () => {

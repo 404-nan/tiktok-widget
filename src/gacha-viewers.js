@@ -1,3 +1,4 @@
+// ガチャの視聴者ごとの無料回・有料回。配信ごとか日本時間0時で無料回を戻し、ギフトのコインで有料回を足す。
 import fs from 'node:fs';
 import path from 'node:path';
 import { defaultsFor } from './schema.js';

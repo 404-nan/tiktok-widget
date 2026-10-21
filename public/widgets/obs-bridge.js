@@ -15,7 +15,7 @@
   }
   function createClient(WebSocketCtor, opts) {
     opts = opts || {};
-    var socket, identified = false, sceneReady = false, currentScene = '', nextId = 1, pending = {}, queue = [], closed = false, retry = 0, original = null, timers = [], cooldown = {}, active = false;
+    var socket, identified = false, sceneReady = false, currentScene = '', nextId = 1, pending = {}, queue = [], closed = false, retry = 0, original = null, timers = [], cooldown = {}, active = false, moving = 0, sequenceDone = true;
     var hash = root.location && root.location.hash || '', match = /(?:^#|[&#])pw=([^&]*)/.exec(hash), password = match ? decodeURIComponent(match[1]) : '';
     function sceneName() { return opts.config.scene || currentScene; }
     function send(op, data) { if (socket && socket.readyState === 1) socket.send(JSON.stringify({ op: op, d: data })); }
@@ -71,6 +71,10 @@
     function animate(id, base, type, rule, done) {
       var total = Number(rule.seconds || (type === 'shake' ? 0.8 : 1.2)) * (opts.config.reduce ? 0.6 : 1) * 1000, start = Date.now(), scale = Number(rule.scale || 1.08), strength = Number(rule.strength || 1.5) * (opts.config.reduce ? 0.5 : 1);
       if (opts.config.reduce && type === 'zoom') scale = 1 + (scale - 1) * 0.5;
+      // 動いている間は active を落とさない（ルールの秒数が過ぎても、元に戻すところまで動かす）
+      moving += 1;
+      var callerDone = done;
+      done = function () { moving -= 1; if (!moving && sequenceDone) active = false; callerDone(); };
       function frame() {
         var progress = Math.min(1, (Date.now() - start) / total), value = {}, n = Math.sin(progress * Math.PI);
         if (!active) { done(); return; }
@@ -108,8 +112,8 @@
       var now = Date.now(), rules = (opts.config.rules || []).filter(function (rule) { return rule.on === on; }), cooldownSeconds = opts.config.cooldownSeconds == null ? 4 : Number(opts.config.cooldownSeconds), i = 0, motion = false, j;
       for (j = 0; j < rules.length; j += 1) if (rules[j].do === 'shake' || rules[j].do === 'zoom') motion = true;
       if ((motion && active) || (cooldown[on] && now - cooldown[on] < cooldownSeconds * 1000)) return;
-      cooldown[on] = now; active = motion;
-      function next() { if (i >= rules.length) { active = false; return; } run(rules[i]); timers.push(setTimeout(next, Number(rules[i].seconds || 0.8) * 1000 * (opts.config.reduce ? 0.6 : 1) + 40)); i += 1; }
+      cooldown[on] = now; active = motion; sequenceDone = false;
+      function next() { if (i >= rules.length) { sequenceDone = true; if (!moving) active = false; return; } run(rules[i]); timers.push(setTimeout(next, Number(rules[i].seconds || 0.8) * 1000 * (opts.config.reduce ? 0.6 : 1) + 40)); i += 1; }
       next();
     }
     function updateConfig(next) {
