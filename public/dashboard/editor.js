@@ -2231,6 +2231,17 @@ export function createEditor({ api, setMessage }) {
         ),
         chip('RUSH 終了', 'square', control('rush', 'stop')),
       );
+    } else if (tab === 'tickers' || tab === 'supporters') {
+      box.replaceChildren(
+        chip('テストギフト', 'gift', () => api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: 10 })),
+        chip('フォロー', 'user-plus', () => api('/api/simulate', { kind: 'follow' })),
+      );
+    } else if (tab === 'visitors') {
+      const e = payload.config.visitors?.[id] ?? {};
+      box.replaceChildren(
+        chip('初見さんを迎える', 'door-open', () => api('/api/simulate', { kind: 'member', visits: 1 })),
+        chip('常連さんを迎える', 'users', () => api('/api/simulate', { kind: 'member', visits: e.regularVisits ?? 3 })),
+      );
     } else if (tab === 'chats') {
       // コメントと、ギフトを送った人のコメント（先にその人のギフトを送り、同じ人がコメントする）
       const e = payload.config.chats?.[id] ?? {};

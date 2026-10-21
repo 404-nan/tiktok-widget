@@ -1,0 +1,16 @@
+<!-- 初見さん・常連さんを配信中に迎える OBS 用ページ。表示の順番はサーバーから受け取る。 -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>初見さん・常連さん</title><link rel="stylesheet" href="lib/overlay.css"></head>
+<style>
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+body { padding: 12px; box-sizing: border-box; font-family: var(--font, sans-serif); }
+#card { display: flex; align-items: center; gap: 14px; min-height: 112px; padding: 14px 20px; box-sizing: border-box; background: var(--surface, #111113); color: var(--on-surface, #f6f5f1); border-left: 8px solid var(--signal, #ff4f1f); clip-path: inset(0 100% 0 0); }
+#card:not([hidden]) { animation: wipe-in .42s ease-out forwards; }
+#card.out { animation: wipe-out .38s ease-in forwards; }
+#badge { flex: 0 0 auto; padding: 7px 10px; color: #111113; background: #ff4f1f; font-weight: 800; }
+#card.regular { border-left-color: #ffc53d; } #card.regular #badge { background: #ffc53d; }
+#face { min-width: 0; } #name { font-size: 30px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #message { margin-top: 3px; font-size: 18px; }
+#avatar, #avatar img { width: 48px; height: 48px; } #avatar img { object-fit: cover; }
+@keyframes wipe-in { to { clip-path: inset(0 0 0 0); } } @keyframes wipe-out { to { clip-path: inset(0 0 0 100%); } }
+:root[data-theme=light] #card { background: #f6f5f1; color: #111113; }
+</style><body><main id="card" hidden><div id="badge"></div><div id="face"><div id="name"></div><div id="message"></div></div><div id="avatar"></div></main><script src="visitors.js"></script></body></html>

@@ -190,12 +190,13 @@ export function registerAiTools(server, call, options = {}) {
     title: 'テスト送信',
     description: 'ウィジェットにテストのイベントを送る。開発環境でだけ使える。',
     inputSchema: {
-      kind: z.enum(['gift', 'like', 'follow', 'share', 'chat', 'viewers']),
+      kind: z.enum(['gift', 'like', 'follow', 'share', 'chat', 'viewers', 'member']),
       giftName: z.string().optional(),
       count: z.number().int().min(1).max(999).optional(),
       diamonds: z.number().int().min(1).optional(),
       user: z.string().optional(),
       viewers: z.number().int().min(0).optional(),
+      visits: z.number().int().min(1).max(999).optional(),
       tenant: z.string().optional(),
     },
   }, wrap(async (args) => shown(await call('test_event', args))));

@@ -835,6 +835,33 @@ SCHEMA.pushButtons = {
   },
 };
 
+// ニュースティッカーと最近のサポーター。配信画面の置き場所は URL 側で決める。
+SCHEMA.tickers = {
+  kind: 'map', page: 'ticker', title: 'ニュースティッカー', desc: 'お知らせ・目標・最近のギフトを下の帯に流す。URL は /widgets/ticker.html?id=<名前>', size: () => [1080, 72],
+  fields: {
+    label: str('お知らせ', '左の札の文字'), messages: list([], '順に流す文'), showGifts: bool(true, '最近のギフトを流す'), giftCount: num(5, '流すギフトの件数', { min: 1, max: 20 }), minCoins: num(1, 'このコイン未満のギフトは流さない', { min: 0 }),
+    showGoals: bool(true, '目標を流す'), goals: list([], '流す目標の名前。空なら全部'), speed: num(120, '1秒に動く px', { min: 30, max: 600 }), fontSize: num(26, '文字の大きさ', { min: 16, max: 60 }), color: color('accent', '札の色'),
+  },
+};
+SCHEMA.supporters = {
+  kind: 'map', page: 'supporters', title: '最近のサポーター', desc: '最近フォロー・ギフト・シェアした人を上から表示する。URL は /widgets/supporters.html?id=<名前>', size: (e) => [420, 72 + e.limit * 60],
+  fields: {
+    title: str('最近のサポーター', '見出し。空なら出さない'), events: list(['follow', 'gift'], '出すイベント', GIFT_EVENTS), minCoins: num(1, 'ギフトの最低コイン', { min: 0 }), limit: num(5, '表示件数', { min: 1, max: 10 }), avatars: bool(true, 'アイコンを出す'), lifetime: num(0, 'この秒数をすぎたら消す（0 で消さない）', { min: 0, max: 3600 }), color: color('accent', '新しいカードの印の色'),
+  },
+};
+
+// 配信中に初見・おかえり・常連を迎えるテロップ。記録はサーバー側で匿名化する。
+SCHEMA.visitors = {
+  kind: 'map', page: 'visitors', title: '初見さん・常連さん', desc: '配信の記録から来場回数を数え、初見さんや常連さんを迎える。URL は /widgets/visitors.html?id=<名前>', size: () => [760, 160],
+  fields: {
+    showFirst: bool(true, '初見さんを迎える'), showReturning: bool(false, 'おかえりの人を迎える'), showRegular: bool(true, '常連さんを迎える'),
+    regularVisits: num(3, '何回目から常連さんとして迎えるか', { min: 2, max: 100 }),
+    firstText: str('はじめまして！ゆっくりしていってね', '初見さんの文'), returningText: str('また来てくれてありがとう', 'おかえりの文'), regularText: str('{visits}回目の来場、いつもありがとう', '常連さんの文。{visits} は回数に置き換わる'),
+    duration: num(4, '1件を出す秒数', { min: 1, max: 30 }), maxQueue: num(5, '待たせる最大人数', { min: 1, max: 50 }), avatars: bool(true, 'アイコンを出す'),
+    keepDays: num(90, '記録を残す日数', { min: 1, max: 365 }),
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {

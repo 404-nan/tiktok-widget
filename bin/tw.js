@@ -35,7 +35,7 @@ Minecraft / SuperStream
 
 テスト（サーバー起動中のみ）
   test gift <名前> [個数] [1個のコイン]
-  test like [数] | test follow | test share | test chat
+  test like [数] | test follow | test share | test chat | test member [回数]
   spin [ルーレットの名前]
   peka [status|bonusResolved] 告知ランプを見る・ボーナスを解決する
   throne [status|finish|stop|reset] 王座を見る・終了・演出停止・リセット
@@ -160,6 +160,8 @@ try {
             ? { count: Number(a) || 20 }
             : kind === 'viewers'
               ? { viewers: Number(a) || undefined }
+              : kind === 'member'
+                ? { visits: Number(a) || 1 }
               : {};
       print(await admin.testEvent(kind, opts));
       break;

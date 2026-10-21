@@ -9,7 +9,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers']],
+  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors']],
   ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba']],
   ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
@@ -36,6 +36,9 @@ export const INFO = {
   votes: { icon: 'list-ordered', desc: 'コメントの「1」「2」などで、みんなの投票を集計する' },
   cheers: { icon: 'heart', desc: 'いいねをみんなでためて、満タンで演出する' },
   pushButtons: { icon: 'mouse-pointer-2', desc: '「押」とコメントするか、いいねを連打して参加する' },
+  tickers: { icon: 'newspaper', desc: 'お知らせ・目標・ギフトを下の帯に流す' },
+  supporters: { icon: 'users', desc: '最近フォローやギフトをくれた人を表示する' },
+  visitors: { icon: 'door-open', desc: '初見さんや何度も来ている人を迎える' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
   timers: { icon: 'timer', desc: 'ギフトで延びる残り時間（耐久配信）' },
@@ -82,6 +85,27 @@ export const SIMPLE = {
     ],
     help: 'OBSのツール → WebSocketサーバー設定で有効にし、ブラウザソースにこのURLを入れ、末尾に #pw= とOBSのパスワードを自分で足します（サーバーには送られません）。',
     size: () => [320, 120],
+  },
+  visitors: {
+    groups: [
+      { title: '迎える人', fields: ['showFirst', 'showReturning', 'showRegular', 'regularVisits'] },
+      { title: '迎える文', fields: ['firstText', 'returningText', 'regularText'] },
+      { title: '見た目', fields: ['duration', 'avatars'] },
+      { title: '記録', fields: ['keepDays'] },
+    ],
+  },
+  tickers: {
+    groups: [
+      { title: '流すもの', fields: ['label', 'messages', 'showGifts', 'giftCount'] },
+      { title: '目標', fields: ['showGoals', 'goals'] },
+      { title: '見た目', fields: ['speed', 'color'] },
+    ],
+  },
+  supporters: {
+    groups: [
+      { title: '出すもの', fields: ['events', 'limit', 'minCoins'] },
+      { title: '見た目', fields: ['avatars', 'lifetime', 'color'] },
+    ],
   },
   alerts: {
     groups: [
@@ -373,6 +397,9 @@ export const SIMPLE = {
 // 「かんたん」での呼び名（そのまま読んで分かる言い方にする。説明文は出さない）
 export const SIMPLE_LABELS = {
   'obs.enabled': 'OBS連携を使う', 'obs.source': '動かすカメラのソース', 'obs.scene': '動かす場面', 'obs.rules': '動作ルール', 'obs.cooldownSeconds': '同じ動作の間隔', 'obs.reduce': '動きを弱める',
+  'tickers.label': '札の文字', 'tickers.messages': '流す文', 'tickers.showGifts': '最近のギフトを流す', 'tickers.giftCount': 'ギフトの件数', 'tickers.showGoals': '目標を流す', 'tickers.goals': '流す目標', 'tickers.speed': '流れる速さ', 'tickers.color': '札の色',
+  'supporters.events': '出すイベント', 'supporters.limit': '出す人数', 'supporters.minCoins': '何コインから', 'supporters.avatars': 'アイコンを出す', 'supporters.lifetime': '消すまでの秒数', 'supporters.color': '新しいカードの印',
+  'visitors.showFirst': '初見さんを迎える', 'visitors.showReturning': 'おかえりの人を迎える', 'visitors.showRegular': '常連さんを迎える', 'visitors.regularVisits': '何回目から常連さん', 'visitors.firstText': '初見さんの文', 'visitors.returningText': 'おかえりの文', 'visitors.regularText': '常連さんの文', 'visitors.duration': '出す秒数', 'visitors.avatars': 'アイコンを出す', 'visitors.keepDays': '記録を残す日数',
   'alerts.events': '出すきっかけ', 'alerts.minCoins': '何コインから出す', 'alerts.position': 'たての位置', 'alerts.align': 'よこの位置',
   'alerts.bigCoins': '何コインから金色にする', 'alerts.rules': 'このギフトのときだけ特別にする',
   'chats.style': '形', 'chats.fontSize': '文字の大きさ', 'chats.maxItems': '一度に出す数', 'chats.highlight': 'ギフトした人を目立たせる',
@@ -424,6 +451,9 @@ const giftsOr = (list, fallback) => (list?.length ? list.slice(0, 2).map((name) 
 // ホームの一覧に出す、今の設定のひとこと（1件目の設定から作る）
 const SUMMARY = {
   obs: (e) => (e.enabled === false ? '使わない設定' : `${e.source || 'カメラ未指定'}を${e.reduce ? '弱めに' : '動かす'}・ルール ${e.rules?.length ?? 0}件`),
+  tickers: (e) => `${e.messages?.length ?? 0} 個のお知らせ・${e.showGifts ? 'ギフトあり' : 'ギフトなし'}`,
+  supporters: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・')}を${e.limit} 人`,
+  visitors: (e) => `${e.regularVisits} 回目から常連さん・${e.keepDays} 日記録`,
   alerts: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・') || 'なし'}で出す`,
   chats: (e) => `${e.style === 'bubble' ? '吹き出し' : 'テロップ'}${e.tts ? '・読み上げあり' : ''}`,
   counters: (e) => (e.show ?? []).map((v) => METRIC[v] ?? v).join('・'),

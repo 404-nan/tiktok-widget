@@ -20,6 +20,10 @@ const files = [
   'public/widgets/slot.js',
   'public/widgets/vote.js',
   'public/widgets/sounds.js',
+  'public/widgets/ticker.js',
+  'public/widgets/supporters.js',
+  'public/widgets/visitors.js',
+  'public/widgets/lib/telop.js',
 ];
 
 function loadAcorn() {

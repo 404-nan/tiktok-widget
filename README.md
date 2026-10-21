@@ -94,6 +94,9 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 配信者向けの使い方は [docs/guide/](docs/guide/README.md)、更新のお知らせは [docs/news/](docs/news/2026-10-v1.md) にあります(2026-10-19 に追加)。
 | ステップアップ `stepup` | ギフトの合計で STEP 1〜5 の段を積み、設定した文字・左右・音量を使った段階演出と STEP 5 の虹確定を出す | できた・1080 × 1920 |
 | 群予告 `swarm` | ギフトの大群が画面を横切り、設定した文字・音量で揺れながら送った人を表示する | できた・1080 × 1920 |
+| ニュースティッカー `ticker`（できた） | お知らせ・目標・最近のギフトを画面下の帯に流す | 1080 × 72 |
+| 最近のサポーター `supporters`（できた） | 最近フォロー・ギフト・シェアした人を上から表示する | 420 × 72 + 60 × 件数 |
+| 初見さん・常連さん `visitors`（作りかけ・本番前の見た目確認待ち） | 配信ごとの匿名記録で初見・おかえり・常連を迎える。名前とユーザー ID は保存しない | 760 × 160 |
 
 これからの演出・ウィジェットの案は [docs/IDEAS.md](docs/IDEAS.md) にまとめています。
 
@@ -431,6 +434,8 @@ src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計�
 src/ootori.js          ラスト10分の席、大トリ、参加者、エンドロールをサーバーで管理
 src/templates.js       配信テンプレートの読み込み・検証・差分計算
 src/templates/         妨害マイクラ・罰ゲーム雑談・耐久・目標配信のテンプレートデータ
+src/visitors.js        来場回数を HMAC で匿名化して保存し、初見・常連の通知を配る
+src/info-feed.js       フォロー・ギフト・シェアの最近の一覧をメモリで持つ
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
 src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）。受け口の鍵はキャッシュして照合する
 src/ingest.js          外部ツールからのイベントを受け、重複・直接接続との競合を整理して hub へ流す
@@ -476,6 +481,9 @@ public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト（acceptance/obs.test.js は偽OBS v5形の受け入れテスト）
+public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
+public/widgets/visitors.html / visitors.js  初見・常連の来場テロップ
+test/                  node --test のテスト（acceptance/visitors.test.js は来場テロップの完成条件）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する

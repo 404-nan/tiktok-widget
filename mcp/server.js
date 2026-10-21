@@ -207,12 +207,13 @@ server.registerTool(
       'ウィジェットにテストのイベントを送って動きを確かめる（サーバー起動中のみ）。' +
       'gift はギフト名とコインを指定でき、一覧にない名前でもルーレットの条件を確かめられる。',
     inputSchema: {
-      kind: z.enum(['gift', 'like', 'follow', 'share', 'chat', 'viewers']),
+      kind: z.enum(['gift', 'like', 'follow', 'share', 'chat', 'viewers', 'member']),
       giftName: z.string().optional(),
       count: z.number().int().min(1).max(999).optional().describe('ギフトの個数・いいねの数'),
       diamonds: z.number().int().min(1).optional().describe('一覧にないギフト名のときの1個あたりのコイン'),
       user: z.string().optional().describe('送った人の名前'),
       viewers: z.number().int().min(0).optional(),
+      visits: z.number().int().min(1).max(999).optional().describe('来場回数'),
     },
     annotations: { openWorldHint: false },
   },
