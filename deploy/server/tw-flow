@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# 開発の流れを1か所で見る・回すための道具。本番には触らない（本番の反映は auto-deploy.sh の仕事）。
+#   tw-flow status            本番・開発サーバー・各 dev ブランチがどこにあるか
+#   tw-flow preview <branch>  開発サーバー(3940)をそのブランチに切り替える（テストが通ったときだけ）
+#   tw-flow clean             本番に入り終わったブランチの worktree を片付ける（ブランチは残す）
+set -u
+export LC_ALL=${LC_ALL:-C.UTF-8}  # 日本語の件名を文字単位で切るため
+REPO=${TW_REPO:-$HOME/tiktok-widget}
+DEV_WT=${TW_DEV_WT:-$HOME/tiktok-widget-wt/dev}
+DEV_HEALTHZ=${TW_DEV_HEALTHZ:-http://127.0.0.1:3940/healthz}
+DEPLOYED=${XDG_STATE_HOME:-$HOME/.local/state}/tiktok-widget/deployed
+git() { command git -C "$REPO" "$@"; }
+
+# ブランチ名 → worktree のパス
+worktree_of() {
+  git worktree list --porcelain | awk -v b="refs/heads/$1" '/^worktree /{p=$2} $0=="branch "b{print p}'
+}
+
+status() {
+  local prod dev
+  prod=$(cat "$DEPLOYED" 2>/dev/null)
+  echo "本番(3939): $(git log -1 --format='%h %s' "${prod:-HEAD}")"
+  [ "$prod" = "$(git rev-parse HEAD)" ] || echo "  → 次に入るもの: $(git log -1 --format='%h %s' HEAD)（配信が終わったら自動）"
+  dev=$(command git -C "$DEV_WT" rev-parse HEAD)
+  echo "開発(3940): $(git log -1 --format='%h %s' "$dev")  [$(git branch --points-at "$dev" --format='%(refname:short)' | tr '\n' ' ')]"
+  echo
+  echo "本番にまだ入っていないブランチ（新しい順）:"
+  git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/heads/dev/*' | while read -r b; do
+    local n s; n=$(git rev-list --count "HEAD..$b")
+    s=$(git log -1 --format=%s "$b")
+    [ "$n" -gt 0 ] && printf '  %-28s %3s件  %-14s %s\n' "$b" "$n" "$(git log -1 --format=%cr "$b")" "${s:0:30}"
+  done
+  echo
+  echo "入り終わったブランチの worktree: $(clean --dry | wc -l) 個（tw-flow clean で片付く）"
+}
+
+preview() {
+  local b=${1:?ブランチ名を指定してください}
+  git rev-parse --verify -q "$b^{commit}" >/dev/null || { echo "ブランチがありません: $b"; exit 1; }
+  command git -C "$DEV_WT" diff --quiet HEAD -- || { echo "$DEV_WT に未コミットの変更があるので切り替えません"; exit 1; }
+  command git -C "$DEV_WT" checkout -q --detach "$b" || exit 1
+  # package.json が変わったブランチでも動くように、依存を合わせる
+  (cd "$DEV_WT" && npm ci --silent >/dev/null 2>&1 || npm install --silent >/dev/null 2>&1)
+  if ! (cd "$DEV_WT" && npm test >/tmp/tw-flow-test.log 2>&1); then
+    echo "テストが通りません（/tmp/tw-flow-test.log）。開発サーバーは再起動していません"; exit 1
+  fi
+  systemctl --user restart tiktok-widget-dev
+  for _ in $(seq 1 20); do
+    sleep 1
+    curl -fsS -m 2 "$DEV_HEALTHZ" >/dev/null 2>&1 && { echo "開発サーバーを $b にしました: https://dev.lul.works"; exit 0; }
+  done
+  echo "再起動したのに応答がありません（journalctl --user -u tiktok-widget-dev -n 30）"; exit 1
+}
+
+clean() {
+  git for-each-ref --format='%(refname:short)' 'refs/heads/dev/*' | while read -r b; do
+    local p; p=$(worktree_of "$b")
+    # 開発サーバーが使う worktree（今と、unit の元の場所）は残す
+    [ -n "$p" ] && [ "$p" != "$DEV_WT" ] && [ "$p" != "$HOME/tiktok-widget-dev" ] || continue
+    [ "$(git rev-list --count "HEAD..$b")" -eq 0 ] || continue
+    if [ "${1:-}" = --dry ]; then echo "$p"; continue; fi
+    # 未コミットの変更がある worktree は git が断るので、そのまま残る
+    git worktree remove "$p" 2>/dev/null && echo "片付けました: $p ($b)" || echo "残しました（変更あり）: $p"
+  done
+}
+
+case "${1:-status}" in
+  status) status ;;
+  preview) preview "${2:-}" ;;
+  clean) clean ;;
+  *) sed -n '2,5p' "$0"; exit 1 ;;
+esac
