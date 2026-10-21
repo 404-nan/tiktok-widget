@@ -14,7 +14,6 @@ const files = [
   'public/dashboard/cutin-crop.js',
   'public/widgets/lib/cutin-style.js',
   'public/widgets/lib/cutin-premium.js',
-||||||| base
   'public/dashboard/dash-style.js',
   'public/widgets/media.js',
   'public/widgets/gacha.js',
