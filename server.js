@@ -1,3 +1,4 @@
+// HTTPサーバー本体。配信者の画面、外部イベント受け口、WebSocketを提供する。
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import { WebSocketServer } from 'ws';
 import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
-import { Tenants, DATA_DIR } from './src/tenants.js';
+import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
 import { overlayMessageAllowed } from './src/billing.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
@@ -66,7 +67,9 @@ const ADMIN_TOKEN = (() => {
 
 const app = express();
 app.set('trust proxy', true);
-app.use(express.json());
+const isIngestPath = (req) => req.path === '/in' || req.path.startsWith('/in/');
+const jsonParser = express.json();
+app.use((req, res, next) => isIngestPath(req) ? next() : jsonParser(req, res, next));
 // 動いているかの確認（Cloudflare が定期的に呼ぶ）
 app.get('/healthz', healthz({ local, tenants }));
 
@@ -359,6 +362,20 @@ app.post('/d/:sid', (req, res) => {
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
 
+const ingestRequest = (req, res) => {
+  const header = String(req.headers.authorization ?? '');
+  const key = req.params.key || (/^Bearer\s+(.+)$/i.exec(header)?.[1] ?? '');
+  const tenant = tenants.byIngestKey(key, req.ip);
+  if (tenant === INGEST_LOOKUP_LIMITED) return res.status(429).set('Retry-After', '1').type('text/plain; charset=utf-8').send('送信が多すぎます。少し待ってください');
+  if (!tenant) return res.status(404).type('text/plain; charset=utf-8').send('この受け口は使えません');
+  if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
+  return tenants.runtime(tenant.id).ingest.handle(req, res, key);
+};
+app.post('/in/:key', ingestRequest);
+app.get('/in/:key', ingestRequest);
+app.post('/in', ingestRequest);
+app.get('/in', ingestRequest);
+
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
 function billingAllows(fn, fallback) {
   try {
@@ -373,10 +390,15 @@ app.use('/t/:key', (req, res, next) => {
   const found = tenants.byKey(req.params.key);
   if (!found) return res.status(404).type('text/plain; charset=utf-8').send('この URL は使えません（管理者に確認してください）');
   const { tenant, role } = found;
-  if (!tenant.enabled) return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
   req.role = role;
   req.tenant = tenant;
   const p = req.path;
+  if (!tenant.enabled) {
+    if (role === 'owner' && req.method === 'POST' && p === '/api/ingest/key') {
+      return res.status(403).json({ error: 'この配信者の利用は止められています', value: null });
+    }
+    return res.status(403).type('text/plain; charset=utf-8').send('この配信者の利用は止められています');
+  }
   // OBS 用の鍵で開けるのはウィジェットと画像と、ウィジェットが読む API だけ
   if (role === 'obs' && !(p === '/widgets' || p.startsWith('/widgets/') || p.startsWith('/media/') || p.startsWith('/api/'))) {
     return res.status(403).type('text/plain; charset=utf-8').send('これは OBS 用の URL です。ダッシュボードはダッシュボードの URL で開いてください');

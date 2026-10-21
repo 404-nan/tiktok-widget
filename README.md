@@ -14,6 +14,12 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | `/healthz`（稼働確認と配信中人数） | できた |
 | Cloudflare 経由の hosted 運用 | 作りかけ（運用環境の確認が必要） |
 | 演出の効果ログと配信後レポート | まだ（カードのみ） |
+| 機能 | 状態 | 内容 |
+| --- | --- | --- |
+| 外部イベント受け口 `ingest` | できた | TikFinity・Streamer.bot などから、配信者ごとの鍵付きHTTP受け口でギフト・いいね・フォロー・コメント・シェアを受け、既存の正規化と配信へ流す |
+| 受け口の状態表示・外部ツール案内 | できた | ダッシュボードで TikTok / 外部ツールの状態、最後に届いた時刻、受信数を確認し、鍵と貼り付け用 URL を作る。使い方画面に TikFinity の例と Streamer.bot の準備中案内を表示 |
+| 配信ウィジェット | できた | OBS / TikTok LIVE Studio に表示する各種オーバーレイ |
+| 管理・設定画面 | できた | 接続、設定、テスト送信、配信履歴を管理 |
 
 | ウィジェット | 内容 | 推奨サイズ |
 | --- | --- | --- |
@@ -56,6 +62,8 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 1. ダッシュボードで TikTok のユーザー名を入れて「接続」（配信中である必要があります）
 2. 「ウィジェット」で使うものを選び、設定を変えて URL を「コピー」（設定は `config.yaml` に保存されます）
 3. OBS / TikTok LIVE Studio に「ブラウザ」ソースを追加し、URL と推奨サイズを入れる
+
+外部ツールから受けるときは、ダッシュボードの「接続の状態」で受け口の鍵を作り、表示された URL を TikFinity などの送信先に貼ります。詳しい項目名と例は `/help/#ingest` にあります。鍵の全文は作成時だけ表示されます。鍵を URL に入れるため、Cloudflare やプロキシのアクセスログに残ることがあります。漏れたら鍵を作り直してください。有効な鍵でも、止められた配信者への送信は 403 になります。外部ツールだけで配信していて TikTok に直接つないでいないときは、テスト送信も集計に入ります。
 
 「デモを流す」や「テスト送信」で、配信前に見た目を確認できます。
 
@@ -350,7 +358,9 @@ src/admin.js           MCP と CLI が共通で使う操作
 src/roulette.js        ルーレットの抽選（サーバー側で決めて全画面に配る）
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
 src/vault.js           Cloudflare で動かすとき、data/ を置き場に送る・起動時に戻す
-src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）
+src/tenants.js         契約している配信者の一覧と鍵、ウィジェットごとの ON / OFF（期限つき・全員まとめて）。受け口の鍵はキャッシュして照合する
+src/ingest.js          外部ツールからのイベントを受け、重複・直接接続との競合を整理して hub へ流す
+src/ingest-keys.js     外部イベント受け口の鍵を要約で保存・照合する
 src/wins.js            WIN 数（ボタン・URL・ギフトのルールで増減し、data/wins.json に残す）
 src/timer.js           延長タイマー（残り時間・延長・一時停止をサーバーで持ち、data/timers.json に残す）
 src/boss.js            ボス討伐（ギフトのダメージで HP を削り、討伐・次のボスを配る。data/boss.json に残す）
@@ -368,6 +378,7 @@ src/hub.js             集計（いいね・視聴者・コイン・トップギ
 src/demo.js            デモ・テスト用のイベント
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
 public/dashboard/      設定画面（common.js / charts.js は3画面で共通）
+public/dashboard/ingest.js  外部ツールの受け口の状態表示と鍵の作成 UI
 public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
@@ -390,3 +401,4 @@ npm test
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にして上書きします（前に取れた分は残ります。ログイン・API キー・有料プランは不要）。終わったら `npm test` で確かめてコミットしてください。AI 向けの決まりは `AGENTS.md` にあります。
 
 最後に直した日: 2026-10-20
+最後に直した日: 2026-10-19

@@ -1,6 +1,7 @@
 import { connect, fmt, icon, giftLabel, BASE, ensureGiftNames } from '/widgets/lib/overlay.js';
 import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
+import { setupIngest } from './ingest.js';
 import { $, store, api, setupChrome, statusText, createStatusGate } from './common.js';
 
 // --- 接続状態 ---
@@ -276,6 +277,7 @@ setupChrome('settings');
 setupKpis();
 await ensureGiftNames();
 await setupConnect();
+setupIngest({ api });
 setupNotes();
 refreshPlan();
 setupDevTools();

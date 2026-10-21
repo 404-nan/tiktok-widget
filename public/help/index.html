@@ -25,6 +25,7 @@
     <a class="chip pressable" href="#obs">OBSに出す</a>
     <a class="chip pressable" href="#roulette">ルーレット</a>
     <a class="chip pressable" href="#timer">延長タイマー</a>
+    <a class="chip pressable" href="#ingest">外部ツール</a>
     <a class="chip pressable" href="#test">ためす</a>
     <a class="chip pressable" href="#trouble">困ったとき</a>
     <a class="chip pressable" href="#guide">くわしい説明</a>
@@ -75,6 +76,26 @@
       <li>配信中にためしても、ランキングや記録・Minecraft には入りません。</li>
       <li>「デモを流す」はギフトをまとめて流して、全体の動きを見るためのものです。</li>
     </ul>
+  </section>
+
+  <section class="panel" id="ingest">
+    <h2>外部ツールからイベントを受ける</h2>
+    <p>ダッシュボードの「接続の状態」で受け口の鍵を作り、表示された URL を外部ツールの送信先に貼ります。URL は <code>https://このサーバー/in/&lt;ここに鍵&gt;</code> の形です。鍵の全文は作成時に1回だけ表示されます。鍵を URL に入れるため、Cloudflare やプロキシのアクセスログに鍵が残ることがあります。漏れたらダッシュボードで鍵を作り直してください。</p>
+    <h3>TikFinity</h3>
+    <p>TikFinity の公式の Streamer.bot 連携で使える項目名に合わせます。Webhook の送信方法は、使っている編集画面に表示される項目名で合わせてください。</p>
+    <p>受け口が読める項目: <code>userId</code> <code>username</code> <code>nickname</code> <code>avatar</code> <code>avatarUrl</code> <code>avatar_url</code> <code>profilePictureUrl</code> <code>giftId</code> <code>giftName</code> <code>coins</code> <code>repeatCount</code> <code>likeCount</code> <code>totalLikeCount</code> <code>comment</code> <code>content</code> <code>text</code> <code>commandParams</code></p>
+    <ul>
+      <li>ギフト: <code>https://このサーバー/in/&lt;ここに鍵&gt;?kind=gift&amp;userId=%userId%&amp;username=%username%&amp;nickname=%nickname%&amp;giftId=%giftId%&amp;giftName=%giftName%&amp;coins=%coins%&amp;repeatCount=%repeatCount%</code></li>
+      <li>いいね: <code>https://このサーバー/in/&lt;ここに鍵&gt;?kind=like&amp;userId=%userId%&amp;username=%username%&amp;nickname=%nickname%&amp;likeCount=%likeCount%&amp;totalLikeCount=%totalLikeCount%</code></li>
+      <li>フォロー: <code>https://このサーバー/in/&lt;ここに鍵&gt;?kind=follow&amp;userId=%userId%&amp;username=%username%&amp;nickname=%nickname%</code></li>
+      <li>コメント: <code>https://このサーバー/in/&lt;ここに鍵&gt;?kind=comment&amp;userId=%userId%&amp;username=%username%&amp;nickname=%nickname%&amp;comment=%commandParams%</code></li>
+      <li>シェア: <code>https://このサーバー/in/&lt;ここに鍵&gt;?kind=share&amp;userId=%userId%&amp;username=%username%&amp;nickname=%nickname%</code></li>
+    </ul>
+    <h3>Streamer.bot</h3>
+    <p>公式の Fetch URL の送信方法をこの画面で確認できていないため、設定手順は準備中です。受け口の URL と項目名は、公式説明書と編集画面で確認して合わせてください。</p>
+    <h3>送れないとき</h3>
+    <p>同じイベントの再送は二重に数えません。送信は1秒20回まで（瞬間40回まで）です。不正な鍵も送信元ごとに照合の上限を設けています。404 は鍵違い、403 は止められた配信者、429 は送りすぎなので、鍵と送信間隔を確認してください。</p>
+    <p>外部ツールだけで配信していて TikTok に直接つないでいないときは、テスト送信も集計に入ります。配信前に試すか、配信中は TikTok に直接つないでから試してください。</p>
   </section>
 
   <section class="panel" id="trouble">

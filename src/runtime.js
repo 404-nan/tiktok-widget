@@ -31,6 +31,7 @@ import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
 import { giftNamesDocument } from './gift-display.js';
 import { isDevEnv } from './env.js';
+import { Ingest } from './ingest.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -68,7 +69,7 @@ export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/,
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {} }) {
   const hub = new Hub();
   // connecting は「直前まで live だった再接続」だけ配信中。未接続・配信終了のあとは新しい接続。
   // 再接続が一度失敗して error になっても、配信終了か手動切断までは同じ配信の続きとみなす。
@@ -94,6 +95,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return true;
     }
   };
+  const ingest = new Ingest(hub, { dataDir, connectionAllowed: () => mayConnect(streamLive()), onKeyChange: onIngestKeyChange });
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
   const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()) });
   const demo = new DemoSource(hub);
@@ -201,6 +203,16 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (req.method === 'POST' && /^\/api\/media-alerts\/(ack|autoplay)$/.test(req.path)) return next();
     if (req.method === 'POST' && /^\/api\/gift-sounds\/(ack|autoplay)$/.test(req.path)) return next();
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
+  });
+
+  r.get('/api/ingest', (req, res) => res.json(ingest.state()));
+  r.post('/api/ingest/key', (req, res) => {
+    const key = ingest.create();
+    res.json(key);
+  });
+  r.delete('/api/ingest/key', (_req, res) => {
+    ingest.remove();
+    res.json({ ok: true });
   });
 
   r.get('/api/me', (req, res) => {
@@ -622,7 +634,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (!isDevEnv(req)) return { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } };
     const event = makeEvent(body?.kind, body ?? {});
     if (!event) return { status: 400, body: { error: '不明なイベント種類です' } };
-    hub.publish({ ...event, test: true });
+    // 実際のTikTok経路を再現したい受け入れテストだけ、明示的に印を付ける。
+    hub.publish({ ...event, ...(body?.source === 'tiktok' ? { source: 'tiktok' } : {}), test: true });
     // 配信中のテストは画面に出るだけ（数は変わらない）
     return { status: 200, body: { ok: true, visualOnly: hub.status.mode === 'live' } };
   }
@@ -698,6 +711,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id,
     hub,
     tiktok,
+    ingest,
     demo,
     // 配信終了後の再接続は、切れている短い間も同じ配信として数える。
     isLive: streamLive,
