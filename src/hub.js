@@ -42,9 +42,14 @@ export class Hub extends EventEmitter {
   }
 
   addClient(ws) {
+    const wasConnected = this.hasClient(ws.role);
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
     this.emit('client', ws);
+    if (!wasConnected && this.hasClient(ws.role)) this.emit('clientChange', { role: ws.role, connected: true, at: Date.now() });
+    ws.on('close', () => {
+      if (!this.hasClient(ws.role)) this.emit('clientChange', { role: ws.role, connected: false, at: Date.now() });
+    });
     // 未払いの配信画面には、中身もエラー文も出さない
     if (ws.quiet) {
       this.#send(ws, { type: 'hello', status: { mode: 'idle', message: '' }, state: emptyState(), sample: { on: false, until: null }, config: null, recentChats: [] });

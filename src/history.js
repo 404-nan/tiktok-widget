@@ -31,13 +31,16 @@ const pad = (n) => String(n).padStart(2, '0');
 const stamp = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 
 class Session {
-  constructor({ username, demo }) {
-    const now = new Date();
-    this.id = `${stamp(now)}-${(username || (demo ? 'demo' : 'live')).replace(/[^\w-]/g, '')}`;
+  constructor({ username, demo, trackWidget, widgetConnected, now = Date.now }) {
+    const startedAt = now();
+    this.now = now;
+    this.id = `${stamp(new Date(startedAt))}-${(username || (demo ? 'demo' : 'live')).replace(/[^\w-]/g, '')}`;
     this.username = username;
     this.demo = demo;
-    this.startedAt = now.getTime();
+    this.startedAt = startedAt;
     this.endedAt = null;
+    this.widgetMs = trackWidget ? 0 : null;
+    this.widgetSince = trackWidget && widgetConnected ? startedAt : null;
     this.totals = { coins: 0, gifts: 0, likes: 0, follows: 0, shares: 0, comments: 0, peakViewers: 0 };
     this.timeline = []; // 1分ごと
     this.gifters = new Map();
@@ -129,7 +132,9 @@ class Session {
   }
 
   summary() {
-    const durationMs = (this.endedAt ?? Date.now()) - this.startedAt;
+    const at = this.endedAt ?? this.now();
+    const durationMs = at - this.startedAt;
+    const widgetMs = this.widgetMilliseconds(at);
     return {
       id: this.id,
       username: this.username,
@@ -137,9 +142,29 @@ class Session {
       startedAt: this.startedAt,
       endedAt: this.endedAt,
       durationMs,
+      widgetMs,
+      widgetUsed: widgetMs != null && widgetMs >= durationMs / 2,
       totals: { ...this.totals, uniqueGifters: this.gifters.size },
       coinsPerHour: coinsPerHour(this.totals.coins, durationMs),
     };
+  }
+
+  setWidgetConnection(connected, at) {
+    if (this.widgetMs == null) return;
+    if (connected) {
+      if (this.widgetSince == null) this.widgetSince = Math.max(this.startedAt, at);
+      return;
+    }
+    if (this.widgetSince != null) {
+      this.widgetMs += Math.max(0, at - this.widgetSince);
+      this.widgetSince = null;
+      this.dirty = true;
+    }
+  }
+
+  widgetMilliseconds(at) {
+    if (this.widgetMs == null) return null;
+    return this.widgetMs + (this.widgetSince == null ? 0 : Math.max(0, at - this.widgetSince));
   }
 
   toJSON() {
@@ -164,9 +189,14 @@ export class History {
     this.hub = hub;
     this.dir = dir;
     this.writeFile = options.writeFile ?? fs.writeFileSync;
+    this.id = options.id ?? 'local';
+    this.now = options.now ?? (() => Date.now());
     this.current = null;
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
+    hub.on('clientChange', ({ role, connected }) => {
+      if (role === 'obs' && this.current) this.current.setWidgetConnection(connected, this.now());
+    });
     hub.on('event', (e) => {
       // 開発環境で配信前に押したテスト送信は、デモの配信として記録する
       if (isDevEnv() && e.test && !this.current) this.current = new Session({ username: null, demo: true });
@@ -192,7 +222,10 @@ export class History {
       const demo = status.mode === 'demo';
       const username = demo ? null : status.username;
       if (this.current && (this.current.demo !== demo || this.current.username !== username)) this.end();
-      if (!this.current) this.current = new Session({ username, demo });
+      if (!this.current) {
+        const widgetConnected = this.id !== 'local' && !demo && this.hub.hasClient('obs');
+        this.current = new Session({ username, demo, trackWidget: this.id !== 'local' && !demo, widgetConnected, now: this.now });
+      }
     } else if (status.mode !== 'connecting') {
       this.end();
     }
@@ -200,7 +233,8 @@ export class History {
 
   end() {
     if (!this.current) return;
-    this.current.endedAt = Date.now();
+    this.current.endedAt = this.now();
+    this.current.setWidgetConnection(false, this.current.endedAt);
     this.current.dirty = true;
     this.save();
     this.current = null;

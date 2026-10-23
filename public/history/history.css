@@ -35,6 +35,7 @@
 .sessions .date { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .sessions .coins { font-family: "Barlow Condensed", sans-serif; font-size: 18px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 .sessions .meta { grid-column: 1 / -1; font-size: 14px; color: var(--text-secondary); }
+.sessions .widget-usage { grid-column: 1 / -1; font-size: 14px; color: var(--text-secondary); }
 .sessions .live-mark { color: var(--success); }
 .sessions .empty { padding: 16px 20px; color: var(--text-tertiary); font-size: 14px; }
 
@@ -48,6 +49,7 @@
 .hero-value { font-family: "Barlow Condensed", sans-serif; font-size: 56px; font-weight: 600; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px; }
 .stat .kpi-value { font-size: 28px; }
+.stat .widget-value { font-size: 20px; }
 .delta { margin-top: 6px; font-size: 14px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .delta.up { color: var(--success); }
 .delta.down { color: var(--error); }

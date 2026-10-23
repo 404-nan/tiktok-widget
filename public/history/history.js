@@ -16,6 +16,10 @@ const durationText = (ms) => {
   const m = Math.round(ms / 60_000);
   return m >= 60 ? `${Math.floor(m / 60)}時間${m % 60 ? `${m % 60}分` : ''}` : `${m}分`;
 };
+const widgetText = (s) => {
+  if (s.widgetMs == null) return '記録なし';
+  return s.widgetUsed ? `使った ${durationText(s.widgetMs)}` : '使っていない';
+};
 const minuteLabel = (t) => `${t + 1}分目`;
 
 // --- 一覧 ---
@@ -45,7 +49,8 @@ function renderList() {
       meta.className = 'meta';
       if (s.live) meta.append(Object.assign(document.createElement('span'), { className: 'live-mark', textContent: '● 配信中 · ' }));
       meta.append(`${s.demo ? 'デモ' : `@${s.username}`} · ${durationText(s.durationMs)} · フォロー ${fmtNum(s.totals.follows)}`);
-      b.append(date, coins, meta);
+      const widget = Object.assign(document.createElement('span'), { className: 'widget-usage', textContent: widgetText(s) });
+      b.append(date, coins, meta, widget);
       b.addEventListener('click', () => open(s.id));
       li.append(b);
       return li;
@@ -89,6 +94,7 @@ const STATS = [
   ['comments', 'コメント'],
   ['uniqueGifters', 'ギフトをくれた人'],
   ['duration', '配信時間'],
+  ['widgetUsage', 'ウィジェット'],
 ];
 
 function renderSummary(s, prev) {
@@ -103,10 +109,14 @@ function renderSummary(s, prev) {
       box.className = 'stat';
       const l = Object.assign(document.createElement('div'), { className: 'kpi-label', textContent: label });
       const isDur = key === 'duration';
+      const isWidget = key === 'widgetUsage';
       const value = isDur ? s.durationMs : s.totals[key] ?? 0;
-      const v = Object.assign(document.createElement('div'), { className: 'kpi-value', textContent: isDur ? durationText(value) : fmtNum(value) });
+      const v = Object.assign(document.createElement('div'), { className: 'kpi-value', textContent: isWidget ? widgetText(s) : isDur ? durationText(value) : fmtNum(value) });
+      if (isWidget) v.classList.add('widget-value');
       const prevValue = prev ? (isDur ? prev.durationMs : prev.totals[key] ?? 0) : null;
-      const d = isDur
+      const d = isWidget
+        ? Object.assign(document.createElement('div'), { className: 'delta', textContent: '配信時間の半分以上で「使った」' })
+        : isDur
         ? prev
           ? Object.assign(document.createElement('div'), { className: 'delta', textContent: `前回 ${durationText(prev.durationMs)}` })
           : delta(0, null)

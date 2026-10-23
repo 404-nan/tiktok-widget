@@ -49,6 +49,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
 | `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |
+| `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
 | `hub.test.js` | イベント集計と配信のテスト |
 | `ingest-keys.test.js` | ingest鍵の保存・作り直し・削除の単体テスト |
 | `media-alerts.test.js` | メディア通知のテスト |
