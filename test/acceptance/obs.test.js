@@ -200,15 +200,15 @@ const restored = (obs, item = obs.cam) => item.transform.positionX === ORIGINAL.
 const moved = (r) => r.data.sceneItemTransform;
 
 // ---------- AC-1 ----------
-test('AC-1 obs-bridge.html は何も描かない(透明で空)・CDN なし・ES5 で、es5-public.test.js に足してある', () => {
+test('AC-1 obs-bridge.html は何も描かない(透明で空)・CDN なし・ES5 で、公開 JS の検査の対象に入っている', () => {
   const html = read('public/widgets/obs-bridge.html');
   assert.doesNotMatch(html, /(?:src|href)\s*=\s*["']?(?:https?:)?\/\//i, '外部 CDN を読んでいる');
   const body = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<script[\s\S]*?<\/script>/gi, '').match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? '';
   assert.equal(body.replace(/\s+/g, ''), '', 'body に描くものがある');
   assert.doesNotMatch(html, /background(?:-color)?\s*:\s*(?!transparent|none)/i);
-  const es5 = read('test/es5-public.test.js');
+  // 公開 JS の検査は public-js.test.js が public/widgets をまるごと見る(2026-10-23 に一覧の形から変更)
+  assert.match(read('test/public-js.test.js'), /'public\/widgets'/);
   for (const f of ['public/widgets/obs-bridge.js', 'public/widgets/lib/sha256.js']) {
-    assert.ok(es5.includes(`'${f}'`), `${f} が es5-public.test.js の files に無い`);
     assert.doesNotMatch(read(f), /=>|`|\?\.|\?\?|\b(?:let|const|class|import|export)\b/, `${f} に ES5 でない書き方がある`);
     assert.doesNotThrow(() => new vm.Script(read(f)));
     const require = createRequire(import.meta.url);

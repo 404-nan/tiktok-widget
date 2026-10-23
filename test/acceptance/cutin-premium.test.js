@@ -90,5 +90,6 @@ test('AC-7/AC-8/AC-9: 画面はプレミア結果を読み込み、かんたん�
   assert.doesNotMatch(cutin, /const seed = Math\.floor\(Math\.random\(\) \* 900\) \+ 1/);
   const simple = read('public/dashboard/simple.js');
   for (const name of ['premium', 'premiumRate', 'promote', 'promoteRate', 'rushBoost', 'bluePhoto', 'greenPhoto', 'redPhoto', 'goldPhoto', 'rainbowPhoto']) assert.match(simple, new RegExp(name));
-  assert.match(read('test/es5-public.test.js'), /cutin-premium\.js/);
+  // 公開 JS の検査は public-js.test.js が public/widgets をまるごと見る(2026-10-23 に一覧の形から変更)
+  assert.match(read('test/public-js.test.js'), /'public\/widgets'/);
 });

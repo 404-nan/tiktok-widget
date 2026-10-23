@@ -8,7 +8,7 @@ TikTok LIVE 配信用のオーバーレイ、ダッシュボード、管理画�
 - コマンド・CLI・MCP の道具の名前は英語(例: `tw control combo reset`)。日本語にするのは画面の文字と説明だけ(オーナーの好み、2026-10-23)。
 - 画面に出す文字は日本語。ギフト名は `src/gift-names-ja.json` の対応表を GiftID で引く。表にないものは TikTok から来た名前を使い、自分で訳さない。
 - TikTok の gift/list API を呼ぶときは `webcast_language=ja-JP` を付ける。対応表の作り直しは `node scripts/giftlist.js [roomId ...]` を使う。
-- 公開ウィジェットの JavaScript (`public/widgets/`) は ES5。外部 CDN は使わない。
+- 公開ウィジェットの JavaScript (`public/widgets/`) は、TikTok LIVE Studio(Chromium 103 相当)で動く書き方にする。構文は ES2022 まで、Chromium 104 より新しい関数(`toSorted` など)は使わない。外部 CDN は使わない。`test/public-js.test.js` が確かめる(2026-10-23 に ES5 から変更。ES5 で書いた画面はそのままでよく、直すときに共通の部品 `lib/overlay.js` へ寄せる)。
 - `config.yaml` と `data/` は本番の設定・記録。書き換えない。確かめるときは開発サーバーか自分で起こした一時サーバーを使う。
 - `npm test` を常に緑にする。既存のテストの書き方に合わせる。
 - 本番（ポート3939、`widget.lul.works`）に触らない。反映は `~/tiktok-widget` へのコミットで自動（配信していないとき・テストが通ったときだけ。`deploy/server/`）。配信中に再起動・`/reload`・設定変更をしない。

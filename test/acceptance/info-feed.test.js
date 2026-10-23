@@ -206,10 +206,10 @@ test('AC-5〜12 ウィジェットのファイルがある', () => {
   for (const f of ['src/info-feed.js', ...WIDGET_FILES]) assert.ok(fs.existsSync(path.join(root, f)), `${f} がない`);
 });
 
-test('AC-12 ウィジェットの JS は ES5 で、es5-public.test.js の files に入っている', () => {
-  const es5 = read('test/es5-public.test.js');
+test('AC-12 ウィジェットの JS は ES5 で、公開 JS の検査の対象に入っている', () => {
+  // 公開 JS の検査は public-js.test.js が public/widgets をまるごと見る(2026-10-23 に一覧の形から変更)
+  assert.match(read('test/public-js.test.js'), /'public\/widgets'/);
   for (const f of ['public/widgets/ticker.js', 'public/widgets/supporters.js', 'public/widgets/lib/telop.js']) {
-    assert.ok(es5.includes(`'${f}'`), `${f} が es5-public.test.js の files にない`);
     const code = read(f);
     assert.doesNotMatch(code, /=>|`|\?\.|\?\?|\b(?:let|const|class|import|export)\b/, f);
   }

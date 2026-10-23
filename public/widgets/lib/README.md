@@ -30,6 +30,6 @@
 
 ## つながり
 
-各ウィジェットの HTML から読み込まれ、サーバー（`server.js` / `src/`）とは WebSocket と `/api/` でつながります。`test/es5-public.test.js` で公開 JavaScript の ES5 条件を確認します。
+各ウィジェットの HTML から読み込まれ、サーバー（`server.js` / `src/`）とは WebSocket と `/api/` でつながります。`test/public-js.test.js` で、公開 JavaScript が Chromium 103 で動く書き方か(ES2022 まで)を確かめます。
 
 最後に直した日: 2026-10-21

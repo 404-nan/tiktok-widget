@@ -17,7 +17,7 @@
 
 ## 画面とウィジェット
 
-- `public/widgets/`: OBS / TikTok LIVE Studio の公開ウィジェット。公開JSはES5を守る。
+- `public/widgets/`: OBS / TikTok LIVE Studio の公開ウィジェット。公開JSは Chromium 103 で動く書き方(ES2022 まで。`test/public-js.test.js`)。
 - `public/dashboard/`: 設定画面。`/dashboard/` は1人用、テナントは `/t/<鍵>/dashboard/`。
 - `public/monitor/`、`public/history/`、`public/admin/`: モニター、統計、管理画面。
 - ウィジェットの設定URLや推奨サイズは設定と schema から作る。テナントのOBS鍵はウィジェットだけに許可する。

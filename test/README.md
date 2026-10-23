@@ -40,7 +40,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `cutin-style.test.js` | カットイン設定のテスト |
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
 | `env.test.js` | 環境判定のテスト |
-| `es5-public.test.js` | 公開ウィジェットのES5検査 |
+| `public-js.test.js` | 公開ウィジェットとダッシュボードの JavaScript が Chromium 103 で動く書き方か(ES2022 まで、新しすぎる関数と外部 CDN なし) |
 | `widget-tenant-paths.test.js` | overlay.js を使わない公開ウィジェットが、配信者ごとの URL の下の API と WebSocket を使うか |
 | `gacha-viewers.test.js` | ガチャの視聴者ごとの無料回・有料回、リセット、コメントで回す |
 | `gacha-room.test.js` | 無料回は配信の roomId が変わったときだけ戻る |
