@@ -5,6 +5,7 @@ TikTok LIVE 配信用のオーバーレイ、ダッシュボード、管理画�
 
 ## 絶対に守ること
 
+- コマンド・CLI・MCP の道具の名前は英語(例: `tw control combo reset`)。日本語にするのは画面の文字と説明だけ(オーナーの好み、2026-10-23)。
 - 画面に出す文字は日本語。ギフト名は `src/gift-names-ja.json` の対応表を GiftID で引く。表にないものは TikTok から来た名前を使い、自分で訳さない。
 - TikTok の gift/list API を呼ぶときは `webcast_language=ja-JP` を付ける。対応表の作り直しは `node scripts/giftlist.js [roomId ...]` を使う。
 - 公開ウィジェットの JavaScript (`public/widgets/`) は ES5。外部 CDN は使わない。
