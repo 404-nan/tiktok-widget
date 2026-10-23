@@ -127,9 +127,29 @@ export function parseReply(content) {
   }
 }
 
+// --- 使ったトークンの記録 ---
+
+// 1回ごとに data/ai-usage.jsonl へ1行足す(費用を後から数えるため)。中身(たのみの文や設定)は書かない。書けなくても AI は止めない
+export function recordUsage(dir, { provider, model, usage, now = Date.now() }) {
+  if (!dir || !usage) return;
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const row = {
+    t: now, provider, model,
+    input: n(usage.input_tokens ?? usage.prompt_tokens),
+    output: n(usage.output_tokens ?? usage.completion_tokens),
+    cacheRead: n(usage.cache_read_input_tokens),
+    cacheWrite: n(usage.cache_creation_input_tokens),
+  };
+  try {
+    fs.appendFileSync(path.join(dir, 'ai-usage.jsonl'), JSON.stringify(row) + '\n');
+  } catch (err) {
+    console.warn(`[ai] トークンの記録を書けませんでした: ${err.message}`);
+  }
+}
+
 // --- Claude（Anthropic の SDK） ---
 
-async function askClaude({ key, model, system, messages, makeClient }) {
+async function askClaude({ key, model, system, messages, makeClient, onUsage = () => {} }) {
   const { Anthropic, format } = await loadSdk();
   const client = makeClient(key, Anthropic);
   let response;
@@ -152,6 +172,7 @@ async function askClaude({ key, model, system, messages, makeClient }) {
     if (err instanceof Anthropic.APIError) throw new Error(`AI でエラーになりました（${err.status ?? '不明'}）。少し待ってから、もう一度たのんでください`);
     throw new Error(`AI でエラーになりました: ${err?.message ?? err}`);
   }
+  onUsage(response.usage);
   if (response.stop_reason === 'refusal') throw new Error('AI がこのたのみには答えられませんでした。言い方を変えて、もう一度たのんでください');
   if (response.stop_reason === 'max_tokens' || !response.parsed_output) throw new Error('AI の返事を最後まで受け取れませんでした。たのみを短く分けて、もう一度たのんでください');
   return response.parsed_output;
@@ -159,7 +180,7 @@ async function askClaude({ key, model, system, messages, makeClient }) {
 
 // --- OpenAI と同じ形の API（Space Bunny など） ---
 
-async function askOpenAi({ key, model, baseUrl, system, messages, fetchImpl = fetch }) {
+async function askOpenAi({ key, model, baseUrl, system, messages, fetchImpl = fetch, onUsage = () => {} }) {
   const call = async (jsonMode) => {
     let res;
     try {
@@ -192,6 +213,7 @@ async function askOpenAi({ key, model, baseUrl, system, messages, fetchImpl = fe
     if (res.status === 429) throw new Error('AI が混み合っています。少し待ってから、もう一度たのんでください');
     throw new Error(`AI でエラーになりました（${res.status}）。少し待ってから、もう一度たのんでください`);
   }
+  onUsage(data.usage);
   const choice = data.choices?.[0];
   const out = parseReply(choice?.message?.content);
   if (!out) {
@@ -315,10 +337,11 @@ export function createAi({ dir, makeClient = (apiKey, Anthropic) => new Anthropi
       if (!usable()) throw new Error('AI はまだ使えません（管理者がキーを入れると使えます）');
       const kind = AI_PROVIDERS[provider()].kind;
       const system = buildSystem({ reference: cfg.reference(), extra: extra(), valueAsText: kind === 'claude' });
+      const onUsage = (usage) => recordUsage(dir, { provider: provider(), model: model(), usage });
       const call = (messages) =>
         kind === 'claude'
-          ? askClaude({ key: key(), model: model(), system, messages, makeClient })
-          : askOpenAi({ key: key(), model: model(), baseUrl: baseUrl(), system, messages, fetchImpl });
+          ? askClaude({ key: key(), model: model(), system, messages, makeClient, onUsage })
+          : askOpenAi({ key: key(), model: model(), baseUrl: baseUrl(), system, messages, fetchImpl, onUsage });
       const judge = (out) => {
         const { changes, errors, ignored } = checkChanges(out.changes ?? [], { allowedSections });
         const dry = changes.length && !errors.length ? check(changes) : { errors: [], warnings: [] };

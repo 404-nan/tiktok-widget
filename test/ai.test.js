@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import * as cfg from '../src/config.js';
-import { createAi, checkChanges, buildRequest, parseReply } from '../src/ai.js';
+import { createAi, checkChanges, buildRequest, parseReply, recordUsage } from '../src/ai.js';
 import { buildSystem } from '../src/ai-prompt.js';
 import { createRuntime } from '../src/runtime.js';
 
@@ -243,4 +243,21 @@ test('確かめて問題が出た案は、AI に伝えて1回だけ直しても�
   assert.equal(bodies[1].messages.at(-2).role, 'assistant');
   assert.deepEqual(out.changes[0].value, { power: 2 });
   assert.deepEqual([out.errors, out.warnings], [[], []]);
+});
+
+test('使ったトークンを data/ai-usage.jsonl に1行ずつ残す。たのみの文や設定は書かない', async () => {
+  const dir = tmp();
+  const ai = createAi({ dir, makeClient: () => fakeClient({ reply: 'こうします', changes: [] }) });
+  ai.update({ key: 'sk-ant-test-0000000000abcd', model: 'claude-sonnet-5-5' });
+  await ai.ask({ text: 'ひみつのたのみ', config: { theme: { accent: '#123456' } } });
+  const rows = fs.readFileSync(path.join(dir, 'ai-usage.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(rows.length, 1);
+  assert.deepEqual({ ...rows[0], t: 0 }, { t: 0, provider: 'claude', model: 'claude-sonnet-5-5', input: 1, output: 1, cacheRead: 0, cacheWrite: 0 });
+  const raw = fs.readFileSync(path.join(dir, 'ai-usage.jsonl'), 'utf8');
+  assert.equal(raw.includes('ひみつ'), false);
+  assert.equal(raw.includes('#123456'), false);
+  // OpenAI と同じ形の数え方も読む。書けない場所でも投げない
+  recordUsage(dir, { provider: 'openai', model: 'm', usage: { prompt_tokens: 7, completion_tokens: 3 }, now: 5 });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'ai-usage.jsonl'), 'utf8').trim().split('\n')[1]).input, 7);
+  assert.doesNotThrow(() => recordUsage(path.join(dir, 'no', 'such'), { provider: 'x', model: 'y', usage: { input_tokens: 1 } }));
 });

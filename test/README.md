@@ -31,7 +31,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
-| `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト |
+| `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
 | `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
