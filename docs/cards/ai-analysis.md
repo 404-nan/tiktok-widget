@@ -59,6 +59,6 @@
 
 証拠: `test/ai-analysis.test.js`、既存の `test/effect-log.test.js`、`npm test`。
 
-めにくんに決めてほしいこと: 道具名を `analyze_effects` に固定するか、山・演出効果・頻出演出を別の読み取り道具に分けるか。
+道具名は `analyze_effects` に固定し、山・演出効果・頻出演出を1回の読み取りで返す。
 
 最後に書いたファイルの一覧: `docs/cards/ai-analysis.md`（分析の道具の完成条件カード）。

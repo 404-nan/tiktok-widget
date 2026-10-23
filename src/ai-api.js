@@ -60,6 +60,7 @@ export const AI_ROUTES = [
   { method: 'GET', path: '/config', tool: 'get_config' },
   { method: 'GET', path: '/validate', tool: 'validate_config' },
   { method: 'GET', path: '/history', tool: 'get_history' },
+  { method: 'GET', path: '/effects/analyze', tool: 'analyze_effects' },
   { method: 'GET', path: '/widget-urls', tool: 'list_widget_urls' },
   { method: 'GET', path: '/gifts', tool: 'list_gifts' },
   { method: 'GET', path: '/changes', tool: 'list_changes' },
@@ -87,6 +88,7 @@ const TOOLS = {
   get_status: { scope: 'read' },
   get_config: { scope: 'read' },
   get_history: { scope: 'read' },
+  analyze_effects: { scope: 'read' },
   list_widget_urls: { scope: 'read' },
   list_gifts: { scope: 'read' },
   validate_config: { scope: 'read' },
@@ -510,6 +512,10 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
       const row = runtime.readHistory(args.id);
       if (args.id && !row) return finish(tool, context, { status: 404, body: { error: '見つかりません' } });
       return finish(tool, context, { status: 200, body: row });
+    }
+    if (tool === 'analyze_effects') {
+      if (!args.id) return finish(tool, context, { status: 400, body: { error: '配信の id を指定してください' } });
+      return finish(tool, context, { status: 200, body: runtime.readEffectAnalysis(args.id, { from: args.from, to: args.to }) });
     }
     if (tool === 'list_widget_urls') {
       const base = typeof target.widgetBaseFor === 'function'

@@ -179,6 +179,13 @@ export function registerAiTools(server, call, options = {}) {
     annotations: readOnly,
   }, wrap(async (args) => shown(await call('get_history', args))));
 
+  server.registerTool('analyze_effects', {
+    title: '配信の効果ログを分析',
+    description: '送信者情報を含めず、演出の前後のコイン・山・頻出演出を集計する。記録不足は断定せず理由を返す。',
+    inputSchema: { id: z.string().min(1), from: z.number().optional(), to: z.number().optional(), tenant: z.string().optional() },
+    annotations: readOnly,
+  }, wrap(async (args) => shown(await call('analyze_effects', args))));
+
   server.registerTool('get_status', {
     title: '接続状態と集計',
     description: 'TikTok との接続状態と、いいね・視聴者・コインなどの集計。',

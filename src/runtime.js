@@ -15,6 +15,7 @@ import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
 import { RouletteEngine } from './roulette.js';
 import { Minecraft } from './minecraft.js';
 import { History } from './history.js';
+import { analyzeEffects } from './effect-analysis.js';
 import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
 import { RushEngine } from './rush.js';
 import { StepupEngine } from './stepup.js';
@@ -1134,6 +1135,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readHistory(sessionId) {
       if (sessionId) return history.get(sessionId);
       return history.list();
+    },
+    readEffectAnalysis(sessionId, range) {
+      return analyzeEffects(history.effectLog.dir, { sessionId, ...(range ?? {}) });
     },
     readGifts,
     readWins() { return wins.snapshot(); },
