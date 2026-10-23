@@ -254,6 +254,12 @@ function statusOf(t) {
   return ['', '配信していません'];
 }
 
+function liveDetails(t) {
+  if (t.status.mode !== 'live') return '';
+  const name = t.name || t.status.username || '配信者';
+  return `${name}・${t.status.elapsedMinutes ?? 0}分・視聴者 ${t.status.viewers ?? 0}人・コイン ${t.status.coins ?? 0}`;
+}
+
 const TEMPLATE_NAMES = {
   talk: 'おしゃべり・歌', roulette: 'ルーレット企画',
   clear: 'クリア数', boss: 'ボス討伐', custom: '自分で選ぶ',
@@ -297,7 +303,7 @@ function renderRows() {
         { className: t.enabled ? '' : 'off' },
         el('label', { className: 'check' }, check),
         el('span', { className: 'name', textContent: t.name }),
-        el('span', { className: `status ${cls}` }, el('i'), text, el('small', { className: 'tenant-note', textContent: tenantNote(t) })),
+        el('span', { className: `status ${cls}` }, el('i'), text, el('small', { className: 'tenant-note', textContent: liveDetails(t) || tenantNote(t) })),
         dots,
       );
       li.setAttribute('aria-selected', String(t.id === selected));
@@ -358,6 +364,7 @@ function tenantDetail(t) {
       name,
       el('div', { className: 'row' }, el('span', { className: `status ${cls}` }, el('i'), text), el('label', { className: 'row' }, enabled, '使える')),
     ),
+    t.status.mode === 'live' ? el('p', { className: 'hint live-summary', textContent: liveDetails(t) }) : null,
     el('div', { className: 'group' },
       el('label', { className: 'field' },
         el('span', { className: 'field-label', textContent: 'TikTok の ID' }),

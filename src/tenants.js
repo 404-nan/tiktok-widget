@@ -466,6 +466,7 @@ export class Tenants {
       setWidgets: (list) => this.update(id, { widgets: list }),
       setTemplate: (template) => this.setTemplate(id, template),
       setGuideDone: (done) => this.setGuideDone(id, done),
+      setDisplayName: (name) => this.update(id, { name }),
       setStayConnected: (handle) => { const t = this.get(id); if (t && (t.stayConnected ?? null) !== handle) { t.stayConnected = handle; this.#save(); } },
       rememberTiktokId: (handle) => { if (!this.get(id)?.tiktokId) this.update(id, { tiktokId: handle }); },
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,

@@ -124,6 +124,15 @@
       </form>
     </section>
 
+    <section class="panel section" id="profileSection" hidden>
+      <h2>表示名</h2>
+      <form id="profileForm" class="row wrap">
+        <label class="field grow"><span class="field-label">配信者の表示名</span><input id="displayName" autocomplete="name" maxlength="80"></label>
+        <button class="btn primary pressable" type="submit">保存</button>
+      </form>
+      <p class="message" id="profileMessage"></p>
+    </section>
+
     <section class="panel section ingest-panel" id="ingestSection">
       <div class="notes-head"><h2>接続の状態</h2><span class="hint">TikTok と外部ツール</span></div>
       <div class="ingest-status-rows" id="ingestStatusRows">

@@ -15,8 +15,15 @@ head=$(git rev-parse HEAD)
 git diff --quiet HEAD -- || { echo "未コミットの変更があるので待ちます"; exit 0; }
 
 # 配信中なら待つ。サーバーが落ちていて答えないときは、そのまま反映する
-live=$(curl -fsS -m 5 "$HEALTHZ" 2>/dev/null | grep -o '"live":[0-9]*' | cut -d: -f2)
-if [ "${live:-0}" -gt 0 ]; then echo "配信中（${live}人）なので、終わってから反映します"; exit 0; fi
+health=$(curl -fsS -m 5 "$HEALTHZ" 2>/dev/null || true)
+live=$(printf '%s' "$health" | grep -o '"live":[0-9]*' | cut -d: -f2)
+if [ "${live:-0}" -gt 0 ]; then
+  admin_token=${TW_ADMIN_TOKEN:-$(cat "${REPO}/data/admin-token.txt" 2>/dev/null || true)}
+  details=$(curl -fsS -m 5 -H "x-admin-token: ${admin_token}" "${HEALTHZ%/healthz}/admin/api/deploy-status" 2>/dev/null \
+    | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const x=JSON.parse(s); console.log((x.live||[]).map(v=>v.name+'、'+v.minutes+'分').join('・'))}catch{}})" || true)
+  echo "配信中（${details:-${live}人}）なので、終わってから反映します"
+  exit 0
+fi
 
 echo "反映します: $(git log -1 --format='%h %s')"
 if ! npm test >"$STATE_DIR/last-test.log" 2>&1; then

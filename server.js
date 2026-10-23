@@ -107,7 +107,12 @@ function tenantView(req, t) {
     pin: t.pin,
     billing: tenants.billing.adminView(t.id),
     urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
-    status: rt ? rt.hub.status : { mode: 'idle', message: 'まだ開かれていません' },
+    status: rt ? {
+      ...rt.hub.status,
+      viewers: rt.hub.state.viewers,
+      coins: rt.hub.state.diamonds,
+      elapsedMinutes: rt.hub.status.startedAt ? Math.max(0, Math.floor((Date.now() - rt.hub.status.startedAt) / 60000)) : 0,
+    } : { mode: 'idle', message: 'まだ開かれていません', viewers: 0, coins: 0, elapsedMinutes: 0 },
     settings: {
       widgets: [...(t.widgets ?? [])],
       roulettes: config ? cfg.publicConfig({ roulettes: config.roulettes ?? {} }).roulettes : {},
@@ -132,6 +137,10 @@ admin.get('/tenants', (req, res) => {
   });
 });
 admin.get('/lul', (req, res) => res.json({ tenants: tenants.list().map((t) => tenantView(req, t)), features: FEATURES }));
+admin.get('/deploy-status', (req, res) => {
+  const live = tenants.list().map((t) => tenantView(req, t)).filter((t) => t.status.mode === 'live');
+  res.json({ live: live.map((t) => ({ name: t.name, minutes: t.status.elapsedMinutes ?? 0 })) });
+});
 admin.post('/tenants', (req, res) => {
   try {
     const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
