@@ -29,6 +29,15 @@ function setMessage(text, isError = false) {
 async function setupConnect() {
   const me = await api('/api/me').catch(() => null);
   $('username').value = me?.tiktokId || store.get('username', '');
+  if (me?.mode === 'tenant') {
+    $('profileSection').hidden = false;
+    $('displayName').value = me.name || '';
+    $('profileForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await api('/api/me/name', { name: $('displayName').value }, 'PUT'); $('profileMessage').textContent = '表示名を保存しました'; }
+      catch (error) { $('profileMessage').textContent = error.message; $('profileMessage').classList.add('error'); }
+    });
+  }
 
   $('connectForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();

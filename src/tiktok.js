@@ -190,7 +190,7 @@ export class TikTokSource {
       this.connected = true;
       this.#armWatchdog();
       log(`@${username} の LIVE に接続しました（room ${state.roomId}）`);
-      this.hub.setStatus({ mode: 'live', username, message: `@${username} の LIVE に接続しました`, roomId: state.roomId });
+      this.hub.setStatus({ mode: 'live', username, message: `@${username} の LIVE に接続しました`, roomId: state.roomId, startedAt: Date.now() });
     } catch (err) {
       if (conn && this.connection !== conn) return;
       if (conn) {
