@@ -29,7 +29,7 @@
 | `gacha-viewers.js` | ガチャの視聴者ごとの無料回・有料回を数えて保存し、コメントで回す |
 | `healthz.js` | 稼働確認と配信中人数だけの応答を作る |
 | `history.js` | 配信ごとの集計記録を保存する |
-| `hub.js` | イベントを集計し、画面へ配る |
+| `hub.js` | イベントを集計し、画面へ配る。どの役目(obs など)の画面がつながっているかも答える |
 | `media-alerts.js` | 画像・動画・音声の通知を管理する |
 | `minecraft.js` | ギフトや演出を Minecraft の RCON へつなぐ |
 | `gift-streaks.js` | 連打ギフトの終わりの合図が来ないまま切れても、投げた分を数え落とさない（`tiktok.js` から使う） |
@@ -46,7 +46,7 @@
 | `slot.js` | スロットの抽選と状態を管理する |
 | `superstream.js` | Minecraft 側の演出一覧を読む |
 | `tenants.js` | 配信者一覧と配信者ごとの runtime を管理する |
-| `tiktok.js` | TikTok LIVE への接続と再接続を行う |
+| `tiktok.js` | TikTok LIVE への接続と再接続を行う。配信者ごと(hosted)は、配信していないあいだ OBS のウィジェットが開いているときだけ接続を試す(接続の費用を抑える) |
 | `timer.js` | 延長タイマーを管理する |
 | `vault.js` | Cloudflare 上で data/ を退避・復元する |
 | `wins.js` | WIN 数と全画面演出の段階を管理する |

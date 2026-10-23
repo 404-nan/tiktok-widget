@@ -57,6 +57,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `normalize.test.js` | 入力正規化のテスト |
 | `pinlogin.test.js` | PINログインのテスト |
 | `reconnect.test.js` | 再接続のテスト |
+| `hub-clients.test.js` | ハブが、つながっている画面の役目(obs)を答え、つながったことを知らせるか |
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
 | `gift-streaks.test.js` | 連打ギフトが途中で切れても数え落とさない・二重に数えないか |

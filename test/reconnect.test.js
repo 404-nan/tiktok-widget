@@ -425,3 +425,59 @@ process.exit(0);
     fs.rmSync(file, { force: true });
   }
 });
+
+serial('waitAllowed が偽なら、配信前の失敗のあと試すのを止め、wake() で再開する', async (t) => {
+  await withTimers(t, async (logs) => {
+    const box = installation({ fail: 1 });
+    const hub = fakeHub();
+    let widgetOpen = false;
+    const src = new TikTokSource(hub, null, { createConnection: box.createConnection, jitter: 0, waitAllowed: () => widgetOpen });
+    await src.connect('@quiet_user').catch(() => {});
+    assert.equal(src.parked, true);
+    assert.equal(hub.status.mode, 'idle');
+    assert.match(hub.status.message, /OBS のウィジェットを開くと/);
+    t.mock.timers.tick(120_000);
+    await flush();
+    assert.equal(box.conns.length, 1, '待っているあいだは接続を試さない');
+    assert.equal(scheduledSeconds(logs).length, 0);
+
+    widgetOpen = true;
+    assert.equal(src.wake(), true);
+    await flush();
+    assert.equal(box.conns.length, 2);
+    assert.equal(hub.status.mode, 'live');
+    assert.equal(src.parked, false);
+    assert.equal(src.wake(), false, 'つながっているときは何もしない');
+    await src.disconnect();
+  });
+});
+
+serial('waitAllowed が真なら、今までどおり配信前も試し続ける', async (t) => {
+  await withTimers(t, async (logs) => {
+    const box = installation({ fail: 2 });
+    const hub = fakeHub();
+    const src = new TikTokSource(hub, null, { createConnection: box.createConnection, jitter: 0, waitAllowed: () => true });
+    await src.connect('@busy_user').catch(() => {});
+    assert.equal(src.parked, false);
+    t.mock.timers.tick(5_000);
+    await flush();
+    t.mock.timers.tick(10_000);
+    await flush();
+    assert.equal(box.conns.length, 3);
+    assert.equal(hub.status.mode, 'live');
+    await src.disconnect();
+  });
+});
+
+serial('disconnect() のあとは wake() しても接続しない', async (t) => {
+  await withTimers(t, async () => {
+    const box = installation({ fail: 1 });
+    const hub = fakeHub();
+    const src = new TikTokSource(hub, null, { createConnection: box.createConnection, jitter: 0, waitAllowed: () => false });
+    await src.connect('@gone_user').catch(() => {});
+    await src.disconnect();
+    assert.equal(src.wake(), false);
+    await flush();
+    assert.equal(box.conns.length, 1);
+  });
+});

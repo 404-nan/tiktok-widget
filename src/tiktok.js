@@ -56,7 +56,7 @@ export class TikTokSource {
   // retryDelays: 再接続までの待ち（ミリ秒）。既定は 5, 10, 20, 40, 60 秒で頭打ち
   // jitter: 待ちのばらつき。0.2 なら ±20%。テストでは 0 にすると待ちが固定になる
   // watchdogMs: 何もイベントが来ないときに切り直すまでの時間。既定は 3 分
-  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed } = {}) {
+  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed, waitAllowed } = {}) {
     this.hub = hub;
     this.gifts = gifts;
     // 連打の終わりの合図が来ないまま切れても、投げた分を数え落とさない
@@ -68,12 +68,45 @@ export class TikTokSource {
     this.retryTimer = null;
     this.watchdogTimer = null;
     this.stay = false; // true のあいだは、落ちても配信が終わっても再接続を続ける
+    // 配信していないあいだも接続を試し続けてよいか。だめなら待つのをやめ、wake() で再開する(接続の費用を抑える)
+    this.waitAllowed = waitAllowed ?? (() => true);
+    this.parked = false;
     this.connected = false;
     this.retryDelays = Array.isArray(retryDelays) && retryDelays.length ? retryDelays : RETRY_DELAYS;
     this.jitter = jitter ?? JITTER;
     this.watchdogMs = watchdogMs ?? WATCHDOG_MS;
     this.connectionAllowed = typeof connectionAllowed === 'function' ? connectionAllowed : () => true;
     this.createConnection = createConnection ?? ((username, signApiKey) => new TikTokLiveConnection(username, connectionOptions(signApiKey)));
+  }
+
+  #mayWait() {
+    try {
+      return this.waitAllowed() !== false;
+    } catch {
+      return true;
+    }
+  }
+
+  // 配信が始まっていなくて、ウィジェットも開いていない。試すのをやめて、wake() を待つ
+  #park() {
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    if (!this.parked) log(`@${this.username}: ウィジェットが開いていないので、接続を試すのを止めます（開いたら再開）`);
+    this.parked = true;
+    this.hub.setStatus({ mode: 'idle', username: this.username, message: 'OBS のウィジェットを開くと、配信への接続を始めます' });
+  }
+
+  // ウィジェットが開いたなど、また試してよくなったとき。待っていなければ何もしない
+  wake(reason = 'ウィジェットが開いた') {
+    if (!this.stay || !this.username || !this.parked || this.connection || this.retryTimer || this.connected) return false;
+    this.parked = false;
+    this.retry = 0;
+    log(`@${this.username}: ${reason}ので、接続を再開します`);
+    const name = this.username;
+    this.#open({ reconnect: true, reason }).catch((err) => {
+      if (this.stay && this.username === name) this.#scheduleRetry(err.message);
+    });
+    return true;
   }
 
   // 停止中の新しい接続は始めない。判定が落ちたときは止めない
@@ -99,6 +132,7 @@ export class TikTokSource {
     this.signApiKey = signApiKey || process.env.TIKTOK_SIGN_API_KEY || undefined;
     this.retry = 0;
     this.stay = true;
+    this.parked = false;
     try {
       await this.#open({ reconnect: false });
     } catch (err) {
@@ -111,6 +145,7 @@ export class TikTokSource {
   async disconnect() {
     const username = this.username;
     this.stay = false;
+    this.parked = false;
     this.connected = false;
     this.username = null;
     await this.#close();
@@ -272,6 +307,7 @@ export class TikTokSource {
   #scheduleRetry(reason = '') {
     if (!this.stay || !this.username) return;
     if (!this.#allowed()) return;
+    if (!this.#mayWait()) return this.#park();
     clearTimeout(this.retryTimer);
     const base = this.retryDelays[Math.min(this.retry, this.retryDelays.length - 1)];
     this.retry += 1;

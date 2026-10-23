@@ -44,6 +44,7 @@ export class Hub extends EventEmitter {
   addClient(ws) {
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
+    this.emit('client', ws);
     // 未払いの配信画面には、中身もエラー文も出さない
     if (ws.quiet) {
       this.#send(ws, { type: 'hello', status: { mode: 'idle', message: '' }, state: emptyState(), sample: { on: false, until: null }, config: null, recentChats: [] });
@@ -52,6 +53,12 @@ export class Hub extends EventEmitter {
     // ウィジェットにはパスワードなどを抜いた設定を配る
     // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
     this.#send(ws, { type: 'hello', status: this.status, state: this.state, sample: this.sampleState(), config: publicConfig(this.config), recentChats: this.recentChats });
+  }
+
+  // その役目(obs など)の画面が、今つながっているか
+  hasClient(role) {
+    for (const ws of this.clients) if (ws.role === role && ws.readyState === 1) return true;
+    return false;
   }
 
   sampleState() {
