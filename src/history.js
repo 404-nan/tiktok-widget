@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 import { isDevEnv } from './env.js';
+import { EffectLog } from './effect-log.js';
 
 /** 1時間あたりのコイン。時間が 0 以下、またはコインが数でないときは 0（NaN や Infinity にしない） */
 export function coinsPerHour(coins, durationMs) {
@@ -191,6 +192,7 @@ export class History {
     this.writeFile = options.writeFile ?? fs.writeFileSync;
     this.id = options.id ?? 'local';
     this.now = options.now ?? (() => Date.now());
+    this.effectLog = options.effectLog ?? new EffectLog(path.join(dir, 'effects'), { now: this.now, secret: options.effectSecret });
     this.current = null;
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
@@ -199,12 +201,20 @@ export class History {
     });
     hub.on('event', (e) => {
       // 開発環境で配信前に押したテスト送信は、デモの配信として記録する
-      if (isDevEnv() && e.test && !this.current) this.current = new Session({ username: null, demo: true });
+      if (isDevEnv() && e.test && !this.current) {
+        this.current = new Session({ username: null, demo: true });
+        this.effectLog.start(this.current.id, this.current.startedAt);
+      }
       // 本番の配信中に押したテスト送信は記録しない
       if (this.current && (this.current.demo || !String(e.user?.id ?? '').startsWith('demo_'))) this.current.record(e);
+      // テスト送信は既存の履歴と同じく本番の効果ログにも残さない。
+      if (this.current && !e.test) this.effectLog.gift(e);
     });
     hub.on('roulette', (r) => {
-      if (isDevEnv() && r?.trigger?.test && !this.current) this.current = new Session({ username: null, demo: true });
+      if (isDevEnv() && r?.trigger?.test && !this.current) {
+        this.current = new Session({ username: null, demo: true });
+        this.effectLog.start(this.current.id, this.current.startedAt);
+      }
       this.current?.recordRoulette(r);
     });
     hub.on('minecraft', (log) => {
@@ -225,6 +235,7 @@ export class History {
       if (!this.current) {
         const widgetConnected = this.id !== 'local' && !demo && this.hub.hasClient('obs');
         this.current = new Session({ username, demo, trackWidget: this.id !== 'local' && !demo, widgetConnected, now: this.now });
+        this.effectLog.start(this.current.id, this.current.startedAt);
       }
     } else if (status.mode !== 'connecting') {
       this.end();
@@ -237,6 +248,7 @@ export class History {
     this.current.setWidgetConnection(false, this.current.endedAt);
     this.current.dirty = true;
     this.save();
+    this.effectLog.end(this.current.endedAt);
     this.current = null;
   }
 
@@ -252,7 +264,7 @@ export class History {
   list() {
     const out = [];
     for (const f of fs.readdirSync(this.dir)) {
-      if (!f.endsWith('.json')) continue;
+      if (!f.endsWith('.json') || f.endsWith('.report.json')) continue;
       try {
         const data = JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8'));
         const { timeline, gifters, likers, giftTypes, roulettes, minecraft, ...summary } = data;
@@ -272,7 +284,12 @@ export class History {
     if (this.current?.id === id) return { ...this.current.toJSON(), live: true };
     const file = path.join(this.dir, `${path.basename(id)}.json`);
     if (!fs.existsSync(file)) return null;
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    const session = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const reportFile = path.join(this.dir, 'effects', `${path.basename(id)}.report.json`);
+    if (fs.existsSync(reportFile)) {
+      try { session.report = JSON.parse(fs.readFileSync(reportFile, 'utf8')); } catch {}
+    }
+    return session;
   }
 
   remove(id) {

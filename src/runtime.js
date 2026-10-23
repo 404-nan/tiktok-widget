@@ -147,6 +147,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
   const bus = createEventBus();
+  bus.on('*', (event) => {
+    if (!history.current || event.type === 'gift') return;
+    history.effectLog.effect(event.type, { value: event.value, result: event.result, amount: event.amount }, { test: Boolean(event.test), ts: event.ts });
+  });
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
@@ -1167,6 +1171,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       await tiktok.disconnect().catch(() => {});
       history.end();
       clearInterval(history.timer);
+      history.effectLog.close();
       timer.close();
       stepup.close();
       swarm.close();

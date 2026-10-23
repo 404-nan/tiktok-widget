@@ -14,6 +14,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | AI にたのむ | 設定変更の案を見てから反映し、元に戻す | できた | `src/ai.js`、`public/dashboard/ai.js` |
 | ギフト・コメント・視聴者数の受信と WebSocket 配信 | TikTok LIVE のイベントを受けて画面へ配る | できた | - |
 | オーバーレイ、ダッシュボード、モニター、統計、管理画面 | 配信・設定・履歴を管理する。統計に OBS ウィジェット利用時間を表示する | できた | `src/history.js`、`public/history/` |
+| 演出の効果ログと配信後レポート | ギフトとサーバー側演出を匿名で記録し、前後のコインを比較する | できた | `src/effect-log.js`、`public/history/` |
 | デモ・開発用テスト送信（本番の数を汚さない） | 開発時の確認に使う | できた | - |
 | `/healthz`（稼働確認と配信中人数） | 稼働状態を確認する | できた | - |
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |

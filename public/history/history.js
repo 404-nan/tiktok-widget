@@ -201,6 +201,19 @@ function renderTables(full) {
     box.append(wrap);
   }
 
+  const effects = Object.entries(full.report?.effects ?? {});
+  $('effectPanel').hidden = effects.length === 0;
+  table(
+    $('effectTable'),
+    [['演出'], ['回数', 'num'], ['前後の倍率', 'num']],
+    effects.map(([name, effect]) => {
+      const multipliers = effect.samples.map((sample) => sample.multiplier).filter((value) => Number.isFinite(value));
+      const average = multipliers.length ? multipliers.reduce((sum, value) => sum + value, 0) / multipliers.length : null;
+      return [[name], [fmtNum(effect.count), 'num'], [average == null ? '比較できません' : `${average.toFixed(1)}倍`, 'num']];
+    }),
+    '演出の記録はありません',
+  );
+
   table(
     $('timelineTable'),
     [['時間'], ['コイン', 'num'], ['ギフト', 'num'], ['いいね', 'num'], ['フォロー', 'num'], ['コメント', 'num'], ['視聴者', 'num']],
