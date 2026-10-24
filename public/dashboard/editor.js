@@ -151,7 +151,7 @@ export function createEditor({ api, setMessage }) {
   //   detail（ウィジェット1つの設定）/ catalog（出すものを足す）/ obs（OBS に入れる URL）/ ai（AI にたのむ）
   // 「くわしく」は今までのタブとフォーム
   let mode = 'simple';
-  let view = 'obs';
+  let view = 'home';
   let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
   let testVoteParticipant = 0;
   let alertMedia = []; // メディア通知に入れたファイル
@@ -337,7 +337,7 @@ export function createEditor({ api, setMessage }) {
     store.set('mode', mode);
     document.body.dataset.mode = mode;
     if (mode === 'advanced') restoreChrome();
-    if (!keepView) view = mode === 'simple' ? 'obs' : 'detail';
+    if (!keepView) view = mode === 'simple' ? 'home' : 'detail';
     if (payload) select(tab);
   }
 
@@ -454,16 +454,13 @@ export function createEditor({ api, setMessage }) {
     const menu = document.createElement('div');
     menu.className = 'side-menu';
     menu.append(
-      item('monitor-up', 'OBSに入れるURL', view === 'obs', goTo('obs'), 'side-stage'),
-      ...(me.features?.ai ? [item('sparkles', 'AI にたのむ', view === 'ai', goTo('ai'), 'side-ai')] : []),
-      label('配信画面に出すもの'),
+      item('house', 'ホーム', view === 'home', goTo('home')),
+      label('配信に出すもの'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
-      item('plus', '出すものを選ぶ', view === 'catalog', goTo('catalog')),
-      label('じゅんび'),
-      item('monitor-up', '1つにまとめる', view === 'stage', goTo('stage')),
-      item('layout-template', '配信テンプレート', view === 'templates', goTo('templates')),
-      ...(isTenant() ? [item('sparkles', '遊び方をえらびなおす', false, async () => { await api('/api/me/template', { template: null }, 'PUT'); me = await api('/api/me'); view = 'stage'; renderNav(); stage?.render(); })] : []),
-      item('file-code', '設定ファイル', view === 'files', goTo('files')),
+      item('plus', '出すものを増やす', view === 'catalog', goTo('catalog')),
+      item('activity', '配信中に見る', false, () => { window.location.href = '/monitor/'; }),
+      item('chart-column', 'これまでの配信', false, () => { window.location.href = '/history/'; }),
+      Object.assign(document.createElement('div'), { className: 'side-spacer' }),
       item('book-open', '使い方', false, () => window.open('/help/', '_blank', 'noopener')),
       item('settings', '設定', view === 'settings', goTo('settings'), 'side-settings'),
     );
@@ -474,30 +471,10 @@ export function createEditor({ api, setMessage }) {
       const footer = document.createElement('div');
       footer.className = 'side-footer';
       footer.append(nav);
-      // メニューが入りきらないときは、下端に「下にまだあります」を重ねる（一番下まで流すと消える）
-      const more = document.createElement('button');
-      more.type = 'button';
-      more.className = 'side-more-hint pressable';
-      const moreLabel = document.createElement('span');
-      moreLabel.append(Object.assign(document.createElement('span'), { textContent: '下にまだあります' }), icon('chevron-down'));
-      more.append(moreLabel);
-      more.addEventListener('click', () => menu.scrollBy({ top: menu.clientHeight - more.offsetHeight, behavior: 'smooth' }));
-      const updateMore = () => {
-        more.hidden = menu.scrollTop + menu.clientHeight >= menu.scrollHeight - 1;
-        side.classList.toggle('has-more', !more.hidden);
-        if (more.hidden) return;
-        // 帯の上で項目が途中で切れないように、切れる項目ごと帯で隠す（線はいつも項目の境目に来る）
-        more.style.height = '';
-        const bottom = menu.getBoundingClientRect().bottom;
-        const edge = bottom - more.offsetHeight;
-        const cut = [...menu.children].find((el) => { const r = el.getBoundingClientRect(); return r.top < edge && r.bottom > edge; });
-        if (cut) more.style.height = `${Math.ceil(bottom - cut.getBoundingClientRect().top)}px`;
-      };
-      menu.addEventListener('scroll', updateMore, { passive: true });
       sideObserver?.disconnect();
-      sideObserver = new ResizeObserver(updateMore);
+      sideObserver = new ResizeObserver(() => {});
       sideObserver.observe(menu);
-      side.replaceChildren(head, connection, menu, more, footer);
+      side.replaceChildren(head, connection, menu, footer);
     } else {
       const col = document.querySelector('.col');
       sideObserver?.disconnect();
@@ -562,6 +539,28 @@ export function createEditor({ api, setMessage }) {
     }
   }
 
+  // ホームは配信前に見る3つだけに絞る。
+  function renderHome() {
+    const box = $('cards');
+    const steps = [
+      ['配信ソフトに URL を入れた', obsList().some((w) => w.section !== 'all')],
+      ['出すものを選んだ', usedSections().length > 0],
+      ['ためしに動かした', Boolean(store.get('sample-tried', false))],
+    ];
+    const list = document.createElement('ol');
+    list.className = 'home-prep';
+    steps.forEach(([label, done]) => {
+      const item = document.createElement('li');
+      item.className = done ? 'done' : '';
+      item.append(icon(done ? 'check' : 'circle'), label);
+      list.append(item);
+    });
+    const card = document.createElement('section');
+    card.className = 'home-card';
+    card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
+    box.replaceChildren(viewHead('ホーム'), card);
+  }
+
   // OBS に入れる URL をまとめて見る
   function renderObs() {
     const box = $('cards');
@@ -572,7 +571,7 @@ export function createEditor({ api, setMessage }) {
     sampleRow.append(sampleLabel, sampleBtn);
     const sampleText = document.createElement('p'); sampleText.className = 'hint';
     const updateSample = (s) => { sampleBtn.checked = Boolean(s.on); sampleText.textContent = s.on && s.until ? `あと ${Math.max(1, Math.ceil((s.until - Date.now()) / 60000))} 分` : '場所と大きさを決めるときに使います。15分で自動で消えます（配信中は出ません）'; };
-    sampleBtn.onchange = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.checked }, 'POST')); } catch (e) { sampleBtn.checked = false; setMessage(e.message, true); } };
+    sampleBtn.onchange = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.checked }, 'POST')); if (sampleBtn.checked) store.set('sample-tried', true); } catch (e) { sampleBtn.checked = false; setMessage(e.message, true); } };
     api('/api/sample').then(updateSample).catch(() => {}); sample.append(sampleRow, sampleText);
     const rows = obsList().filter((w) => w.section !== 'all').map((w) => {
       const row = document.createElement('div');
@@ -594,7 +593,7 @@ export function createEditor({ api, setMessage }) {
       row.append(icon(INFO[w.section].icon), main, copy, setting);
       return row;
     });
-    box.replaceChildren(viewHead('OBSに入れるURL', 'コピーしたURLを、OBS や TikTok LIVE Studio の「ブラウザ」ソースに貼ると配信画面に出ます'), sample);
+    box.replaceChildren(viewHead('配信ソフトに入れる URL', 'コピーした URL を、OBS や TikTok LIVE Studio の「ブラウザ」ソースに貼ります'), sample);
     if (rows.length) box.append(listGroup('コピーして貼るURL（1つにつき1ソース）', rows));
     else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを選ぶ」から選んでください。' }));
     const all = obsList().find((w) => w.section === 'all');
@@ -688,22 +687,24 @@ export function createEditor({ api, setMessage }) {
     selectBox.addEventListener('dblclick', renameEntry);
   }
 
-  function openNameDialog({ title, value = '', hint = '' }) {
+  function openNameDialog({ title, value = '', hint = '', choices = false }) {
     const dialog = $('nameDialog');
     const form = $('nameDialogForm');
     $('nameDialogTitle').textContent = title;
     $('nameDialogInput').value = value;
     $('nameDialogHint').textContent = hint;
+    $('nameDialogChoice').hidden = !choices;
     dialog.showModal();
     $('nameDialogInput').focus();
     $('nameDialogInput').select();
+    dialog.onclick = (event) => { if (event.target === dialog) dialog.close('cancel'); };
     return new Promise((resolve) => dialog.addEventListener('close', () => resolve(dialog.returnValue === 'save' ? $('nameDialogInput').value.trim() : null), { once: true }));
   }
 
   async function renameEntry() {
     const current = payload.config[tab]?.[id];
     if (!current) return;
-    const next = await openNameDialog({ title: 'プリセットの名前', value: current.kindName || current.name || current.title || schema.sections[tab].title, hint: 'Enterで決定、Escでやめられます。' });
+    const next = await openNameDialog({ title: '名前を変える', value: current.kindName || current.name || current.title || schema.sections[tab].title, hint: 'Enterで決定、Escでやめられます。' });
     if (next == null || !next.trim()) return;
     const value = { kindName: next.trim() };
     const res = await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: [tab, id], merge: true, value }) });
@@ -721,9 +722,10 @@ export function createEditor({ api, setMessage }) {
       const base = tab.replace(/s$/, '').replace(/([A-Z])/g, '-$1').toLowerCase();
       name = used.includes('default') || used.length ? null : 'default';
       for (let n = 2; !name; n++) if (!used.includes(`${base}-${n}`)) name = `${base}-${n}`;
-      const title = await openNameDialog({ title: '新しいプリセット', hint: '配信中に見て分かる名前にしてください。' });
+      const title = await openNameDialog({ title: '新しいプリセット', hint: '配信中に見て分かる名前にしてください。', choices: true });
       if (title == null) return;
-      value = structuredClone(payload.config[tab]?.[id] ?? {});
+      const copy = document.querySelector('input[name="preset-copy"]:checked')?.value !== 'blank';
+      value = copy ? structuredClone(payload.config[tab]?.[id] ?? {}) : {};
       value.kindName = title.trim() || `${schema.sections[tab].title} ${used.length + 1}`;
       if (tab === 'roulettes') {
         value.name = value.name || 'ルーレット';
@@ -772,7 +774,7 @@ export function createEditor({ api, setMessage }) {
     // かんたんの一覧: カードだけ出す
     // かんたんで、まだ何も出していないときは「出すものを足す」から始める
     if (simple() && view === 'detail' && tab !== 'theme' && !usedSections().includes(tab)) view = usedSections().length ? view : 'catalog';
-    const listView = simple() && (view === 'catalog' || view === 'obs');
+    const listView = simple() && (view === 'home' || view === 'catalog' || view === 'obs');
     const aiView = simple() && view === 'ai';
     const settingsViewActive = simple() && view === 'settings';
     const stageView = simple() && view === 'stage';
@@ -792,6 +794,7 @@ export function createEditor({ api, setMessage }) {
     if (templatesViewActive) { templatesView?.render($('cards')); return; }
     if (listView) {
       if (view === 'catalog') renderCatalog();
+      else if (view === 'home') renderHome();
       else renderObs();
       return;
     }
@@ -851,7 +854,7 @@ export function createEditor({ api, setMessage }) {
         more.open = store.get(`others-open:${tab}`, false);
         more.addEventListener('toggle', () => store.set(`others-open:${tab}`, more.open));
         const summary = document.createElement('summary');
-        summary.textContent = `ほかの項目（${others.length}）`;
+        summary.textContent = `もっと細かく（${others.length}）`;
         const inner = document.createElement('div');
         inner.className = 'settings';
         if (tab === 'roulettes') rouletteUrlsTarget = inner;
@@ -880,7 +883,7 @@ export function createEditor({ api, setMessage }) {
         form.append(more);
       }
       const tail = [];
-      if (isTenant() && tab !== 'theme') tail.push(listRow({ iconName: 'eye-off', title: `${def.title}を使うのをやめる`, sub: '設定は残ります', trailing: null, onClick: () => dropCard(tab) }));
+      if (isTenant() && tab !== 'theme') tail.push(listRow({ iconName: 'eye-off', title: `${def.title}を使わない`, sub: '設定は残ります', trailing: null, onClick: () => dropCard(tab) }));
       if (!isObj(tab) && entriesOf(tab).length > 1) tail.push(listRow({ iconName: 'trash-2', title: 'この設定を消す', trailing: null, onClick: removeEntry }));
       if (tail.length) form.append(listGroup('そのほか', tail));
     }
@@ -970,6 +973,25 @@ export function createEditor({ api, setMessage }) {
   }
 
   function buildField(key, field, value) {
+    if (simple() && tab === 'alerts' && key === 'position') {
+      const wrap = document.createElement('div');
+      wrap.className = 'field wide placement-field';
+      wrap.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: '出す場所' }));
+      const grid = document.createElement('div');
+      grid.className = 'placement-grid';
+      const align = payload.config.alerts?.[id]?.align ?? 'left';
+      for (const position of ['top', 'center', 'bottom']) for (const nextAlign of ['left', 'center', 'right']) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'placement-cell pressable';
+        button.setAttribute('aria-label', `${position}・${nextAlign}`);
+        button.setAttribute('aria-pressed', String(value === position && align === nextAlign));
+        button.addEventListener('click', async () => { await save(key, position); await save('align', nextAlign); });
+        grid.append(button);
+      }
+      wrap.append(grid);
+      return wrap;
+    }
     if (field.type === 'gachaPaidRule') return gachaPaidRuleEditor(key, value);
     if (field.type === 'slotTrigger') {
       const wrap = document.createElement('div');
@@ -2389,9 +2411,9 @@ export function createEditor({ api, setMessage }) {
 
   function fillActions() {
     const box = $('actions');
-    box.replaceChildren(chip(simple() ? '見本のギフトを出してみる' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
+    box.replaceChildren(chip(simple() ? 'ためしにギフトを1つ出す' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
     if (!live) {
-      const sample = chip('見本を出す', 'layout-template', async () => {
+      const sample = chip('見本をずっと出す', 'layout-template', async () => {
         try {
           const now = await api('/api/sample');
           await api('/api/sample', { on: !now.on }, 'POST');

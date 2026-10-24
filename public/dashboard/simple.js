@@ -110,9 +110,9 @@ export const SIMPLE = {
   },
   alerts: {
     groups: [
-      { title: 'いつ出す', fields: ['events', 'gifts', 'minCoins'] },
+      { title: 'どんなときに出す？', fields: ['events', 'gifts', 'minCoins'] },
       {
-        title: '見た目',
+        title: 'どう見せる？',
         presets: [
           {
             title: '出しかた',
@@ -125,7 +125,7 @@ export const SIMPLE = {
         ],
         fields: ['position', 'align'],
       },
-      { title: '大きいギフト・特別なギフト', fields: ['bigCoins', 'rules'] },
+      { title: '大きいギフトのとき', fields: ['bigCoins', 'rules'] },
     ],
   },
   chats: {
@@ -429,8 +429,8 @@ export const SIMPLE_LABELS = {
   'tickers.label': '札の文字', 'tickers.messages': '流す文', 'tickers.showGifts': '最近のギフトを流す', 'tickers.giftCount': 'ギフトの件数', 'tickers.showGoals': '目標を流す', 'tickers.goals': '流す目標', 'tickers.speed': '流れる速さ', 'tickers.color': '札の色',
   'supporters.events': '出すイベント', 'supporters.limit': '出す人数', 'supporters.minCoins': '何コインから', 'supporters.avatars': 'アイコンを出す', 'supporters.lifetime': '消すまでの秒数', 'supporters.color': '新しいカードの印',
   'visitors.showFirst': '初見さんを迎える', 'visitors.showReturning': 'おかえりの人を迎える', 'visitors.showRegular': '常連さんを迎える', 'visitors.regularVisits': '何回目から常連さん', 'visitors.firstText': '初見さんの文', 'visitors.returningText': 'おかえりの文', 'visitors.regularText': '常連さんの文', 'visitors.duration': '出す秒数', 'visitors.avatars': 'アイコンを出す', 'visitors.keepDays': '記録を残す日数',
-  'alerts.events': 'どんなときに出す？', 'alerts.minCoins': '何コインから出す', 'alerts.position': 'たての位置', 'alerts.align': 'よこの位置',
-  'alerts.bigCoins': '何コインから金色にする', 'alerts.rules': 'このギフトのときだけ特別にする',
+  'alerts.events': 'どんなときに出す？', 'alerts.gifts': 'どのギフトで出す？', 'alerts.minCoins': '何コイン以上で出す？', 'alerts.position': '出す場所', 'alerts.align': '出す場所',
+  'alerts.bigCoins': '何コイン以上で金色にする？', 'alerts.rules': 'このギフトのときは特別に',
   'chats.style': '形', 'chats.fontSize': '文字の大きさ', 'chats.maxItems': '一度に出す数', 'chats.highlight': 'ギフトした人を目立たせる',
   'chats.tts': 'コメントを読み上げる', 'chats.hideWords': '出さない言葉（、で区切る）',
   'counters.show': '出す数', 'counters.layout': '並べかた', 'counters.color': '色',

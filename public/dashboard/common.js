@@ -139,15 +139,17 @@ export function setupPanels() {
 export function setupTheme() {
   const apply = (t) => (document.documentElement.dataset.theme = t);
   apply(store.get('theme', 'dark'));
-  const button = $('themeBtn');
-  const updateLabel = () => { button.textContent = document.documentElement.dataset.theme === 'dark' ? 'ライトにする' : 'ダークにする'; };
-  updateLabel();
-  button.addEventListener('click', () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    apply(next);
-    store.set('theme', next);
-    updateLabel();
+  const buttons = { light: $('themeLightBtn'), dark: $('themeDarkBtn') };
+  const update = () => Object.entries(buttons).forEach(([theme, button]) => {
+    if (!button) return;
+    button.setAttribute('aria-pressed', String(document.documentElement.dataset.theme === theme));
   });
+  Object.entries(buttons).forEach(([theme, button]) => button?.addEventListener('click', () => {
+    apply(theme);
+    store.set('theme', theme);
+    update();
+  }));
+  update();
 }
 
 

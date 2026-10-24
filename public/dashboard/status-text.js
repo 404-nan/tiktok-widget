@@ -1,8 +1,8 @@
 // 接続状態の表示文。設定・統計・モニターが /api/status と WebSocket の両方で使う。
-const STATUS = { idle: '未接続', connecting: '接続中', live: 'LIVE', demo: 'デモ', error: 'エラー', ended: '配信終了' };
+const STATUS = { idle: '配信につながっていません', connecting: 'つないでいます…', live: '配信中', demo: 'ためし中', error: 'つながりませんでした', ended: '配信が終わりました' };
 
 export const statusText = (status) =>
-  status.username && status.mode === 'live' ? `LIVE · @${status.username}` : STATUS[status.mode] ?? status.mode;
+  status.username && status.mode === 'live' ? `配信中 · @${status.username}` : STATUS[status.mode] ?? status.mode;
 
 /**
  * WebSocket の受信と /api/status のポーリングの、どちらが新しいかをシーケンスで決める。

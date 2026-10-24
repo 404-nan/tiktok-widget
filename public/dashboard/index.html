@@ -11,7 +11,7 @@
 <header class="topbar panel">
   <div class="brand">
     <div class="brand-title">ライコネ</div>
-    <div class="status" id="status"><span class="dot"></span><span id="statusText">未接続</span></div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">配信につながっていません</span></div>
     <span class="dev-badge" id="devBadge" hidden>開発</span>
   </div>
   <nav class="nav" id="nav" aria-label="画面"></nav>
@@ -48,7 +48,7 @@
       <button class="text-btn pressable" id="resetBtn" type="button">集計をリセット</button>
       <div id="devFeatures">
         <p>ルーレットの動作</p>
-        <label>種類
+        <label>動き
           <select id="devActionType">
             <option value="timer.add">タイマーを足す</option>
             <option value="wins.add">WINを足す</option>
@@ -105,12 +105,12 @@
           <span class="input-wrap"><span class="prefix">@</span><input id="username" name="username" autocomplete="off" placeholder="ユーザー名" required></span>
         </label>
         <div class="row">
-          <button class="btn primary pressable" id="connectBtn" type="submit">接続</button>
-          <button class="btn pressable" id="demoBtn" data-icon="play" type="button">デモを流す</button>
-          <button class="btn pressable" id="disconnectBtn" type="button" hidden>切断</button>
+          <button class="btn primary pressable" id="connectBtn" type="submit">配信につなぐ</button>
+          <button class="btn pressable" id="demoBtn" data-icon="play" type="button">ためしに動かす</button>
+          <button class="btn pressable" id="disconnectBtn" type="button" hidden>つなぐのをやめる</button>
         </div>
         <p class="message" id="message"></p>
-        <p class="hint">配信前はEulerを使わずに確認します。最初の30分は1分ごと、その後は5分ごとです。</p>
+        <p class="hint">配信につなぐと、ギフトやコメントが画面に届きます。</p>
       </form>
     </section>
 
@@ -170,7 +170,10 @@
       <section class="appearance-settings" aria-labelledby="appearanceTitle">
         <h4 id="appearanceTitle">画面の明るさ</h4>
         <p class="hint">明るい画面と暗い画面を切り替えます。</p>
-        <button class="btn pressable" id="themeBtn" type="button">ライトにする</button>
+        <div class="theme-buttons" role="group" aria-label="画面の明るさ">
+          <button class="btn pressable" id="themeLightBtn" type="button" aria-pressed="false">ライト</button>
+          <button class="btn pressable" id="themeDarkBtn" type="button" aria-pressed="false">ダーク</button>
+        </div>
       </section>
     </section>
     <!-- AI にたのむ -->
@@ -256,10 +259,15 @@
 
 <dialog id="nameDialog" class="name-dialog">
   <form method="dialog" id="nameDialogForm" class="name-dialog-form">
-    <h2 id="nameDialogTitle">名前をつける</h2>
+    <h2 id="nameDialogTitle">名前を変える</h2>
     <label class="field"><span class="field-label" id="nameDialogLabel">名前</span><input id="nameDialogInput" autocomplete="off" required></label>
+    <fieldset class="dialog-choice" id="nameDialogChoice" hidden>
+      <legend>作り方</legend>
+      <label><input type="radio" name="preset-copy" value="copy" checked>今の設定をもとにする</label>
+      <label><input type="radio" name="preset-copy" value="blank">はじめから</label>
+    </fieldset>
     <p class="hint" id="nameDialogHint"></p>
-    <div class="row"><button class="btn pressable" value="cancel" type="submit">やめる</button><button class="btn primary pressable" id="nameDialogSave" value="save" type="submit">決める</button></div>
+    <div class="row"><button class="btn pressable" value="cancel" type="submit">やめる</button><button class="btn primary pressable" id="nameDialogSave" value="save" type="submit">この名前にする</button></div>
   </form>
 </dialog>
 

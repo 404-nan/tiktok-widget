@@ -8,17 +8,17 @@ const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
 
 test('接続状態の表示文は mode ごとに決まり、LIVE はユーザー名付き', () => {
   const hub = new Hub();
-  assert.equal(statusText(hub.status), '未接続');
+  assert.equal(statusText(hub.status), '配信につながっていません');
   hub.setStatus({ mode: 'connecting', username: 'sakura' });
-  assert.equal(statusText(hub.status), '接続中');
+  assert.equal(statusText(hub.status), 'つないでいます…');
   hub.setStatus({ mode: 'live', username: 'sakura' });
-  assert.equal(statusText(hub.status), 'LIVE · @sakura');
+  assert.equal(statusText(hub.status), '配信中 · @sakura');
   hub.setStatus({ mode: 'demo' });
-  assert.equal(statusText(hub.status), 'デモ');
+  assert.equal(statusText(hub.status), 'ためし中');
   hub.setStatus({ mode: 'error', message: '切れた' });
-  assert.equal(statusText(hub.status), 'エラー');
+  assert.equal(statusText(hub.status), 'つながりませんでした');
   hub.setStatus({ mode: 'ended', username: null });
-  assert.equal(statusText(hub.status), '配信終了');
+  assert.equal(statusText(hub.status), '配信が終わりました');
   assert.equal(statusText({ mode: 'unknown-mode' }), 'unknown-mode');
 });
 

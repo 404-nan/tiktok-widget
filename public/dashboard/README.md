@@ -23,7 +23,7 @@
 | `gift-picker.js` | ギフト選択欄 |
 | `gift-sounds-form.js` | ギフト音の設定欄と状態 |
 | `rules.js` | 条件ルールの編集欄 |
-| `status-text.js` | 状態表示と接続状態 |
+| `status-text.js` | 状態表示と接続状態を人の言葉で表示 |
 | `timer-length.js` | タイマーのギフト延長量 |
 | `weight.js` | ルーレット重み入力 |
 | `common.js` | API、コピー、テーマ、画面共通の処理 |
