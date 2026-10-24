@@ -63,7 +63,7 @@ export class TikTokSource {
   // retryDelays: 再接続までの待ち（ミリ秒）。既定は 5, 10, 20, 40, 60 秒で頭打ち
   // jitter: 待ちのばらつき。0.2 なら ±20%。テストでは 0 にすると待ちが固定になる
   // watchdogMs: 何もイベントが来ないときに切り直すまでの時間。既定は 3 分
-  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed, waitAllowed, usage, probeLive } = {}) {
+  constructor(hub, gifts = null, { createConnection, createProbe, retryDelays, jitter, watchdogMs, connectionAllowed, waitAllowed, usage, probeLive } = {}) {
     this.hub = hub;
     this.gifts = gifts;
     // 連打の終わりの合図が来ないまま切れても、投げた分を数え落とさない
@@ -76,6 +76,7 @@ export class TikTokSource {
     this.watchdogTimer = null;
     this.offlineSince = null;
     this.offlineRetry = false;
+    this.publicProbeBlocked = false;
     this.stay = false; // true のあいだは、落ちても配信が終わっても再接続を続ける
     // 配信していないあいだも接続を試し続けてよいか。だめなら待つのをやめ、wake() で再開する(接続の費用を抑える)
     this.waitAllowed = waitAllowed ?? (() => true);
@@ -87,6 +88,11 @@ export class TikTokSource {
     this.connectionAllowed = typeof connectionAllowed === 'function' ? connectionAllowed : () => true;
     this.usage = usage;
     this.probeLive = probeLive ?? !createConnection;
+    this.createProbe = createProbe ?? ((username) => new TikTokLiveConnection(username, {
+      processInitialData: false,
+      fetchRoomInfoOnConnect: false,
+      eulerApiInstance: noEulerClient(),
+    }));
     this.createConnection = createConnection ?? ((username, signApiKey) => {
       if (signApiKey) SignConfig.apiKey = signApiKey;
       return new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, this.usage) });
@@ -144,6 +150,7 @@ export class TikTokSource {
     await this.#close();
     this.username = name;
     this.signApiKey = signApiKey || process.env.TIKTOK_SIGN_API_KEY || undefined;
+    this.publicProbeBlocked = false;
     this.retry = 0;
     this.stay = true;
     this.parked = false;
@@ -191,16 +198,27 @@ export class TikTokSource {
     let conn = null;
     try {
       let roomId;
-      if (this.probeLive && this.signApiKey) {
-        const probe = new TikTokLiveConnection(username, { processInitialData: false, fetchRoomInfoOnConnect: false, eulerApiInstance: noEulerClient() });
-        if (!(await probe.fetchIsLive())) {
+      if (this.probeLive && this.signApiKey && !this.publicProbeBlocked) {
+        this.offlineRetry = false;
+        try {
+          const probe = this.createProbe(username);
+          if (!(await probe.fetchIsLive())) {
+            this.offlineSince ??= Date.now();
+            this.offlineRetry = true;
+            throw new OfflineProbeError();
+          }
+          try {
+            roomId = await probe.fetchRoomId();
+          } catch {
+            this.#disablePublicProbe('公開の room ID が読めないため');
+          }
+        } catch (err) {
+          if (err instanceof OfflineProbeError) throw err;
+          this.#disablePublicProbe('公開の配信判定が読めないため');
           this.offlineSince ??= Date.now();
           this.offlineRetry = true;
-          throw new OfflineProbeError();
         }
-        try { roomId = await probe.fetchRoomId(); } catch { /* Euler may resolve it as a last resort below. */ }
       }
-      this.offlineRetry = false;
       conn = this.createConnection(username, this.signApiKey);
       this.connection = conn;
       this.#wire(conn);
@@ -230,6 +248,11 @@ export class TikTokSource {
       if (reconnect) log(`@${username}: 再接続に失敗しました（${message}）`);
       throw new Error(message);
     }
+  }
+
+  #disablePublicProbe(reason) {
+    if (!this.publicProbeBlocked) log(`@${this.username}: ${reason}、Euler の接続方法に戻します`);
+    this.publicProbeBlocked = true;
   }
 
   #wire(conn) {
