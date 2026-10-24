@@ -66,6 +66,7 @@ Minecraft / SuperStream
   push status [名前]                  押しボタンの状態を見る
   push start|finish|reset [名前]      押しボタンを始める・締める・リセット
   status
+  euler-usage               Euler Stream の日別呼び出し数を見る
   relay-stop                 リレー停止の状態を見る
 
 配信テンプレート
@@ -260,6 +261,9 @@ try {
       break;
     case 'status':
       print(await admin.status().then(({ status, state }) => ({ status, state: { ...state, topGifters: undefined } })));
+      break;
+    case 'euler-usage':
+      print(await admin.eulerUsage());
       break;
     case 'relay-stop':
       print(await admin.relayStop());

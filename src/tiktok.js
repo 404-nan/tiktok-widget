@@ -1,6 +1,6 @@
 // TikTok LIVE への接続。受け取ったイベントを正規化して Hub に流す。
 
-import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
+import { createEulerClient, SignConfig, TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 import {
   normalizeChat,
   normalizeFollow,
@@ -16,6 +16,13 @@ const log = (msg) => console.log(`[tiktok] ${new Date().toISOString()} ${msg}`);
 const RETRY_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000];
 const WATCHDOG_MS = 3 * 60 * 1000;
 const JITTER = 0.2;
+const OFFLINE_FIRST_WINDOW_MS = 30 * 60 * 1000;
+const OFFLINE_FIRST_DELAY_MS = 60 * 1000;
+const OFFLINE_DELAY_MS = 5 * 60 * 1000;
+
+export function preLiveRetryDelay(elapsedMs) {
+  return elapsedMs >= OFFLINE_FIRST_WINDOW_MS ? OFFLINE_DELAY_MS : OFFLINE_FIRST_DELAY_MS;
+}
 
 function jittered(delay, ratio) {
   if (!ratio) return delay;
@@ -56,7 +63,7 @@ export class TikTokSource {
   // retryDelays: 再接続までの待ち（ミリ秒）。既定は 5, 10, 20, 40, 60 秒で頭打ち
   // jitter: 待ちのばらつき。0.2 なら ±20%。テストでは 0 にすると待ちが固定になる
   // watchdogMs: 何もイベントが来ないときに切り直すまでの時間。既定は 3 分
-  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed, waitAllowed } = {}) {
+  constructor(hub, gifts = null, { createConnection, retryDelays, jitter, watchdogMs, connectionAllowed, waitAllowed, usage, probeLive } = {}) {
     this.hub = hub;
     this.gifts = gifts;
     // 連打の終わりの合図が来ないまま切れても、投げた分を数え落とさない
@@ -67,6 +74,8 @@ export class TikTokSource {
     this.retry = 0;
     this.retryTimer = null;
     this.watchdogTimer = null;
+    this.offlineSince = null;
+    this.offlineRetry = false;
     this.stay = false; // true のあいだは、落ちても配信が終わっても再接続を続ける
     // 配信していないあいだも接続を試し続けてよいか。だめなら待つのをやめ、wake() で再開する(接続の費用を抑える)
     this.waitAllowed = waitAllowed ?? (() => true);
@@ -76,7 +85,12 @@ export class TikTokSource {
     this.jitter = jitter ?? JITTER;
     this.watchdogMs = watchdogMs ?? WATCHDOG_MS;
     this.connectionAllowed = typeof connectionAllowed === 'function' ? connectionAllowed : () => true;
-    this.createConnection = createConnection ?? ((username, signApiKey) => new TikTokLiveConnection(username, connectionOptions(signApiKey)));
+    this.usage = usage;
+    this.probeLive = probeLive ?? !createConnection;
+    this.createConnection = createConnection ?? ((username, signApiKey) => {
+      if (signApiKey) SignConfig.apiKey = signApiKey;
+      return new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, this.usage) });
+    });
   }
 
   #mayWait() {
@@ -176,17 +190,29 @@ export class TikTokSource {
 
     let conn = null;
     try {
+      let roomId;
+      if (this.probeLive && this.signApiKey) {
+        const probe = new TikTokLiveConnection(username, { processInitialData: false, fetchRoomInfoOnConnect: false, eulerApiInstance: noEulerClient() });
+        if (!(await probe.fetchIsLive())) {
+          this.offlineSince ??= Date.now();
+          this.offlineRetry = true;
+          throw new OfflineProbeError();
+        }
+        try { roomId = await probe.fetchRoomId(); } catch { /* Euler may resolve it as a last resort below. */ }
+      }
+      this.offlineRetry = false;
       conn = this.createConnection(username, this.signApiKey);
       this.connection = conn;
       this.#wire(conn);
-      const state = await conn.connect();
+      const state = await conn.connect(roomId);
       if (this.connection !== conn || !this.stay) return; // 接続中に切断・再接続された
       const giftResult = await this.gifts?.refresh({
-        fetchGifts: (language) => fetchGifts(username, state.roomId, this.signApiKey, language),
+        fetchGifts: (language) => fetchGifts(username, state.roomId, this.signApiKey, language, this.usage),
       });
       if (this.connection !== conn || !this.stay) return;
       if (giftResult?.error) console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message);
       this.retry = 0;
+      this.offlineSince = null;
       this.connected = true;
       this.#armWatchdog();
       log(`@${username} の LIVE に接続しました（room ${state.roomId}）`);
@@ -309,7 +335,10 @@ export class TikTokSource {
     if (!this.#allowed()) return;
     if (!this.#mayWait()) return this.#park();
     clearTimeout(this.retryTimer);
-    const base = this.retryDelays[Math.min(this.retry, this.retryDelays.length - 1)];
+    const offline = this.offlineRetry;
+    const base = offline
+      ? preLiveRetryDelay(this.offlineSince ? Date.now() - this.offlineSince : 0)
+      : this.retryDelays[Math.min(this.retry, this.retryDelays.length - 1)];
     this.retry += 1;
     const delay = jittered(base, this.jitter);
     const why = reason || '接続が切れた';
@@ -329,8 +358,29 @@ export class TikTokSource {
   }
 }
 
-async function fetchGifts(username, roomId, signApiKey, language) {
-  const conn = new TikTokLiveConnection(username, connectionOptions(signApiKey));
+class OfflineProbeError extends Error { constructor() { super('まだ配信が始まっていません'); } }
+function noEulerClient() {
+  const reject = async () => { throw new Error('Euler fallback disabled for live probing'); };
+  return { anchors: { retrieveRoomId: reject }, rooms: { fetchWebcastURL: reject } };
+}
+function trackedEulerClient(client, username, usage) {
+  if (!usage) return client;
+  const kinds = { fetchWebcastURL: 'connect', retrieveRoomId: 'roomId', retrieveRoomGifts: 'gifts', signTikTokUrl: 'signature' };
+  const wrap = (value) => {
+    if (!value || typeof value !== 'object') return value;
+    return new Proxy(value, { get(target, key) {
+      const original = target[key];
+      if (typeof original !== 'function') return wrap(original);
+      const kind = kinds[key];
+      return (...args) => { if (kind) usage.record(username, kind); return original.apply(target, args); };
+    } });
+  };
+  return wrap(client);
+}
+
+async function fetchGifts(username, roomId, signApiKey, language, usage) {
+  if (signApiKey) SignConfig.apiKey = signApiKey;
+  const conn = new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, usage) });
   conn.webClient.roomId = roomId;
   if (language === 'ja') {
     Object.assign(conn.webClient.clientParams, {

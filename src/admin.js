@@ -286,6 +286,11 @@ export async function status() {
   return callServer('/api/status');
 }
 
+/** Euler Stream の日別利用数を配信者・種類ごとに見る。 */
+export async function eulerUsage() {
+  return callServer('/api/euler-usage');
+}
+
 /** ギフトを送った人が順番に止めるリレー停止の状態を見る。 */
 export async function relayStop(action = 'status') {
   if (action !== 'status') return control('relay-stop', action, {});
