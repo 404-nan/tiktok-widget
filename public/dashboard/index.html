@@ -9,6 +9,7 @@
 <body data-mode="simple">
 
 <header class="topbar panel">
+  <button class="mobile-menu-btn btn pressable" id="mobileMenuBtn" type="button" aria-expanded="false" aria-controls="side">メニュー</button>
   <div class="brand">
     <div class="brand-title">ライコネ</div>
     <div class="status" id="status"><span class="dot"></span><span id="statusText">配信につながっていません</span></div>
@@ -163,6 +164,9 @@
     <section class="settings-view" id="settingsView" hidden aria-labelledby="settingsTitle">
       <div class="view-title"><h3 id="settingsTitle">設定</h3><p class="desc">表示名、AIとの接続、画面の明るさを変えられます。</p></div>
       <div id="settingsBody"></div>
+      <details class="more advanced-connection" id="advancedConnection">
+        <summary>くわしい人向け</summary>
+      </details>
       <section class="streamer-ai" id="streamerAiView" hidden aria-labelledby="streamerAiTitle">
         <div class="view-title"><h3 id="streamerAiTitle">AIとの接続</h3><p class="desc" id="streamerAiIntro"></p></div>
         <div id="streamerAiBody"></div>
@@ -200,7 +204,7 @@
         <div class="preview" id="preview"><iframe id="frame" title="プレビュー"></iframe></div>
         <div class="row wrap" id="actions"></div>
         <p class="form-message" id="formMessage" role="status"></p>
-        <span class="field-label url-label" data-simple>OBS / TikTok LIVE Studio に入れる URL</span>
+        <span class="field-label url-label" data-simple>配信ソフトに入れる URL</span>
         <div class="url-row">
           <input id="widgetUrl" readonly aria-label="ウィジェットの URL">
           <button class="btn primary pressable" id="copyBtn" data-icon="copy" type="button"><span>コピー</span></button>
@@ -256,6 +260,8 @@
     </div>
   </section>
 </main>
+
+<button class="mobile-menu-backdrop" id="mobileMenuBackdrop" type="button" aria-label="メニューを閉じる"></button>
 
 <dialog id="nameDialog" class="name-dialog">
   <form method="dialog" id="nameDialogForm" class="name-dialog-form">

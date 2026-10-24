@@ -287,6 +287,10 @@ setupChrome('settings');
 setupKpis();
 await ensureGiftNames();
 await setupConnect();
+// 詳しい受け口設定は、ふだん使う準備画面に混ぜず、設定の折りたたみに置く。
+const advancedConnection = $('advancedConnection');
+const ingestSection = $('ingestSection');
+if (advancedConnection && ingestSection) advancedConnection.append(ingestSection);
 setupIngest({ api });
 setupNotes();
 refreshPlan();

@@ -47,12 +47,12 @@ const LABELS = {
   mode: 'モード', accent: '差し色（朱）', gold: '金', ink: '墨', paper: '白', scale: '拡大率',
   events: '反応するイベント', gifts: 'ギフト名（カンマ区切り）', minCoins: '最低コイン', bigCoins: '金色にするコイン',
   maxCoins: '上限コイン', duration: '秒数', position: '縦の位置', align: '横の位置', sound: '効果音', volume: '音量',
-  followText: 'フォローの文', shareText: 'シェアの文', rules: '条件ごとの上書き（YAML）',
+  followText: 'フォローの文', shareText: 'シェアの文', rules: '条件ごとの上書き',
   shape: '入れ物の形', title: 'タイトル', label: '合計コインのラベル', maxItems: '最大個数', perGift: '連打1回の最大数',
   keep: '中身を残す', sizeMin: '小さい玉の倍率', sizeMax: '大きい玉の倍率', liquid: '中の液体', liquidColor: '液体の色',
   glassColor: 'ガラスの色', metric: '数えるもの', goal: '目標', start: '最初に足す数', step: '達成後に上げる幅',
   color: '色', doneColor: '達成後の色', avatars: 'アイコン', hideEmpty: '空なら隠す', limit: '人数',
-  'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減するルール（YAML）', 'wins.style': '形',
+  'wins.title': '見出し', 'wins.goal': '目標（0 で出さない）', 'wins.rules': 'ギフトで増減する条件', 'wins.style': '形',
   negative: 'マイナス WIN まで減らせる', lossPreset: '減ったときの段階の境目', gainPreset: '増えたときの段階の境目', clearFx: 'クリア（+1）を大きく祝う',
   bigGain: '増えたとき「大」になる数', hugeGain: '増えたとき「超」になる数', topGain: '増えたとき「最大」になる数', comboUp: '続けて減る・増えると段階を上げる', power: '演出の強さ（倍率）', minusAmbient: 'マイナスの間、画面の縁を赤く', celebrate: '目標達成などを全画面で祝う', bigLoss: '大妨害になる減り方', hugeLoss: '超妨害になる減り方', ruinLoss: '壊滅になる減り方',
   bigLossText: '大妨害の文字', hugeLossText: '超妨害の文字', ruinLossText: '壊滅の文字', winText: 'クリアの文字', milestone: '大きく祝う間隔',
@@ -434,6 +434,23 @@ export function createEditor({ api, setMessage }) {
   // サイドバー: いつも出ていて、押すと右が切り替わる（スマホでは横に流れるボタンの列になる）
   function renderNav() {
     const side = $('side');
+    const menuButton = $('mobileMenuBtn');
+    const menuBackdrop = $('mobileMenuBackdrop');
+    const closeMobileMenu = () => {
+      side?.classList.remove('is-open');
+      menuBackdrop?.classList.remove('is-open');
+      menuButton?.setAttribute('aria-expanded', 'false');
+    };
+    if (menuButton && !menuButton.dataset.bound) {
+      menuButton.dataset.bound = 'true';
+      menuButton.addEventListener('click', () => {
+        const open = !side.classList.contains('is-open');
+        side.classList.toggle('is-open', open);
+        menuBackdrop.classList.toggle('is-open', open);
+        menuButton.setAttribute('aria-expanded', String(open));
+      });
+      menuBackdrop?.addEventListener('click', closeMobileMenu);
+    }
     const topbar = document.querySelector('.topbar');
     const brand = topbar.querySelector('.brand') || document.querySelector('.brand');
     const nav = $('nav');
@@ -446,7 +463,7 @@ export function createEditor({ api, setMessage }) {
       b.className = `side-item pressable ${cls}`;
       b.setAttribute('aria-current', String(current));
       b.append(icon(iconName), Object.assign(document.createElement('span'), { textContent: label }));
-      b.addEventListener('click', onClick);
+      b.addEventListener('click', () => { closeMobileMenu(); onClick(); });
       return b;
     };
     const label = (text) => Object.assign(document.createElement('p'), { className: 'side-label', textContent: text });
@@ -2314,8 +2331,8 @@ export function createEditor({ api, setMessage }) {
     $('widgetUrl').value = explicit;
     $('sizeHint').textContent =
       tab === 'roulettes'
-        ? `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加してください。`
-        : `OBS / TikTok LIVE Studio に「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
+        ? `配信ソフトに「ブラウザ」ソースとして幅 ${w.size[0]}・高さ ${w.size[1]} で追加してください。`
+        : `配信ソフトに「ブラウザ」ソースとして追加し、幅 ${w.size[0]}・高さ ${w.size[1]} に設定してください。`;
     if (simple()) $('sizeHint').textContent = `幅 ${w.size[0]}・高さ ${w.size[1]}`;
     // WIN 数は、ゲーム中でも Stream Deck などから押せる URL を出す
     if (simple()) {

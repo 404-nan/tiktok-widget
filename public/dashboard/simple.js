@@ -115,11 +115,11 @@ export const SIMPLE = {
         title: 'どう見せる？',
         presets: [
           {
-            title: '出しかた',
+            title: '目立ちかた',
             options: [
               { label: 'ひかえめ', value: { duration: 3, sound: false } },
               { label: 'ふつう', value: { duration: 4.5, sound: true, volume: 0.3 } },
-              { label: 'しっかり', value: { duration: 7, sound: true, volume: 0.5 } },
+              { label: 'はでに', value: { duration: 7, sound: true, volume: 0.5 } },
             ],
           },
         ],
@@ -513,7 +513,7 @@ const SUMMARY = {
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),
   gacha: (e) => (e.enabled === false ? '使わない設定' : `無料${e.freePerReset ?? 1}回・${e.minCoins ? `${e.minCoins} コインから` : '金額では回さない'}・${e.tiers?.length ?? 0} 段階`),
-  omikuji: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では引かない'}・${e.tiers?.length ?? 0} 種類`),
+  omikuji: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins ? `${e.minCoins} コインから` : '金額では引かない'}・${e.tiers?.length ?? 0} パターン`),
   slots: (e) => (e.enabled === false ? '使わない設定' : `${e.revivalRate}% 復活・${e.nearMissRate}% ニアミス`),
   peka: (e) => (e.enabled === false ? '使わない設定' : `${e.minCoins} コインから・当たり ${Math.round(e.chance * 100)}%`),
   relayStop: (e) => (e.enabled ? `1本 ${Math.round((e.waitMs ?? 10000) / 1000)} 秒で自動停止` : '使わない設定'),

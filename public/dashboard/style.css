@@ -1575,3 +1575,66 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .template-row span { color: var(--text-secondary); white-space: pre-wrap; }
 .template-live-check { margin-top: 12px; }
 @media (max-width: 760px) { .template-cards { grid-template-columns: 1fr; } .template-card { min-height: 0; } }
+
+/* kind-ui-3: スマホはメニューを閉じ、本文を画面いっぱいにする。 */
+.mobile-menu-btn, .mobile-menu-backdrop { display: none; }
+@media (max-width: 899px) {
+  body[data-mode=simple] .layout,
+  body[data-mode=simple] .top-cards { padding-left: var(--s-4); padding-right: var(--s-4); }
+  body[data-mode=simple] .widgets,
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { min-width: 0; padding-left: 0; padding-right: 0; }
+  body[data-mode=simple] .side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    display: flex;
+    width: min(300px, calc(100vw - 48px));
+    max-height: none;
+    margin: 0;
+    padding: 72px var(--s-4) var(--s-4);
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--surface, var(--glass-solid));
+    box-shadow: 18px 0 40px rgba(0, 0, 0, .28);
+    transform: translateX(-105%);
+    transition: transform .2s ease;
+  }
+  body[data-mode=simple] .side.is-open { transform: translateX(0); }
+  body[data-mode=simple] .side-menu { display: grid; gap: var(--s-2); overflow: visible; }
+  body[data-mode=simple] .side-item { width: 100%; min-height: 44px; }
+  body[data-mode=simple] .side-footer { display: none; }
+  body[data-mode=simple] .topbar { z-index: 40; }
+  body[data-mode=simple] .topbar .nav { display: none; }
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 88px;
+    min-height: 44px;
+  }
+  .mobile-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, .48);
+  }
+  .mobile-menu-backdrop.is-open { display: block; }
+  body[data-mode=simple] .connection-section { min-width: 0; }
+  body[data-mode=simple] .ingest-panel { min-width: 0; }
+  body[data-mode=simple] .btn,
+  body[data-mode=simple] .chip,
+  body[data-mode=simple] input,
+  body[data-mode=simple] select { min-height: 44px; }
+  body[data-mode=simple] .url-row { min-width: 0; }
+  body[data-mode=simple] .url-row input { min-width: 0; }
+}
+
+/* 設定の細かい入口は閉じたままにし、通常のホームから分離する。 */
+.advanced-connection { display: grid; gap: var(--s-3); }
+.advanced-connection > .ingest-panel { margin: 0; box-shadow: none; }
+@media (min-width: 900px) {
+  body[data-mode=simple] .side-footer { margin-top: auto; }
+}
