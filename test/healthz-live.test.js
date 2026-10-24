@@ -18,7 +18,7 @@ async function listen(app) {
   return { server, port: server.address().port };
 }
 
-test('/healthz は配信中の人数だけを返し、つなぎ直し中も数える', async () => {
+test('/healthz は実際に配信へ接続中の人数だけを返し、つなぎ直し中は数えない', async () => {
   const localDir = temporaryDirectory('tw-healthz-local-');
   const local = createRuntime({
     id: 'local',
@@ -47,10 +47,10 @@ test('/healthz は配信中の人数だけを返し、つなぎ直し中も数�
     assert.deepEqual(await getHealth(), { ok: true, live: 2 });
 
     tenantRuntime.hub.setStatus({ mode: 'connecting' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
+    assert.deepEqual(await getHealth(), { ok: true, live: 1 });
 
     tenantRuntime.hub.setStatus({ mode: 'error' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
+    assert.deepEqual(await getHealth(), { ok: true, live: 1 });
 
     local.hub.setStatus({ mode: 'ended' });
     tenantRuntime.hub.setStatus({ mode: 'idle' });
