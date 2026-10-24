@@ -19,11 +19,11 @@
 
 - `/healthz` は Cloudflare の稼働確認から認証なしで呼ぶ公開口。
 - `ok` と `live`（配信中またはつなぎ直し中の配信者数）だけを返し、配信者名や ID は返さない。
-- `demo` と `idle` は `live` に数えない。公開人数を変えるときは [healthz-live カード](../cards/healthz-live.md) も更新する。
+- `demo` と `idle` は `live` に数えない。配信が `live` から `connecting` / `error` になった場合は、最後に `live` だった時刻から15分未満だけ同じ配信として数える。手動切断・配信終了で猶予は消える。公開人数を変えるときは [healthz-live カード](../cards/healthz-live.md) も更新する。
 
 ## 本番への反映
 
-- `tiktok-widget-deploy.timer` が1分ごとに `deploy/server/auto-deploy.sh` を動かす。`~/tiktok-widget` の HEAD が進み、未コミットの変更がなく、`/healthz` の `live` が 0 なら、`npm test` を通してから本番を再起動する。
+- `tiktok-widget-deploy.timer` が1分ごとに `deploy/server/auto-deploy.sh` を動かす。`~/tiktok-widget` の HEAD が進み、未コミットの変更がなく、`/healthz` の `live` が 0 なら、`npm test` を通してから本番を再起動する。切断直後の誤再起動を防ぐため、`/healthz` は最後に `live` だった時刻から15分未満の `connecting` / `error` も配信中に数える。
 - 手で再起動しない。本番に出したいものは `~/tiktok-widget` にコミットすれば、配信が終わったあとに入る。
 
 ## 配信中の禁止事項

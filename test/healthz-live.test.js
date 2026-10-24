@@ -18,13 +18,15 @@ async function listen(app) {
   return { server, port: server.address().port };
 }
 
-test('/healthz は実際に配信へ接続中の人数だけを返し、つなぎ直し中は数えない', async () => {
+test('/healthz は配信中と、切断後15分以内の再接続中だけ数える', async () => {
+  let now = 1_000_000;
   const localDir = temporaryDirectory('tw-healthz-local-');
   const local = createRuntime({
     id: 'local',
     store: createStore(path.join(localDir, 'config.yaml')),
     dataDir: localDir,
     mediaDirs: [localDir],
+    now: () => now,
   });
   const tenants = new Tenants({ dir: temporaryDirectory('tw-healthz-tenants-') });
   const tenant = tenants.create({ name: '返してはいけない名前' });
@@ -47,10 +49,10 @@ test('/healthz は実際に配信へ接続中の人数だけを返し、つな�
     assert.deepEqual(await getHealth(), { ok: true, live: 2 });
 
     tenantRuntime.hub.setStatus({ mode: 'connecting' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 1 });
+    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
 
     tenantRuntime.hub.setStatus({ mode: 'error' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 1 });
+    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
 
     local.hub.setStatus({ mode: 'ended' });
     tenantRuntime.hub.setStatus({ mode: 'idle' });

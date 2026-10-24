@@ -52,6 +52,7 @@ import { VisitorLog } from './visitors.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sectionOfChange = (change) => String(change.path).split('.')[0];
+const LIVE_RECONNECT_GRACE_MS = 15 * 60 * 1000;
 
 // 延長タイマーの秒数は seconds・minutes・value（秒）のどれでも受ける
 const timerSeconds = (o) => {
@@ -88,18 +89,23 @@ export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/,
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {} }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
   const hub = new Hub();
   const infoFeed = new InfoFeed(hub);
   const visitors = new VisitorLog(hub, { dir: dataDir });
   // connecting は「直前まで live だった再接続」だけ配信中。未接続・配信終了のあとは新しい接続。
   // 再接続が一度失敗して error になっても、配信終了か手動切断までは同じ配信の続きとみなす。
   let reconnectFromLive = false;
+  let lastLiveAt = null;
   hub.on('status', (status, prev) => {
     const mode = status?.mode;
     const before = prev?.mode;
-    if (mode === 'live') reconnectFromLive = true;
+    if (mode === 'live') {
+      reconnectFromLive = true;
+      lastLiveAt = now();
+    }
     else if (mode === 'idle' || mode === 'ended' || mode === 'demo') reconnectFromLive = false;
+    if (mode === 'idle' || mode === 'ended' || mode === 'demo') lastLiveAt = null;
     else if (mode === 'connecting' && (before === 'idle' || before === 'ended' || before === 'demo')) reconnectFromLive = false;
     else if (mode === 'connecting' && before === 'live') reconnectFromLive = true;
   });
@@ -1085,8 +1091,12 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     tiktok,
     ingest,
     demo,
-    // 再接続中も接続制限では同じ配信として扱うが、/healthz は実接続中だけ数える。
-    isLive: () => hub.status.mode === 'live',
+    // 切断直後は同じ配信の再接続として15分だけ /healthz に残す。
+    isLive: () => hub.status.mode === 'live'
+      || (reconnectFromLive
+        && ['connecting', 'error'].includes(hub.status.mode)
+        && lastLiveAt != null
+        && now() - lastLiveAt < LIVE_RECONNECT_GRACE_MS),
     autoConnect({ handle, slot, now = Date.now() }) {
       const state = auto.get(slot.id) ?? { attempts: 0, lastAttempt: 0, manuallyStopped: false };
       auto.set(slot.id, state);
