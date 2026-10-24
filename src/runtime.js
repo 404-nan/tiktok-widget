@@ -50,6 +50,7 @@ import { Ingest } from './ingest.js';
 import { getTemplate, previewTemplate, templateList } from './templates.js';
 import { InfoFeed } from './info-feed.js';
 import { VisitorLog } from './visitors.js';
+import { PreparationStore } from './preparation.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sectionOfChange = (change) => String(change.path).split('.')[0];
@@ -92,6 +93,7 @@ export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/,
  */
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
   const hub = new Hub();
+  const preparation = new PreparationStore(path.join(dataDir, 'preparation.json'), now);
   const infoFeed = new InfoFeed(hub);
   const visitors = new VisitorLog(hub, { dir: dataDir });
   // connecting は「直前まで live だった再接続」だけ配信中。未接続・配信終了のあとは新しい接続。
@@ -131,6 +133,20 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const waitAllowed = () => id === 'local' || streamLive() || hub.hasClient('obs');
   const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()), waitAllowed, usage: eulerUsage });
   hub.on('client', (ws) => { if (ws.role === 'obs') tiktok.wake(); });
+  hub.on('clientChange', ({ role, connected }) => {
+    if (role !== 'obs') return;
+    if (connected) {
+      preparation.mark('widgetAt');
+      const handle = info().tiktokId;
+      if (preparation.snapshot().autoConnect !== false && handle && !tiktok.username) {
+        tiktok.connect(handle).catch((error) => console.warn(`[tiktok] ${id}: 自動接続に失敗: ${error.message}`));
+      }
+    }
+  });
+  hub.on('testEvent', () => preparation.mark('testedAt'));
+  hub.on('status', (status) => {
+    if (status.mode === 'live' && hub.hasClient('obs')) preparation.mark('liveAt');
+  });
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
   const minecraft = new Minecraft(hub, { namedSabotageStatePath: path.join(dataDir, 'named-sabotage.json') });
@@ -270,6 +286,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (result.config) {
       lastIssues = { errors: [], warnings: result.warnings ?? [] };
       hub.setConfig(result.config);
+      if (cfg.widgetList(result.config).some((widget) => widget.section !== 'all')) preparation.mark('selectedAt');
     }
   };
 
@@ -361,6 +378,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/status', (_req, res) => {
     res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
   });
+  r.get('/api/preparation', (_req, res) => res.json(preparation.snapshot()));
+  r.put('/api/preparation/auto', (req, res) => res.json(preparation.setAutoConnect(req.body?.on !== false)));
   r.get('/api/euler-usage', (_req, res) => res.json(eulerUsage.snapshot()));
 
   // 見本は設定中だけ出す。OBS 用の鍵では読むだけにする。
@@ -1092,6 +1111,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id,
     hub,
     tiktok,
+    preparation,
     ingest,
     demo,
     // 切断直後は同じ配信の再接続として15分だけ /healthz に残す。

@@ -29,6 +29,10 @@ test('AC-1〜AC-8: ダッシュボードをPC・スマホ、ライト・ダー�
         assert.ok(geometry.side.right <= 0, 'スマホのサイドバーが最初から開いています');
         await page.locator('#mobileMenuBtn').click();
         await page.locator('#side.is-open').waitFor({ state: 'visible' });
+        await page.locator('.side-settings').evaluate((element) => element.click());
+        await page.locator('#settingsView').waitFor({ state: 'visible' });
+        assert.equal(await page.locator('#advancedConnection').getAttribute('open'), null);
+        await page.locator('#mobileMenuBtn').click();
         await page.locator('#mobileMenuBackdrop').click();
         await page.locator('#side.is-open').waitFor({ state: 'hidden' });
       }

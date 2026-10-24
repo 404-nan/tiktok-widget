@@ -35,6 +35,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | カットインの画面撮影と本番反映 | - | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
 | ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
 | ダッシュボードの明るさ | 設定画面でライトとダークを切り替える | できた | `public/dashboard/common.js`、`public/dashboard/style.css` |
+| 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、配信画面が開いているときに自動接続する | できた（開発確認まで） | `src/preparation.js`、`public/dashboard/editor.js` |
 
 ## ウィジェット
 

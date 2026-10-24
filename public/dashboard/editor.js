@@ -141,6 +141,7 @@ export function createEditor({ api, setMessage }) {
   let gifts = [];
   let tab = TABS[0];
   let me = { mode: 'local' }; // 配信者ごとの URL のときは、使うウィジェットと豪華な演出の状態（/api/me）
+  let preparation = { autoConnect: true };
   let id = null;
   let yamlDirty = false;
   let superstream = { gifts: [] };
@@ -560,22 +561,47 @@ export function createEditor({ api, setMessage }) {
   function renderHome() {
     const box = $('cards');
     const steps = [
-      ['配信ソフトに URL を入れた', obsList().some((w) => w.section !== 'all')],
-      ['出すものを選んだ', usedSections().length > 0],
-      ['ためしに動かした', Boolean(store.get('sample-tried', false))],
+      ['出すものを選んだ', Boolean(preparation.selectedAt) || usedSections().length > 0],
+      ['配信ソフトに入れた', Boolean(preparation.widgetAt)],
+      ['ためした', Boolean(preparation.testedAt) || Boolean(store.get('sample-tried', false))],
+      ['配信で使った', Boolean(preparation.liveAt)],
     ];
     const list = document.createElement('ol');
     list.className = 'home-prep';
-    steps.forEach(([label, done]) => {
+    steps.forEach(([label, done], index) => {
       const item = document.createElement('li');
       item.className = done ? 'done' : '';
-      item.append(icon(done ? 'check' : 'circle'), label);
+      item.append(icon(done ? 'check' : 'circle'), Object.assign(document.createElement('span'), { textContent: label }));
+      if (!done && index === 1) {
+        const link = document.createElement('button');
+        link.type = 'button'; link.className = 'text-btn pressable'; link.textContent = '入れ方を見る';
+        link.addEventListener('click', goTo('obs'));
+        item.append(link);
+      }
       list.append(item);
     });
     const card = document.createElement('section');
     card.className = 'home-card';
     card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
     box.replaceChildren(viewHead('ホーム'), card);
+    api('/api/preparation').then((next) => {
+      if (JSON.stringify(next) === JSON.stringify(preparation)) return;
+      preparation = next;
+      if (view === 'home') renderHome();
+    }).catch(() => {});
+  }
+
+  function autoConnectSetting() {
+    const label = document.createElement('label');
+    label.className = 'check settings-auto-connect';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = preparation.autoConnect !== false;
+    input.addEventListener('change', async () => {
+      preparation = await api('/api/preparation/auto', { on: input.checked }, 'PUT');
+    });
+    label.append(input, '配信が始まったら自動でつなぐ');
+    return label;
   }
 
   // OBS に入れる URL をまとめて見る
@@ -690,6 +716,12 @@ export function createEditor({ api, setMessage }) {
     renameOpt.textContent = '名前を変える';
     selectBox.append(renameOpt);
     box.append(label, selectBox);
+    if (payload.config.active?.[tab] === id) {
+      const active = document.createElement('span');
+      active.className = 'entry-active';
+      active.textContent = '配信で使用中';
+      box.append(active);
+    }
     if (isRoulette) {
       const note = document.createElement('p');
       note.className = 'entry-roulette-note';
@@ -768,7 +800,9 @@ export function createEditor({ api, setMessage }) {
   }
 
   async function removeEntry() {
-    if (!confirm(`「${id}」の設定を消します。よろしいですか？`)) return;
+    if (entriesOf(tab).length <= 1) return;
+    const removed = structuredClone(payload.config[tab]?.[id]);
+    const removedId = id;
     await fetch('/api/config', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -776,6 +810,18 @@ export function createEditor({ api, setMessage }) {
     });
     await reload();
     select(tab);
+    const message = $('toast') || $('formMessage');
+    message.replaceChildren('消しました。');
+    const undo = document.createElement('button');
+    undo.type = 'button'; undo.className = 'text-btn pressable'; undo.textContent = '元に戻す';
+    undo.addEventListener('click', async () => {
+      await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: [tab, removedId], value: removed }) });
+      await reload();
+      select(tab, removedId);
+    }, { once: true });
+    message.append(' ', undo);
+    clearTimeout(removeEntry.timer);
+    removeEntry.timer = setTimeout(() => message.replaceChildren(), 10_000);
   }
 
   // --- フォーム ---
@@ -816,7 +862,7 @@ export function createEditor({ api, setMessage }) {
       return;
     }
     if (settingsViewActive) {
-      $('settingsBody').replaceChildren($('profileSection'), $('streamerAiView'));
+      $('settingsBody').replaceChildren($('profileSection'), $('streamerAiView'), autoConnectSetting());
       return;
     }
     if (aiView) return;
@@ -2817,6 +2863,7 @@ export function createEditor({ api, setMessage }) {
         api('/api/me').catch(() => ({ mode: 'local' })),
         api('/api/env').catch(() => ({ dev: false })),
       ]);
+      preparation = await api('/api/preparation').catch(() => preparation);
       devMode = env?.dev === true;
       if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のライコネ`;
       // TikTok の署名キーは、配信者ごとの URL では管理者が入れる

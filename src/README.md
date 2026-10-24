@@ -52,6 +52,7 @@
 | `ootori.js` | ラスト10分の席、大トリ、参加者一覧、終了演出の時間をサーバーで管理する |
 | `peka.js` | 遅れて光る告知ランプの抽選、予定時刻、点灯、待ち行列をサーバーで管理する |
 | `pinlogin.js` | 短い URL と数字のログインを扱う |
+| `preparation.js` | 配信の準備4段階と、自動接続の設定を名前なしで保存する |
 | `push-button.js` | コメントといいねを押し数へ集計し、結果を WebSocket で配る |
 | `rcon.js` | MinecraftのRCONへ接続し、通常コマンドとゴール距離問い合わせを送る |
 | `relay-stop.js` | 既存スロットの固定結果、3本の停止順、送信者、10秒の自動停止、待機列をサーバーで管理する |
@@ -91,4 +92,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-10-23
+最後に直した日: 2026-10-24

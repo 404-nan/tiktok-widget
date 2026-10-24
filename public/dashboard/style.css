@@ -1586,7 +1586,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   body[data-mode=simple] .side {
     position: fixed;
     inset: 0 auto 0 0;
-    z-index: 50;
+    z-index: 100;
     display: flex;
     width: min(300px, calc(100vw - 48px));
     max-height: none;
@@ -1616,12 +1616,13 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   .mobile-menu-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 45;
+    z-index: 90;
     border: 0;
     padding: 0;
     background: rgba(0, 0, 0, .48);
+    pointer-events: none;
   }
-  .mobile-menu-backdrop.is-open { display: block; }
+  .mobile-menu-backdrop.is-open { display: block; pointer-events: auto; }
   body[data-mode=simple] .connection-section { min-width: 0; }
   body[data-mode=simple] .ingest-panel { min-width: 0; }
   body[data-mode=simple] .btn,
@@ -1635,6 +1636,13 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 /* 設定の細かい入口は閉じたままにし、通常のホームから分離する。 */
 .advanced-connection { display: grid; gap: var(--s-3); }
 .advanced-connection > .ingest-panel { margin: 0; box-shadow: none; }
+.entry-active { color: var(--success); font-size: 14px; font-weight: 600; }
+.home-prep li { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.home-prep li .text-btn { margin-left: auto; }
+.settings-auto-connect { padding: 12px 0; border-top: 1px solid var(--stroke-secondary); }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 120; display: flex; gap: 12px; align-items: center; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); box-shadow: 0 12px 30px rgba(0,0,0,.28); transform: translate(-50%, 160%); transition: transform .2s ease; }
+.toast:not(:empty) { transform: translate(-50%, 0); }
+.toast .text-btn { margin: 0; padding: 0; color: var(--text-primary); text-decoration: underline; }
 @media (min-width: 900px) {
   body[data-mode=simple] .side-footer { margin-top: auto; }
 }
