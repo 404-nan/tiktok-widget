@@ -43,6 +43,7 @@ import { PushButtonEngine } from './push-button.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
 import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
+import { EulerUsage } from './euler-usage.js';
 import { giftNamesDocument } from './gift-display.js';
 import { isDevEnv } from './env.js';
 import { Ingest } from './ingest.js';
@@ -124,10 +125,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   };
   const ingest = new Ingest(hub, { dataDir, connectionAllowed: () => mayConnect(streamLive()), onKeyChange: onIngestKeyChange });
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
+  const eulerUsage = new EulerUsage(path.join(dataDir, 'euler-usage.json'));
   // 配信者ごと(hosted)は、配信していないあいだ OBS のウィジェットが開いているときだけ接続を試す。
   // 使っていない配信者のぶんまで1分ごとに試すと、接続の費用(署名の回数)がかさむため。1人用(local)は今までどおり
   const waitAllowed = () => id === 'local' || streamLive() || hub.hasClient('obs');
-  const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()), waitAllowed });
+  const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()), waitAllowed, usage: eulerUsage });
   hub.on('client', (ws) => { if (ws.role === 'obs') tiktok.wake(); });
   const demo = new DemoSource(hub);
   const roulette = new RouletteEngine(hub);
@@ -359,6 +361,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   r.get('/api/status', (_req, res) => {
     res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
   });
+  r.get('/api/euler-usage', (_req, res) => res.json(eulerUsage.snapshot()));
 
   // 見本は設定中だけ出す。OBS 用の鍵では読むだけにする。
   r.get('/api/sample', (_req, res) => res.json(hub.sampleState()));
