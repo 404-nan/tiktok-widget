@@ -34,7 +34,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | カットインのプレミア柄・昇格・RUSH格上げ・段階写真 | - | できた | `src/cutin-draw.js`、`public/widgets/lib/cutin-premium.js` |
 | カットインの画面撮影と本番反映 | - | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
 | ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
-| ダッシュボードの見た目3案 | ライト・ニュートラル / ダーク・高密度 / 配信ツール・高コントラストから選ぶ（`?style=a\|b\|c`） | できた | `public/dashboard/dash-style.js`、`public/dashboard/themes.css` |
+| ダッシュボードの明るさ | 設定画面でライトとダークを切り替える | できた | `public/dashboard/common.js`、`public/dashboard/style.css` |
 
 ## ウィジェット
 

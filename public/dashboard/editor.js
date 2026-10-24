@@ -437,8 +437,6 @@ export function createEditor({ api, setMessage }) {
     const topbar = document.querySelector('.topbar');
     const brand = topbar.querySelector('.brand') || document.querySelector('.brand');
     const nav = $('nav');
-    const themeBtn = $('themeBtn');
-    const styleSwitch = $('styleSwitch');
     const connection = $('connectionSection');
     const desktop = window.matchMedia('(min-width: 900px)').matches;
     const used = usedSections();
@@ -465,9 +463,9 @@ export function createEditor({ api, setMessage }) {
       item('monitor-up', '1つにまとめる', view === 'stage', goTo('stage')),
       item('layout-template', '配信テンプレート', view === 'templates', goTo('templates')),
       ...(isTenant() ? [item('sparkles', '遊び方をえらびなおす', false, async () => { await api('/api/me/template', { template: null }, 'PUT'); me = await api('/api/me'); view = 'stage'; renderNav(); stage?.render(); })] : []),
-      item(INFO.theme.icon, '色とテーマ', onDetail('theme'), () => openCard('theme')),
       item('file-code', '設定ファイル', view === 'files', goTo('files')),
       item('book-open', '使い方', false, () => window.open('/help/', '_blank', 'noopener')),
+      item('settings', '設定', view === 'settings', goTo('settings'), 'side-settings'),
     );
     if (desktop) {
       const head = document.createElement('div');
@@ -475,7 +473,7 @@ export function createEditor({ api, setMessage }) {
       head.append(brand);
       const footer = document.createElement('div');
       footer.className = 'side-footer';
-      footer.append(nav, styleSwitch, themeBtn);
+      footer.append(nav);
       // メニューが入りきらないときは、下端に「下にまだあります」を重ねる（一番下まで流すと消える）
       const more = document.createElement('button');
       more.type = 'button';
@@ -505,9 +503,7 @@ export function createEditor({ api, setMessage }) {
       sideObserver?.disconnect();
       side.classList.remove('has-more');
       topbar.prepend(brand);
-      topbar.append(nav, themeBtn);
-      // スマホでは見た目の切り替えをページの一番下へ（上のバーを低くする。めったに触らないもの）
-      document.querySelector('main').append(styleSwitch);
+      topbar.append(nav);
       col.prepend(connection);
       side.replaceChildren(menu);
     }
@@ -519,7 +515,7 @@ export function createEditor({ api, setMessage }) {
     const topbar = document.querySelector('.topbar');
     const col = document.querySelector('.col');
     topbar.prepend(document.querySelector('.brand'));
-    topbar.append($('nav'), $('themeBtn'), $('styleSwitch'));
+    topbar.append($('nav'));
     col.prepend($('connectionSection'));
   }
 
@@ -649,10 +645,10 @@ export function createEditor({ api, setMessage }) {
     const isRoulette = tab === 'roulettes';
     const label = document.createElement('span');
     label.className = isRoulette ? 'entry-label is-roulette' : 'entry-label';
-    label.textContent = isRoulette ? '保存したルーレット' : '種類';
+    label.textContent = isRoulette ? '保存したルーレット' : 'プリセット';
     const selectBox = document.createElement('select');
     selectBox.className = 'entry-select';
-    selectBox.setAttribute('aria-label', isRoulette ? '保存したルーレット' : `${schema.sections[tab].title}の種類`);
+    selectBox.setAttribute('aria-label', isRoulette ? '保存したルーレット' : `${schema.sections[tab].title}のプリセット`);
     for (const name of names) {
       const opt = document.createElement('option');
       opt.value = name;
@@ -662,16 +658,21 @@ export function createEditor({ api, setMessage }) {
     }
     const addOpt = document.createElement('option');
     addOpt.value = '__new__';
-    addOpt.textContent = '＋ 新しい種類を作る';
+    addOpt.textContent = '＋ 新しいプリセットを作る';
     selectBox.append(addOpt);
     selectBox.addEventListener('change', async () => {
       if (selectBox.value === '__new__') return addEntry();
+      if (selectBox.value === '__rename__') { selectBox.value = id; return renameEntry(); }
       const next = selectBox.value;
       select(tab, next);
       await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: ['active', tab], value: next }) });
       await reload();
       select(tab, next);
     });
+    const renameOpt = document.createElement('option');
+    renameOpt.value = '__rename__';
+    renameOpt.textContent = '名前を変える';
+    selectBox.append(renameOpt);
     box.append(label, selectBox);
     if (isRoulette) {
       const note = document.createElement('p');
@@ -679,27 +680,30 @@ export function createEditor({ api, setMessage }) {
       note.textContent = '前に作ったルーレットはここから選べます';
       box.append(note);
     }
-    const rename = document.createElement('button');
-    rename.type = 'button'; rename.className = 'entry-action pressable'; rename.textContent = '名前を変える';
-    rename.addEventListener('click', renameEntry);
-    box.append(rename);
     const remove = document.createElement('button');
-    remove.type = 'button'; remove.className = 'entry-action danger pressable'; remove.textContent = 'この種類を消す';
+    remove.type = 'button'; remove.className = 'entry-action danger pressable'; remove.textContent = 'このプリセットを消す';
     remove.disabled = names.length <= 1;
     remove.addEventListener('click', removeEntry);
     box.append(remove);
-    const add = document.createElement('button');
-    add.type = 'button';
-    add.className = 'entry add pressable';
-    add.append(icon('plus'), 'もう1つ作る');
-    add.addEventListener('click', addEntry);
-    box.append(add);
+    selectBox.addEventListener('dblclick', renameEntry);
+  }
+
+  function openNameDialog({ title, value = '', hint = '' }) {
+    const dialog = $('nameDialog');
+    const form = $('nameDialogForm');
+    $('nameDialogTitle').textContent = title;
+    $('nameDialogInput').value = value;
+    $('nameDialogHint').textContent = hint;
+    dialog.showModal();
+    $('nameDialogInput').focus();
+    $('nameDialogInput').select();
+    return new Promise((resolve) => dialog.addEventListener('close', () => resolve(dialog.returnValue === 'save' ? $('nameDialogInput').value.trim() : null), { once: true }));
   }
 
   async function renameEntry() {
     const current = payload.config[tab]?.[id];
     if (!current) return;
-    const next = prompt('種類の名前', current.kindName || current.name || current.title || schema.sections[tab].title);
+    const next = await openNameDialog({ title: 'プリセットの名前', value: current.kindName || current.name || current.title || schema.sections[tab].title, hint: 'Enterで決定、Escでやめられます。' });
     if (next == null || !next.trim()) return;
     const value = { kindName: next.trim() };
     const res = await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: [tab, id], merge: true, value }) });
@@ -717,7 +721,7 @@ export function createEditor({ api, setMessage }) {
       const base = tab.replace(/s$/, '').replace(/([A-Z])/g, '-$1').toLowerCase();
       name = used.includes('default') || used.length ? null : 'default';
       for (let n = 2; !name; n++) if (!used.includes(`${base}-${n}`)) name = `${base}-${n}`;
-      const title = prompt('新しい種類の名前（例: 24時間耐久）', '');
+      const title = await openNameDialog({ title: '新しいプリセット', hint: '配信中に見て分かる名前にしてください。' });
       if (title == null) return;
       value = structuredClone(payload.config[tab]?.[id] ?? {});
       value.kindName = title.trim() || `${schema.sections[tab].title} ${used.length + 1}`;
@@ -725,7 +729,7 @@ export function createEditor({ api, setMessage }) {
         value.name = value.name || 'ルーレット';
       }
     } else {
-      name = prompt('新しい設定の名前（英数字と - _。URL に使います）', tab === 'roulettes' ? 'new-roulette' : 'new');
+      name = await openNameDialog({ title: '新しい設定', value: tab === 'roulettes' ? 'new-roulette' : 'new', hint: 'URLに使う名前です。英数字と - _ が使えます。' });
       if (!name) return;
       if (!/^[A-Za-z0-9_-]+$/.test(name)) return alert('名前は英数字と - _ だけにしてください');
       if (entriesOf(tab).includes(name)) return alert('同じ名前がもうあります');
@@ -770,6 +774,7 @@ export function createEditor({ api, setMessage }) {
     if (simple() && view === 'detail' && tab !== 'theme' && !usedSections().includes(tab)) view = usedSections().length ? view : 'catalog';
     const listView = simple() && (view === 'catalog' || view === 'obs');
     const aiView = simple() && view === 'ai';
+    const settingsViewActive = simple() && view === 'settings';
     const stageView = simple() && view === 'stage';
     const templatesViewActive = simple() && view === 'templates';
     const filesView = view === 'files';
@@ -778,7 +783,8 @@ export function createEditor({ api, setMessage }) {
     $('stageView').hidden = !stageView;
     if (templatesViewActive) $('cards').hidden = false;
     $('aiView').classList.toggle('show', aiView);
-    $('detail').hidden = listView || aiView || stageView || templatesViewActive || filesView;
+    $('settingsView').hidden = !settingsViewActive;
+    $('detail').hidden = listView || aiView || stageView || templatesViewActive || filesView || settingsViewActive;
     $('detailHead').hidden = !simple();
     if (simple()) renderNav();
     if (filesView) return;
@@ -787,6 +793,10 @@ export function createEditor({ api, setMessage }) {
     if (listView) {
       if (view === 'catalog') renderCatalog();
       else renderObs();
+      return;
+    }
+    if (settingsViewActive) {
+      $('settingsBody').replaceChildren($('profileSection'), $('streamerAiView'));
       return;
     }
     if (aiView) return;
