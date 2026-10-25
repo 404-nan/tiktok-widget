@@ -1,12 +1,85 @@
 @import url("/widgets/lib/fonts.css");
 
+/* 色の置き場(自動で移した色。見た目は前と同じ)。新しい色はここか、下のライコネの色に足す */
+:root {
+  --c-001: #A6A6AF;
+  --c-002: #222226;
+  --c-003: rgba(255, 79, 31, .10);
+  --c-004: rgba(255, 197, 61, .05);
+  --c-005: rgba(150, 240, 176, .15);
+  --c-006: #25262b;
+  --c-007: #1d1e23;
+  --c-008: rgba(8, 9, 12, .72);
+  --c-009: rgba(246, 245, 241, .22);
+  --c-010: rgba(8, 9, 12, .55);
+  --c-011: rgba(246, 245, 241, .18);
+  --c-012: #fff;
+  --c-013: rgba(0,0,0,.3);
+  --c-014: rgba(0, 0, 0, .55);
+  --c-015: #2a2a2e;
+  --c-016: #000;
+  --c-017: rgba(128, 128, 128, .28);
+  --c-018: rgba(255, 255, 255, .4);
+  --c-019: rgba(0, 0, 0, .45);
+  --c-020: #26262a;
+  --c-021: rgba(0,0,0,.4);
+  --c-022: rgba(255,255,255,.08);
+  --c-023: #0e0e10;
+  --c-024: rgba(0, 0, 0, .35);
+  --c-025: rgba(255, 79, 31, .25);
+  --c-026: rgba(0, 0, 0, .18);
+  --c-027: #111113;
+  --c-028: #F6F5F1;
+  --c-029: rgba(0, 0, 0, .28);
+  --c-030: rgba(0, 0, 0, .48);
+
+}
+[data-theme=light] {
+  --c-001: #A6A6AF;
+  --c-002: #222226;
+  --c-003: rgba(255, 79, 31, .10);
+  --c-004: rgba(255, 197, 61, .05);
+  --c-005: rgba(150, 240, 176, .15);
+  --c-006: #25262b;
+  --c-007: #1d1e23;
+  --c-008: rgba(8, 9, 12, .72);
+  --c-009: rgba(246, 245, 241, .22);
+  --c-010: rgba(8, 9, 12, .55);
+  --c-011: rgba(246, 245, 241, .18);
+  --c-012: #fff;
+  --c-013: rgba(0,0,0,.3);
+  --c-014: rgba(0, 0, 0, .55);
+  --c-015: #2a2a2e;
+  --c-016: #000;
+  --c-017: rgba(128, 128, 128, .28);
+  --c-018: rgba(255, 255, 255, .4);
+  --c-019: rgba(0, 0, 0, .45);
+  --c-020: #26262a;
+  --c-021: rgba(0,0,0,.4);
+  --c-022: rgba(255,255,255,.08);
+  --c-023: #0e0e10;
+  --c-024: rgba(0, 0, 0, .35);
+  --c-025: rgba(255, 79, 31, .25);
+  --c-026: rgba(0, 0, 0, .18);
+  --c-027: #111113;
+  --c-028: #F6F5F1;
+  --c-029: rgba(0, 0, 0, .28);
+  --c-030: rgba(0, 0, 0, .48);
+  --attention: #FF4F1F;
+  --tok-accent: #FF4F1F;
+  --tok-gold: #FFC53D;
+  --tok-ink: #111113;
+  --tok-ink-2: #1D1D21;
+  --tok-paper: #F6F5F1;
+}
+
 :root {
   --ink: 29, 29, 31;
   --paper: 245, 245, 247;
 
   --text-primary: rgb(var(--paper));
   --text-secondary: #C9C9D1; /* 読みやすさ: 透けない色で 4.5:1 以上 */
-  --text-tertiary: #A6A6AF;
+  --text-tertiary: var(--c-001);
   --fill-primary: rgb(var(--paper));
   --text-primary-on: rgb(var(--ink));
   --fill-tertiary: rgba(var(--paper), .05);
@@ -15,7 +88,7 @@
   --stroke-secondary: rgba(var(--paper), .07);
   --hover-wash: rgba(var(--paper), .05);
   --glass: #222226; /* 透けない面 */
-  --glass-solid: #222226;
+  --glass-solid: var(--c-002);
   --bevel: inset 0 1px 0 rgba(var(--paper), .14), inset 0 -1px 0 rgba(0, 0, 0, .2);
   --shadow: 0 8px 40px rgba(var(--ink), .12);
   --attention: #FF4F1F;
@@ -58,7 +131,7 @@ html, body { margin: 0; }
 body {
   min-height: 100vh;
   /* ガラスの下に、ごく淡い色の傾きを1枚だけ */
-  background: linear-gradient(160deg, rgba(255, 79, 31, .10), transparent 45%, rgba(255, 197, 61, .05)) fixed, var(--page);
+  background: linear-gradient(160deg, var(--c-003), transparent 45%, var(--c-004)) fixed, var(--page);
   color: var(--text-primary);
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   font-size: 16px;
@@ -128,7 +201,7 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 .status { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-secondary); min-width: 0; }
 .status #statusText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); flex: none; transition: background-color var(--settle-time) var(--fade); }
-.status[data-mode=live] .dot { background: var(--success); box-shadow: 0 0 0 4px rgba(150, 240, 176, .15); }
+.status[data-mode=live] .dot { background: var(--success); box-shadow: 0 0 0 4px var(--c-005); }
 .status[data-mode=demo] .dot { background: var(--info); }
 .status[data-mode=connecting] .dot { background: var(--warning); animation: blink 1s ease-in-out infinite; }
 .status[data-mode=error] .dot, .status[data-mode=ended] .dot { background: var(--error); }
@@ -167,9 +240,9 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 .roulette-url { display: grid; gap: 4px; }
 .roulette-url .stage-url input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-secondary); }
 .stage-size { margin: -8px 0 0; }
-.stage-preview { position: relative; width: min(100%, calc(70vh * 9 / 16)); max-width: 405px; aspect-ratio: 9 / 16; margin: 0 auto; overflow: hidden; border: 1px solid var(--stroke-primary); background: linear-gradient(180deg, #25262b, #1d1e23); border-radius: var(--r-md); isolation: isolate; }
-.stage-preview::before { content: ''; position: absolute; z-index: 1; inset: 82% 0 0; pointer-events: none; opacity: .18; background: linear-gradient(180deg, transparent, rgba(8, 9, 12, .72)); border-top: 1px solid rgba(246, 245, 241, .22); }
-.stage-preview::after { content: ''; position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; width: 14%; pointer-events: none; opacity: .18; background: linear-gradient(90deg, transparent, rgba(8, 9, 12, .55)); border-left: 1px solid rgba(246, 245, 241, .18); }
+.stage-preview { position: relative; width: min(100%, calc(70vh * 9 / 16)); max-width: 405px; aspect-ratio: 9 / 16; margin: 0 auto; overflow: hidden; border: 1px solid var(--stroke-primary); background: linear-gradient(180deg, var(--c-006), var(--c-007)); border-radius: var(--r-md); isolation: isolate; }
+.stage-preview::before { content: ''; position: absolute; z-index: 1; inset: 82% 0 0; pointer-events: none; opacity: .18; background: linear-gradient(180deg, transparent, var(--c-008)); border-top: 1px solid var(--c-009); }
+.stage-preview::after { content: ''; position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; width: 14%; pointer-events: none; opacity: .18; background: linear-gradient(90deg, transparent, var(--c-010)); border-left: 1px solid var(--c-011); }
 .stage-preview > iframe { position: absolute; top: 0; z-index: 2; border: 0; transform-origin: top left; pointer-events: none; }
 .stage-boxes { position: absolute; inset: 0; z-index: 3; width: 1080px; height: 1920px; transform-origin: top left; pointer-events: none; }
 .stage-box { position: absolute; display: block; padding: 0; border: 1px solid transparent; background: transparent; color: var(--text-primary); pointer-events: auto; touch-action: none; cursor: grab; text-align: left; }
@@ -202,7 +275,7 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
 .sample-control { display: grid; gap: 4px; }
 .sample-control > .check { flex-direction: row-reverse; justify-content: space-between; min-height: 48px; padding: 10px 14px; }
 .sample-control > .check input[type=checkbox] { appearance: none; position: relative; width: 44px; height: 26px; margin: 0; border-radius: 99px; background: var(--fill-secondary); box-shadow: inset 0 0 0 1px var(--stroke-secondary); cursor: pointer; }
-.sample-control > .check input[type=checkbox]::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: translate var(--settle-time) var(--fade); }
+.sample-control > .check input[type=checkbox]::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--c-012); box-shadow: 0 1px 3px var(--c-013); transition: translate var(--settle-time) var(--fade); }
 .sample-control > .check input[type=checkbox]:checked { background: var(--success); box-shadow: none; }
 .sample-control > .check input[type=checkbox]:checked::after { translate: 18px 0; }
 
@@ -349,7 +422,7 @@ select option { background: var(--page); }
 .home-prep li.done { color: var(--text-primary); }
 .home-prep .icon { color: var(--attention); }
 .name-dialog { width: min(420px, calc(100vw - 32px)); padding: 0; border: 0; border-radius: var(--r-lg); background: var(--glass-solid); color: var(--text-primary); box-shadow: var(--shadow); }
-.name-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.name-dialog::backdrop { background: var(--c-014); }
 .name-dialog-form { display: grid; gap: 16px; padding: 24px; }
 .name-dialog-form h2 { font-size: 20px; }
 .name-dialog-form .row { justify-content: flex-end; }
@@ -390,7 +463,7 @@ select option { background: var(--page); }
   overflow: hidden;
   border-radius: var(--r-md);
   box-shadow: inset 0 0 0 1px var(--stroke-secondary);
-  background: #2a2a2e;
+  background: var(--c-015);
 }
 .preview iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; }
 
@@ -808,7 +881,7 @@ body[data-mode=simple] [data-dev-only] { display: none !important; }
   [data-mode=simple] .side #connectForm .btn { min-width: 0; padding: 0 10px; }
   [data-mode=simple] .side #connectForm #demoBtn { grid-column: 1 / -1; }
   [data-mode=simple] .side #connectForm .message { min-height: 1.2em; font-size: 14px; }
-  [data-mode=simple] .side-menu { min-height: 0; overflow-y: auto; scrollbar-width: thin; -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 34px), transparent 100%); mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 34px), transparent 100%); }
+  [data-mode=simple] .side-menu { min-height: 0; overflow-y: auto; scrollbar-width: thin; -webkit-mask-image: linear-gradient(to bottom, var(--c-016) 0, var(--c-016) calc(100% - 34px), transparent 100%); mask-image: linear-gradient(to bottom, var(--c-016) 0, var(--c-016) calc(100% - 34px), transparent 100%); }
   [data-mode=simple] .side-footer { display: grid; gap: 4px; }
   [data-mode=simple] .side-footer .nav { display: none; }
   [data-mode=simple] .side-footer .nav a { justify-content: flex-start; }
@@ -957,12 +1030,12 @@ body[data-mode=simple] [data-dev-only] { display: none !important; }
   width: 44px;
   height: 26px;
   border-radius: var(--r-pill);
-  background: rgba(128, 128, 128, .28);
+  background: var(--c-017);
   box-shadow: inset 0 0 0 1px var(--stroke-secondary);
   cursor: pointer;
   transition: background-color var(--press);
 }
-[data-mode=simple] .sgroup-body > .check input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: translate var(--settle-time) var(--fade); }
+[data-mode=simple] .sgroup-body > .check input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--c-012); box-shadow: 0 1px 3px var(--c-013); transition: translate var(--settle-time) var(--fade); }
 [data-mode=simple] .sgroup-body > .check input[type=checkbox]:checked { background: var(--success); box-shadow: none; }
 [data-mode=simple] .sgroup-body > .check input[type=checkbox]:checked::after { translate: 18px 0; }
 
@@ -977,7 +1050,7 @@ body[data-mode=simple] [data-dev-only] { display: none !important; }
 .ai-form textarea { min-height: 44px; }
 
 /* プレビューだと分かるように、左上に小さく書く */
-.preview::after { content: "プレビュー"; position: absolute; left: 8px; top: 6px; font-size: 14px; color: rgba(255, 255, 255, .4); pointer-events: none; }
+.preview::after { content: "プレビュー"; position: absolute; left: 8px; top: 6px; font-size: 14px; color: var(--c-018); pointer-events: none; }
 
 /* --- 視線の流れ: 1画面に主役は1つ。上から 見出し → 中身、AI の入力はいつも下 --- */
 /* かんたんでは上のバーを軽くする（切り替えはホームの一覧の中。くわしくのときだけ「かんたん」に戻るボタンを出す） */
@@ -1062,7 +1135,7 @@ body:not(.ai-on) #aiView { display: none; }
 }
 
 /* ギフトの一覧は、下の文字が透けないように塗りつぶす */
-.gift-picker-panel { background: var(--page); box-shadow: 0 12px 40px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--stroke-primary); }
+.gift-picker-panel { background: var(--page); box-shadow: 0 12px 40px var(--c-019), inset 0 0 0 1px var(--stroke-primary); }
 
 /* ボタン幅をそろえる: ためす・型のボタンは同じ幅で並べる */
 .preview-col > .row.wrap,
@@ -1076,9 +1149,9 @@ body:not(.ai-on) #aiView { display: none; }
 #actions::before { grid-column: 1 / -1; }
 
 /* 右クリック・長押しのメニュー */
-.ctx-menu { position: fixed; z-index: 1000; display: grid; min-width: 180px; padding: 6px; border-radius: 12px; background: var(--surface-2, #26262a); box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,.4)), inset 0 0 0 1px var(--stroke-secondary, rgba(255,255,255,.08)); }
-.ctx-menu button { all: unset; cursor: pointer; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--text, #fff); }
-.ctx-menu button:hover, .ctx-menu button:focus-visible { background: rgba(255,255,255,.08); }
+.ctx-menu { position: fixed; z-index: 1000; display: grid; min-width: 180px; padding: 6px; border-radius: 12px; background: var(--surface-2, var(--c-020)); box-shadow: var(--shadow, 0 10px 30px var(--c-021)), inset 0 0 0 1px var(--stroke-secondary, var(--c-022)); }
+.ctx-menu button { all: unset; cursor: pointer; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--text, var(--c-012)); }
+.ctx-menu button:hover, .ctx-menu button:focus-visible { background: var(--c-022); }
 .item-row .thumb { -webkit-touch-callout: none; user-select: none; }
 
 /* ===== デザインの見直し（配信の「調整卓」） =====
@@ -1098,10 +1171,10 @@ body { background: var(--page); } /* 飾りの色の傾きをやめる */
 @media (max-width: 760px) { .side-item[aria-current=true]::before { left: 14px; right: 14px; top: auto; bottom: 2px; width: auto; height: 2px; } }
 
 /* プレビュー: 配信モニターのように、黒い縁と「配信画面」の札 */
-.preview { border-radius: 18px; background: #0e0e10; box-shadow: 0 0 0 6px #0e0e10, 0 0 0 7px var(--stroke-primary), 0 18px 50px rgba(0, 0, 0, .35); margin: 7px; }
-.preview::after { content: "配信画面"; position: absolute; left: 12px; right: auto; top: 10px; z-index: 2; padding: 3px 10px 3px 24px; border-radius: var(--r-pill); font-size: 14px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .55); pointer-events: none; }
-.preview::before { content: ""; position: absolute; left: 22px; top: 21px; z-index: 3; width: 7px; height: 7px; border-radius: 50%; background: var(--attention); box-shadow: 0 0 0 3px rgba(255, 79, 31, .25); pointer-events: none; }
-[data-theme=light] .preview { box-shadow: 0 0 0 6px #0e0e10, 0 18px 40px rgba(0, 0, 0, .18); }
+.preview { border-radius: 18px; background: var(--c-023); box-shadow: 0 0 0 6px var(--c-023), 0 0 0 7px var(--stroke-primary), 0 18px 50px var(--c-024); margin: 7px; }
+.preview::after { content: "配信画面"; position: absolute; left: 12px; right: auto; top: 10px; z-index: 2; padding: 3px 10px 3px 24px; border-radius: var(--r-pill); font-size: 14px; font-weight: 700; color: var(--c-012); background: var(--c-014); pointer-events: none; }
+.preview::before { content: ""; position: absolute; left: 22px; top: 21px; z-index: 3; width: 7px; height: 7px; border-radius: 50%; background: var(--attention); box-shadow: 0 0 0 3px var(--c-025); pointer-events: none; }
+[data-theme=light] .preview { box-shadow: 0 0 0 6px var(--c-023), 0 18px 40px var(--c-026); }
 
 /* まとまりの面: 角の大きさで上下関係をつける（外 24 / まとまり 16 / 部品 12） */
 .sgroup-body { border-radius: 16px; }
@@ -1285,7 +1358,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   flex: 0 0 auto;
   width: 100%;
   overflow: hidden;
-  background: #111113;
+  background: var(--c-027);
   touch-action: none;
   cursor: grab;
 }
@@ -1298,7 +1371,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   align-items: center;
   justify-content: center;
   padding: var(--s-4);
-  color: #F6F5F1;
+  color: var(--c-028);
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
@@ -1599,7 +1672,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--surface, var(--glass-solid));
-    box-shadow: 18px 0 40px rgba(0, 0, 0, .28);
+    box-shadow: 18px 0 40px var(--c-029);
     transform: translateX(-105%);
     transition: transform .2s ease;
   }
@@ -1623,7 +1696,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
     z-index: 90;
     border: 0;
     padding: 0;
-    background: rgba(0, 0, 0, .48);
+    background: var(--c-030);
     pointer-events: none;
   }
   .mobile-menu-backdrop.is-open { display: block; pointer-events: auto; }
@@ -1644,7 +1717,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .home-prep li { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .home-prep li .text-btn { margin-left: auto; }
 .settings-auto-connect { padding: 12px 0; border-top: 1px solid var(--stroke-secondary); }
-.toast { position: fixed; left: 50%; bottom: 24px; z-index: 120; display: flex; gap: 12px; align-items: center; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); box-shadow: 0 12px 30px rgba(0,0,0,.28); transform: translate(-50%, 160%); transition: transform .2s ease; }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 120; display: flex; gap: 12px; align-items: center; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); box-shadow: 0 12px 30px var(--c-029); transform: translate(-50%, 160%); transition: transform .2s ease; }
 .toast:not(:empty) { transform: translate(-50%, 0); }
 .toast .text-btn { margin: 0; padding: 0; color: var(--text-primary); text-decoration: underline; }
 @media (min-width: 900px) {
@@ -1674,3 +1747,93 @@ body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
 .preset-chips > .preset + .preset { border-left: 1px solid var(--stroke-secondary); }
 .preset-chips > .preset[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); }
 .note-link { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--text-primary); text-decoration: underline; }
+
+/* ============================================================
+   ライコネの色(2026-10-25 オーナーが選んだ): ダーク=炭色に黄、ライト=紙に朱
+   色はここで決める。下の部品は変数だけを使う
+   ============================================================ */
+:root {
+  --rk-acc: #FFE600; --rk-acc-ink: #0C0C0C;
+  --page: #141414; --surface: #1C1C1C; --glass: #1C1C1C; --glass-solid: #1C1C1C;
+  --text-primary: #F4F4F0; --text-secondary: #CFCFC8; --text-tertiary: #A9A9A2;
+  --fill-primary: #F4F4F0; --text-primary-on: #0C0C0C;
+  --stroke-primary: rgba(244, 244, 240, .16); --stroke-secondary: rgba(244, 244, 240, .08);
+  --border: rgba(244, 244, 240, .10);
+  --attention: var(--rk-acc); --accent: var(--rk-acc);
+}
+[data-theme=light] {
+  --rk-acc: #D93A1F; --rk-acc-ink: #FFFFFF;
+  --page: #F3F1EC; --surface: #FFFFFF; --glass: #FFFFFF; --glass-solid: #FFFFFF;
+  --text-primary: #1C1B19; --text-secondary: #3B3934; --text-tertiary: #5C584F;
+  --fill-primary: #1C1B19; --text-primary-on: #F3F1EC;
+  --stroke-primary: rgba(28, 27, 25, .18); --stroke-secondary: rgba(28, 27, 25, .09);
+  --border: rgba(28, 27, 25, .12);
+}
+/* 主役のボタンと、選んでいるものだけを差し色にする */
+.btn.primary, .preset-chips > .preset[aria-pressed=true], .segmented button[aria-selected=true] { background: var(--rk-acc) !important; color: var(--rk-acc-ink) !important; border-color: var(--rk-acc) !important; }
+
+/* ============================================================
+   PC の並び「放送卓」: 左に細いアイコンの列(84px)、上に帯(60px)
+   ============================================================ */
+@media (min-width: 900px) {
+  [data-mode=simple] .side { width: 84px; padding: 14px 8px; gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  [data-mode=simple] .side-label { display: none; }
+  [data-mode=simple] .side-item { flex-direction: column; justify-content: center; gap: 4px; min-height: 58px; padding: 6px 2px; text-align: center; font-size: 11px; line-height: 1.25; }
+  [data-mode=simple] .side-item span { white-space: normal; }
+  [data-mode=simple] .side-item .icon { --size: 19px; }
+  [data-mode=simple] .side-item[aria-current=true] { background: var(--fill-tertiary); color: var(--text-primary); box-shadow: inset 3px 0 0 var(--rk-acc); }
+  [data-mode=simple] .side-item[aria-current=true] .icon { color: var(--rk-acc); }
+  .rk-logo { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 6px; border-radius: 11px; background: var(--rk-acc); color: var(--rk-acc-ink); font-weight: 900; font-size: 20px; }
+  .rk-top { position: fixed; top: 0; left: 84px; right: 0; z-index: 19; display: flex; align-items: center; gap: 16px; height: 60px; padding: 0 24px; background: var(--page); border-bottom: 1px solid var(--stroke-secondary); }
+  .rk-top .brand { flex: none; display: flex; align-items: center; gap: 12px; }
+  .rk-top .brand-title { font-size: 15px; }
+  .rk-top #connectionSection { flex: 1; display: flex; padding: 0; background: none; box-shadow: none; border-radius: 0; min-width: 0; }
+  .rk-top #connectionSection > .panel-bg, .rk-top #connectionSection h2, .rk-top #connectionSection .hint, .rk-top #connectionSection .field-label, .rk-top #connectionSection .message { display: none; }
+  .rk-top #connectForm { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .rk-top #connectForm .field { flex: 0 1 220px; margin-left: auto; }
+  .rk-top #connectForm .row { flex-wrap: nowrap; }
+  .rk-top #demoBtn { background: var(--rk-acc); color: var(--rk-acc-ink); border-color: var(--rk-acc); font-weight: 700; }
+  .rk-links { display: flex; gap: 8px; flex: none; }
+  body[data-mode=simple] .layout { padding: 0 var(--s-6) 0 calc(84px + var(--s-6)); }
+  body[data-mode=simple] .top-cards { padding: 0 var(--s-6) 0 calc(84px + var(--s-6)); }
+
+  /* ウィジェットの画面: 見え方の枠が上で主役。右にためす・URL、設定は下に2列 */
+  [data-mode=simple] .widget-body { display: grid; grid-template-columns: 1fr; gap: var(--s-5); }
+  [data-mode=simple] .preview-col { order: -1; position: static; display: grid; grid-template-columns: minmax(0, 640px) minmax(260px, 1fr); column-gap: var(--s-5); row-gap: var(--s-3); align-content: start; }
+  [data-mode=simple] .preview-col > .preview { grid-row: 1 / span 8; position: relative; top: auto; }
+  [data-mode=simple] .preview-col > :not(.preview) { grid-column: 2; }
+  [data-mode=simple] .settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-5); align-items: start; }
+}
+@media (min-width: 900px) {
+  [data-mode=simple] .shell-main { padding-top: 64px; }
+  .rk-links a.btn { color: var(--text-primary); text-decoration: none; }
+}
+@media (min-width: 900px) {
+  [data-mode=simple] #actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  [data-mode=simple] #actions .chip { box-shadow: inset 0 0 0 1px var(--stroke-primary); }
+}
+/* 設定のカードは全部同じ面。画面の明るさも1本につながったボタン */
+#settingsBody > section, .settings-view > section, .settings-view > details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius, 10px); padding: var(--s-4) var(--s-5); margin: 0 0 var(--s-4); box-shadow: none; }
+.theme-buttons { display: inline-flex; gap: 0; border: 1px solid var(--stroke-primary); border-radius: var(--r-pill); overflow: hidden; }
+.theme-buttons .btn { border: 0; border-radius: 0; box-shadow: none; background: transparent; min-width: 96px; }
+.theme-buttons .btn + .btn { border-left: 1px solid var(--stroke-primary); }
+.theme-buttons .btn[aria-pressed=true] { background: var(--rk-acc); color: var(--rk-acc-ink); }
+.theme-buttons { justify-self: start; width: auto; }
+
+/* スマホ: 下のタブ(ホーム・ウィジェット・配信中・記録・その他) */
+.rk-tabs { display: none; }
+@media (max-width: 899px) {
+  .rk-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 120; display: flex; padding: 4px 4px calc(6px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--stroke-secondary); }
+  .rk-tab { flex: 1; display: grid; justify-items: center; gap: 2px; min-height: 52px; padding: 6px 0; border: 0; background: none; color: var(--text-tertiary); font-size: 11px; }
+  .rk-tab .icon { --size: 20px; }
+  .rk-tab[aria-current=true] { color: var(--rk-acc); }
+  body.has-tabs { padding-bottom: 72px; }
+  body.has-tabs .mobile-menu-btn { display: none; }
+  body.has-tabs .side { padding-bottom: 80px; }
+}
+.embedded-page { width: 100%; min-height: calc(100vh - 160px); border: 0; border-radius: var(--card-radius, 10px); background: var(--page); }
+.preview-mode { margin-bottom: var(--s-2); }
+@media (min-width: 900px) { [data-mode=simple] .preview-col > .preview-mode { grid-column: 1; grid-row: auto; } [data-mode=simple] .preview-col > .preview { grid-row: 2 / span 8; } }
+.rk-links .btn[aria-current=true] { box-shadow: inset 0 -2px 0 var(--rk-acc); }
+.more-list { display: grid; gap: 8px; }
+.more-item { min-height: 56px; background: var(--surface); border: 1px solid var(--border); font-size: 16px; color: var(--text-primary); }

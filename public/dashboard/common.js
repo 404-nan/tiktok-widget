@@ -178,6 +178,11 @@ function renderNav(active) {
 
 /** 3つの画面で共通の準備（ナビ・テーマ・パネルの角・data-icon のアイコン） */
 export function setupChrome(active) {
+  // ダッシュボードの枠の中に開いたとき(?embed=1)は、自分の上の帯を出さない
+  if (new URLSearchParams(location.search).get('embed') === '1') {
+    document.documentElement.dataset.embed = '1';
+    document.head.append(Object.assign(document.createElement('style'), { textContent: '.topbar,#monitorConnect{display:none!important}' }));
+  }
   renderNav(active);
   for (const el of document.querySelectorAll('[data-icon]')) el.prepend(icon(el.dataset.icon));
   setupPanels();

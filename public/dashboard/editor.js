@@ -301,7 +301,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   function renderTabs() {
-    const tabs = $('tabs');
+    const tabs = $('sectionTabs');
     tabs.replaceChildren();
     for (const section of visibleTabs()) {
       const b = document.createElement('button');
@@ -475,28 +475,40 @@ export function createEditor({ api, setMessage }) {
       item('house', 'ホーム', view === 'home', goTo('home')),
       label('ウィジェット'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
-      item('plus', 'その他のウィジェット', view === 'catalog', goTo('catalog')),
-      item('activity', '配信中に見る', false, () => { window.location.href = `${BASE}/monitor/`; }),
-      item('chart-column', '配信の記録', false, () => { window.location.href = `${BASE}/history/`; }),
-      item('book-open', '使い方', false, () => window.open(`${BASE}/help/`, '_blank', 'noopener')),
+      item('plus', desktop ? 'その他' : 'その他のウィジェット', view === 'catalog', goTo('catalog')),
+      item('activity', '配信中に見る', view === 'monitor', goTo('monitor')),
+      item('chart-column', '配信の記録', view === 'history', goTo('history')),
     );
     // 設定は、PC ではサイドバーのいちばん左下に固定する
     const bottom = [
+      item('book-open', '使い方', false, () => window.open(`${BASE}/help/`, '_blank', 'noopener')),
       item('settings', '設定', view === 'settings', goTo('settings'), 'side-settings'),
     ];
     if (desktop) {
+      // PC は「放送卓」の並び: 左は細いアイコンの列、名前・状態・つなぐ・ためす・配信中に見る・配信の記録は上の帯
+      $('rkTabs')?.remove();
+      document.body.classList.remove('has-tabs');
+      let top = $('rkTop');
+      if (!top) { top = Object.assign(document.createElement('header'), { id: 'rkTop', className: 'rk-top' }); document.body.append(top); }
+      const go = (label, next) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: label }); b.setAttribute('aria-current', String(view === next)); b.addEventListener('click', goTo(next)); return b; };
+      const links = Object.assign(document.createElement('div'), { className: 'rk-links' });
+      links.append(go('配信中に見る', 'monitor'), go('配信の記録', 'history'));
+      top.replaceChildren(brand, connection, links);
+      menu.querySelectorAll('.side-item').forEach((b) => { if (/配信中に見る|配信の記録/.test(b.textContent)) b.remove(); });
       const head = document.createElement('div');
       head.className = 'side-head';
-      head.append(brand);
+      head.append(Object.assign(document.createElement('div'), { className: 'rk-logo', textContent: 'ラ', title: 'ライコネ' }));
       const footer = document.createElement('div');
       footer.className = 'side-footer';
       footer.append(...bottom, nav);
       sideObserver?.disconnect();
       sideObserver = new ResizeObserver(() => {});
       sideObserver.observe(menu);
-      side.replaceChildren(head, connection, menu, footer);
+      side.replaceChildren(head, menu, footer);
     } else {
       const col = document.querySelector('.col');
+      $('rkTop')?.remove();
+      document.body.classList.add('has-tabs');
       sideObserver?.disconnect();
       side.classList.remove('has-more');
       topbar.prepend(brand);
@@ -506,6 +518,24 @@ export function createEditor({ api, setMessage }) {
       side.replaceChildren(menu);
       // 幕はサイドバーと同じ重なりの中に置く(外に置くと、サイドバーの上にかぶって押せなくなる)
       if (menuBackdrop && menuBackdrop.nextElementSibling !== side) side.before(menuBackdrop);
+      // スマホは下のタブ。ウィジェットとその他は、横から出る一覧(使い方と設定もここ)を開く
+      let tabsBar = $('rkTabs');
+      if (!tabsBar) { tabsBar = Object.assign(document.createElement('nav'), { id: 'rkTabs', className: 'rk-tabs' }); tabsBar.setAttribute('aria-label', 'タブ'); document.body.append(tabsBar); }
+      const openMenu = () => { side.classList.add('is-open'); menuBackdrop?.classList.add('is-open'); menuButton?.setAttribute('aria-expanded', 'true'); };
+      const tabBtn = (iconName, label, current, onClick) => {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'rk-tab pressable' });
+        b.setAttribute('aria-current', String(current));
+        b.append(icon(iconName), label); // 文字はボタンに直に置く(押せる大きさ = ボタンの大きさ)
+        b.addEventListener('click', () => { closeMobileMenu(); onClick(); });
+        return b;
+      };
+      tabsBar.replaceChildren(
+        tabBtn('house', 'ホーム', view === 'home', goTo('home')),
+        tabBtn('gift', 'ウィジェット', view === 'detail' || view === 'catalog', openMenu),
+        tabBtn('activity', '配信中', view === 'monitor', goTo('monitor')),
+        tabBtn('chart-column', '記録', view === 'history', goTo('history')),
+        tabBtn('menu', 'その他', view === 'more' || view === 'settings', goTo('more')),
+      );
     }
     // スマホの横並びでは、選んでいるものが見えるところまで流す
     side.querySelector('[aria-current=true]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -565,6 +595,28 @@ export function createEditor({ api, setMessage }) {
   const homeTopCards = document.querySelector('.top-cards');
 
   // ホームは配信前に見る3つだけに絞る。
+  // 配信中に見る・配信の記録は、ダッシュボードの枠の中に開く(左の列と上の帯を残す)
+  function renderEmbedded(which) {
+    const frame = Object.assign(document.createElement('iframe'), { className: 'embedded-page', title: which === 'monitor' ? '配信中に見る' : '配信の記録', src: `${BASE}/${which}/?embed=1` });
+    $('cards').replaceChildren(viewHead(which === 'monitor' ? '配信中に見る' : '配信の記録'), frame);
+  }
+
+  // スマホの「その他」: 設定・使い方・その他のウィジェット
+  function renderMore() {
+    const list = Object.assign(document.createElement('div'), { className: 'more-list' });
+    for (const [iconName, label, onClick] of [
+      ['settings', '設定', goTo('settings')],
+      ['book-open', '使い方', () => window.open(`${BASE}/help/`, '_blank', 'noopener')],
+      ['plus', 'その他のウィジェット', goTo('catalog')],
+    ]) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'side-item pressable more-item' });
+      b.append(icon(iconName), Object.assign(document.createElement('span'), { textContent: label }));
+      b.addEventListener('click', onClick);
+      list.append(b);
+    }
+    $('cards').replaceChildren(viewHead('その他'), list);
+  }
+
   function renderHome() {
     const box = $('cards');
     // GOV.UK の Task list の形: 行ごとに「済み・まだ」と、まだの行にはそれをするボタン
@@ -857,7 +909,7 @@ export function createEditor({ api, setMessage }) {
     // かんたんの一覧: カードだけ出す
     // かんたんで、まだ何も出していないときは「出すものを足す」から始める
     if (simple() && view === 'detail' && tab !== 'theme' && !usedSections().includes(tab)) view = usedSections().length ? view : 'catalog';
-    const listView = simple() && (view === 'home' || view === 'catalog' || view === 'obs');
+    const listView = simple() && (view === 'home' || view === 'catalog' || view === 'obs' || view === 'monitor' || view === 'history' || view === 'more');
     const aiView = simple() && view === 'ai';
     const settingsViewActive = simple() && view === 'settings';
     const stageView = simple() && view === 'stage';
@@ -879,6 +931,8 @@ export function createEditor({ api, setMessage }) {
     if (listView) {
       if (view === 'catalog') renderCatalog();
       else if (view === 'home') renderHome();
+      else if (view === 'monitor' || view === 'history') renderEmbedded(view);
+      else if (view === 'more') renderMore();
       else renderObs();
       return;
     }
@@ -2377,6 +2431,22 @@ export function createEditor({ api, setMessage }) {
 
   let previewTimer = null;
   let previewUrl = null;
+  // 見え方の枠: このウィジェットだけ / 配信画面ぜんぶ(all.html)
+  let previewAll = false;
+  function previewModeSwitch() {
+    let box = $('previewMode');
+    if (!box) {
+      box = Object.assign(document.createElement('div'), { id: 'previewMode', className: 'preset-chips preview-mode' });
+      for (const [label, all] of [['このウィジェットだけ', false], ['配信画面ぜんぶ', true]]) {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'preset pressable', textContent: label });
+        b.dataset.all = String(all);
+        b.addEventListener('click', () => { previewAll = all; updateUrl(true); });
+        box.append(b);
+      }
+      $('preview').before(box);
+    }
+    for (const b of box.children) b.setAttribute('aria-pressed', String(b.dataset.all === String(previewAll)));
+  }
 
   function renderRouletteUrls(w) {
     rouletteUrlsBox = renderRouletteUrlBox({
@@ -2429,25 +2499,34 @@ export function createEditor({ api, setMessage }) {
         ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
     }
     renderRouletteUrls(w);
-    const url = new URL(explicit, location.origin);
+    if (simple()) previewModeSwitch();
+    // 配信画面ぜんぶのときは、全部が1本で出る URL と大きさを見せる
+    if (simple() && previewAll) {
+      const allW = payload.widgets.find((x) => x.section === 'all');
+      $('widgetUrl').value = allW?.url ?? `${BASE}/widgets/all.html`;
+      $('sizeHint').textContent = `幅 ${allW?.size?.[0] ?? 1080}・高さ ${allW?.size?.[1] ?? 1920}(この URL 1本で、使っているものが全部出ます)`;
+    }
+    const allUrl = payload.widgets.find((x) => x.section === 'all')?.url ?? `${BASE}/widgets/all.html`;
+    const shownSize = previewAll ? [1080, 1920] : w.size;
+    const url = new URL(previewAll ? allUrl : explicit, location.origin);
     url.searchParams.set('preview', '1');
     url.searchParams.set('sound', '0');
     url.searchParams.set('keep', '0');
     const next = `${url.pathname}${url.search}`;
     clearTimeout(previewTimer);
     // 同じ URL なら読み込み直さない（設定が変わればウィジェットが自分で読み込み直す）
-    if (next === previewUrl) return fitPreview(w.size);
+    if (next === previewUrl) return fitPreview(shownSize);
     previewTimer = setTimeout(
       () => {
         previewUrl = next;
         $('frame').src = next;
-        fitPreview(w.size);
+        fitPreview(shownSize);
       },
       immediate ? 0 : 300,
     );
   }
 
-  function fitPreview(size = currentWidget()?.size) {
+  function fitPreview(size = previewAll ? [1080, 1920] : currentWidget()?.size) {
     if (!size) return;
     const [w, h] = size;
     const box = $('preview');

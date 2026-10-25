@@ -27,31 +27,31 @@ test('AC-1〜AC-8: hosted の配信者画面をPC・スマホ、ライト・ダ�
       if (width >= 900) assert.ok(geometry.main.left >= geometry.side.right, `${width}pxで中身がサイドバーに重なっています`);
       else {
         assert.ok(geometry.side.right <= 0, 'スマホのサイドバーが最初から開いています');
-        await page.locator('#mobileMenuBtn').click();
+        await page.locator('#rkTabs').getByText('ウィジェット').click(); // スマホは下のタブから一覧を開く
         await page.locator('#side.is-open').waitFor({ state: 'visible' });
         await page.locator('.side-settings').evaluate((element) => element.click());
         await page.locator('#settingsView').waitFor({ state: 'visible' });
         assert.equal(await page.locator('#advancedConnection').getAttribute('open'), null);
-        await page.locator('#mobileMenuBtn').click();
+        await page.locator('#rkTabs').getByText('ウィジェット').click(); // スマホは下のタブから一覧を開く
         await page.locator('#mobileMenuBackdrop').click({ position: { x: 375, y: 400 } }); // サイドバーの外(右のはし)を押して閉じる
         await page.locator('#side.is-open').waitFor({ state: 'hidden' });
       }
       for (const label of ['ギフト通知', 'コメント欄', '目標バー']) {
         if (width < 900) {
-          await page.locator('#mobileMenuBtn').click();
+          await page.locator('#rkTabs').getByText('ウィジェット').click(); // スマホは下のタブから一覧を開く
           await page.locator('#side.is-open').waitFor({ state: 'visible' });
         }
         await page.locator('.side-item').filter({ hasText: label }).first().click(); // 本当に押せるか(幕がかぶっていないか)も確かめる
         await page.locator('#detail:not([hidden])').waitFor({ state: 'visible' });
       }
       if (width < 900) {
-        await page.locator('#mobileMenuBtn').click();
+        await page.locator('#rkTabs').getByText('ウィジェット').click(); // スマホは下のタブから一覧を開く
         await page.locator('#side.is-open').waitFor({ state: 'visible' });
       }
-      await page.locator('.side-item').filter({ hasText: 'その他のウィジェット' }).evaluate((element) => element.click());
+      await page.locator('.side-item').filter({ hasText: /^その他/ }).first().evaluate((element) => element.click());
       await page.locator('#cards:not([hidden])').waitFor({ state: 'visible' });
       if (width < 900) {
-        await page.locator('#mobileMenuBtn').click();
+        await page.locator('#rkTabs').getByText('ウィジェット').click(); // スマホは下のタブから一覧を開く
         await page.locator('#side.is-open').waitFor({ state: 'visible' });
       }
       await page.locator('.side-settings').evaluate((element) => element.click());
