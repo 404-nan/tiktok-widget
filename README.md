@@ -1,6 +1,6 @@
 # ライコネ
 
-最終更新: 2026-10-21
+最終更新: 2026-10-25
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
@@ -36,6 +36,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
 | ダッシュボードの明るさ | 設定画面でライトとダークを切り替える | できた | `public/dashboard/common.js`、`public/dashboard/style.css` |
 | 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、配信画面が開いているときに自動接続する | できた（開発確認まで） | `src/preparation.js`、`public/dashboard/editor.js` |
+| 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する | できた（開発サーバー確認まで） | `public/dashboard/`、`test/kind-ui-playwright.test.js` |
 
 ## ウィジェット
 

@@ -31,7 +31,9 @@ export async function setupStreamerAi({ box, intro, body, api }) {
   let state;
   try { state = await api('/api/ai/streamer'); } catch { return; }
   box.hidden = false;
-  intro.textContent = state.explanation;
+  intro.textContent = 'AI 用の合言葉を作ると、外部AIから自分の配信設定を頼めます。';
+  const openDetails = el('button', { type: 'button', className: 'btn pressable', textContent: 'AI 用の合言葉を作る' });
+  intro.after(openDetails);
   const help = el('p', { className: 'desc', textContent: 'Claude・ChatGPT など外部AIの秘密の欄にトークンを貼ってください。最初は読み取り、次に保存しない提案、最後に開発環境のテスト送信の順です。' });
   const endpoint = el('p', { className: 'hint', textContent: `API: ${state.connection.api}　MCP: ${state.connection.mcp}　テナント指定: ${state.connection.tenant}` });
   const form = el('form', { className: 'streamer-ai-form' });
@@ -42,6 +44,8 @@ export async function setupStreamerAi({ box, intro, body, api }) {
   const issued = el('div', { className: 'streamer-ai-issued', hidden: true });
   const list = el('div', { className: 'streamer-ai-list' });
   body.replaceChildren(help, endpoint, form, issued, list);
+  body.hidden = true;
+  openDetails.addEventListener('click', () => { body.hidden = false; openDetails.hidden = true; });
 
   const renderList = () => {
     list.replaceChildren(el('h4', { textContent: '発行済み（値は表示しません）' }));

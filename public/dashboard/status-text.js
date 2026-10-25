@@ -2,7 +2,9 @@
 const STATUS = { idle: '配信につながっていません', connecting: 'つないでいます…', live: '配信中', demo: 'ためし中', error: 'つながりませんでした', ended: '配信が終わりました' };
 
 export const statusText = (status) =>
-  status.username && status.mode === 'live' ? `配信中 · @${status.username}` : STATUS[status.mode] ?? status.mode;
+  status.username && status.mode === 'live' ? `配信中 · @${status.username}`
+    : status.username && status.mode === 'idle' ? '配信を待っています（始まると自動でつながります）'
+      : STATUS[status.mode] ?? status.mode;
 
 /**
  * WebSocket の受信と /api/status のポーリングの、どちらが新しいかをシーケンスで決める。

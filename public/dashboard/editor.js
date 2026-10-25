@@ -557,6 +557,8 @@ export function createEditor({ api, setMessage }) {
     }
   }
 
+  const homeTopCards = document.querySelector('.top-cards');
+
   // ホームは配信前に見る3つだけに絞る。
   function renderHome() {
     const box = $('cards');
@@ -583,7 +585,7 @@ export function createEditor({ api, setMessage }) {
     const card = document.createElement('section');
     card.className = 'home-card';
     card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
-    box.replaceChildren(viewHead('ホーム'), card);
+    box.replaceChildren(viewHead('ホーム'), homeTopCards, card);
     api('/api/preparation').then((next) => {
       if (JSON.stringify(next) === JSON.stringify(preparation)) return;
       preparation = next;
@@ -845,6 +847,7 @@ export function createEditor({ api, setMessage }) {
     const filesView = view === 'files';
     document.querySelector('.config-panel').hidden = !filesView;
     $('cards').hidden = !listView;
+    $('profileSection').hidden = !settingsViewActive;
     $('stageView').hidden = !stageView;
     if (templatesViewActive) $('cards').hidden = false;
     $('aiView').classList.toggle('show', aiView);
@@ -862,7 +865,8 @@ export function createEditor({ api, setMessage }) {
       return;
     }
     if (settingsViewActive) {
-      $('settingsBody').replaceChildren($('profileSection'), $('streamerAiView'), autoConnectSetting());
+      $('profileSection').hidden = false;
+      $('settingsBody').replaceChildren($('profileSection'), autoConnectSetting());
       return;
     }
     if (aiView) return;

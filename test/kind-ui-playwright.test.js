@@ -3,10 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const enabled = Boolean(process.env.KIND_UI_PLAYWRIGHT);
-const baseUrl = process.env.KIND_UI_URL || 'https://dev.lul.works/dashboard/';
+const baseUrl = process.env.KIND_UI_URL;
 const forbidden = ['Euler', 'API', 'MCP', 'テナント', 'トークン', 'YAML', 'JSON'];
 
-test('AC-1〜AC-8: ダッシュボードをPC・スマホ、ライト・ダークで歩ける', { skip: !enabled, timeout: 120_000 }, async () => {
+test('AC-1〜AC-8: hosted の配信者画面をPC・スマホ、ライト・ダークで歩ける', { skip: !enabled || !baseUrl, timeout: 120_000 }, async () => {
   const { chromium } = await import('/home/lul/ruu-work/tw/node_modules/playwright/index.mjs');
   for (const theme of ['light', 'dark']) for (const width of [1280, 390]) {
     const browser = await chromium.launch({ headless: true });
@@ -36,6 +36,33 @@ test('AC-1〜AC-8: ダッシュボードをPC・スマホ、ライト・ダー�
         await page.locator('#mobileMenuBackdrop').click();
         await page.locator('#side.is-open').waitFor({ state: 'hidden' });
       }
+      for (const label of ['ギフト通知', 'コメント欄', '目標バー']) {
+        if (width < 900) {
+          await page.locator('#mobileMenuBtn').click();
+          await page.locator('#side.is-open').waitFor({ state: 'visible' });
+        }
+        await page.locator('.side-item').filter({ hasText: label }).evaluate((element) => element.click());
+        await page.locator('#detail:not([hidden])').waitFor({ state: 'visible' });
+      }
+      if (width < 900) {
+        await page.locator('#mobileMenuBtn').click();
+        await page.locator('#side.is-open').waitFor({ state: 'visible' });
+      }
+      await page.locator('.side-item').filter({ hasText: '出すものを増やす' }).evaluate((element) => element.click());
+      await page.locator('#cards:not([hidden])').waitFor({ state: 'visible' });
+      if (width < 900) {
+        await page.locator('#mobileMenuBtn').click();
+        await page.locator('#side.is-open').waitFor({ state: 'visible' });
+      }
+      await page.locator('.side-settings').evaluate((element) => element.click());
+      await page.locator('#settingsView').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('#advancedConnection').getAttribute('open'), null);
+      for (const path of ['monitor/', 'history/', 'help/']) {
+        await page.goto(new URL(path, baseUrl).href, { waitUntil: 'domcontentloaded' });
+        assert.ok((await page.locator('body').innerText()).length > 0, `${path} が空です`);
+      }
+      await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+      await page.locator('#cards').waitFor({ state: 'visible', timeout: 60_000 });
       await page.screenshot({ path: `/tmp/kind-ui-3-${theme}-${width}.png`, fullPage: true });
     } finally {
       await browser.close();

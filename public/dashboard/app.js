@@ -10,13 +10,16 @@ import { $, store, api, setupChrome, statusText, createStatusGate } from './comm
 let mode = 'idle';
 
 function renderStatus(status) {
+  status = { ...status, username: status.username || $('username')?.value.trim() };
   mode = status.mode;
   $('status').dataset.mode = status.mode;
   $('statusText').textContent = statusText(status);
   $('connectionSection').classList.toggle('connected', status.mode === 'live');
   const active = ['live', 'connecting', 'demo'].includes(status.mode);
   $('disconnectBtn').hidden = !active;
-  $('connectBtn').hidden = active;
+  const hasUsername = Boolean($('username').value.trim());
+  $('connectBtn').hidden = active || (hasUsername && !['error', 'ended'].includes(status.mode));
+  $('connectBtn').textContent = hasUsername && ['error', 'ended'].includes(status.mode) ? '今すぐつなぐ' : '配信につなぐ';
   $('demoBtn').hidden = active;
   if (status.message) setMessage(status.message, status.mode === 'error');
 }
@@ -133,7 +136,8 @@ function renderPlan(billing) {
   if (!panel) return;
   const suspended = Boolean(billing && billing.status === 'suspended');
   const notice = Boolean(billing && billing.trialNotice);
-  if (!billing || (!billing.show && !suspended && !notice)) {
+  const urgent = suspended || notice || billing?.status === 'past_due';
+  if (!billing || !urgent) {
     panel.hidden = true;
     return;
   }
@@ -304,6 +308,8 @@ editor
   .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
   .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
 setupStreamerAi({ box: $('streamerAiView'), intro: $('streamerAiIntro'), body: $('streamerAiBody'), api });
+// 詳細な接続値は「くわしい人向け」にだけ置き、普段は短い案内だけを見せる。
+if (advancedConnection && $('streamerAiBody')) advancedConnection.append($('streamerAiBody'));
 
 // WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）。
 // 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
