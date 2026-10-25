@@ -261,7 +261,10 @@ export const list = (s) =>
  */
 export function connect(handlers) {
   const compact = new URLSearchParams(loc.search || '').get('compact') === '1';
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${compact ? '?compact=1' : ''}`;
+    // ダッシュボードの中の見本(preview=1)は、配信ソフトからの接続として数えない
+  const preview = new URLSearchParams(loc.search || '').get('preview') === '1';
+  const query = [compact && 'compact=1', preview && 'preview=1'].filter(Boolean).join('&');
+  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${query ? `?${query}` : ''}`;
   let ws;
   let latestState = null;
   const open = () => {

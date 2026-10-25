@@ -68,7 +68,7 @@
         if (state && state.distance != null && state.stage && state.stage !== 'safe') show({ type: 'goalAlert', stage: state.stage, distance: state.distance, message: state.stage === 'final' ? '最終防衛ライン' : 'ゴールまで ' + state.distance + 'm' });
       }).catch(function () {});
 
-      var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws');
+      var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
       socket.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (e) {} };
     }());
   </script>

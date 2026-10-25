@@ -59,7 +59,7 @@
   function add(item) { var kind = kindOf(item.visits); if (!config || !allowed(kind)) return; queue.push(item); while (queue.length > (Number(config.maxQueue) || 5)) queue.shift(); next(); }
   function connect() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var socket = new WebSocket(proto + '//' + location.host + basePath() + '/ws');
+    var socket = new WebSocket(proto + '//' + location.host + basePath() + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
     socket.onmessage = function (event) { var data; try { data = JSON.parse(event.data); } catch (e) { return; } if (data.type === 'visitor') add(data.visitor); if (data.type === 'config') loadConfig(function () {}); };
     socket.onclose = function () { window.setTimeout(connect, 1500); };
   }

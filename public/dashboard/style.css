@@ -1655,3 +1655,16 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 
 /* ホームへ移したお知らせは、準備カードと同じ列にそろえる。 */
 body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
+
+/* kind-ui: 準備の一覧は「名前 ……… 済み/まだ [ボタン]」の1行 */
+.home-prep li .prep-state { margin-left: auto; font-size: 13px; color: var(--text-secondary); }
+.home-prep li.done .prep-state { color: var(--text-primary); }
+.home-prep li .btn, .home-prep li .hint { flex: none; }
+/* サイドバーの状態の文は切らずに折り返す */
+[data-mode=simple] .side-head .status { white-space: normal; overflow: visible; text-overflow: clip; }
+/* ボタンの文字は折り返さない。入らないときは並びのほうを折り返す */
+.btn, .chip { white-space: nowrap; }
+.test-chips, .row { flex-wrap: wrap; }
+.toast:empty { visibility: hidden; }
+.home-prep .prep-label, .home-prep .prep-state { white-space: nowrap; }
+@media (max-width: 600px) { .home-prep li .hint { display: none; } }

@@ -67,7 +67,7 @@
   var pathMatch = location.pathname.match(/^(.*\/t\/[^/]+)(?:\/|$)/);
   var base = pathMatch ? pathMatch[1] : '';
   var api = base + '/api/combo';
-  var wsPath = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws';
+  var wsPath = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : '');
   var panel = document.getElementById('panel');
   var waiting = document.getElementById('waiting');
   var avatar = document.getElementById('avatar');

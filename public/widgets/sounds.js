@@ -114,7 +114,7 @@
   }
 
   function connect() {
-    var ws = new WebSocket(wsProto + '//' + location.host + base + '/ws');
+    var ws = new WebSocket(wsProto + '//' + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
     ws.onmessage = function (ev) { onText(ev.data); };
     ws.onclose = function () { setTimeout(connect, 1000); };
   }

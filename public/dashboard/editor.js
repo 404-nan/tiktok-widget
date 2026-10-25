@@ -478,17 +478,19 @@ export function createEditor({ api, setMessage }) {
       item('plus', '出すものを増やす', view === 'catalog', goTo('catalog')),
       item('activity', '配信中に見る', false, () => { window.location.href = '/monitor/'; }),
       item('chart-column', 'これまでの配信', false, () => { window.location.href = '/history/'; }),
-      Object.assign(document.createElement('div'), { className: 'side-spacer' }),
+    );
+    // 使い方と設定は、PC ではサイドバーのいちばん下に固定する
+    const bottom = [
       item('book-open', '使い方', false, () => window.open('/help/', '_blank', 'noopener')),
       item('settings', '設定', view === 'settings', goTo('settings'), 'side-settings'),
-    );
+    ];
     if (desktop) {
       const head = document.createElement('div');
       head.className = 'side-head';
       head.append(brand);
       const footer = document.createElement('div');
       footer.className = 'side-footer';
-      footer.append(nav);
+      footer.append(...bottom, nav);
       sideObserver?.disconnect();
       sideObserver = new ResizeObserver(() => {});
       sideObserver.observe(menu);
@@ -500,7 +502,10 @@ export function createEditor({ api, setMessage }) {
       topbar.prepend(brand);
       topbar.append(nav);
       col.prepend(connection);
+      menu.append(...bottom);
       side.replaceChildren(menu);
+      // 幕はサイドバーと同じ重なりの中に置く(外に置くと、サイドバーの上にかぶって押せなくなる)
+      if (menuBackdrop && menuBackdrop.nextElementSibling !== side) side.before(menuBackdrop);
     }
     // スマホの横並びでは、選んでいるものが見えるところまで流す
     side.querySelector('[aria-current=true]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -562,30 +567,34 @@ export function createEditor({ api, setMessage }) {
   // ホームは配信前に見る3つだけに絞る。
   function renderHome() {
     const box = $('cards');
+    // GOV.UK の Task list の形: 行ごとに「済み・まだ」と、まだの行にはそれをするボタン
     const steps = [
-      ['出すものを選んだ', Boolean(preparation.selectedAt) || usedSections().length > 0],
-      ['配信ソフトに入れた', Boolean(preparation.widgetAt)],
-      ['ためした', Boolean(preparation.testedAt) || Boolean(store.get('sample-tried', false))],
-      ['配信で使った', Boolean(preparation.liveAt)],
+      ['出すものを選ぶ', Boolean(preparation.selectedAt) || usedSections().length > 0, '選ぶ', goTo('catalog')],
+      ['配信ソフトに入れる', Boolean(preparation.widgetAt), '入れ方を見る', goTo('obs')],
+      ['ためしに動かす', Boolean(preparation.testedAt) || Boolean(store.get('sample-tried', false)), 'ためす', () => $('demoBtn')?.click()],
+      ['配信で使う', Boolean(preparation.liveAt), null, null],
     ];
     const list = document.createElement('ol');
     list.className = 'home-prep';
-    steps.forEach(([label, done], index) => {
+    steps.forEach(([label, done, action, onClick]) => {
       const item = document.createElement('li');
       item.className = done ? 'done' : '';
-      item.append(icon(done ? 'check' : 'circle'), Object.assign(document.createElement('span'), { textContent: label }));
-      if (!done && index === 1) {
-        const link = document.createElement('button');
-        link.type = 'button'; link.className = 'text-btn pressable'; link.textContent = '入れ方を見る';
-        link.addEventListener('click', goTo('obs'));
-        item.append(link);
+      const state = Object.assign(document.createElement('span'), { className: 'prep-state', textContent: done ? '済み' : 'まだ' });
+      item.append(icon(done ? 'check' : 'circle'), Object.assign(document.createElement('span'), { className: 'prep-label', textContent: label }), state);
+      if (!done && action) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn pressable'; b.textContent = action;
+        b.addEventListener('click', onClick);
+        item.append(b);
+      } else if (!done) {
+        item.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: '配信を始めると印が付きます' }));
       }
       list.append(item);
     });
     const card = document.createElement('section');
     card.className = 'home-card';
     card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
-    box.replaceChildren(viewHead('ホーム'), homeTopCards, card);
+    box.replaceChildren(viewHead('ホーム'), card, homeTopCards);
     api('/api/preparation').then((next) => {
       if (JSON.stringify(next) === JSON.stringify(preparation)) return;
       preparation = next;
@@ -594,6 +603,8 @@ export function createEditor({ api, setMessage }) {
   }
 
   function autoConnectSetting() {
+    const card = document.createElement('section');
+    card.className = 'panel section';
     const label = document.createElement('label');
     label.className = 'check settings-auto-connect';
     const input = document.createElement('input');
@@ -603,7 +614,12 @@ export function createEditor({ api, setMessage }) {
       preparation = await api('/api/preparation/auto', { on: input.checked }, 'PUT');
     });
     label.append(input, '配信が始まったら自動でつなぐ');
-    return label;
+    card.append(
+      Object.assign(document.createElement('h2'), { textContent: '配信につなぐ' }),
+      Object.assign(document.createElement('p'), { className: 'hint', textContent: '配信ソフトにライコネの画面が入っていれば、配信を始めたときに自動でつながります。' }),
+      label,
+    );
+    return card;
   }
 
   // OBS に入れる URL をまとめて見る
@@ -867,6 +883,7 @@ export function createEditor({ api, setMessage }) {
     if (settingsViewActive) {
       $('profileSection').hidden = false;
       $('settingsBody').replaceChildren($('profileSection'), autoConnectSetting());
+      $('settingsView').append($('advancedConnection'));
       return;
     }
     if (aiView) return;
@@ -1040,6 +1057,8 @@ export function createEditor({ api, setMessage }) {
   }
 
   function buildField(key, field, value) {
+    // 横の位置は「出す場所」の3×3のマスで一緒に選ぶので、別のプルダウンは出さない
+    if (simple() && tab === 'alerts' && key === 'align') return Object.assign(document.createElement('div'), { hidden: true });
     if (simple() && tab === 'alerts' && key === 'position') {
       const wrap = document.createElement('div');
       wrap.className = 'field wide placement-field';
@@ -1051,7 +1070,7 @@ export function createEditor({ api, setMessage }) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'placement-cell pressable';
-        button.setAttribute('aria-label', `${position}・${nextAlign}`);
+        button.setAttribute('aria-label', `${{ top: '上', center: 'まんなか', bottom: '下' }[position]}の${{ left: '左', center: 'まんなか', right: '右' }[nextAlign]}`);
         button.setAttribute('aria-pressed', String(value === position && align === nextAlign));
         button.addEventListener('click', async () => { await save(key, position); await save('align', nextAlign); });
         grid.append(button);
@@ -2478,9 +2497,9 @@ export function createEditor({ api, setMessage }) {
 
   function fillActions() {
     const box = $('actions');
-    box.replaceChildren(chip(simple() ? 'ためしにギフトを1つ出す' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
+    box.replaceChildren(chip(simple() ? 'ためしに1つ出す' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
     if (!live) {
-      const sample = chip('見本をずっと出す', 'layout-template', async () => {
+      const sample = chip('見本を出したままにする', 'layout-template', async () => {
         try {
           const now = await api('/api/sample');
           await api('/api/sample', { on: !now.on }, 'POST');

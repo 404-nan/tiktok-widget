@@ -32,7 +32,7 @@ test('kind-ui の言葉の辞書と準備画面の入口がある', () => {
   const editor = read('public/dashboard/editor.js');
   const runtime = read('src/runtime.js');
   assert.match(words, /使う言葉/);
-  assert.match(editor, /配信ソフトに入れた/);
+  assert.match(editor, /配信ソフトに入れる/);
   assert.match(editor, /配信が始まったら自動でつなぐ/);
   assert.doesNotMatch(editor, /confirm\(`「\$\{id\}」の設定を消します/);
   assert.match(runtime, /\/api\/preparation/);

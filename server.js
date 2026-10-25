@@ -495,7 +495,8 @@ server.on('upgrade', (req, socket, head) => {
     const found = tenants.byKey(m[1]);
     if (found?.tenant.enabled) {
       rt = tenants.runtime(found.tenant.id);
-      role = found.role;
+      // ダッシュボードの中の見本は、配信ソフトからの接続(obs)と分ける。準備の印と自動でつなぐに数えないため
+      role = found.role === 'obs' && requestUrl.searchParams.get('preview') === '1' ? 'preview' : found.role;
       tenantId = found.tenant.id;
     }
   } else if (pathname === '/ws') {
@@ -512,8 +513,10 @@ server.on('upgrade', (req, socket, head) => {
     ws.on('pong', () => (ws.isAlive = true));
     const overlayBlocked = () => billingAllows(() => tenantId != null && tenants.billing.isOverlayBlocked(tenantId), false);
     // 未払いの OBS 用接続は、配信に映るものを流さない。読み込み直しだけは届ける
-    ws.quiet = role === 'obs' && overlayBlocked();
-    ws.allowMessage = (msg) => overlayMessageAllowed({ role, blocked: overlayBlocked(), type: msg?.type });
+    // 見本(preview)も鍵は OBS 用なので、未払いのときの止め方は obs と同じにする
+    const keyRole = role === 'preview' ? 'obs' : role;
+    ws.quiet = keyRole === 'obs' && overlayBlocked();
+    ws.allowMessage = (msg) => overlayMessageAllowed({ role: keyRole, blocked: overlayBlocked(), type: msg?.type });
     rt.hub.addClient(ws);
   });
 });

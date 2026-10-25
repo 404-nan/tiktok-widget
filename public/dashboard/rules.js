@@ -186,7 +186,7 @@ export function rulesEditor({ type, value = [], gifts = [], onChange }) {
     list.replaceChildren(...rows.map(rowFor));
     if (!rows.length) list.append(el('p', { className: 'hint', textContent: 'まだルールはありません。' }));
   };
-  const add = el('button', { type: 'button', className: 'chip pressable' }, icon('plus'), 'ルールを足す');
+  const add = el('button', { type: 'button', className: 'chip pressable' }, icon('plus'), 'もう1つ足す');
   add.addEventListener('click', () => {
     rows.push(structuredClone(kind.blank));
     draw();

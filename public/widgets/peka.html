@@ -68,7 +68,7 @@
   }
   function connect() {
     var proto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
-    var ws = new WebSocket(proto + '//' + location.host + base + '/ws');
+    var ws = new WebSocket(proto + '//' + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
     ws.onmessage = function (event) { var data; try { data = JSON.parse(event.data); } catch (e) { return; } if (data.type === 'peka') show(data); };
     ws.onclose = function () { setTimeout(connect, 1000); };
   }

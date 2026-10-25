@@ -221,7 +221,7 @@
 
   function connect() {
     var protocol = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
-    var socket = new WebSocket(protocol + '//' + location.host + base + '/ws');
+    var socket = new WebSocket(protocol + '//' + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
     socket.onmessage = function (event) {
       try { receive(JSON.parse(event.data)); } catch (error) {}
     };

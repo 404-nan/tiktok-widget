@@ -3,7 +3,7 @@ const STATUS = { idle: '配信につながっていません', connecting: 'つ�
 
 export const statusText = (status) =>
   status.username && status.mode === 'live' ? `配信中 · @${status.username}`
-    : status.username && status.mode === 'idle' ? '配信を待っています（始まると自動でつながります）'
+    : status.username && status.mode === 'idle' ? '配信を待っています'
       : STATUS[status.mode] ?? status.mode;
 
 /**

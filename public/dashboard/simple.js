@@ -110,7 +110,7 @@ export const SIMPLE = {
   },
   alerts: {
     groups: [
-      { title: 'どんなときに出す？', fields: ['events', 'gifts', 'minCoins'] },
+      { title: 'いつ出す？', fields: ['events', 'gifts', 'minCoins'] },
       {
         title: 'どう見せる？',
         presets: [

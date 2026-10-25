@@ -33,7 +33,7 @@ test('AC-1〜AC-8: hosted の配信者画面をPC・スマホ、ライト・ダ�
         await page.locator('#settingsView').waitFor({ state: 'visible' });
         assert.equal(await page.locator('#advancedConnection').getAttribute('open'), null);
         await page.locator('#mobileMenuBtn').click();
-        await page.locator('#mobileMenuBackdrop').click();
+        await page.locator('#mobileMenuBackdrop').click({ position: { x: 375, y: 400 } }); // サイドバーの外(右のはし)を押して閉じる
         await page.locator('#side.is-open').waitFor({ state: 'hidden' });
       }
       for (const label of ['ギフト通知', 'コメント欄', '目標バー']) {
@@ -41,7 +41,7 @@ test('AC-1〜AC-8: hosted の配信者画面をPC・スマホ、ライト・ダ�
           await page.locator('#mobileMenuBtn').click();
           await page.locator('#side.is-open').waitFor({ state: 'visible' });
         }
-        await page.locator('.side-item').filter({ hasText: label }).evaluate((element) => element.click());
+        await page.locator('.side-item').filter({ hasText: label }).first().click(); // 本当に押せるか(幕がかぶっていないか)も確かめる
         await page.locator('#detail:not([hidden])').waitFor({ state: 'visible' });
       }
       if (width < 900) {

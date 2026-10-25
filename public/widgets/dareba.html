@@ -70,7 +70,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
   // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
   var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
   fetch(base + '/api/dareba').then(function (r) { return r.json(); }).then(show).catch(function () {});
-  var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws');
+  var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
   ws.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (error) {} };
 }());
 </script>

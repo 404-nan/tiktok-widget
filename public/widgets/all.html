@@ -75,6 +75,7 @@ function setFrame(key, url, x, y, scale, size, z) {
     frameMap.set(key, f);
     stage.append(f);
   }
+  if (document.body.classList.contains('preview')) { const u = new URL(url, location.href); u.searchParams.set('preview', '1'); url = u.href; }
   if (f.src !== new URL(url, location.href).href) f.src = url;
   f.style.width = `${size[0]}px`;
   f.style.height = `${size[1]}px`;

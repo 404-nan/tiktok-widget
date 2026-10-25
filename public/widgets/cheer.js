@@ -64,7 +64,7 @@
   function connect() {
     // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
     var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
-    var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws');
+    var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
     socket.onmessage = function (event) {
       var message = JSON.parse(event.data);
       if (message.type === 'hello') {
