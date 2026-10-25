@@ -431,6 +431,7 @@ export function createEditor({ api, setMessage }) {
     return w.id && names.length > 1 ? `${base} ${names.indexOf(w.id) + 1}` : base;
   };
 
+  const railName = (title) => title.split('・')[0].replace(/(通知|欄|バー)$/, '').slice(0, 5);
   let sideObserver = null;
   // サイドバー: いつも出ていて、押すと右が切り替わる（スマホでは横に流れるボタンの列になる）
   function renderNav() {
@@ -458,10 +459,11 @@ export function createEditor({ api, setMessage }) {
     const connection = $('connectionSection');
     const desktop = window.matchMedia('(min-width: 900px)').matches;
     const used = usedSections();
-    const item = (iconName, label, current, onClick, cls = '') => {
+    const item = (iconName, label, current, onClick, cls = '', fullName) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = `side-item pressable ${cls}`;
+      b.dataset.name = fullName ?? label;
       b.setAttribute('aria-current', String(current));
       b.append(icon(iconName), Object.assign(document.createElement('span'), { textContent: label }));
       b.addEventListener('click', () => { closeMobileMenu(); onClick(); });
@@ -474,7 +476,8 @@ export function createEditor({ api, setMessage }) {
     menu.append(
       item('house', 'ホーム', view === 'home', goTo('home')),
       label('ウィジェット'),
-      ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
+      // 左の細い列では短い名前(ギフト通知→ギフト、目標バー→目標)。全部の名前は押したあとの見出しに出る
+      ...used.map((t) => item(INFO[t].icon, desktop ? railName(schema.sections[t].title) : schema.sections[t].title, onDetail(t), () => openCard(t), '', schema.sections[t].title)),
       item('plus', desktop ? 'その他' : 'その他のウィジェット', view === 'catalog', goTo('catalog')),
       item('activity', '配信中に見る', view === 'monitor', goTo('monitor')),
       item('chart-column', '配信の記録', view === 'history', goTo('history')),

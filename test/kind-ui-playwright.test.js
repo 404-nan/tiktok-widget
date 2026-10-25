@@ -41,7 +41,7 @@ test('AC-1〜AC-8: hosted の配信者画面をPC・スマホ、ライト・ダ�
           await page.locator('#rkTabs').getByText('ウィジェット').click(); // スマホは下のタブから一覧を開く
           await page.locator('#side.is-open').waitFor({ state: 'visible' });
         }
-        await page.locator('.side-item').filter({ hasText: label }).first().click(); // 本当に押せるか(幕がかぶっていないか)も確かめる
+        await page.locator(`.side-item[data-name="${label}"]`).first().click(); // 本当に押せるか(幕がかぶっていないか)も確かめる
         await page.locator('#detail:not([hidden])').waitFor({ state: 'visible' });
       }
       if (width < 900) {

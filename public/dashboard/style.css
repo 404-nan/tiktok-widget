@@ -1753,7 +1753,7 @@ body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
    色はここで決める。下の部品は変数だけを使う
    ============================================================ */
 :root {
-  --rk-acc: #FFE600; --rk-acc-ink: #0C0C0C;
+  --rk-acc: #FFE600; --rk-acc-ink: #0C0C0C; --rk-stage: #0F0F0F; --rk-scan: rgba(255, 255, 255, .035);
   --page: #141414; --surface: #1C1C1C; --glass: #1C1C1C; --glass-solid: #1C1C1C;
   --text-primary: #F4F4F0; --text-secondary: #CFCFC8; --text-tertiary: #A9A9A2;
   --fill-primary: #F4F4F0; --text-primary-on: #0C0C0C;
@@ -1762,7 +1762,7 @@ body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
   --attention: var(--rk-acc); --accent: var(--rk-acc);
 }
 [data-theme=light] {
-  --rk-acc: #D93A1F; --rk-acc-ink: #FFFFFF;
+  --rk-acc: #D93A1F; --rk-acc-ink: #FFFFFF; --rk-stage: #262522; --rk-scan: rgba(255, 255, 255, .035);
   --page: #F3F1EC; --surface: #FFFFFF; --glass: #FFFFFF; --glass-solid: #FFFFFF;
   --text-primary: #1C1B19; --text-secondary: #3B3934; --text-tertiary: #5C584F;
   --fill-primary: #1C1B19; --text-primary-on: #F3F1EC;
@@ -1837,3 +1837,42 @@ body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
 .rk-links .btn[aria-current=true] { box-shadow: inset 0 -2px 0 var(--rk-acc); }
 .more-list { display: grid; gap: 8px; }
 .more-item { min-height: 56px; background: var(--surface); border: 1px solid var(--border); font-size: 16px; color: var(--text-primary); }
+
+/* ============================================================
+   放送卓の形(2026-10-25 デザインの直し。AI っぽさを抜く)
+   - 角は小さく(4〜6px)。カプセル形はやめる
+   - 設定は灰色の箱に入れず、細い線で区切る
+   - 差し色(黄/朱)は「主役のボタン」「選んでいるもの」「使用中」だけ
+   - 数字は等幅、URL は機械の文字
+   ============================================================ */
+:root, [data-theme=light] { --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-pill: 6px; --card-radius: 6px; }
+[data-mode=simple] .sgroup-title { margin: 0; padding: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--text-primary); box-shadow: inset 0 -1px 0 var(--stroke-primary); }
+[data-mode=simple] .sgroup-body { background: transparent; box-shadow: none; border-radius: 0; overflow: visible; }
+[data-mode=simple] .sgroup-body > .field, [data-mode=simple] .sgroup-body > .check { padding: 12px 0; }
+[data-mode=simple] .sgroup-body > * + * { box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+[data-mode=simple] .sgroup-body .chip, [data-mode=simple] .sgroup-body .choice { border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--stroke-primary); background: transparent; }
+[data-mode=simple] .sgroup-body .chip[aria-pressed=true], [data-mode=simple] .sgroup-body .choice[aria-pressed=true], [data-mode=simple] .sgroup-body .chip.on { background: var(--text-primary); color: var(--page); box-shadow: none; }
+input[type=number], .num, .kpi-value, .count, time { font-variant-numeric: tabular-nums; }
+#widgetUrl, .url-row input, .rk-top #username { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+/* 使用中は差し色の札(緑にしない) */
+.entry-active, .entry-live { color: var(--rk-acc) !important; font-weight: 800; letter-spacing: .02em; }
+/* 左の列: 文字は1行、選んでいるものに差し色の線 */
+@media (min-width: 900px) {
+  [data-mode=simple] .side-item { font-size: 10.5px; padding: 6px 0; }
+  [data-mode=simple] .side-item span { white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%; }
+  [data-mode=simple] .side-item[aria-current=true] { background: transparent; box-shadow: inset 3px 0 0 var(--rk-acc); border-radius: 0; }
+  .rk-top { gap: 12px; }
+  .rk-top .btn, .rk-top .input-wrap { border-radius: var(--r-sm); }
+}
+/* 見え方の枠: 角は小さく、映像の地の色(飾りの縞は入れない) */
+.preview { border-radius: var(--r-sm) !important; background: var(--rk-stage) !important; box-shadow: inset 0 0 0 1px var(--stroke-primary) !important; }
+/* 箱は全部同じ細い枠。影とぼかしは使わない */
+.home-card, #settingsBody > section, .settings-view > section, .settings-view > details, .note, #notesPanel { box-shadow: none !important; }
+[data-mode=simple] .checks .check { border-radius: var(--r-sm) !important; box-shadow: inset 0 0 0 1px var(--stroke-primary) !important; background: transparent !important; }
+[data-mode=simple] .checks .check:has(input:checked) { background: var(--text-primary) !important; color: var(--page) !important; box-shadow: none !important; }
+
+/* 差し色は1画面に少しだけ: 見え方の切り替えとコピーは墨の色にする */
+.preview-mode.preset-chips > .preset[aria-pressed=true] { background: var(--text-primary) !important; color: var(--page) !important; border-color: var(--text-primary) !important; }
+.preview-mode .preset { min-height: 36px !important; font-size: 13px; }
+#copyBtn.btn.primary { background: transparent !important; color: var(--text-primary) !important; border: 1px solid var(--stroke-primary) !important; }
+@media (min-width: 900px) { [data-mode=simple] #actions .chip { font-size: 13px; padding-left: 10px; padding-right: 10px; } }
