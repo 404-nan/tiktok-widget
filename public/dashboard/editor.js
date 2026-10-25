@@ -84,7 +84,7 @@ const LABELS = {
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
   'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
-  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', labelDirection: '文字の向き', chance: 'ギリギリ演出', items: '項目',
+  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', labelDirection: '文字の向き', chance: 'ギリギリ演出', items: '中身',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
@@ -478,7 +478,7 @@ export function createEditor({ api, setMessage }) {
       label('ウィジェット'),
       // 左の細い列では短い名前(ギフト通知→ギフト、目標バー→目標)。全部の名前は押したあとの見出しに出る
       ...used.map((t) => item(INFO[t].icon, desktop ? railName(schema.sections[t].title) : schema.sections[t].title, onDetail(t), () => openCard(t), '', schema.sections[t].title)),
-      item('plus', desktop ? 'その他' : 'その他のウィジェット', view === 'catalog', goTo('catalog')),
+      item('plus', desktop ? 'その他' : 'その他のウィジェット', view === 'catalog', goTo('catalog'), '', 'その他のウィジェット'),
       item('activity', '配信中に見る', view === 'monitor', goTo('monitor')),
       item('chart-column', '配信の記録', view === 'history', goTo('history')),
     );
@@ -750,6 +750,8 @@ export function createEditor({ api, setMessage }) {
     return wrap;
   }
 
+  let closeEntryMenuOutside = null;
+  let entryMenuListening = false;
   function renderEntries() {
     const box = $('entries');
     box.replaceChildren();
@@ -763,52 +765,72 @@ export function createEditor({ api, setMessage }) {
     const label = document.createElement('span');
     label.className = isRoulette ? 'entry-label is-roulette' : 'entry-label';
     label.textContent = isRoulette ? '保存したルーレット' : 'プリセット';
-    const selectBox = document.createElement('select');
-    selectBox.className = 'entry-select';
-    selectBox.setAttribute('aria-label', isRoulette ? '保存したルーレット' : `${schema.sections[tab].title}のプリセット`);
+    // プリセットの選び方: 名前の欄(ダブルクリックでその場で直せる) + ▾ のメニュー(切り替え・新しく作る・名前を変える・消す)
+    const titleOf = (name) => payload.config[tab][name].kindName || payload.config[tab][name].name || payload.config[tab][name].title || `${schema.sections[tab].title} ${names.indexOf(name) + 1}`;
+    const picker = Object.assign(document.createElement('div'), { className: 'entry-picker' });
+    const nameInput = Object.assign(document.createElement('input'), { className: 'entry-name', value: titleOf(id), readOnly: true });
+    nameInput.setAttribute('aria-label', isRoulette ? '保存したルーレットの名前' : `${schema.sections[tab].title}のプリセットの名前`);
+    nameInput.title = 'ダブルクリックで名前を直せます';
+    const toggle = Object.assign(document.createElement('button'), { type: 'button', className: 'entry-toggle pressable' });
+    toggle.setAttribute('aria-label', isRoulette ? '保存したルーレットを選ぶ' : 'プリセットを選ぶ');
+    toggle.setAttribute('aria-haspopup', 'menu');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.append(icon('chevron-down'));
+    const menu = Object.assign(document.createElement('div'), { className: 'entry-menu', hidden: true });
+    menu.setAttribute('role', 'menu');
+    const closeMenu = () => { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); };
+    const menuItem = (text, onClick, cls = '') => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: `entry-menu-item pressable ${cls}`, textContent: text });
+      b.setAttribute('role', 'menuitem');
+      b.addEventListener('click', () => { closeMenu(); onClick(); });
+      return b;
+    };
     for (const name of names) {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = payload.config[tab][name].kindName || payload.config[tab][name].name || payload.config[tab][name].title || `${schema.sections[tab].title} ${names.indexOf(name) + 1}`;
-      opt.selected = name === id;
-      selectBox.append(opt);
+      const b = menuItem(titleOf(name), async () => {
+        if (name === id) return;
+        select(tab, name);
+        await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: ['active', tab], value: name }) });
+        await reload();
+        select(tab, name);
+      }, name === id ? 'is-current' : '');
+      menu.append(b);
     }
-    const addOpt = document.createElement('option');
-    addOpt.value = '__new__';
-    addOpt.textContent = '＋ 新しいプリセットを作る';
-    selectBox.append(addOpt);
-    selectBox.addEventListener('change', async () => {
-      if (selectBox.value === '__new__') return addEntry();
-      if (selectBox.value === '__rename__') { selectBox.value = id; return renameEntry(); }
-      const next = selectBox.value;
-      select(tab, next);
-      await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: ['active', tab], value: next }) });
-      await reload();
-      select(tab, next);
+    menu.append(Object.assign(document.createElement('hr'), { className: 'entry-menu-line' }), menuItem('＋ 新しいプリセット', addEntry), menuItem('名前を変える', () => startInlineRename()));
+    if (names.length > 1) menu.append(menuItem('このプリセットを消す', removeEntry, 'danger'));
+    toggle.addEventListener('click', () => { menu.hidden = !menu.hidden; toggle.setAttribute('aria-expanded', String(!menu.hidden)); });
+    // 外を押したら閉じる(描き直すたびに足さないよう、1つだけ置いて今のメニューを差し替える)
+    closeEntryMenuOutside = (event) => { if (!picker.contains(event.target)) closeMenu(); };
+    if (!entryMenuListening) { entryMenuListening = true; document.addEventListener('click', (event) => closeEntryMenuOutside?.(event)); }
+    // その場で名前を直す: Enter か外を押したら決まる、Esc でやめる
+    const startInlineRename = () => { nameInput.readOnly = false; picker.classList.add('is-editing'); nameInput.focus(); nameInput.select(); };
+    const finishRename = async (save) => {
+      if (nameInput.readOnly) return;
+      nameInput.readOnly = true;
+      picker.classList.remove('is-editing');
+      const next = nameInput.value.trim();
+      if (!save || !next || next === titleOf(id)) { nameInput.value = titleOf(id); return; }
+      const res = await fetch('/api/config', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: [tab, id], merge: true, value: { kindName: next } }) });
+      const data = await res.json();
+      if (data.config) payload = data;
+      render();
+    };
+    // 1回押すとメニュー、2回続けて押すとその場で名前を直す(2回目を待ってからメニューを開く)
+    let clickTimer = null;
+    nameInput.addEventListener('dblclick', () => { clearTimeout(clickTimer); closeMenu(); startInlineRename(); });
+    nameInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); finishRename(true); }
+      if (event.key === 'Escape') finishRename(false);
     });
-    const renameOpt = document.createElement('option');
-    renameOpt.value = '__rename__';
-    renameOpt.textContent = '名前を変える';
-    selectBox.append(renameOpt);
-    box.append(label, selectBox);
+    nameInput.addEventListener('blur', () => finishRename(true));
+    nameInput.addEventListener('click', () => { if (!nameInput.readOnly) return; clearTimeout(clickTimer); clickTimer = setTimeout(() => toggle.click(), 250); });
+    picker.append(nameInput, toggle, menu);
+    box.append(label, picker);
     if (payload.config.active?.[tab] === id) {
       const active = document.createElement('span');
       active.className = 'entry-active';
       active.textContent = '配信で使用中';
       box.append(active);
     }
-    if (isRoulette) {
-      const note = document.createElement('p');
-      note.className = 'entry-roulette-note';
-      note.textContent = '前に作ったルーレットはここから選べます';
-      box.append(note);
-    }
-    const remove = document.createElement('button');
-    remove.type = 'button'; remove.className = 'entry-action danger pressable'; remove.textContent = 'このプリセットを消す';
-    remove.disabled = names.length <= 1;
-    remove.addEventListener('click', removeEntry);
-    box.append(remove);
-    selectBox.addEventListener('dblclick', renameEntry);
   }
 
   function openNameDialog({ title, value = '', hint = '', choices = false }) {
@@ -1943,7 +1965,7 @@ export function createEditor({ api, setMessage }) {
     wrap.className = 'field items-field';
     const head = document.createElement('span');
     head.className = 'field-label';
-    head.textContent = '項目（色と画像は項目ごとに指定できます）';
+    head.textContent = '中身（色と画像は1つずつ決められます）';
     const list = document.createElement('div');
     list.className = 'items';
     let rows = items.map((it) => ({ ...it, actions: Array.isArray(it.actions) ? it.actions.map((a) => ({ ...a })) : [] }));
@@ -2073,7 +2095,7 @@ export function createEditor({ api, setMessage }) {
       thumb.type = 'button';
       thumb.className = 'thumb pressable';
       thumb.title = '押して画像を選ぶ（右クリック・長押しで差し替え／外す。画像を落としても入ります）';
-      thumb.setAttribute('aria-label', `${r.label ?? '項目'}の画像を選ぶ`);
+      thumb.setAttribute('aria-label', `${r.label ?? 'マス'}の画像を選ぶ`);
       const file = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp,image/avif', hidden: true });
       const takeFile = async (f) => {
         if (!f) return;
@@ -2242,7 +2264,7 @@ export function createEditor({ api, setMessage }) {
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'icon-btn small pressable';
-      del.title = 'この項目を消す';
+      del.title = 'これを消す';
       del.append(icon('x'));
       del.addEventListener('click', () => {
         rows.splice(i, 1);
@@ -2410,9 +2432,9 @@ export function createEditor({ api, setMessage }) {
     const add = document.createElement('button');
     add.type = 'button';
     add.className = 'chip pressable';
-    add.append(icon('plus'), '項目を追加');
+    add.append(icon('plus'), '1つ足す');
     add.addEventListener('click', () => {
-      rows.push({ label: '新しい項目', weight: 1, actions: [] });
+      rows.push({ label: '新しいマス', weight: 1, actions: [] });
       draw();
       commit(0);
       list.lastElementChild?.querySelector('input')?.select();
@@ -2446,9 +2468,20 @@ export function createEditor({ api, setMessage }) {
         b.addEventListener('click', () => { previewAll = all; updateUrl(true); });
         box.append(b);
       }
-      $('preview').before(box);
+      // 切り替えと見え方の枠を1つの列にまとめる(右の列の高さに引っぱられて、枠の上に隙間ができないように)
+      const left = Object.assign(document.createElement('div'), { className: 'preview-left' });
+      $('preview').before(left);
+      left.append(box, $('preview'));
     }
     for (const b of box.children) b.setAttribute('aria-pressed', String(b.dataset.all === String(previewAll)));
+    // 配信画面ぜんぶのときは、置き場所と大きさを変える画面(配信画面の編集)へ行ける
+    let edit = $('stageEditBtn');
+    if (!edit) {
+      edit = Object.assign(document.createElement('button'), { id: 'stageEditBtn', type: 'button', className: 'btn pressable stage-edit-btn', textContent: '配信画面を編集する' });
+      edit.addEventListener('click', goTo('stage'));
+      box.after(edit);
+    }
+    edit.hidden = !previewAll;
   }
 
   function renderRouletteUrls(w) {
@@ -2585,6 +2618,7 @@ export function createEditor({ api, setMessage }) {
     const box = $('actions');
     box.replaceChildren(chip(simple() ? 'ためしに1つ出す' : '条件に合うテストギフト', 'gift', () => testGift().catch((e) => setMessage(e.message, true))));
     if (!live) {
+      // 見本を出している間は、ボタンの見た目と言葉が変わる(出しているのか分かるように)
       const sample = chip('見本を出したままにする', 'layout-template', async () => {
         try {
           const now = await api('/api/sample');
@@ -2592,6 +2626,11 @@ export function createEditor({ api, setMessage }) {
           fillActions();
         } catch (e) { setMessage(e.message, true); }
       });
+      sample.classList.add('sample-toggle');
+      api('/api/sample').then((now) => {
+        sample.setAttribute('aria-pressed', String(Boolean(now.on)));
+        if (now.on) sample.lastChild.textContent = '見本を出しています(押すと止める)';
+      }).catch(() => {});
       box.append(sample);
     }
     const control = (target, action, data) => () => api('/api/control', { target, action, data });

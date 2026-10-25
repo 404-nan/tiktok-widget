@@ -14,8 +14,10 @@ test('ダッシュボードは設定画面にAIと見た目をまとめる', () 
   assert.doesNotMatch(html, /配信風|themes\.css|dash-style\.js/);
   assert.match(editor, /item\('settings', '設定'/);
   assert.match(editor, /item\('house', 'ホーム'/);
-  assert.match(editor, /新しいプリセットを作る/);
-  assert.match(editor, /selectBox\.addEventListener\('dblclick'/);
+  assert.match(editor, /＋ 新しいプリセット/);
+  // 名前はダブルクリックでその場で直す(モーダルを出さない)
+  assert.match(editor, /nameInput\.addEventListener\('dblclick'/);
+  assert.match(editor, /startInlineRename\(\)/);
   assert.doesNotMatch(editor, /prompt\(/);
 });
 

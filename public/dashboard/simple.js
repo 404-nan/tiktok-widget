@@ -171,11 +171,11 @@ export const SIMPLE = {
     groups: [
       { title: 'いつ回す', fields: ['gifts'] },
       {
-        title: '項目',
+        title: 'ルーレットのマス',
         presets: [
           {
-            title: '型から選ぶ（今の項目と入れ替わります）',
-            confirm: '今の項目を、この型の項目に入れ替えますか？',
+            title: 'おすすめから選ぶ（今のマスと入れ替わります）',
+            confirm: '今のマスを、このおすすめに入れ替えますか？',
             options: [
               { label: '罰ゲーム', value: { items: ['歌う*2', '変顔*2', '一発ギャグ', 'モノマネ', 'セーフ*2'] } },
               { label: 'ごほうび', value: { items: ['名前を呼ぶ*3', '質問に答える*2', 'リクエストに応える', '大当たり'] } },
@@ -436,7 +436,7 @@ export const SIMPLE_LABELS = {
   'counters.show': '出す数', 'counters.layout': '並べかた', 'counters.color': '色',
   'goals.title': '見出し', 'goals.metric': '数えるもの', 'goals.goal': '目標の数', 'goals.step': '達成したら目標を上げる数', 'goals.color': 'バーの色',
   'rankings.title': '見出し', 'rankings.metric': '順位を決めるもの', 'rankings.limit': '出す人数',
-  'roulettes.gifts': '回すギフト', 'roulettes.rushOdds': 'RUSH中は確率を変える', 'roulettes.sameSize': '扇を同じ大きさにする', 'roulettes.labelDirection': '文字の向き', 'roulettes.chance': 'ギリギリ演出', 'roulettes.items': '項目と当たりやすさ', 'roulettes.name': '名前', 'roulettes.style': '形', 'roulettes.scale': '大きさ（倍）',
+  'roulettes.gifts': '回すギフト', 'roulettes.rushOdds': 'RUSH中は確率を変える', 'roulettes.sameSize': '扇を同じ大きさにする', 'roulettes.labelDirection': '文字の向き', 'roulettes.chance': 'ギリギリ演出', 'roulettes.items': 'マスと当たりやすさ', 'roulettes.name': '名前', 'roulettes.style': '形', 'roulettes.scale': '大きさ（倍）',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色',
   'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
@@ -496,7 +496,7 @@ const SUMMARY = {
   throne: (e) => (e.enabled === false ? '使わない設定' : `直近10分・接近 ${e.approachPercent}%・移動 ${e.maxMoves} 回まで`),
   ootori: (e) => (e.enabled === false ? '使わない設定' : `${e.mode === 'raise' ? 'せり上げ式' : '誰でも式'}・${Math.round((e.durationMs ?? 600000) / 60000)} 分`),
   dareba: (e) => (e.enabled === false ? '使わない設定' : `${e.type || '野良ボス'}を起こす`),
-  roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} 項目${e.rushOdds ? '・RUSH中は確率が変わる' : ''}`,
+  roulettes: (e) => `${giftsOr(e.gifts, '手で')}で回る・${e.items?.length ?? 0} マス${e.rushOdds ? '・RUSH中は確率が変わる' : ''}`,
   votes: (e) => `${e.title}・${e.options?.length ?? 0} 択${e.durationSeconds ? `・${e.durationSeconds} 秒` : '・手動で締める'}`,
   cheers: (e) => `${e.title}・${e.goal} いいねで満タン${e.loop === false ? '・1回で止まる' : ''}`,
   pushButtons: (e) => `${e.label}・${e.seconds} 秒・${e.keyword} / いいね ${e.likesPerPush} 回で1押し`,

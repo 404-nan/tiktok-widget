@@ -64,7 +64,8 @@ test('AC-2: ダークとライトが同じ名前の変数を持ち、色は黄�
   }
   assert.ok(names.dark.size > 0 && names.light.size > 0, 'ダークとライトの両方に色の変数が要ります');
   assert.deepEqual([...names.dark].sort(), [...names.light].sort(), 'ダークとライトで変数の名前がそろっていません');
-  assert.match(values.dark, /#ffe600/, 'ダークの色が黄色(1c.html の yellow)ではありません');
+  // 黄色は redesign-existing-projects の決まり(差し色の彩度は80%未満)で #FFE600 から少し落とした
+  assert.match(values.dark, /#e5cf3f/, 'ダークの色が黄色ではありません');
   assert.match(values.light, /#f3f1ec/, 'ライトの色が紙(1c.html の paper)ではありません');
 });
 

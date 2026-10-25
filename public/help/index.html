@@ -6,88 +6,111 @@
 <title>使い方 — ライコネ</title>
 <link rel="stylesheet" href="../dashboard/style.css">
 <style>
-  /* 置き場所と大きさだけ（見た目はダッシュボードの部品） */
-  .help { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; display: grid; gap: 16px; }
-  .help h1 { font-size: 24px; margin: 0; }
-  .help h2 { font-size: 17px; margin: 0 0 8px; }
-  .help ol, .help ul { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; line-height: 1.7; }
-  .help .panel { padding: 18px 20px; }
-  .help code { font-size: 14px; word-break: break-all; }
+  /* 読みやすさ優先: 1列、行間を広く、手順は大きな番号。見た目の部品と色はダッシュボードと同じ */
+  .help { max-width: 680px; margin: 0 auto; padding: 32px 20px 72px; display: grid; gap: 28px; font-size: 16px; line-height: 1.85; }
+  .help h1 { font-size: 28px; margin: 0; }
+  .help h2 { font-size: 19px; margin: 0 0 10px; padding-bottom: 6px; box-shadow: inset 0 -1px 0 var(--stroke-primary); }
+  .help h3 { font-size: 16px; margin: 16px 0 6px; }
+  .help p { margin: 0 0 10px; }
+  .help section { scroll-margin-top: 16px; }
+  .help .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .help .steps > li { counter-increment: s; display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; }
+  .help .steps > li::before { content: counter(s); display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-sm); background: var(--rk-acc); color: var(--rk-acc-ink); font-weight: 900; line-height: 1; }
+  .help ul, .help ol:not(.steps) { margin: 0 0 10px; padding-left: 1.3em; display: grid; gap: 6px; }
+  .help b { color: var(--text-primary); }
+  .help .key { display: inline-block; padding: 0 8px; border: 1px solid var(--stroke-primary); border-radius: var(--r-sm); font-size: 14px; line-height: 1.7; }
+  .help code { font-size: 13px; word-break: break-all; }
   .help nav { display: flex; flex-wrap: wrap; gap: 8px; }
+  .help nav a { padding: 6px 12px; border: 1px solid var(--stroke-primary); border-radius: var(--r-sm); color: var(--text-primary); text-decoration: none; font-size: 14px; line-height: 1.4; }
+  .help details { border: 1px solid var(--stroke-secondary); border-radius: var(--r-sm); padding: 10px 14px; }
+  .help details + details { margin-top: 8px; }
+  .help summary { cursor: pointer; font-weight: 700; }
+  .help .faq summary { font-weight: 600; }
 </style>
 </head>
 <body>
 <main class="help">
-  <h1>使い方</h1>
-  <p class="hint">はじめての人は上から順に。困ったときは見出しから探してください。</p>
-  <nav>
-    <a class="chip pressable" href="#start">はじめに</a>
-    <a class="chip pressable" href="#obs">OBSに出す</a>
-    <a class="chip pressable" href="#roulette">ルーレット</a>
-    <a class="chip pressable" href="#timer">延長タイマー</a>
-    <a class="chip pressable" href="#ingest">外部ツール</a>
-    <a class="chip pressable" href="#test">ためす</a>
-    <a class="chip pressable" href="#ai">外部AIにつなぐ</a>
-    <a class="chip pressable" href="#trouble">困ったとき</a>
-    <a class="chip pressable" href="#guide">くわしい説明</a>
+  <div>
+    <h1>使い方</h1>
+    <p class="hint">はじめての人は上から順に読んでください。困ったときは「困ったとき」へ。</p>
+  </div>
+  <nav aria-label="目次">
+    <a href="#start">はじめに</a>
+    <a href="#obs">配信ソフトに入れる</a>
+    <a href="#live">配信中</a>
+    <a href="#test">ためす</a>
+    <a href="#ai">AI とつなぐ</a>
+    <a href="#trouble">困ったとき</a>
+    <a href="#more">くわしい人向け</a>
   </nav>
 
-  <section class="panel" id="start">
+  <section id="start">
     <h2>はじめに</h2>
-    <ol>
-      <li>もらった短い URL を開き、4桁の数字を入れます。</li>
-      <li>左上に TikTok のユーザー名（@ のあと）を入れて「接続」。配信中ならギフトが届き始めます。</li>
-      <li>左の「出すものを選ぶ」で、使うもの（ギフト通知・ルーレット・延長タイマーなど）を選びます。出さなくしても設定は消えません。</li>
+    <ol class="steps">
+      <li><span>もらった URL を開いて、4けたの数字を入れます。</span></li>
+      <li><span>左の <b>その他</b> から、使いたいウィジェット(ギフト通知・ルーレット・延長タイマーなど)を選びます。</span></li>
+      <li><span>ウィジェットの画面の <b>配信ソフトに入れる</b> の URL をコピーして、配信ソフトに入れます(下の「配信ソフトに入れる」)。</span></li>
+      <li><span><b>ためしに動かす</b> を押して、配信ソフトに出るか確かめます。</span></li>
     </ol>
   </section>
 
-  <section class="panel" id="obs">
-    <h2>OBS・TikTok LIVE Studio に出す</h2>
-    <ol>
-      <li>左の「OBSに入れるURL」を開き、出したいものの「コピー」を押します。</li>
-      <li>OBS（または LIVE Studio）で「ソースを追加」→「ブラウザ」を選び、URL 欄に貼ります。</li>
-      <li>幅と高さは、URL の下に出ている数字に合わせます。</li>
-      <li>1つずつ別のソースにします。まとめて1つにしたいときは「1つにまとめる」の URL を使い、そこで場所と大きさをドラッグで決めます。</li>
+  <section id="obs">
+    <h2>配信ソフトに入れる</h2>
+    <h3>TikTok LIVE Studio</h3>
+    <ol class="steps">
+      <li><span><span class="key">ソースを追加</span> を押して、<span class="key">リンク</span> を選びます。</span></li>
+      <li><span>コピーした URL を貼って、追加します。</span></li>
+      <li><span>大きさと場所は、LIVE Studio の画面の上で動かして決めます。ライコネの側で場所を選ぶ必要はありません。</span></li>
     </ol>
-    <h2>OBSのカメラを動かす</h2>
+    <h3>OBS</h3>
+    <p><span class="key">ソース</span> の <span class="key">＋</span> → <span class="key">ブラウザ</span> を選んで URL を貼ります。幅と高さは、URL の下に出ている数字に合わせます。</p>
+    <p>いくつも出すときは、ウィジェットの画面の <b>配信画面ぜんぶ</b> の URL を1本入れるだけで、使っているものが全部出ます。</p>
+  </section>
+
+  <section id="live">
+    <h2>配信中</h2>
+    <p>配信ソフトにライコネの画面が入っていれば、<b>配信を始めると自動でつながります</b>。ボタンを押す必要はありません(設定で切れます)。</p>
+    <p>上の帯の丸が今の様子です。「配信を待っています」→「つないでいます…」→「配信中」の順に変わります。</p>
+    <p>ギフトの数やコメントは <b>配信中に見る</b>、終わった配信は <b>配信の記録</b> で見られます。</p>
+  </section>
+
+  <section id="test">
+    <h2>配信の前にためす</h2>
+    <ul>
+      <li>各ウィジェットの <b>ためしに1つ出す</b> で、ギフトが来たときの動きを見られます。</li>
+      <li><b>見本を出したままにする</b> を押すと、置き場所を決めるあいだ見本が出続けます。もう一度押すと止まります。</li>
+      <li>ためした分は、ランキングや配信の記録には入りません。</li>
+    </ul>
+  </section>
+
+  <section id="ai">
+    <h2>AI とつなぐ(Claude・ChatGPT)</h2>
+    <ol class="steps">
+      <li><span>左下の <b>設定</b> を開いて、<b>AI とつなぐ</b> の「つなぐ先の URL」をコピーします。</span></li>
+      <li><span>Claude や ChatGPT の設定で <span class="key">コネクタを追加</span> を選び、URL を貼ります。</span></li>
+      <li><span>ライコネで <b>合言葉を作る</b> を押し、出てきた合言葉を AI の「秘密」の欄に貼ります。合言葉はあとから見られないので、その場でコピーしてください。</span></li>
+    </ol>
+    <p>AI にできるのは、自分の設定を読むことと、変える案を出すことと、開発用のテスト送信だけです。保存やお金のことはできません。</p>
+  </section>
+
+  <section id="trouble">
+    <h2>困ったとき</h2>
+    <details class="faq"><summary>配信ソフトに何も出ない</summary><p>URL を貼り直して、ソースを右クリック →「プロパティ」→「現在のページのキャッシュを更新」を押します。ルーレットはギフトが来たときだけ出ます。</p></details>
+    <details class="faq"><summary>つながらない</summary><p>上の帯の TikTok の ID に @ を入れていないか、配信が始まっているかを確かめます。それでもだめなら管理者に連絡してください。</p></details>
+    <details class="faq"><summary>設定を消してしまいそう</summary><p>「〇〇を使わない」は、設定を残したまま隠すだけです。プリセットを消しても、10秒のあいだは「元に戻す」で戻せます。</p></details>
+  </section>
+
+  <section id="more">
+    <h2>くわしい人向け</h2>
+    <details><summary>OBS のカメラを動かす</summary>    
     <ol>
       <li>OBSの「ツール」→「WebSocketサーバー設定」でWebSocketを有効にし、パスワードを作ります。</li>
       <li>透明なブラウザソースに、OBS連携のURLを入れ、末尾に <code>#pw=パスワード</code> を自分で足します。パスワードはサーバーへ送られません。</li>
       <li>ダッシュボードの「OBS連携を使う」を入れ、動かすカメラのソース名とルールを設定します。</li>
       <li>配信前はダッシュボードの「ためす」から確認します。動かないときはOBSのポート（通常4455）とソース名を確かめます。</li>
     </ol>
-  </section>
-
-  <section class="panel" id="roulette">
-    <h2>ルーレット</h2>
-    <ul>
-      <li>「回すギフト」でギフトを選ぶと、そのギフトが届いたときだけ画面に出て回ります（ふだんは隠れています）。</li>
-      <li>項目の数字は当たりやすさ。2 にすると 1 の2倍当たりやすくなります。</li>
-      <li>項目の左の四角を押すと画像を選べます。右クリック（スマホは長押し）で差し替え・外すができます。</li>
-      <li>「見た目」の「大きさ（倍）」で全体の大きさを変えられます。</li>
-    </ul>
-  </section>
-
-  <section class="panel" id="timer">
-    <h2>延長タイマー</h2>
-    <ul>
-      <li>「このギフトで決まった時間だけ延ばす」でギフトを選ぶと、100コイン＝1分の目安で長さが入ります。数字は自由に変えられます。</li>
-      <li>「延ばす」「減らす」を選べます。単位は秒か分です。</li>
-      <li>残りが少なくなると、画面に大きくカウントダウンが出ます。</li>
-    </ul>
-  </section>
-
-  <section class="panel" id="test">
-    <h2>配信前にためす</h2>
-    <ul>
-      <li>各画面の「ためす」にある「見本のギフトを出してみる」で、実際の動きを確かめられます。</li>
-      <li>配信中にためしても、ランキングや記録・Minecraft には入りません。</li>
-      <li>「デモを流す」はギフトをまとめて流して、全体の動きを見るためのものです。</li>
-    </ul>
-  </section>
-
-  <section class="panel" id="ingest">
-    <h2>外部ツールからイベントを受ける</h2>
+    </details>
+    <details id="ingest"><summary>外部ツール(TikFinity など)からイベントを受ける</summary>
     <p>ダッシュボードの「接続の状態」で受け口の鍵を作り、表示された URL を外部ツールの送信先に貼ります。URL は <code>https://このサーバー/in/&lt;ここに鍵&gt;</code> の形です。鍵の全文は作成時に1回だけ表示されます。鍵を URL に入れるため、Cloudflare やプロキシのアクセスログに鍵が残ることがあります。漏れたらダッシュボードで鍵を作り直してください。</p>
     <h3>TikFinity</h3>
     <p>TikFinity の公式の Streamer.bot 連携で使える項目名に合わせます。Webhook の送信方法は、使っている編集画面に表示される項目名で合わせてください。</p>
@@ -104,31 +127,8 @@
     <h3>送れないとき</h3>
     <p>同じイベントの再送は二重に数えません。送信は1秒20回まで（瞬間40回まで）です。不正な鍵も送信元ごとに照合の上限を設けています。404 は鍵違い、403 は止められた配信者、429 は送りすぎなので、鍵と送信間隔を確認してください。</p>
     <p>外部ツールだけで配信していて TikTok に直接つないでいないときは、テスト送信も集計に入ります。配信前に試すか、配信中は TikTok に直接つないでから試してください。</p>
-  </section>
-
-  <section class="panel" id="ai">
-    <h2>外部AIにつなぐ</h2>
-    <ol>
-      <li>配信者用ダッシュボードの「AIとの接続」で名前と期限を入れ、「トークンを発行」を押します。</li>
-      <li>表示された値を一度だけコピーし、Claude・ChatGPT など外部AIの秘密のトークン欄へ貼ります。URLやチャット本文には貼りません。</li>
-      <li>接続先とテナント指定を外部AI側に登録し、最初に読み取りをします。次に「設定の提案」で dry-run の差分・検証結果・配信中かどうかを確認します。</li>
-      <li>最後に開発環境でテスト送信をします。提案は自動保存されず、本番の集計・履歴・ランキングを変えません。</li>
-      <li>本番へ反映したいときは、提案を見て配信者本人が既存の承認・設定画面で判断します。配信中は反映しません。使い終わったら一覧の「取り消す」を押します。</li>
-    </ol>
-    <p class="hint">できることは、自分のテナントの読み取り・設定提案・開発環境のテスト送信だけです。保存、操作、課金申請、接続や再起動はできません。</p>
-  </section>
-
-  <section class="panel" id="trouble">
-    <h2>困ったとき</h2>
-    <ul>
-      <li><b>OBS に何も出ない</b>：URL を貼り直し、ソースを右クリック →「プロパティ」→「現在のページのキャッシュを更新」を押します。ルーレットはギフトが来たときだけ出ます。</li>
-      <li><b>接続できない</b>：ユーザー名に @ を入れていないか、配信が始まっているかを確かめます。それでもだめなら管理者に連絡してください。</li>
-      <li><b>設定を消してしまいそう</b>：「使うのをやめる」は設定を残したまま隠すだけです。</li>
-    </ul>
-  </section>
-
-  <section class="panel" id="guide">
-    <h2>もっとくわしく知りたいとき</h2>
+    </details>
+    <details id="guide"><summary>もっとくわしい説明(ドキュメント)</summary>
     <ul>
       <li><a href="https://github.com/404-nan/tiktok-widget/tree/claude/tiktok-widgets-2qpqbk/docs/guide/getting-started.md">はじめて使う</a>：URL を1本入れて、つないで、テストするまで</li>
       <li><a href="https://github.com/404-nan/tiktok-widget/tree/claude/tiktok-widgets-2qpqbk/docs/guide/templates.md">配信テンプレート</a>：配信の種類を選んで、設定をそろえる</li>
@@ -137,6 +137,7 @@
       <li><a href="https://github.com/404-nan/tiktok-widget/tree/claude/tiktok-widgets-2qpqbk/docs/guide/connect.md">つなぎ方</a>：TikFinity など、ほかの道具から送る方法と OBS 連携</li>
       <li><a href="https://github.com/404-nan/tiktok-widget/tree/claude/tiktok-widgets-2qpqbk/docs/guide/faq.md">よくある質問</a>：うまくいかないときの直し方</li>
     </ul>
+    </details>
   </section>
 
   <p><a class="btn pressable" href="../dashboard/">ダッシュボードに戻る</a></p>

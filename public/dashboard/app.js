@@ -313,8 +313,7 @@ editor
   .then(() => (ai = setupAi({ box: $('aiBox'), api, editor })))
   .catch((err) => setMessage(`設定を読み込めませんでした: ${err.message}`, true));
 setupStreamerAi({ box: $('streamerAiView'), intro: $('streamerAiIntro'), body: $('streamerAiBody'), api });
-// 詳細な接続値は「くわしい人向け」にだけ置き、普段は短い案内だけを見せる。
-if (advancedConnection && $('streamerAiBody')) advancedConnection.append($('streamerAiBody'));
+// AI とつなぐ手順は設定の画面に見せる(くわしい値は、その中の「くわしい人向け」に入っている)
 
 // WebSocket が通らない環境でも接続の状態を出す（hello を受け取れなかったとき用）。
 // 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
