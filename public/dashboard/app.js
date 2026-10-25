@@ -191,6 +191,11 @@ async function setupNotes() {
     body.className = 'note-body';
     body.textContent = note.body;
     item.append(title, date, body);
+    if (note.url) {
+      const link = Object.assign(document.createElement('a'), { className: 'note-link', href: note.url, textContent: 'くわしく見る' });
+      if (/^https:/.test(note.url)) Object.assign(link, { target: '_blank', rel: 'noopener' });
+      item.append(link);
+    }
     return item;
   }));
   $('notesReadBtn').hidden = unreadCount === 0;

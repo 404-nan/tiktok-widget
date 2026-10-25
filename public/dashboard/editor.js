@@ -473,15 +473,15 @@ export function createEditor({ api, setMessage }) {
     menu.className = 'side-menu';
     menu.append(
       item('house', 'ホーム', view === 'home', goTo('home')),
-      label('配信に出すもの'),
+      label('ウィジェット'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
-      item('plus', '出すものを増やす', view === 'catalog', goTo('catalog')),
+      item('plus', 'ウィジェットを増やす', view === 'catalog', goTo('catalog')),
       item('activity', '配信中に見る', false, () => { window.location.href = '/monitor/'; }),
-      item('chart-column', 'これまでの配信', false, () => { window.location.href = '/history/'; }),
-    );
-    // 使い方と設定は、PC ではサイドバーのいちばん下に固定する
-    const bottom = [
+      item('chart-column', '配信の記録', false, () => { window.location.href = '/history/'; }),
       item('book-open', '使い方', false, () => window.open('/help/', '_blank', 'noopener')),
+    );
+    // 設定は、PC ではサイドバーのいちばん左下に固定する
+    const bottom = [
       item('settings', '設定', view === 'settings', goTo('settings'), 'side-settings'),
     ];
     if (desktop) {
@@ -594,7 +594,9 @@ export function createEditor({ api, setMessage }) {
     const card = document.createElement('section');
     card.className = 'home-card';
     card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
-    box.replaceChildren(viewHead('ホーム'), card, homeTopCards);
+    // 準備の一覧は、初めのうち(4つ全部が済むまで)だけ出す
+    const allDone = steps.every(([, done]) => done);
+    box.replaceChildren(viewHead('ホーム'), ...(allDone ? [] : [card]), homeTopCards);
     api('/api/preparation').then((next) => {
       if (JSON.stringify(next) === JSON.stringify(preparation)) return;
       preparation = next;
@@ -1058,7 +1060,7 @@ export function createEditor({ api, setMessage }) {
 
   function buildField(key, field, value) {
     // 横の位置は「出す場所」の3×3のマスで一緒に選ぶので、別のプルダウンは出さない
-    if (simple() && tab === 'alerts' && key === 'align') return Object.assign(document.createElement('div'), { hidden: true });
+    if (simple() && tab === 'alerts' && (key === 'align' || key === 'position')) return Object.assign(document.createElement('div'), { hidden: true });
     if (simple() && tab === 'alerts' && key === 'position') {
       const wrap = document.createElement('div');
       wrap.className = 'field wide placement-field';
@@ -2449,15 +2451,17 @@ export function createEditor({ api, setMessage }) {
     if (!size) return;
     const [w, h] = size;
     const box = $('preview');
-    // スマホでは画面の上に貼り付くので、低めにする
-    const maxH = matchMedia('(max-width: 760px)').matches ? innerHeight * 0.34 : Math.min(560, innerHeight * 0.6);
-    const scale = Math.min(1, box.clientWidth / w, maxH / h);
+    // 見え方の枠はいつも 4:3。ウィジェットはその中に収まる大きさで真ん中に置く
+    const boxW = box.clientWidth;
+    const boxH = Math.round(boxW * 3 / 4);
+    const scale = Math.min(1, boxW / w, boxH / h);
     const frame = $('frame');
     frame.style.width = `${w}px`;
     frame.style.height = `${h}px`;
     frame.style.transform = `scale(${scale})`;
-    frame.style.left = `${Math.max(0, (box.clientWidth - w * scale) / 2)}px`;
-    box.style.height = `${h * scale}px`;
+    frame.style.left = `${Math.max(0, (boxW - w * scale) / 2)}px`;
+    frame.style.top = `${Math.max(0, (boxH - h * scale) / 2)}px`;
+    box.style.height = `${boxH}px`;
   }
 
   function chip(label, iconName, onClick) {

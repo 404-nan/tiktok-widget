@@ -1668,3 +1668,9 @@ body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
 .toast:empty { visibility: hidden; }
 .home-prep .prep-label, .home-prep .prep-state { white-space: nowrap; }
 @media (max-width: 600px) { .home-prep li .hint { display: none; } }
+/* プリセットの選び方は、1本につながったボタン(ひとつながりの枠を縦線で区切る) */
+.sgroup-body .preset-chips, .preset-chips { display: inline-flex !important; flex-wrap: nowrap; gap: 0; width: 100%; padding: 0; border: 1px solid var(--stroke-secondary); border-radius: var(--r-pill); overflow: hidden; background: var(--fill-tertiary); }
+.preset-chips > .preset { flex: 1 1 0; min-height: 44px; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.preset-chips > .preset + .preset { border-left: 1px solid var(--stroke-secondary); }
+.preset-chips > .preset[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); }
+.note-link { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--text-primary); text-decoration: underline; }

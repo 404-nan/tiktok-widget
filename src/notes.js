@@ -5,6 +5,13 @@ import crypto from 'node:crypto';
 
 const clean = (value, max) => String(value ?? '').trim().slice(0, max);
 
+// 関連するページへの行き先。同じサイトの中(/ で始まる)か https:// だけ受け付ける。それ以外は付けない
+export function cleanUrl(value) {
+  const url = String(value ?? '').trim().slice(0, 500);
+  if (/^\/(?!\/)/.test(url) || /^https:\/\/[^\s]+$/.test(url)) return url;
+  return '';
+}
+
 export class NotesStore {
   constructor({ dir, file = path.join(dir, 'notes.json') }) {
     this.dir = dir;
@@ -35,6 +42,7 @@ export class NotesStore {
       title: clean(input.title, 200),
       body: clean(input.body, 10_000),
       date: clean(input.date, 40) || new Date().toISOString().slice(0, 10),
+      url: cleanUrl(input.url),
     };
     this.#validate(note);
     this.notes.push(note);
@@ -46,6 +54,7 @@ export class NotesStore {
     const note = this.notes.find((item) => item.id === id);
     if (!note) throw new Error('そのお知らせは見つかりません');
     for (const key of ['title', 'body', 'date']) if (patch[key] != null) note[key] = clean(patch[key], key === 'body' ? 10_000 : key === 'title' ? 200 : 40);
+    if (patch.url != null) note.url = cleanUrl(patch.url);
     this.#validate(note);
     this.save();
     return { ...note };

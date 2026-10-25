@@ -117,9 +117,9 @@ export const SIMPLE = {
           {
             title: '目立ちかた',
             options: [
-              { label: 'ひかえめ', value: { duration: 3, sound: false } },
+              { label: 'シンプル', value: { duration: 3, sound: false } },
               { label: 'ふつう', value: { duration: 4.5, sound: true, volume: 0.3 } },
-              { label: 'はでに', value: { duration: 7, sound: true, volume: 0.5 } },
+              { label: 'ドパガキ', value: { duration: 7, sound: true, volume: 0.5 } },
             ],
           },
         ],

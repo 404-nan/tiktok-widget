@@ -22,6 +22,7 @@
     max-width: 100%;
     filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .3));
   }
+  body.fill .lt { width: 100%; }
   .lt-bar { width: 6px; background: var(--signal); transform-origin: top; transform: scaleY(0); }
   .lt-badge {
     display: grid;
@@ -103,13 +104,14 @@
     sound: true, volume: 0.3, followText: 'フォローしてくれました', shareText: '配信をシェアしてくれました', rules: [],
   });
   let kinds = new Set(list(p.events));
-  document.body.classList.add(`pos-${p.position}`, `align-${p.align}`);
+  // 出す場所は選ばせない。いつも同じ位置で画面いっぱいに出し、大きさと場所は配信ソフトの側で合わせてもらう
+  document.body.classList.add('pos-center', 'align-center', 'fill');
   const stage = document.getElementById('stage');
   window.addEventListener('tw-config-change', (event) => {
     if (event.detail.section !== 'alerts' || window.__twWidgetQueryId != null) return;
     Object.assign(p, event.detail.config?.alerts?.[event.detail.id] ?? {});
     kinds = new Set(list(p.events));
-    document.body.className = `pos-${p.position} align-${p.align}`;
+    document.body.className = 'pos-center align-center fill';
   });
 
   const queue = createQueue(show, { max: 30 });

@@ -602,17 +602,19 @@ function notesDetail() {
   const title = el('input', { placeholder: 'タイトル', required: true });
   const body = el('textarea', { rows: 5, placeholder: '本文', required: true });
   const date = el('input', { type: 'date', value: new Date().toISOString().slice(0, 10), required: true });
-  form.append(el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'タイトル' }), title), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '本文' }), body), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '日付' }), date), el('div', { className: 'btn-row' }, button('追加', () => form.requestSubmit(), { cls: 'btn primary' })));
+  const url = el('input', { placeholder: '/help/#roulette や https://…（なくてもよい）' });
+  form.append(el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'タイトル' }), title), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '本文' }), body), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '日付' }), date), el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'くわしいページ' }), url), el('div', { className: 'btn-row' }, button('追加', () => form.requestSubmit(), { cls: 'btn primary' })));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    act(() => api('/notes', { title: title.value, body: body.value, date: date.value }), 'お知らせを追加しました')();
+    act(() => api('/notes', { title: title.value, body: body.value, date: date.value, url: url.value }), 'お知らせを追加しました')();
   });
   const list = data.notes ?? [];
   const rows = list.map((note) => {
     const editTitle = el('input', { value: note.title });
     const editBody = el('textarea', { rows: 4, value: note.body });
     const editDate = el('input', { type: 'date', value: note.date });
-    return el('article', { className: 'admin-note' }, el('div', { className: 'field-row' }, editTitle, editDate), editBody, el('div', { className: 'btn-row' }, button('保存', act(() => api(`/notes/${note.id}`, { title: editTitle.value, body: editBody.value, date: editDate.value }, 'PATCH'), 'お知らせを保存しました'), { cls: 'btn primary' }), button('削除', () => { if (confirm('このお知らせを削除しますか？')) act(() => api(`/notes/${note.id}`, undefined, 'DELETE'), 'お知らせを削除しました')(); }, { cls: 'chip' })));
+    const editUrl = el('input', { value: note.url ?? '', placeholder: 'くわしいページ（なくてもよい）' });
+    return el('article', { className: 'admin-note' }, el('div', { className: 'field-row' }, editTitle, editDate), editBody, editUrl, el('div', { className: 'btn-row' }, button('保存', act(() => api(`/notes/${note.id}`, { title: editTitle.value, body: editBody.value, date: editDate.value, url: editUrl.value }, 'PATCH'), 'お知らせを保存しました'), { cls: 'btn primary' }), button('削除', () => { if (confirm('このお知らせを削除しますか？')) act(() => api(`/notes/${note.id}`, undefined, 'DELETE'), 'お知らせを削除しました')(); }, { cls: 'chip' })));
   });
   return [el('div', { className: 'detail-head' }, el('h2', { textContent: '更新のお知らせ' }), el('p', { className: 'sub', textContent: '配信者のダッシュボードの上に表示します。OBS の画面には表示しません。' })), el('section', { className: 'form-card' }, el('h3', { textContent: 'お知らせを追加' }), form), el('div', { className: 'admin-note-list' }, ...rows)];
 }
