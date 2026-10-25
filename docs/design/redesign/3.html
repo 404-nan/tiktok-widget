@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="common.css"><style>
+body{background:#0d0d0d;color:#fff;display:grid;grid-template-columns:220px 1fr 380px;height:100vh;overflow:hidden}
+.left{background:#ffe600;color:#0d0d0d;padding:20px 16px;display:flex;flex-direction:column;gap:4px}
+.brand{font-weight:900;font-size:24px;letter-spacing:-.02em}.st{font-size:13px;font-weight:700;margin-bottom:16px}.st i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#0d0d0d;margin-right:6px}
+.k{font-size:11px;font-weight:800;margin:12px 6px 4px}.it{padding:9px 10px;font-weight:700;font-size:14px;border-radius:10px;display:flex;justify-content:space-between}.it.on{background:#0d0d0d;color:#ffe600}.it em{font-style:normal;font-size:11px;background:#0d0d0d;color:#ffe600;border-radius:6px;padding:1px 6px}.it.on em{background:#ffe600;color:#0d0d0d}
+.sp{flex:1}.foot{font-weight:700;font-size:14px;padding:8px 10px}
+.center{display:grid;place-items:center;position:relative}
+.stage{height:88vh;aspect-ratio:9/16;border:3px solid #fff;border-radius:22px;position:relative;background:linear-gradient(#2a2a2a,#161616);overflow:hidden}
+.stage .tag{position:absolute;left:14px;top:12px;color:#ffe600}
+.w{position:absolute;border:2px dashed rgba(255,255,255,.35);border-radius:8px}
+.w.sel{border:3px solid #ffe600;box-shadow:0 0 0 4px rgba(255,230,0,.25)}.w .lb{position:absolute;top:-22px;left:-2px;background:#ffe600;color:#0d0d0d;font-size:11px;font-weight:900;padding:2px 7px;border-radius:6px}
+.telop{width:100%;height:52px}.telop .bar{background:#ffe600}.telop .g,.telop .m{background:#fff;color:#0d0d0d}.telop .c{background:#0d0d0d;color:#ffe600}
+.goal{height:30px;background:#1a1a1a;border-radius:15px;overflow:hidden}.goal i{display:block;height:100%;width:62%;background:#ffe600}
+.cm{font-size:12px;line-height:1.9;padding:6px 8px;color:#ddd}
+.hint{position:absolute;bottom:18px;font-size:13px;color:#bdbdbd}
+.drawer{background:#161616;border-left:3px solid #fff;padding:22px;display:flex;flex-direction:column;gap:12px}
+.drawer h1{font-size:28px;font-weight:900;display:flex;align-items:center;gap:10px}.sel{font-size:13px;background:#fff;color:#0d0d0d;border-radius:8px;padding:3px 8px}
+h3{color:#ffe600;font-size:13px;font-weight:900;margin-top:6px}.chip{border:2px solid #fff;border-radius:999px;font-weight:700}.chip.on{background:#fff;color:#0d0d0d}
+.seg{border:3px solid #fff;border-radius:14px}.seg span{font-weight:800}.seg span+span{border-left:3px solid #fff}.seg .on{background:#ffe600;color:#0d0d0d}
+.num{border:2px solid #fff;border-radius:8px;font-weight:800}
+.btn{border:3px solid #fff;border-radius:12px;box-shadow:4px 4px 0 #ffe600;text-align:center}.btn.p{background:#ffe600;color:#0d0d0d;border-color:#ffe600;box-shadow:4px 4px 0 #fff}
+.big{margin-top:auto;display:grid;gap:10px}
+</style>
+<nav class="left"><div class="brand">ライコネ</div><div class="st"><i></i>配信を待っています</div><div class="it">ホーム</div>
+<div class="k">画面に出しているもの</div><div class="it on">ギフト通知 <em>ON</em></div><div class="it">コメント欄 <em>ON</em></div><div class="it">目標バー <em>ON</em></div><div class="it">＋ その他のウィジェット</div>
+<div class="k">配信</div><div class="it">配信中に見る</div><div class="it">配信の記録</div><div class="sp"></div><div class="foot">使い方</div><div class="foot">設定</div></nav>
+<section class="center"><div class="stage"><span class="tag">配信画面(この URL 1本でぜんぶ出ます)</span>
+<div class="w" style="left:6%;right:6%;top:9%"><span class="lb">目標バー</span><div class="goal"><i></i></div></div>
+<div class="w sel" style="left:6%;right:6%;top:40%"><span class="lb">ギフト通知</span><div class="telop"><i class="bar"></i><span class="g">🌹</span><span class="m"><span class="n">ゆずちゃん</span><span class="s">バラを5個</span></span><span class="c">×5</span></div></div>
+<div class="w" style="left:6%;width:62%;bottom:7%;height:26%"><span class="lb">コメント欄</span><div class="cm">みかん: こんばんは！<br>たろう: 今日も来た<br>ゆず: がんばって〜<br>りん: 初見です</div></div>
+</div><span class="hint">画面の上のものを押すと、右で変えられます</span></section>
+<aside class="drawer"><h1>ギフト通知 <span class="sel">ふだん用 ▾</span></h1>
+<h3>いつ出す？</h3><div class="chips"><span class="chip on">ギフト</span><span class="chip on">フォロー</span><span class="chip">シェア</span></div><div class="row">何コイン以上で出す？<span class="num">1 コイン</span></div>
+<h3>目立ちかた</h3><div class="seg"><span>シンプル</span><span class="on">ふつう</span><span>ドパガキ</span></div>
+<h3>大きいギフトのとき</h3><div class="row">何コイン以上で金色にする？<span class="num">100 コイン</span></div>
+<div class="big"><span class="btn p">ためしに1つ出す</span><span class="btn">配信ソフトに入れる URL をコピー</span></div></aside>

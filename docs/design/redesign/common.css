@@ -1,0 +1,14 @@
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;min-height:100vh}
+.telop{display:flex;align-items:stretch;height:60px;width:340px}
+.telop .bar{width:6px}.telop .g{width:60px;display:grid;place-items:center;font-size:26px}
+.telop .m{flex:1;padding:8px 12px;display:flex;flex-direction:column;justify-content:center}
+.telop .n{font-weight:800;font-size:15px}.telop .s{font-size:12px}
+.telop .c{padding:0 12px;display:grid;place-items:center;font-weight:900;font-size:19px}
+.tag{font-size:11px;font-weight:800;letter-spacing:.06em}
+.seg{display:flex;overflow:hidden}.seg span{flex:1;text-align:center;padding:10px 0;font-size:14px;white-space:nowrap}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;font-size:14px}
+.chips{display:flex;gap:6px}.chip{padding:5px 12px;font-size:13px;white-space:nowrap}
+.num{white-space:nowrap;padding:7px 10px;font-size:15px;text-align:right;min-width:90px}
+.btn{display:inline-block;padding:10px 16px;font-size:14px;font-weight:700;white-space:nowrap}
+code{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}

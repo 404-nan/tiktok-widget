@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="common.css"><style>
+:root{--bg:#121214;--deep:#0b0b0c;--line:#26262a;--line2:#1f1f22;--line3:#3a3a3f;--hover:#1d1d21;--ink:#e9e7e2;--ink2:#c9c7c2;--mute:#8c8b90;--acc:#ff3b2f;--accink:#fff;--card:#1f1f23;--pv1:#17171a;--pv2:#141417;--gold:#ffcf3f}
+.tally{--bg:#0f1420;--deep:#0a0e17;--line:#1e2636;--line2:#19202e;--line3:#2c3750;--hover:#172033;--ink:#eef1f6;--ink2:#c3cad6;--mute:#7f8aa0;--acc:#ffb020;--accink:#1a1300;--card:#1a2233;--pv1:#121a28;--pv2:#0f1622;--gold:#ffd36b}
+.yellow{--bg:#141414;--deep:#0c0c0c;--line:#262626;--line2:#1e1e1e;--line3:#3a3a3a;--hover:#1f1f1f;--ink:#f4f4f0;--ink2:#cfcfc8;--mute:#8d8d86;--acc:#ffe600;--accink:#0c0c0c;--card:#1f1f1f;--pv1:#191919;--pv2:#161616;--gold:#ffe600}
+.lime{--bg:#0f1412;--deep:#0a0e0c;--line:#1f2924;--line2:#19221e;--line3:#2f3c35;--hover:#16201b;--ink:#eef3ef;--ink2:#c4d0c8;--mute:#80908a;--acc:#b8ff3c;--accink:#0b1300;--card:#18211d;--pv1:#131a17;--pv2:#101613;--gold:#ffd84d}
+.paper{--bg:#f3f1ec;--deep:#e8e5dd;--line:#d6d2c8;--line2:#e0dcd2;--line3:#bdb7aa;--hover:#e1ddd3;--ink:#1c1b19;--ink2:#3b3934;--mute:#77736a;--acc:#e5371f;--accink:#fff;--card:#ffffff;--pv1:#2b2a27;--pv2:#262522;--gold:#f2b705}
+
+body{background:var(--bg);color:var(--ink);display:grid;grid-template-columns:72px 1fr;grid-template-rows:56px 1fr}
+.rail{grid-row:1/3;background:var(--deep);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px}
+.logo{color:var(--accink);width:36px;height:36px;border-radius:8px;background:var(--acc);display:grid;place-items:center;font-weight:900;margin-bottom:12px}
+.ri{width:56px;padding:8px 0;text-align:center;font-size:10px;color:var(--mute);border-radius:8px}.ri b{display:block;font-size:18px;color:var(--ink2);margin-bottom:2px}
+.ri.on{background:var(--hover);color:var(--ink)}.ri.on b{color:var(--acc)}.sp{flex:1}
+.top{display:flex;align-items:center;gap:16px;padding:0 28px;border-bottom:1px solid var(--line)}
+.onair{font-size:12px;font-weight:800;letter-spacing:.12em;padding:4px 10px;border:1px solid var(--line3);color:var(--mute)}.onair i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mute);margin-right:6px}
+.top .grow{flex:1}.top .who{font-size:13px;color:var(--mute)}
+.btn{border:1px solid var(--ink)}.btn.p{background:var(--acc);border-color:var(--acc);color:var(--accink)}
+main{padding:22px 28px;display:grid;gap:20px;align-content:start}
+.head{display:flex;align-items:baseline;gap:14px}.head h1{font-size:24px}.sel{border:1px solid var(--line3);padding:5px 10px;font-size:13px;font-family:ui-monospace,monospace}.use{color:var(--acc);font-size:11px;font-weight:800;letter-spacing:.12em}
+.stage{display:grid;grid-template-columns:1fr 300px;gap:0;border:1px solid var(--line)}
+.pv{aspect-ratio:16/7;display:grid;place-items:center;background:repeating-linear-gradient(0deg,var(--pv1) 0 2px,var(--pv2) 2px 4px);position:relative}.pv .tag{position:absolute;left:12px;top:10px;color:var(--acc)}
+.telop .bar{background:var(--acc)}.telop .g,.telop .m{background:var(--card)}.telop .c{background:var(--deep);color:var(--gold)}
+.side{border-left:1px solid var(--line);padding:16px;display:grid;gap:10px;align-content:start}.side .k{font-size:11px;color:var(--mute);letter-spacing:.12em}
+code{background:var(--deep);border:1px solid var(--line);padding:9px;font-family:ui-monospace,monospace}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+h3{font-size:11px;color:var(--mute);letter-spacing:.14em;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px}
+.row{border-bottom:1px solid var(--line2)}.chip{border:1px solid var(--line3)}.chip.on{background:var(--ink);color:var(--bg)}
+.seg{border:1px solid var(--line3);margin-top:8px}.seg span+span{border-left:1px solid var(--line3)}.seg .on{background:var(--acc);color:var(--accink);font-weight:800}
+.num{background:var(--deep);border:1px solid var(--line3);font-family:ui-monospace,monospace}
+</style>
+<nav class="rail"><div class="logo">ラ</div><div class="ri"><b>⌂</b>ホーム</div><div class="ri on"><b>◆</b>ギフト</div><div class="ri"><b>☰</b>コメント</div><div class="ri"><b>▮</b>目標</div><div class="ri"><b>＋</b>その他</div><div class="sp"></div><div class="ri"><b>?</b>使い方</div><div class="ri"><b>⚙</b>設定</div></nav>
+<header class="top"><span class="onair"><i></i>STANDBY 配信を待っています</span><span class="grow"></span><span class="who">@yuzu_live</span><span class="btn">配信中に見る</span><span class="btn">配信の記録</span><span class="btn p">ためしに動かす</span></header>
+<main><div class="head"><h1>ギフト通知</h1><span class="sel">ふだん用 ▾</span><span class="use">ON AIR で使用中</span></div>
+<section class="stage"><div class="pv"><span class="tag">配信画面の見本</span><div class="telop"><i class="bar"></i><span class="g">🌹</span><span class="m"><span class="n">ゆずちゃん</span><span class="s">バラを5個くれました</span></span><span class="c">×5</span></div></div>
+<div class="side"><span class="k">ためす</span><span class="btn p">ためしに1つ出す</span><span class="btn">見本を出したままにする</span><span class="k">配信ソフトに入れる URL</span><code>widget.lul.works/t/••••/gift-alert</code><span class="btn">コピー</span></div></section>
+<div class="cols"><div><h3>いつ出す</h3><div class="row">どんなときに出す？<span class="chips"><span class="chip on">ギフト</span><span class="chip on">フォロー</span><span class="chip">シェア</span></span></div><div class="row">何コイン以上で出す？<span class="num">1 コイン</span></div></div>
+<div><h3>どう見せる</h3><div class="seg"><span>シンプル</span><span class="on">ふつう</span><span>ドパガキ</span></div><div class="row">何コイン以上で金色にする？<span class="num">100 コイン</span></div></div></div></main>
+<script>document.body.classList.add(new URLSearchParams(location.search).get("c")||"x")</script>
