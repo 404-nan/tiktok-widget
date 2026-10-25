@@ -475,7 +475,7 @@ export function createEditor({ api, setMessage }) {
       item('house', 'ホーム', view === 'home', goTo('home')),
       label('ウィジェット'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
-      item('plus', 'ウィジェットを増やす', view === 'catalog', goTo('catalog')),
+      item('plus', 'その他のウィジェット', view === 'catalog', goTo('catalog')),
       item('activity', '配信中に見る', false, () => { window.location.href = `${BASE}/monitor/`; }),
       item('chart-column', '配信の記録', false, () => { window.location.href = `${BASE}/history/`; }),
       item('book-open', '使い方', false, () => window.open(`${BASE}/help/`, '_blank', 'noopener')),
@@ -523,7 +523,7 @@ export function createEditor({ api, setMessage }) {
   function renderCatalog() {
     const box = $('cards');
     const used = usedSections();
-    box.replaceChildren(viewHead('出すものを選ぶ', isTenant() ? '押すと出す・出さないが切り替わります。出さないものの設定は消えずに残ります。' : '使いたいものを押すと、左に入って設定できるようになります。'));
+    box.replaceChildren(viewHead('その他のウィジェット', isTenant() ? '押すと出す・出さないが切り替わります。出さないものの設定は消えずに残ります。' : '使いたいものを押すと、左に入って設定できるようになります。'));
     for (const [title, sections] of GROUPS) {
       // 配信者ごとの URL では、使っているものも並べて、押すと出さないようにできる
       const rest = isTenant() ? sections : sections.filter((t) => !used.includes(t));

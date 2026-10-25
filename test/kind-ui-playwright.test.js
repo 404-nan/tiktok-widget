@@ -48,7 +48,7 @@ test('AC-1〜AC-8: hosted の配信者画面をPC・スマホ、ライト・ダ�
         await page.locator('#mobileMenuBtn').click();
         await page.locator('#side.is-open').waitFor({ state: 'visible' });
       }
-      await page.locator('.side-item').filter({ hasText: 'ウィジェットを増やす' }).evaluate((element) => element.click());
+      await page.locator('.side-item').filter({ hasText: 'その他のウィジェット' }).evaluate((element) => element.click());
       await page.locator('#cards:not([hidden])').waitFor({ state: 'visible' });
       if (width < 900) {
         await page.locator('#mobileMenuBtn').click();
