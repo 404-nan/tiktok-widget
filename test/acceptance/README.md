@@ -23,6 +23,7 @@
 | `mc-goal-alert.test.js` / `mc-goal-alert-wiring.test.js` | ゴール接近警報の距離、段階警報、到達、RCON、画面を確認する |
 | `perf-hub.test.js` / `perf-history.test.js` / `perf-cleanup.test.js` | 差分配信、履歴保存、ウィジェット側の後片付けを確認する |
 | `ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界・提案・テスト送信・失効を確認する |
+| `redesign.test.js` | ダッシュボード作り直し(放送卓の並び、黄色と紙の色、配信画面ぜんぶの見本、スマホの下タブ)の AC-1〜5・7・8 を、ソースと実ブラウザ(PC 1280・スマホ 390)で確認する。実装前は失敗する |
 | `pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューで見つかった実接続・再起動・二重処理などの回帰を確認する |
 
 ## 使われ方
