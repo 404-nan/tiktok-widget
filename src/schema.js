@@ -910,6 +910,14 @@ SCHEMA.supporters = {
   },
 };
 
+// 妨害マイクラのギフト表。どのギフトで何が起きるかを、配信画面に順に出す(表は /api/mc-gifts)
+SCHEMA.mcGifts = {
+  kind: 'map', page: 'mc-gifts', title: '妨害マイクラのギフト表', desc: '妨害マイクラで、どのギフトを送ると何が起きるかを一覧で出す。行が多いときは順にめくる。URL は /widgets/mc-gifts.html?id=<名前>', size: (e) => [560, 76 + e.rows * 60],
+  fields: {
+    title: str('このギフトで妨害できる', '見出し。空なら出さない'), rows: num(6, '一度に出す行の数', { min: 3, max: 12 }), interval: num(8, 'めくる秒数', { min: 3, max: 60 }), color: color('accent', '見出しの印の色'),
+  },
+};
+
 // 配信中に初見・おかえり・常連を迎えるテロップ。記録はサーバー側で匿名化する。
 SCHEMA.visitors = {
   kind: 'map', page: 'visitors', title: '初見さん・常連さん', desc: '配信の記録から来場回数を数え、初見さんや常連さんを迎える。URL は /widgets/visitors.html?id=<名前>', size: () => [760, 160],

@@ -10,7 +10,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors']],
-  ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba']],
+  ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts']],
   ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 
@@ -38,6 +38,7 @@ export const INFO = {
   pushButtons: { icon: 'mouse-pointer-2', desc: '「押」とコメントするか、いいねを連打して参加する' },
   tickers: { icon: 'newspaper', desc: 'お知らせ・目標・ギフトを下の帯に流す' },
   supporters: { icon: 'users', desc: '最近フォローやギフトをくれた人を表示する' },
+  mcGifts: { icon: 'pickaxe', desc: '妨害マイクラで、どのギフトを送ると何が起きるかを出す' },
   visitors: { icon: 'door-open', desc: '初見さんや何度も来ている人を迎える' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
   wins: { icon: 'flag', desc: 'クリアした回数。ギフトで増えたり減ったりする' },
@@ -428,6 +429,7 @@ export const SIMPLE_LABELS = {
   'obs.enabled': 'OBS連携を使う', 'obs.source': '動かすカメラのソース', 'obs.scene': '動かす場面', 'obs.rules': '動作ルール', 'obs.cooldownSeconds': '同じ動作の間隔', 'obs.reduce': '動きを弱める',
   'tickers.label': '札の文字', 'tickers.messages': '流す文', 'tickers.showGifts': '最近のギフトを流す', 'tickers.giftCount': 'ギフトの件数', 'tickers.showGoals': '目標を流す', 'tickers.goals': '流す目標', 'tickers.speed': '流れる速さ', 'tickers.color': '札の色',
   'supporters.events': '出すイベント', 'supporters.limit': '出す人数', 'supporters.minCoins': '何コインから', 'supporters.avatars': 'アイコンを出す', 'supporters.lifetime': '消すまでの秒数', 'supporters.color': '新しいカードの印',
+  'mcGifts.title': '見出し', 'mcGifts.rows': '一度に出す行', 'mcGifts.interval': 'めくる秒数', 'mcGifts.color': '見出しの印の色',
   'visitors.showFirst': '初見さんを迎える', 'visitors.showReturning': 'おかえりの人を迎える', 'visitors.showRegular': '常連さんを迎える', 'visitors.regularVisits': '何回目から常連さん', 'visitors.firstText': '初見さんの文', 'visitors.returningText': 'おかえりの文', 'visitors.regularText': '常連さんの文', 'visitors.duration': '出す秒数', 'visitors.avatars': 'アイコンを出す', 'visitors.keepDays': '記録を残す日数',
   'alerts.events': 'どんなときに出す？', 'alerts.gifts': 'どのギフトで出す？', 'alerts.minCoins': '何コイン以上で出す？', 'alerts.position': '出す場所', 'alerts.align': '出す場所',
   'alerts.bigCoins': '何コイン以上で金色にする？', 'alerts.rules': 'このギフトのときは特別に',

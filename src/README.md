@@ -48,6 +48,7 @@
 | `minecraft-name.js` | Minecraftの名前入り妨害を安全化し、状態保存・再起動時の片付け・コマンドを管理する |
 | `minecraft.js` | ギフトや演出を Minecraft の RCON へつなぐ |
 | `normalize.js` | TikTok のイベントをアプリ内の形にそろえる |
+| `superstream.js` の `giftTable` | 妨害マイクラのギフト表(ギフト → 何が起きるか)をプロフィールから作る。`/api/mc-gifts` が使う |
 | `notes.js` | 管理画面のお知らせを保存する(くわしいページの行き先は / か https:// だけ) |
 | `ootori.js` | ラスト10分の席、大トリ、参加者一覧、終了演出の時間をサーバーで管理する |
 | `peka.js` | 遅れて光る告知ランプの抽選、予定時刻、点灯、待ち行列をサーバーで管理する |

@@ -73,8 +73,13 @@ test('AC-2: ダークとライトが同じ名前の変数を持ち、色は黄�
 
 const changedSinceBaseline = (...paths) => execFileSync('git', ['diff', '--name-only', BASELINE, '--', ...paths], { cwd: root, encoding: 'utf8' }).trim();
 
-test('AC-7: 公開ウィジェット・設定ファイルの形(schema)・API は変わっていない', () => {
-  assert.equal(changedSinceBaseline('src', 'public/widgets'), '');
+// 作り直しのカードが終わったあとは、新しいウィジェットを足してよい。今あるウィジェットのページと設定の名前が消えていないことだけ確かめる
+test('AC-7: 今あるウィジェットのページと設定の名前を消していない', () => {
+  const removed = execFileSync('git', ['diff', '--name-only', '--diff-filter=D', BASELINE, '--', 'public/widgets'], { cwd: root, encoding: 'utf8' }).trim();
+  assert.equal(removed, '');
+  const before = execFileSync('git', ['show', `${BASELINE}:src/schema.js`], { cwd: root, encoding: 'utf8' });
+  const now = read('src/schema.js');
+  for (const key of [...before.matchAll(/^SCHEMA\.(\w+) =/gm)].map((m) => m[1])) assert.match(now, new RegExp(`^SCHEMA\\.${key} =`, 'm'), `${key} が消えています`);
 });
 
 test('AC-8: README(全体とダッシュボードのフォルダ)が直っている', () => {

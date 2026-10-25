@@ -1,0 +1,61 @@
+<!-- 妨害マイクラのギフト表を出す OBS 用ページ。/api/mc-gifts の表を、行の数ずつ順にめくる。 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>妨害マイクラのギフト表</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
+<style>
+body { padding: 12px; }
+.board { background: var(--surface); color: var(--on-surface); padding: 14px 16px 10px; border-left: 6px solid var(--signal); }
+h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+.row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 56px; border-top: 1px solid var(--rule); animation: in .32s var(--ease-wipe) both; }
+.icon { width: 40px; height: 40px; object-fit: contain; }
+.icon.blank { visibility: hidden; }
+.gift { display: grid; min-width: 0; }
+.name { font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coins { font-family: var(--font-num); color: var(--gold); font-size: 15px; }
+.effect { font-weight: 700; font-size: 20px; text-align: right; white-space: nowrap; }
+.page { margin-top: 6px; font-family: var(--font-num); font-size: 13px; color: var(--on-surface-dim); text-align: right; }
+@keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body><section class="board" id="board" hidden><h1 id="title"></h1><div id="list"></div><div class="page" id="page"></div></section>
+<script type="module">
+import { setupWidget, BASE, fmt } from './lib/overlay.js';
+const p = await setupWidget('mcGifts', { title: 'このギフトで妨害できる', rows: 6, interval: 8, color: 'accent' });
+const board = document.getElementById('board');
+const list = document.getElementById('list');
+let gifts = [];
+let page = 0;
+function render() {
+  const pages = Math.max(1, Math.ceil(gifts.length / p.rows));
+  page %= pages;
+  board.hidden = !gifts.length;
+  document.getElementById('title').textContent = p.title;
+  document.getElementById('title').hidden = !p.title;
+  document.getElementById('page').textContent = pages > 1 ? `${page + 1} / ${pages}` : '';
+  list.replaceChildren(...gifts.slice(page * p.rows, page * p.rows + p.rows).map((g) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    let icon;
+    if (g.image) { icon = new Image(40, 40); icon.className = 'icon'; icon.alt = ''; icon.src = g.image; }
+    else icon = Object.assign(document.createElement('span'), { className: 'icon blank', textContent: '・' });
+    const gift = document.createElement('span');
+    gift.className = 'gift';
+    gift.append(Object.assign(document.createElement('span'), { className: 'name', textContent: g.nameJa || g.name || `ギフト ${g.id}` }), Object.assign(document.createElement('span'), { className: 'coins', textContent: g.coins ? `${fmt(g.coins)} コイン` : '' }));
+    row.append(icon, gift, Object.assign(document.createElement('span'), { className: 'effect', textContent: g.effect || '妨害' }));
+    return row;
+  }));
+}
+async function load() {
+  try { gifts = (await (await fetch(`${BASE}/api/mc-gifts`)).json()).gifts ?? []; } catch { gifts = []; }
+  render();
+}
+await load();
+setInterval(() => { page += 1; render(); }, Math.max(3, p.interval) * 1000);
+setInterval(load, 5 * 60 * 1000); // 表が変わったときのため、5分ごとに読み直す
+</script>
+</body>
+</html>

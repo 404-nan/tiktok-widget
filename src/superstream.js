@@ -56,3 +56,33 @@ export function readProfile(file, knownGifts = []) {
     listeners,
   };
 }
+
+// 色の記号(&e など)と、送った人の名前の部分を消して、視聴者に見せる短い言葉にする
+const plainMessage = (text) => String(text ?? '').replace(/&[0-9a-fk-or]/gi, '').replace(/^\s*<sender>\s*[:：]?\s*/i, '').trim();
+
+/**
+ * 妨害マイクラのギフト表(配信画面に出す用)。プロフィールの GiftListener から、ギフトごとに何が起きるかを読む。
+ * effect は message の文(「<sender>: ゾンビ」の「ゾンビ」)。なければ空。coins と日本語の名前は手元の一覧から引く。
+ */
+export function giftTable(file, { coinOf = () => null, nameJaOf = () => null, catalog = [] } = {}) {
+  if (!file) return { gifts: [], error: 'ギフト表のファイルがありません' };
+  let doc;
+  try { doc = YAML.parse(fs.readFileSync(path.resolve(expand(file)), 'utf8')) ?? {}; } catch (err) { return { gifts: [], error: `読めませんでした: ${err.code ?? err.message}` }; }
+  const byId = new Map(catalog.map((g) => [String(g.id), g]));
+  const gifts = Object.entries(doc.GiftListener ?? {})
+    .filter(([key]) => /^\d+$/.test(key))
+    .map(([id, def]) => {
+      const known = byId.get(id) ?? {};
+      const messages = def?.actions?.message?.messages ?? [];
+      return {
+        id,
+        name: known.name ?? null,
+        nameJa: known.nameJa ?? nameJaOf(id) ?? null,
+        coins: Number(known.diamonds ?? coinOf(id) ?? 0) || null,
+        image: known.image ?? null,
+        effect: plainMessage(messages[0]),
+      };
+    })
+    .sort((a, b) => (a.coins ?? Infinity) - (b.coins ?? Infinity));
+  return { gifts };
+}

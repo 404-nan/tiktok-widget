@@ -654,7 +654,7 @@ export function createEditor({ api, setMessage }) {
     const allDone = steps.every(([, done]) => done);
     // ふだんのホーム: 前回の配信のまとめと、使っているウィジェット(すぐ開ける・ためせる・URL をコピーできる)
     const grid = Object.assign(document.createElement('div'), { className: 'home-grid' });
-    grid.append(lastStreamCard(), usedWidgetsCard());
+    grid.append(lastStreamCard(), usedWidgetsCard(), perStreamCard());
     box.replaceChildren(viewHead('ホーム'), ...(allDone ? [] : [card]), grid, homeTopCards);
     api('/api/preparation').then((next) => {
       if (JSON.stringify(next) === JSON.stringify(preparation)) return;
@@ -699,6 +699,34 @@ export function createEditor({ api, setMessage }) {
     };
     if (historyCache) fill(historyCache);
     api('/api/history').then((list) => { historyCache = list; fill(list); }).catch(() => fill([]));
+    return card;
+  }
+
+  // 配信ごとの準備: 配信の種類に合わせたテンプレートと、この配信の数のリセット
+  function perStreamCard() {
+    const card = Object.assign(document.createElement('section'), { className: 'home-card home-per-stream' });
+    card.append(Object.assign(document.createElement('h3'), { textContent: '配信ごとに' }));
+    const row = Object.assign(document.createElement('div'), { className: 'home-actions' });
+    const tpl = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: 'テンプレートから選ぶ' });
+    tpl.addEventListener('click', goTo('templates'));
+    // リセットは戻せないので、3秒以内にもう一度押したときだけ動く(確かめのウィンドウは出さない)
+    const reset = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: 'この配信の数をリセット' });
+    let armed = null;
+    reset.addEventListener('click', async () => {
+      if (!armed) {
+        reset.textContent = 'もう一度押すとリセット';
+        reset.classList.add('is-armed');
+        armed = setTimeout(() => { armed = null; reset.textContent = 'この配信の数をリセット'; reset.classList.remove('is-armed'); }, 3000);
+        return;
+      }
+      clearTimeout(armed); armed = null;
+      reset.disabled = true;
+      try { await api('/api/reset', {}); reset.textContent = 'リセットしました'; }
+      catch (err) { reset.textContent = `できませんでした: ${err.message}`; }
+      setTimeout(() => { reset.disabled = false; reset.textContent = 'この配信の数をリセット'; reset.classList.remove('is-armed'); }, 2500);
+    });
+    row.append(tpl, reset);
+    card.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'テンプレートは配信の種類(雑談・罰ゲーム・耐久など)に合わせて設定をまとめて変えます。リセットはギフトの数・ランキング・WIN数などを0に戻します。' }), row);
     return card;
   }
 

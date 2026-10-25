@@ -121,8 +121,8 @@ export class AiTokenStore {
     return { token: publicToken(token), value };
   }
 
-  /** 配信者本人の入口。対象は1テナント、権限は読み取り・提案・開発テストに固定する。 */
-  issueStreamer({ tenantId, name, days = DEFAULT_DAYS, expiresAt = null, now = Date.now(), tenants, tenant, scopes } = {}) {
+  /** 配信者本人の入口。対象は1テナント、権限は読み取り・提案・開発テストに固定する。allowWrite なら設定を変える(write)も足す(お金の申請は ai-api で止める) */
+  issueStreamer({ tenantId, name, days = DEFAULT_DAYS, expiresAt = null, now = Date.now(), tenants, tenant, scopes, allowWrite = false } = {}) {
     if (tenants != null || tenant != null || scopes != null) throw new Error('配信者専用トークンの範囲と権限は固定です');
     const id = String(tenantId ?? '').trim();
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || id === '*') throw new Error('配信者専用トークンの対象が正しくありません');
@@ -132,7 +132,7 @@ export class AiTokenStore {
       if (pruned) this.save();
       throw new Error('配信者専用トークンは1人につき10件までです');
     }
-    return this.issue({ name, tenants: [id], scopes: ['read', 'suggest', 'test'], days, expiresAt, now, kind: 'streamer', ownerTenantId: id });
+    return this.issue({ name, tenants: [id], scopes: allowWrite === true ? ['read', 'suggest', 'test', 'write'] : ['read', 'suggest', 'test'], days, expiresAt, now, kind: 'streamer', ownerTenantId: id });
   }
 
   listForTenant(tenantId) {

@@ -345,13 +345,13 @@ function streamerAiResponse(req, res) {
       return res.json({
         title: 'AIとの接続',
         tenant: tenantId,
-        explanation: '自分の配信者だけを読み取り、設定の提案と開発環境のテスト送信ができます。保存・操作・課金申請はできません。',
+        explanation: '自分の配信者だけを読み取り、設定の提案と開発環境のテスト送信ができます。「設定を変えてもらう」を入れた合言葉なら、設定の保存と元に戻すもできます。お金の申請はできません。',
         tokens: aiTokens.listForTenant(tenantId),
         connection: { api: `${origin(req)}/ai/v1`, mcp: `${origin(req)}/ai/mcp`, tenant: tenantId },
       });
     }
     if (req.method === 'POST') {
-      const issued = aiTokens.issueStreamer({ tenantId, name: req.body?.name, days: req.body?.days });
+      const issued = aiTokens.issueStreamer({ tenantId, name: req.body?.name, days: req.body?.days, allowWrite: req.body?.allowWrite === true });
       return res.status(201).json({
         ok: true,
         token: issued.token,

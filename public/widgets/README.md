@@ -49,3 +49,4 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 最後に直した日: 2026-10-21
 
 - WebSocket を開くウィジェットは、URL に `preview=1` があるとき `/ws?preview=1` でつなぐ。サーバーはこれを配信ソフトからの接続(obs)として数えない(準備の印と自動でつなぐのため)。`test/preview-ws.test.js` で確かめている
+- `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す

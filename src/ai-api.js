@@ -468,6 +468,10 @@ export function createAiControl({ dataDir, tokens, resolveTenant, applyBilling, 
     if (!token.scopes.includes(spec.scope)) {
       return finish(tool, context, { status: 403, body: { error: 'この操作の権限がありません' } });
     }
+    // 配信者が作った合言葉では、設定を変えられても、お金の申請はさせない
+    if (spec.billing && token.kind === 'streamer') {
+      return finish(tool, context, { status: 403, body: { error: '配信者の合言葉では、お金の申請はできません' } });
+    }
     const tenantId = pickTenant(token, args);
     if (!tenantId) return finish(tool, context, { status: 400, body: { error: '配信者を指定してください' } });
     if (!safeTenantId(tenantId)) return finish(tool, context, { status: 400, body: { error: '配信者の id の形が正しくありません' } });

@@ -1,6 +1,6 @@
 # ライコネ
 
-最終更新: 2026-10-25(ダッシュボードを放送卓の並びと黄色・紙の色に作り直し。ホームの準備は初めのうちだけ、お知らせにくわしいページ、ギフト通知は出す場所を選ばない)
+最終更新: 2026-10-25(妨害マイクラのギフト表・ホームの配信ごと(テンプレートとリセット)・AI の合言葉で設定を変える。ダッシュボードを放送卓の並びと黄色・紙の色に作り直し。ホームの準備は初めのうちだけ、お知らせにくわしいページ、ギフト通知は出す場所を選ばない)
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
@@ -35,6 +35,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | カットインの画面撮影と本番反映 | - | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
 | ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
 | ダッシュボードの明るさ | 設定画面でライトとダークを切り替える | できた | `public/dashboard/common.js`、`public/dashboard/style.css` |
+| 妨害マイクラのギフト表 | 妨害マイクラで、どのギフトを送ると何が起きるかを配信画面に出す(行が多いと順にめくる)。表は配信者の minecraft.superstreamFile、無ければ TW_MC_GIFT_TABLE(貸出サーバーのモードの superstream.yml) | できた | `public/widgets/mc-gifts.html`、`src/superstream.js` の `giftTable` |
 | 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
 | 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する | できた（開発サーバー確認まで） | `public/dashboard/`、`test/kind-ui-playwright.test.js` |
 

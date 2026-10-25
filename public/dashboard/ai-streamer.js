@@ -39,7 +39,8 @@ export async function setupStreamerAi({ box, intro, body, api }) {
   const name = el('input', { required: true, maxLength: 80, value: '配信設定用', 'aria-label': '合言葉の名前' });
   const days = el('input', { type: 'number', min: 1, max: 366, value: '30', 'aria-label': '使える日数' });
   const issue = el('button', { type: 'submit', className: 'btn primary pressable', textContent: '合言葉を作る' });
-  form.append(el('label', {}, '名前', name), el('label', {}, '使える日数', days), issue);
+  const allowWrite = el('input', { type: 'checkbox' });
+  form.append(el('label', {}, '名前', name), el('label', {}, '使える日数', days), el('label', { className: 'check' }, allowWrite, 'AI に設定を変えてもらう(変えたら元に戻せます)'), issue);
   const issued = el('div', { className: 'streamer-ai-issued', hidden: true });
   const step2 = el('div', { className: 'ai-step' }, el('h4', { textContent: '2. 合言葉を作って、AI の「秘密」の欄に貼る' }), form, issued);
   const more = el('details', { className: 'more' }, el('summary', { textContent: 'くわしい人向け' }), el('p', { className: 'hint', textContent: `API: ${state.connection.api}　配信者の番号: ${state.connection.tenant}。最初は読むだけ、次に保存しない提案、最後に開発用のテスト送信の順に使えます。` }));
@@ -57,14 +58,14 @@ export async function setupStreamerAi({ box, intro, body, api }) {
         try { await api(`/api/ai/streamer/${encodeURIComponent(token.id)}`, {}, 'DELETE'); state.tokens = state.tokens.filter((item) => item.id !== token.id); renderList(); }
         catch (err) { list.append(message(err.message, true)); revoke.disabled = false; }
       });
-      list.append(el('div', { className: `streamer-ai-token${status.expired ? ' expired' : status.urgent ? ' expiring' : ''}` }, el('div', {}, el('strong', { textContent: token.name }), el('span', { className: 'hint', textContent: `${status.label}・${String(token.expiresAt).slice(0, 10)} まで` })), revoke));
+      list.append(el('div', { className: `streamer-ai-token${status.expired ? ' expired' : status.urgent ? ' expiring' : ''}` }, el('div', {}, el('strong', { textContent: token.name }), el('span', { className: 'hint', textContent: `${status.label}・${String(token.expiresAt).slice(0, 10)} まで・${token.scopes?.includes('write') ? '設定を変えられる' : '見る・案を出すだけ'}` })), revoke));
     }
   };
   renderList();
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); issue.disabled = true; issued.hidden = true;
     try {
-      const result = await api('/api/ai/streamer', { name: name.value.trim(), days: Number(days.value) });
+      const result = await api('/api/ai/streamer', { name: name.value.trim(), days: Number(days.value), allowWrite: allowWrite.checked });
       const tokenField = el('input', { readOnly: true, value: result.value, 'aria-label': '作った合言葉' });
       const connectionText = JSON.stringify({ mcpUrl: result.connection.mcp, apiUrl: result.connection.api, tenant: result.connection.tenant, token: '<外部AIの秘密の欄に貼る>' }, null, 2);
       issued.replaceChildren(el('div', { className: 'streamer-ai-copy' }, tokenField, copyButton(result.value, '合言葉をコピー')), el('p', { className: 'hint', textContent: 'この合言葉は、あとから見られません。今コピーして、AI の「秘密」の欄に貼ってください。' }), el('details', { className: 'more' }, el('summary', { textContent: 'まとめてコピー(くわしい人向け)' }), el('div', { className: 'streamer-ai-copy' }, el('pre', { className: 'code', textContent: connectionText }), copyButton(connectionText, '接続設定をコピー'))));

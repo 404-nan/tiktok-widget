@@ -1966,3 +1966,6 @@ p, .desc, .hint { text-wrap: pretty; }
 .home-used-name { font-weight: 700; }
 @media (min-width: 900px) { [data-mode=simple] .side-item span { letter-spacing: -.1em; } }
 .home-card-head h3 { white-space: nowrap; }
+.home-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn.is-armed { background: var(--rk-acc) !important; color: var(--rk-acc-ink) !important; }
+.home-per-stream { grid-column: 1 / -1; }

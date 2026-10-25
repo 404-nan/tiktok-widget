@@ -16,7 +16,7 @@ import { RouletteEngine } from './roulette.js';
 import { Minecraft } from './minecraft.js';
 import { History } from './history.js';
 import { analyzeEffects } from './effect-analysis.js';
-import { readProfile, SUPERSTREAM_ACTIONS } from './superstream.js';
+import { readProfile, SUPERSTREAM_ACTIONS, giftTable } from './superstream.js';
 import { RushEngine } from './rush.js';
 import { StepupEngine } from './stepup.js';
 import { SwarmEngine } from './swarm.js';
@@ -42,9 +42,9 @@ import { CheerEngine } from './cheer.js';
 import { PushButtonEngine } from './push-button.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
 import { shouldAutoConnect } from './rental.js';
-import { GiftCatalog, bundledGifts, mergeGiftCatalog } from './gifts.js';
+import { GiftCatalog, bundledGifts, mergeGiftCatalog, bundledCoinCount } from './gifts.js';
 import { EulerUsage } from './euler-usage.js';
-import { giftNamesDocument } from './gift-display.js';
+import { giftNamesDocument, lookupGiftJa } from './gift-display.js';
 import { isDevEnv } from './env.js';
 import { Ingest } from './ingest.js';
 import { getTemplate, previewTemplate, templateList } from './templates.js';
@@ -65,7 +65,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'ai', 'minecraft', 'combo'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'ai', 'minecraft', 'combo'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -501,6 +501,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     } catch (err) { return res.status(400).json({ error: err.message }); }
   });
   // マイクラ側の演出プロフィールに設定済みの演出（読むだけ）
+  // 妨害マイクラのギフト表(配信画面のウィジェット用)。配信者の設定のファイルが無ければ、貸出サーバーのモードの表(TW_MC_GIFT_TABLE)を使う
+  r.get('/api/mc-gifts', (_req, res) => {
+    const mc = hub.config.minecraft ?? {};
+    const file = mc.superstreamFile || process.env.TW_MC_GIFT_TABLE || '';
+    const nameJaOf = (id) => lookupGiftJa({ id });
+    res.json(giftTable(file, { coinOf: bundledCoinCount, nameJaOf, catalog: [...giftCatalog.list(), ...hub.seenGifts.values()] }));
+  });
   r.get('/api/superstream', (_req, res) => {
     const mc = hub.config?.minecraft ?? {};
     res.json({ ...readProfile(mc.superstreamFile, [...hub.seenGifts.values()]), configuredProfile: mc.superstreamProfile, actions: SUPERSTREAM_ACTIONS });
