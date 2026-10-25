@@ -200,7 +200,8 @@ export function createEditor({ api, setMessage }) {
       }, delay),
     );
   }
-  const save = (key, value, delay = 0) => patch(pathOf(key), { value }, delay);
+  // 続けて変えたときは、最後の1回だけ送る(打つたび・押すたびに保存とウィジェットの描き直しが走って重くならないように)
+  const save = (key, value, delay = 150) => patch(pathOf(key), { value }, delay);
   const pathOf = (key) => (isObj(tab) ? [tab, key] : [tab, id, key]);
 
   function showIssues(errors = [], warnings = [], ok) {
@@ -651,12 +652,84 @@ export function createEditor({ api, setMessage }) {
     card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
     // 準備の一覧は、初めのうち(4つ全部が済むまで)だけ出す
     const allDone = steps.every(([, done]) => done);
-    box.replaceChildren(viewHead('ホーム'), ...(allDone ? [] : [card]), homeTopCards);
+    // ふだんのホーム: 前回の配信のまとめと、使っているウィジェット(すぐ開ける・ためせる・URL をコピーできる)
+    const grid = Object.assign(document.createElement('div'), { className: 'home-grid' });
+    grid.append(lastStreamCard(), usedWidgetsCard());
+    box.replaceChildren(viewHead('ホーム'), ...(allDone ? [] : [card]), grid, homeTopCards);
     api('/api/preparation').then((next) => {
       if (JSON.stringify(next) === JSON.stringify(preparation)) return;
       preparation = next;
       if (view === 'home') renderHome();
     }).catch(() => {});
+  }
+
+  const fmtNum = (n) => Number(n ?? 0).toLocaleString('ja-JP');
+  const fmtDuration = (ms) => { const m = Math.round((ms ?? 0) / 60000); return m >= 60 ? `${Math.floor(m / 60)}時間${m % 60 ? `${m % 60}分` : ''}` : `${m}分`; };
+  // 前回の配信のまとめ(配信中なら今の配信)。記録の一覧(/api/history)の新しいものから出す
+  let historyCache = null;
+  function lastStreamCard() {
+    const card = Object.assign(document.createElement('section'), { className: 'home-card home-last' });
+    const head = Object.assign(document.createElement('div'), { className: 'home-card-head' });
+    head.append(Object.assign(document.createElement('h3'), { textContent: '前回の配信' }));
+    const more = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: '配信の記録を見る' });
+    more.addEventListener('click', goTo('history'));
+    head.append(more);
+    const body = Object.assign(document.createElement('div'), { className: 'home-last-body' });
+    card.append(head, body);
+    const fill = (list) => {
+      const real = (list ?? []).filter((x) => !x.demo).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+      const last = real[0];
+      if (!last) { body.replaceChildren(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ配信の記録がありません。配信すると、ここに前回のまとめが出ます。' })); return; }
+      if (last.live) head.firstChild.textContent = '今の配信';
+      const prev = real[1];
+      const t = last.totals ?? {};
+      const when = new Date(last.startedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+      const big = Object.assign(document.createElement('div'), { className: 'home-coins' });
+      big.append(Object.assign(document.createElement('span'), { className: 'home-coins-num', textContent: fmtNum(t.coins) }), Object.assign(document.createElement('span'), { className: 'home-coins-unit', textContent: 'コイン' }));
+      if (prev) {
+        const diff = (t.coins ?? 0) - (prev.totals?.coins ?? 0);
+        big.append(Object.assign(document.createElement('span'), { className: `home-diff ${diff >= 0 ? 'up' : 'down'}`, textContent: `前の配信より ${diff >= 0 ? '+' : ''}${fmtNum(diff)}` }));
+      }
+      const meta = Object.assign(document.createElement('p'), { className: 'hint', textContent: `${when}から ${fmtDuration(last.durationMs)}` });
+      const stats = Object.assign(document.createElement('dl'), { className: 'home-stats' });
+      for (const [k, v] of [['ギフト', `${fmtNum(t.gifts)}個`], ['送ってくれた人', `${fmtNum(t.uniqueGifters)}人`], ['いちばん送ってくれた人', last.topGifter ? `${last.topGifter.name ?? '名前なし'}(${fmtNum(last.topGifter.coins)}コイン)` : 'まだいません']]) {
+        stats.append(Object.assign(document.createElement('dt'), { textContent: k }), Object.assign(document.createElement('dd'), { textContent: v }));
+      }
+      body.replaceChildren(meta, big, stats);
+    };
+    if (historyCache) fill(historyCache);
+    api('/api/history').then((list) => { historyCache = list; fill(list); }).catch(() => fill([]));
+    return card;
+  }
+
+  // 使っているウィジェット: 押すとその設定へ。URL のコピーもここから
+  function usedWidgetsCard() {
+    const card = Object.assign(document.createElement('section'), { className: 'home-card home-used' });
+    const head = Object.assign(document.createElement('div'), { className: 'home-card-head' });
+    head.append(Object.assign(document.createElement('h3'), { textContent: '使っているもの' }));
+    const add = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: '＋ 足す' });
+    add.addEventListener('click', goTo('catalog'));
+    head.append(add);
+    const list = Object.assign(document.createElement('ul'), { className: 'home-used-list' });
+    for (const t of usedSections()) {
+      const li = document.createElement('li');
+      const open = Object.assign(document.createElement('button'), { type: 'button', className: 'home-used-open pressable' });
+      const activeId = payload.config.active?.[t];
+      const preset = activeId && payload.config[t]?.[activeId] ? (payload.config[t][activeId].kindName || payload.config[t][activeId].name || '') : '';
+      open.append(icon(INFO[t]?.icon ?? 'square'), Object.assign(document.createElement('span'), { className: 'home-used-name', textContent: schema.sections[t].title }), Object.assign(document.createElement('span'), { className: 'hint', textContent: preset }));
+      open.addEventListener('click', () => openCard(t));
+      const w = payload.widgets.find((x) => x.section === t && (x.id === activeId || x.id === '*' || !x.id));
+      li.append(open);
+      if (w?.url) {
+        const copy = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: 'URL をコピー' });
+        copy.addEventListener('click', () => { copyText(new URL(w.url, location.href).href); flashCopied(copy, copy); });
+        li.append(copy);
+      }
+      list.append(li);
+    }
+    if (!list.children.length) list.append(Object.assign(document.createElement('li'), { className: 'hint', textContent: 'まだ何も出していません。「その他のウィジェット」から選びます。' }));
+    card.append(head, list);
+    return card;
   }
 
   function autoConnectSetting() {

@@ -58,3 +58,5 @@
 - 見え方の枠は「このウィジェットだけ / 配信画面ぜんぶ」(`all.html?preview=1`)を切り替える
 - 色は `style.css` の先頭の「色の置き場」と、末尾の「ライコネの色」(ダーク=炭色に黄 #FFE600、ライト=紙 #F3F1EC に朱)だけで決める。部品の中に色を直に書かない(`test/acceptance/redesign.test.js` が確かめる)
 - 見本のデザインは `docs/design/redesign/`
+- ホーム: 初めのうちは「配信の準備」(4つ全部済むまで)。ふだんは「前回の配信」(/api/history の新しいもの。前の配信とのコインの差つき)と「使っているもの」(押すと設定へ、URL をコピー)、その下にお知らせ。`editor.js` の `renderHome()`・`lastStreamCard()`・`usedWidgetsCard()`
+- 設定の保存は、続けて変えたときは最後の1回だけ送る(`save()` は 150ms 待つ)
