@@ -476,9 +476,9 @@ export function createEditor({ api, setMessage }) {
       label('ウィジェット'),
       ...used.map((t) => item(INFO[t].icon, schema.sections[t].title, onDetail(t), () => openCard(t))),
       item('plus', 'ウィジェットを増やす', view === 'catalog', goTo('catalog')),
-      item('activity', '配信中に見る', false, () => { window.location.href = '/monitor/'; }),
-      item('chart-column', '配信の記録', false, () => { window.location.href = '/history/'; }),
-      item('book-open', '使い方', false, () => window.open('/help/', '_blank', 'noopener')),
+      item('activity', '配信中に見る', false, () => { window.location.href = `${BASE}/monitor/`; }),
+      item('chart-column', '配信の記録', false, () => { window.location.href = `${BASE}/history/`; }),
+      item('book-open', '使い方', false, () => window.open(`${BASE}/help/`, '_blank', 'noopener')),
     );
     // 設定は、PC ではサイドバーのいちばん左下に固定する
     const bottom = [

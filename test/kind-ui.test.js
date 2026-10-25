@@ -37,3 +37,10 @@ test('kind-ui の言葉の辞書と準備画面の入口がある', () => {
   assert.doesNotMatch(editor, /confirm\(`「\$\{id\}」の設定を消します/);
   assert.match(runtime, /\/api\/preparation/);
 });
+
+test('サイドバーの行き先は配信者ごとの場所(BASE)から作る', () => {
+  const editor = read('public/dashboard/editor.js');
+  // 先頭が / の行き先は、配信者ごとの URL(/t/<鍵>/)の外に出てしまう
+  assert.doesNotMatch(editor, /location\.href = '\/(monitor|history)\//);
+  assert.doesNotMatch(editor, /window\.open\('\/help\//);
+});
