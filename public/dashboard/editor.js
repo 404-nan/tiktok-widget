@@ -84,7 +84,7 @@ const LABELS = {
   nextDelay: '次のボスが出るまでの秒数', defeatText: '討伐の文字', 'bosses.roulette': '討伐で回すルーレット', commands: '討伐で Minecraft に送るコマンド（1行に1つ）',
   'bosses.superstreamGift': '討伐で起こすマイクラの演出（ギフト ID）', 'bosses.superstreamAction': '討伐で起こすマイクラの演出（種類）', 'bosses.color': 'HP の色',
   name: '表示名', style: '形', perCount: '個数分まわす', hold: '結果の秒数', hint: '案内文', palette: '自動の色の順番',
-  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', labelDirection: '文字の向き', chance: 'ギリギリ演出', items: '中身',
+  pointerColor: '針の色', frameColor: '縁の色', fontScale: '文字の倍率', rushOdds: 'RUSH中は確率を変える', sameSize: '扇を同じ大きさにする', labelDirection: '文字の向き', chance: '当たりそうで当たらない演出', items: '中身',
   'chats.maxItems': '最大件数', 'chats.avatars': 'アイコンを出す', 'chats.color': '新しいコメントの帯の色', lifetime: '消すまでの秒数（0 で消さない）',
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
@@ -2172,6 +2172,7 @@ export function createEditor({ api, setMessage }) {
         if (r.superstreamAction) out.superstreamAction = r.superstreamAction;
         if (r.rush) out.rush = true;
         if (r.win) out.win = true;
+        if (r.tease) out.tease = true;
         const ready = (r.actions || []).filter(actionReady).map(actionClean);
         if (ready.length) out.actions = ready;
         const keys = Object.keys(out);
@@ -2496,10 +2497,15 @@ export function createEditor({ api, setMessage }) {
       const winBox = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!r.win });
       winBox.addEventListener('change', () => ((r.win = winBox.checked || undefined), commit(0)));
       win.append(winBox, '当たり');
+      // 当たりそうで当たらない: 針がこのマスの近くで止まりかけて、外れる(結果は変えない)
+      const tease = Object.assign(document.createElement('label'), { className: 'check', title: '針がこのマスの近くで止まりかけて、外れる演出を入れる' });
+      const teaseBox = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!r.tease });
+      teaseBox.addEventListener('change', () => ((r.tease = teaseBox.checked || undefined), commit(0)));
+      tease.append(teaseBox, '当たりそうで当たらない');
 
       const bottom = document.createElement('div');
       bottom.className = 'item-bottom';
-      bottom.append(color, picker, image, url, win);
+      bottom.append(color, picker, image, url, win, tease);
 
       if (!usesMinecraft()) {
         row.append(top, rushBox, actionsBox, bottom);

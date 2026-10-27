@@ -91,20 +91,32 @@ function pickTier(tiers, x) {
  * - 次に来る項目（index - 1）が当たり: 当たりの手前ギリギリで止まる
  * - 通り過ぎた項目（index + 1）が当たり: 当たりからギリギリ抜けて止まる
  * - 当たり: ときどき、隣からギリギリ入って止まる
+ * 「当たりそうで当たらない」(項目の tease: true)も、当たりと同じく隣ならギリギリで外す。
+ * 2〜3つ手前にあるときは、その上で止まりかけてから(fx.tease)、ゆっくり本当の結果へ流れる。結果そのものは変えない
  */
 export function spinFx(r, index, random = Math.random) {
   const items = r.items ?? [];
   const n = items.length;
   const isWin = (i) => items[(i + n) % n]?.win === true;
-  const fx = { land: 0.15 + random() * 0.7, chance: null, kakutei: null };
-  if (r.chance === false || n < 3 || !items.some((it) => it?.win === true)) return fx;
+  const isTease = (i) => items[(i + n) % n]?.tease === true;
+  const hot = (i) => isWin(i) || isTease(i);
+  const fx = { land: 0.15 + random() * 0.7, chance: null, kakutei: null, tease: null };
+  if (r.chance === false || n < 3 || !items.some((it) => it?.win === true || it?.tease === true)) return fx;
   const win = isWin(index);
-  const nextWin = isWin(index - 1);
-  const near = !win && (nextWin || isWin(index + 1));
+  const nextWin = hot(index - 1);
+  const near = !win && !isTease(index) && (nextWin || hot(index + 1));
   if (near || (win && random() < WIN_CHANCE_RATE)) {
     const edge = 0.03 + random() * 0.05;
     fx.land = !win && nextWin ? edge : 1 - edge;
     fx.chance = pickTier(CHANCE_TIERS[win ? 'win' : 'near'], random());
+  } else if (!win && !isTease(index)) {
+    for (let k = 2; k <= Math.min(3, n - 1); k++) {
+      if (!isTease(index + k)) continue;
+      fx.tease = { at: (index + k) % n };
+      fx.land = 1 - (0.06 + random() * 0.12);
+      fx.chance = pickTier(CHANCE_TIERS.near, random());
+      break;
+    }
   }
   if (win && random() < KAKUTEI_RATE) fx.kakutei = KAKUTEI[Math.floor(random() * KAKUTEI.length)];
   return fx;

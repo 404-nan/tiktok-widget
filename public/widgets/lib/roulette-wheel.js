@@ -13,6 +13,8 @@ const norm = (a) => ((a % TAU) + TAU) % TAU;
 const CREEP = 0.6; // ギリギリ演出で、最後ににじり寄る長さ（扇の幅に対する割合）
 const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
 const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const TEASE_HOLD_MS = 500; // 当たりそうで当たらない: 止まりかけて見せる時間
 
 /** 当たりの扇の land（0〜1）の位置が針に来る回転 */
 export function landRotation(winner, land) {
@@ -198,7 +200,9 @@ export function createWheel(root) {
       const duration = reduced ? 300 : r.duration * 1000;
       // ギリギリ演出: いったん止まりかけてから、CHANCE_MS かけて境目へにじり寄る
       const creepMs = fx.chance && !reduced ? CHANCE_MS : 0;
-      const creep = creepMs ? CREEP * (winner.end - winner.start) * TAU : 0;
+      // 当たりそうで当たらない: 選んだマスの真ん中で止まりかけ、そこから本当の結果まで流れる
+      const teaseSeg = fx.tease && !reduced ? _r.items?.[fx.tease.at] : null;
+      const creep = teaseSeg ? norm(landRotation(winner, land) - landRotation(teaseSeg, 0.5)) : creepMs ? CREEP * (winner.end - winner.start) * TAU : 0;
       rainbowPointer = fx.kakutei === 'pointer';
       lights = { mode: 'spin', since: performance.now() };
       let last = indexAtPointer();
@@ -208,6 +212,8 @@ export function createWheel(root) {
         const frame = (now) => {
           const elapsed = now - t0;
           if (elapsed < duration) rotation = from + (to - creep - from) * easeOutQuart(elapsed / duration);
+          // 当たりそうで当たらない: 選んだマスの上で少し止まってから、ゆっくり動き出して流れる
+          else if (teaseSeg) rotation = to - creep * (1 - easeInOutCubic(Math.max(0, Math.min(1, (elapsed - duration - TEASE_HOLD_MS) / ((creepMs || 1) - TEASE_HOLD_MS)))));
           else rotation = to - creep * (1 - easeOutQuad(Math.min(1, (elapsed - duration) / (creepMs || 1))));
           root.classList.toggle('chance', creepMs > 0 && elapsed >= duration);
           const t = Math.min(1, elapsed / (duration + creepMs));

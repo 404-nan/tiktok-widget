@@ -339,7 +339,7 @@ export const SCHEMA = {
       fontScale: num(1, '項目の文字の大きさの倍率', { min: 0.5, max: 2 }),
       scale: num(1, 'ルーレット全体の大きさの倍率（1 がふつう）', { min: 0.5, max: 2 }),
       rushOdds: bool(false, 'RUSH中は確率を変える'),
-      chance: bool(true, 'ギリギリ演出: 当たりの両隣や当たりが出たとき、最後にゆっくり境目へにじり寄る（カットインのチャンス演出つき）。当たりのときは確定演出が出ることもある。当たりの項目（win: true）があるときだけ'),
+      chance: bool(true, 'ギリギリ演出: 当たり(win: true)や「当たりそうで当たらない」マス(tease: true)の近くで針が止まりかけ、外れる演出。当たりのときは確定演出が出ることもある。どちらかのマスがあるときだけ'),
       sameSize: bool(false, '丸型の扇を全部同じ大きさにする（当たりやすさは weight のまま）'),
       items: {
         type: 'items',
@@ -350,7 +350,7 @@ export const SCHEMA = {
           'rushWeight は RUSH 中の当たりやすさ（0 以上の数。書かなければ weight と同じ。rushOdds が true のときだけ使う）。' +
           'image は画像の URL か media/ フォルダのファイル名。' +
           'image がなければ文字だけを中央に出す。commands はその項目が当たったときに Minecraft に送るコマンドの一覧、' +
-          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。win: true は当たりの項目で、出たらカットインの「大当たり」演出が入る。' +
+          'superstreamGift / superstreamAction は当たったときに起こすマイクラの演出（minecraft の設定が必要）。rush: true は当たったら RUSH 突入。win: true は当たりの項目で、出たらカットインの「大当たり」演出が入る。tease: true は「当たりそうで当たらない」マス(針がその近くで止まりかけて、外れる演出が入る。結果は変えない)。' +
           'actions は当たったときに実行する動作の一覧。type は timer.add（seconds。マイナスで減らす）/ wins.add（n）/ rush.start / media.play（mediaId）/ boss.damage（amount）/ boss.heal（amount）/ gacha.start / omikuji.start。id を書くとそのタイマー・WIN数・ボスだけ',
       },
     },
