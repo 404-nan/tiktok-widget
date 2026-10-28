@@ -226,10 +226,13 @@ export function createWheel(root) {
           if (skin.pegs) {
             // ピンのある形: 次のピンが爪に来るまでの角度 d から、爪のしなりを決める。
             // ピンが近づくほど爪が押されてしなり、通り過ぎた瞬間に外れてパチンと戻る(そこで1回鳴る)
-            const step = TAU / skin.pegs(r.items);
-            const d = norm(POINTER - rotation) % step;
-            const push = d < step * FLAP_ZONE ? (1 - d / (step * FLAP_ZONE)) * FLAP_MAX : 0;
-            if (lastPegD != null && d > lastPegD + step * 0.5) {
+            // pegs は盤の上のピンの位置(0〜1)。針の下は大きいほうから小さいほうへ流れるので、針の位置以下でいちばん近いピンが次に当たる
+            const pegs = skin.pegs(r.items);
+            const at = norm(POINTER - rotation) / TAU;
+            const d = Math.min(...pegs.map((f) => norm((at - f) * TAU)));
+            const zone = (TAU / pegs.length) * FLAP_ZONE;
+            const push = d < zone ? (1 - d / zone) * FLAP_MAX : 0;
+            if (lastPegD != null && d > lastPegD + zone) {
               spring = Math.max(spring, lastPush);
               tick(r);
             }

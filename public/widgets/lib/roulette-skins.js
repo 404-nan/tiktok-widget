@@ -448,7 +448,8 @@ const judo = {
 // 爪のしなりと音は roulette-wheel.js が pegs の数から計算する。ここは形と塗りだけ
 
 const PRIZE = { rim: '#1B1B1F', rimEdge: '#3A3A42', stud: '#E9E4D8', studShade: '#8D8778', flap: '#D7261E', flapEdge: '#5E0E0A', hub: '#141417' };
-const prizePegs = (items) => Math.max(36, Math.min(96, items.length * 6));
+// ピンは、マスの境目と、マスの真ん中に1本ずつ(マスの幅がばらばらでも、境目にそろって見える)
+const prizePegs = (items) => items.flatMap((it) => [it.start, (it.start + it.end) / 2]);
 
 const prize = {
   geometry: (c) => ({ rim: 34, rad: c - 36 }),
@@ -495,10 +496,9 @@ const prize = {
       ctx.stroke();
     }
     // 縁の鋲(ピン)。台座の影 → 頭 → 光る点
-    const n = prizePegs(items);
     const pr = rad + rim / 2;
-    for (let k = 0; k < n; k++) {
-      const a = (k / n) * TAU + rotation;
+    for (const f of prizePegs(items)) {
+      const a = f * TAU + rotation;
       const x = c + Math.cos(a) * pr;
       const y = c + Math.sin(a) * pr;
       ctx.beginPath();
