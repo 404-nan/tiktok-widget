@@ -50,4 +50,4 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 
 - WebSocket を開くウィジェットは、URL に `preview=1` があるとき `/ws?preview=1` でつなぐ。サーバーはこれを配信ソフトからの接続(obs)として数えない(準備の印と自動でつなぐのため)。`test/preview-ws.test.js` で確かめている
 - `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す
-- ルーレットの `prize`(本格ホイール。はじめの形): 縁にピン(鋲)がマスの境目と真ん中に1本ずつ並び、ゴムの爪がピンに押されてしなり、外れるとパチンと戻って1回鳴る。爪のしなりと音は `lib/roulette-wheel.js`(スキンの `pegs` があるとき)、形と塗りは `lib/roulette-skins.js` の `prize`
+- ルーレットの `prize`(本格ホイール。はじめの形): 縁にピン(鋲)が同じ間かくで24本並び、ゴムの爪がピンに押されてしなり、外れるとパチンと戻って1回鳴る。爪のしなりと音は `lib/roulette-wheel.js`(スキンの `pegs` があるとき)、形と塗りは `lib/roulette-skins.js` の `prize`

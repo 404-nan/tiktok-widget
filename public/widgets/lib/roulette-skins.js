@@ -448,8 +448,9 @@ const judo = {
 // 爪のしなりと音は roulette-wheel.js が pegs の数から計算する。ここは形と塗りだけ
 
 const PRIZE = { rim: '#1B1B1F', rimEdge: '#3A3A42', stud: '#E9E4D8', studShade: '#8D8778', flap: '#D7261E', flapEdge: '#5E0E0A', hub: '#141417' };
-// ピンは、マスの境目と、マスの真ん中に1本ずつ(マスの幅がばらばらでも、境目にそろって見える)
-const prizePegs = (items) => items.flatMap((it) => [it.start, (it.start + it.end) / 2]);
+// ピンは同じ間かくで24本(多すぎると点が目立ち、少なすぎるとカチカチが出ない)
+const PEG_COUNT = 24;
+const prizePegs = () => Array.from({ length: PEG_COUNT }, (_, k) => k / PEG_COUNT);
 
 const prize = {
   geometry: (c) => ({ rim: 34, rad: c - 36 }),
