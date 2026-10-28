@@ -26,7 +26,8 @@ if [ "${live:-0}" -gt 0 ]; then
 fi
 
 echo "反映します: $(git log -1 --format='%h %s')"
-if ! npm test >"$STATE_DIR/last-test.log" 2>&1; then
+# テストが固まっても反映が止まり続けないよう、全体を15分、1件を2分で打ち切る(打ち切ったら「通らない」として次の回にやり直す)
+if ! timeout 900 node --test --test-timeout=120000 >"$STATE_DIR/last-test.log" 2>&1; then
   echo "テストが通らないので反映しません（$STATE_DIR/last-test.log）"
   echo "$head" >"$STATE_DIR/failed"
   exit 1

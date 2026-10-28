@@ -4,7 +4,7 @@ lulserver の本番（127.0.0.1:3939）を、再起動の手作業なしで新�
 
 | ファイル | 役目 |
 | --- | --- |
-| `auto-deploy.sh` | 新しいコミットがあり、誰も配信していなければ（`/healthz` の `live` が 0）、`npm test` が通ったときだけ本番を再起動する |
+| `auto-deploy.sh` | 新しいコミットがあり、誰も配信していなければ（`/healthz` の `live` が 0）、テスト(全体15分・1件2分で打ち切り)が通ったときだけ本番を再起動する |
 | `tiktok-widget-deploy.service` | `auto-deploy.sh` を1回動かす systemd のユーザーサービス |
 | `tiktok-widget-deploy.timer` | 上のサービスを1分ごとに動かす |
 | `tw-flow` | 開発の流れの道具。`status`(本番・開発・まだ入っていないブランチの一覧)、`preview <branch>`(開発サーバー3940をそのブランチにする。テストが通ったときだけ)、`clean`(本番に入り終わったブランチの worktree を片付ける。ブランチは残す) |
