@@ -1,5 +1,5 @@
 // 丸型ルーレットの見た目（スキン）。style ごとに、縁・扇の色・中心・針・光り物を描き分ける。
-// wheel いつもの平らな形 / casino 金の縁と電球が回るカジノ台 / judo 畳と畳縁の柔道場。
+// wheel いつもの平らな形 / casino 金の縁と電球が回るカジノ台 / judo 畳と畳縁の柔道場 / prize ピンとゴムの爪のある本格ホイール。
 // 描く順番と文字の置き方は roulette-wheel.js が持ち、ここは「どう塗るか」だけを受け持つ。
 
 import { resolveColor } from './overlay.js';
@@ -443,5 +443,142 @@ const judo = {
   },
 };
 
-export const SKINS = { wheel: plain, casino, judo };
+// ---------------------------------------------------------------- 本格ホイール(テレビの抽選ホイール)
+// 縁に鋲(ピン)がたくさん並び、ゴムの爪の針がピンに押されてしなり、外れるとパチンと戻る(カチカチ鳴る)。
+// 爪のしなりと音は roulette-wheel.js が pegs の数から計算する。ここは形と塗りだけ
+
+const PRIZE = { rim: '#1B1B1F', rimEdge: '#3A3A42', stud: '#E9E4D8', studShade: '#8D8778', flap: '#D7261E', flapEdge: '#5E0E0A', hub: '#141417' };
+const prizePegs = (items) => Math.max(36, Math.min(96, items.length * 6));
+
+const prize = {
+  geometry: (c) => ({ rim: 34, rad: c - 36 }),
+  pegs: (items) => prizePegs(items),
+  back({ ctx, c, rad }) {
+    // 外の縁: 黒い金属の輪に、内と外の細い光の線
+    disc(ctx, c, c - 2);
+    ctx.fillStyle = PRIZE.rim;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = PRIZE.rimEdge;
+    disc(ctx, c, c - 3);
+    ctx.stroke();
+    disc(ctx, c, rad + 3);
+    ctx.stroke();
+  },
+  fill: (_s, it) => it.fill,
+  ink: (_s, it) => it.ink,
+  overSegments({ ctx, c, rad, items, rotation }) {
+    // 扇の外側に細い影の帯(縁の下にもぐって見える)と、内側の明るい線
+    for (const it of items) {
+      const a0 = it.start * TAU + rotation;
+      const a1 = it.end * TAU + rotation;
+      ctx.beginPath();
+      ctx.arc(c, c, rad, a0, a1);
+      ctx.arc(c, c, rad * 0.9, a1, a0, true);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 0, 0, .16)';
+      ctx.fill();
+    }
+    disc(ctx, c, rad * 0.9);
+    ctx.strokeStyle = 'rgba(255, 255, 255, .22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  },
+  dividers({ ctx, c, rad, rim, items, rotation }) {
+    for (const it of items) {
+      const a = it.start * TAU + rotation;
+      ctx.beginPath();
+      ctx.moveTo(c + Math.cos(a) * rad * 0.16, c + Math.sin(a) * rad * 0.16);
+      ctx.lineTo(c + Math.cos(a) * rad, c + Math.sin(a) * rad);
+      ctx.strokeStyle = PRIZE.rim;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    // 縁の鋲(ピン)。台座の影 → 頭 → 光る点
+    const n = prizePegs(items);
+    const pr = rad + rim / 2;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * TAU + rotation;
+      const x = c + Math.cos(a) * pr;
+      const y = c + Math.sin(a) * pr;
+      ctx.beginPath();
+      ctx.arc(x + 1, y + 1.5, 4.6, 0, TAU);
+      ctx.fillStyle = 'rgba(0, 0, 0, .55)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 4.2, 0, TAU);
+      ctx.fillStyle = PRIZE.studShade;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x - 0.6, y - 0.8, 3, 0, TAU);
+      ctx.fillStyle = PRIZE.stud;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x - 1.4, y - 1.6, 1, 0, TAU);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+    }
+  },
+  hub({ ctx, c, rad, r }) {
+    // 中心: 黒い台 → 色の輪 → ボルト6本 → まんなかのキャップ
+    disc(ctx, c, rad * 0.17);
+    ctx.fillStyle = PRIZE.hub;
+    ctx.fill();
+    disc(ctx, c, rad * 0.17 - 4);
+    ctx.strokeStyle = r.pointer;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * TAU;
+      ctx.beginPath();
+      ctx.arc(c + Math.cos(a) * rad * 0.1, c + Math.sin(a) * rad * 0.1, 2.4, 0, TAU);
+      ctx.fillStyle = PRIZE.studShade;
+      ctx.fill();
+    }
+    disc(ctx, c, rad * 0.05);
+    ctx.fillStyle = PRIZE.stud;
+    ctx.fill();
+  },
+  pointer({ ctx, c, rim, pointerKick, pointerColor }) {
+    // ゴムの爪: 上の軸で留まり、ピンに押されると左右にしなる
+    const len = rim + 48;
+    ctx.save();
+    ctx.translate(c, 4);
+    ctx.rotate(pointerKick);
+    // 爪の影(盤の上に落ちる)
+    ctx.save();
+    ctx.translate(3, 4);
+    ctx.beginPath();
+    ctx.moveTo(-11, 6);
+    ctx.quadraticCurveTo(-12, len * 0.55, -2, len);
+    ctx.lineTo(2, len);
+    ctx.quadraticCurveTo(12, len * 0.55, 11, 6);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0, 0, 0, .35)';
+    ctx.fill();
+    ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(-11, 6);
+    ctx.quadraticCurveTo(-12, len * 0.55, -2, len);
+    ctx.lineTo(2, len);
+    ctx.quadraticCurveTo(12, len * 0.55, 11, 6);
+    ctx.closePath();
+    ctx.fillStyle = pointerColor || PRIZE.flap;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = PRIZE.flapEdge;
+    ctx.stroke();
+    // 軸の金具
+    ctx.beginPath();
+    ctx.arc(0, 8, 7, 0, TAU);
+    ctx.fillStyle = PRIZE.stud;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = PRIZE.studShade;
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
+export const SKINS = { wheel: plain, casino, judo, prize };
 export const skinFor = (style) => SKINS[style] ?? plain;

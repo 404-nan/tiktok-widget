@@ -14,6 +14,8 @@ const CREEP = 0.6; // ギリギリ演出で、最後ににじり寄る長さ（�
 const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
 const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const FLAP_MAX = 0.5; // ピンに押された爪が、いちばんしなる角度
+const FLAP_ZONE = 0.6; // 爪がピンに触れている長さ(ピンの間かくに対する割合)
 const TEASE_HOLD_MS = 500; // 当たりそうで当たらない: 止まりかけて見せる時間
 
 /** 当たりの扇の land（0〜1）の位置が針に来る回転 */
@@ -35,6 +37,9 @@ export function createWheel(root) {
   let size = 0;
   let rotation = 0;
   let pointerKick = 0;
+  let spring = 0; // ピンから外れた爪が戻るまでの残り
+  let lastPegD = null;
+  let lastPush = 0;
   let rainbowPointer = false; // 確定演出: 針が虹色に変わり続ける
   let lights = { mode: 'idle', since: 0 }; // カジノの電球（idle 全部点灯 / spin 流れる / done 点滅）
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -217,13 +222,30 @@ export function createWheel(root) {
           else rotation = to - creep * (1 - easeOutQuad(Math.min(1, (elapsed - duration) / (creepMs || 1))));
           root.classList.toggle('chance', creepMs > 0 && elapsed >= duration);
           const t = Math.min(1, elapsed / (duration + creepMs));
-          const idx = indexAtPointer();
-          if (idx !== last) {
-            pointerKick = -0.32;
-            tick(r);
+          const skin = skinFor(r.style);
+          if (skin.pegs) {
+            // ピンのある形: 次のピンが爪に来るまでの角度 d から、爪のしなりを決める。
+            // ピンが近づくほど爪が押されてしなり、通り過ぎた瞬間に外れてパチンと戻る(そこで1回鳴る)
+            const step = TAU / skin.pegs(r.items);
+            const d = norm(POINTER - rotation) % step;
+            const push = d < step * FLAP_ZONE ? (1 - d / (step * FLAP_ZONE)) * FLAP_MAX : 0;
+            if (lastPegD != null && d > lastPegD + step * 0.5) {
+              spring = Math.max(spring, lastPush);
+              tick(r);
+            }
+            spring *= Math.pow(0.00002, (now - prev) / 1000);
+            lastPegD = d;
+            lastPush = push;
+            pointerKick = -Math.max(push, spring);
+          } else {
+            const idx = indexAtPointer();
+            if (idx !== last) {
+              pointerKick = -0.32;
+              tick(r);
+            }
+            last = idx;
+            pointerKick *= Math.pow(0.0005, (now - prev) / 1000);
           }
-          last = idx;
-          pointerKick *= Math.pow(0.0005, (now - prev) / 1000);
           prev = now;
           draw();
           if (t < 1) requestAnimationFrame(frame);
@@ -232,7 +254,7 @@ export function createWheel(root) {
         requestAnimationFrame(frame);
       });
       rotation = norm(rotation);
-      pointerKick = 0;
+      if (!skinFor(r.style).pegs) pointerKick = 0; // ピンのある形は、止まったときの爪のしなりをそのまま残す
       root.classList.remove('chance');
       celebrate();
       draw();

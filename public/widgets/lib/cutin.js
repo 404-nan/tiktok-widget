@@ -102,6 +102,7 @@ export async function startCutin(section) {
   // coins 金貨が降る / bulbs 画面のふちの電球 / sevens 7 が3つ並んでから入る / seal 文字のあとに紅い判が押される
   const LOOKS = {
     wheel: { win: '大当たり', tier: 'rainbow' },
+    prize: { win: '大当たり', tier: 'rainbow' },
     strip: { win: '大当たり', tier: 'rainbow' },
     casino: { win: 'ジャックポット', tier: 'casino', coins: true, bulbs: true },
     slot: { win: 'ビッグボーナス', tier: 'slot', sevens: true, chance: 'リーチ' },
@@ -716,7 +717,7 @@ export async function startCutin(section) {
   // ギリギリ演出の大写し: 針のまわりを画面いっぱいに映し、ルーレットと同じ動きで境目へにじり寄る（丸型だけ）
   async function closeup(spin) {
     const entry = fullConfig?.roulettes?.[spin.id];
-    if (!entry || !['wheel', 'casino', 'judo'].includes(entry.style ?? 'wheel')) return;
+    if (!entry || !['prize', 'wheel', 'casino', 'judo'].includes(entry.style ?? 'prize')) return;
     const r = prepareRoulette(spin.id, entry, defaults?.roulettes);
     const winner = r.items[spin.index];
     if (!winner) return;

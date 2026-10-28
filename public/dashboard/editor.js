@@ -23,7 +23,7 @@ const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'votes', 
 const ENUM_LABELS = {
   dark: 'ダーク', light: 'ライト', top: '上', center: '中央', bottom: '下', left: '左', right: '右',
   jar: '保存瓶', heart: 'ハート', potion: 'エリクサーのフラスコ', auto: '自動', on: '表示', off: '表示しない',
-  wheel: '丸（ホイール）', strip: '横スライド', casino: 'カジノ', slot: 'スロット台（1本）', slot3: 'スロット（3本）', judo: '柔道', wa: '和パチスロ', radial: '中心から外へ', around: '円周にそって横向き', row: '横', column: '縦',
+  prize: '本格ホイール（ピンでカチカチ）', wheel: '丸（シンプル）', strip: '横スライド', casino: 'カジノ', slot: 'スロット台（1本）', slot3: 'スロット（3本）', judo: '柔道', wa: '和パチスロ', radial: '中心から外へ', around: '円周にそって横向き', row: '横', column: '縦',
   follows: 'フォロー', likes: 'いいね', diamonds: 'コイン', gifts: 'ギフト数', shares: 'シェア', comments: 'コメント', viewers: '視聴者',
   gift: 'ギフト', follow: 'フォロー', share: 'シェア', like: 'いいね', coins: 'コイン',
   avatar: '送った人のアイコン', band: '色の帯', photo: '写真の帯（縁が木炭）', 'image.photo': '写真（なければ何も乗せない）', 'image.gift': 'ギフトの画像',
