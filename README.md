@@ -35,6 +35,9 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | カットインの画面撮影と本番反映 | - | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
 | ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
 | ダッシュボードの明るさ | 設定画面でライトとダークを切り替える | できた | `public/dashboard/common.js`、`public/dashboard/style.css` |
+| カードめくり | 当たり・ハズレのカードを見せて混ぜ、番号つきで並べる。ギフトを送った人がコメントで番号を言うと、そのカードがめくれて結果が出る(結果は確率で決める。番号が来なければ時間で自動) | できた | `public/widgets/card-draw.html`、`src/card-draw.js` |
+| おみくじ(作り直し) | 木の筒を振る → 棒が出て「第◯番」→ 紙が開いて大吉〜大凶と朱印 | できた | `public/widgets/omikuji.html` |
+| スパチャ風コメント | この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す。色は送ったコインの合計で変わる | できた | `public/widgets/superchat.html` |
 | 妨害マイクラのギフト表 | 妨害マイクラで、どのギフトを送ると何が起きるかを配信画面に出す(行が多いと順にめくる)。表は配信者の minecraft.superstreamFile、無ければ TW_MC_GIFT_TABLE(貸出サーバーのモードの superstream.yml) | できた | `public/widgets/mc-gifts.html`、`src/superstream.js` の `giftTable` |
 | 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
 | 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する | できた（開発サーバー確認まで） | `public/dashboard/`、`test/kind-ui-playwright.test.js` |
@@ -106,6 +109,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 何が | 上限 | 超えたら | ファイル |
 | --- | --- | --- | --- |
 | ギフト通知の順番待ち | 30件 | 古いものから出さずに飛ばす | `public/widgets/gift-alert.html` |
+| スパチャ風コメントの順番待ち | 20件 | 古いものから出さずに飛ばす(ダッシュボードの説明にも書いてある) | `public/widgets/superchat.html` |
 | カットインの順番待ち | 20件 | 古いものから出さずに飛ばす | `public/widgets/lib/cutin.js` |
 | メディア通知の順番待ち | 30件 | 古いものから再生せずに飛ばす | `src/media-alerts.js` |
 | ギフト別サウンドの待ち | 10件 | 古いものから鳴らさずに飛ばす | `src/gift-sounds.js`、`public/widgets/sounds.js` |

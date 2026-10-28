@@ -649,8 +649,9 @@ SCHEMA.omikuji = {
         { id: 'kichi', label: '吉', weight: 25, pity: false },
         { id: 'suekichi', label: '末吉', weight: 15, pity: false },
         { id: 'kyo', label: '凶', weight: 5, pity: false },
+        { id: 'daikyo', label: '大凶', weight: 2, pity: false },
       ],
-      desc: '運勢。id / label / weight（出やすさ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo なら色が付く',
+      desc: '運勢。id / label / weight（出やすさ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
     },
   },
 };
@@ -907,6 +908,24 @@ SCHEMA.supporters = {
   kind: 'map', page: 'supporters', title: '最近のサポーター', desc: '最近フォロー・ギフト・シェアした人を上から表示する。URL は /widgets/supporters.html?id=<名前>', size: (e) => [420, 72 + e.limit * 60],
   fields: {
     title: str('最近のサポーター', '見出し。空なら出さない'), events: list(['follow', 'gift'], '出すイベント', GIFT_EVENTS), minCoins: num(1, 'ギフトの最低コイン', { min: 0 }), limit: num(5, '表示件数', { min: 1, max: 10 }), avatars: bool(true, 'アイコンを出す'), lifetime: num(0, 'この秒数をすぎたら消す（0 で消さない）', { min: 0, max: 3600 }), color: color('accent', '新しいカードの印の色'),
+  },
+};
+
+// カードめくり。当たり・ハズレのカードを見せて混ぜ、ギフトを送った人がコメントで番号を選ぶとめくれる
+SCHEMA.cardDraw = {
+  kind: 'object', page: 'card-draw', title: 'カードめくり', desc: '当たり・ハズレのカードを表で見せる → 裏返して混ぜる → 番号つきで並べる → ギフトを送った人がコメントで番号を言うと、そのカードがめくれて結果が出る。結果はめくる瞬間に winRate の確率で決める(最初に見せる当たりの枚数も winRate に合わせる)。pickSeconds までに番号が来なければ自動でめくる。待ちに上限はない(投げた分は全部めくる)。URL は /widgets/card-draw.html', size: () => [1080, 720],
+  fields: {
+    enabled: bool(true, 'カードめくりを使う'), minCoins: num(100, 'この合計コイン以上のギフトでめくる（0 で金額ではめくらない）', { min: 0 }), gifts: list([], 'このギフトID（または名前）でめくる'),
+    count: num(8, 'カードの枚数', { min: 3, max: 16 }), winRate: num(0.2, '当たりになる確率（0〜1）', { min: 0, max: 1 }), winLabel: str('当たり', '当たりのカードの文字'), loseLabel: str('ハズレ', 'ハズレのカードの文字'),
+    pickSeconds: num(30, '番号を待つ秒数（来なければ自動でめくる）', { min: 5, max: 300 }), showMs: num(2500, '表で見せるミリ秒', { min: 500, max: 20000 }), shuffleMs: num(3000, '混ぜるミリ秒', { min: 500, max: 20000 }), revealMs: num(4000, '結果を見せるミリ秒', { min: 1000, max: 30000 }), doneMs: num(1200, '消えるまでのミリ秒', { min: 0, max: 10000 }),
+  },
+};
+
+// スパチャ風のコメント。この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す
+SCHEMA.superchats = {
+  kind: 'map', page: 'superchat', title: 'スパチャ風コメント', desc: 'この配信で minCoins 以上のギフトを送った人のコメントだけを、1件ずつ seconds 秒ずつ出す。色は送ったコインの合計で変わる。待ちは20件まで(多いときは古いものから消える)。URL は /widgets/superchat.html?id=<名前>', size: () => [520, 240],
+  fields: {
+    minCoins: num(100, 'この配信でこのコイン以上を送った人のコメントだけ出す', { min: 1 }), seconds: num(8, '1件を出す秒数', { min: 3, max: 60 }), avatars: bool(true, 'アイコンを出す'),
   },
 };
 

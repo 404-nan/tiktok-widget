@@ -1,0 +1,161 @@
+<!-- カードめくり: 表で見せる → 裏返して混ぜる → 番号つきで並べる → ギフトを送った人が番号をコメント → そのカードがめくれて結果。段階はサーバー(src/card-draw.js)が決める -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>カードめくり</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
+<style>
+body { display: grid; place-items: center; min-height: 100vh; margin: 0; }
+.stage { position: relative; width: 1040px; height: 680px; display: none; --win: #E5B92C; --lose: #5C6470; --back: #1D2340; --back-2: #2B3460; }
+body.on .stage { display: block; }
+.banner { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); min-width: 520px; padding: 12px 22px; border-radius: 10px; background: rgba(12, 12, 16, .86); color: #fff; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 24px; text-align: center; box-shadow: 0 10px 24px rgba(0, 0, 0, .35); }
+.banner b { color: var(--win); }
+.timer { height: 6px; margin-top: 8px; border-radius: 3px; background: rgba(255, 255, 255, .18); overflow: hidden; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--win); transform-origin: 0 50%; }
+.table { position: absolute; left: 0; right: 0; top: 110px; bottom: 0; }
+.card { position: absolute; width: 132px; height: 184px; perspective: 900px; transition: left .55s cubic-bezier(.32, .72, 0, 1), top .55s cubic-bezier(.32, .72, 0, 1), transform .55s cubic-bezier(.32, .72, 0, 1), opacity .4s; }
+.inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.32, .72, 0, 1); }
+.card.down .inner { transform: rotateY(180deg); }
+.face, .back { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; display: grid; place-items: center; box-shadow: 0 10px 22px rgba(0, 0, 0, .35); }
+.face { background: #FBF7EE; color: var(--lose); font-family: "Dela Gothic One", var(--font); font-size: 30px; writing-mode: vertical-rl; box-shadow: inset 0 0 0 6px var(--lose), 0 10px 22px rgba(0, 0, 0, .35); }
+.face.win { color: #8A6400; box-shadow: inset 0 0 0 6px var(--win), 0 10px 22px rgba(0, 0, 0, .35); }
+.back { transform: rotateY(180deg); background: repeating-linear-gradient(45deg, var(--back) 0 10px, var(--back-2) 10px 20px); box-shadow: inset 0 0 0 6px #C9CEE6, inset 0 0 0 9px var(--back), 0 10px 22px rgba(0, 0, 0, .35); }
+.no { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 50%; background: #FBF7EE; color: var(--back); font-family: "Dela Gothic One", var(--font); font-size: 40px; opacity: 0; transform: scale(.6); transition: opacity .3s, transform .3s; }
+.stage[data-phase="pick"] .no, .stage[data-phase="reveal"] .no, .stage[data-phase="done"] .no { opacity: 1; transform: none; }
+/* めくる: 選んだカードは真ん中で大きく、ほかは暗く */
+.card.chosen { z-index: 5; }
+.stage[data-phase="reveal"] .card:not(.chosen), .stage[data-phase="done"] .card:not(.chosen) { opacity: .25; }
+.result { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%) scale(.6); opacity: 0; padding: 10px 34px; border-radius: 10px; font-family: "Dela Gothic One", var(--font); font-size: 56px; color: #fff; background: var(--lose); transition: transform .35s cubic-bezier(.2, 1.4, .4, 1), opacity .3s; }
+.result.win { background: var(--win); color: #2B1E00; }
+.result.show { transform: translateX(-50%); opacity: 1; }
+.stage[data-phase="done"] { animation: fade var(--done, 1.2s) linear both; }
+@keyframes fade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes jiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-6deg) translateY(-6px); } 75% { transform: rotate(6deg) translateY(4px); } }
+.card.mixing { animation: jiggle .28s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .card, .inner, .result { transition-duration: .01s !important; } .card.mixing { animation: none; } }
+</style>
+</head>
+<body>
+<div class="stage" id="stage" data-phase="idle">
+  <div class="banner" id="banner"></div>
+  <div class="table" id="table"></div>
+  <div class="result" id="result"></div>
+</div>
+<script type="module">
+import { BASE } from './lib/overlay.js';
+const stage = document.getElementById('stage');
+const table = document.getElementById('table');
+const banner = document.getElementById('banner');
+const resultEl = document.getElementById('result');
+let seq = -1;
+let cards = [];
+let timer = null;
+
+// 並べる場所: 枚数に合わせて1〜2段。真ん中にそろえる
+function slots(n) {
+  const perRow = n <= 6 ? n : Math.ceil(n / 2); // 7枚から2段にする(1段だと横にはみ出す)
+  const rows = Math.ceil(n / perRow);
+  const gap = 18, w = 132, h = 184, W = 1040, H = 570;
+  return Array.from({ length: n }, (_, i) => {
+    const row = Math.floor(i / perRow), col = i % perRow;
+    const inRow = Math.min(perRow, n - row * perRow);
+    const left = (W - (inRow * w + (inRow - 1) * gap)) / 2 + col * (w + gap);
+    const top = (H - (rows * h + (rows - 1) * gap)) / 2 + row * (h + gap);
+    return { left, top };
+  });
+}
+
+function build(round) {
+  table.replaceChildren();
+  const pos = slots(round.count);
+  cards = pos.map((p, i) => {
+    const card = Object.assign(document.createElement('div'), { className: 'card down' });
+    const inner = Object.assign(document.createElement('div'), { className: 'inner' });
+    const face = Object.assign(document.createElement('div'), { className: 'face' });
+    const back = Object.assign(document.createElement('div'), { className: 'back' });
+    back.append(Object.assign(document.createElement('span'), { className: 'no', textContent: String(i + 1) }));
+    inner.append(face, back);
+    card.append(inner);
+    card.style.left = `${p.left}px`;
+    card.style.top = `${p.top}px`;
+    table.append(card);
+    return { card, face };
+  });
+}
+
+function setFaces(round) {
+  cards.forEach(({ face }, i) => {
+    const win = round.faces ? round.faces[i] : false;
+    face.classList.toggle('win', win);
+    face.textContent = win ? round.labels.win : round.labels.lose;
+  });
+}
+
+function shuffle() {
+  // 真ん中に集めて、混ぜて、また並べる(見た目だけ。結果はサーバーが決める)
+  const center = { left: (1040 - 132) / 2, top: (570 - 184) / 2 };
+  cards.forEach(({ card }) => { card.classList.add('down'); });
+  setTimeout(() => cards.forEach(({ card }) => { card.style.left = `${center.left}px`; card.style.top = `${center.top}px`; card.classList.add('mixing'); }), 650);
+  setTimeout(() => {
+    const pos = slots(cards.length);
+    cards.forEach(({ card }, i) => { card.classList.remove('mixing'); card.style.left = `${pos[i].left}px`; card.style.top = `${pos[i].top}px`; });
+  }, 2200);
+}
+
+function show(msg) {
+  const round = msg.round;
+  stage.dataset.phase = msg.phase;
+  document.body.classList.toggle('on', msg.phase !== 'idle' && !!round);
+  clearInterval(timer);
+  if (!round) return;
+  if (msg.seq !== seq || !cards.length) { seq = msg.seq; build(round); resultEl.className = 'result'; }
+  stage.style.setProperty('--done', `${(round.durations?.doneMs ?? 1200) / 1000}s`);
+  const name = round.user?.name ?? '';
+  const who = !name ? 'ギフトを送った人' : /(さん|ちゃん|くん|様|さま)$/.test(name) ? name : `${name}さん`;
+  if (msg.phase === 'show') {
+    setFaces(round);
+    requestAnimationFrame(() => cards.forEach(({ card }, i) => setTimeout(() => card.classList.remove('down'), 80 * i)));
+    banner.innerHTML = '';
+    banner.append(`${who}のカードめくり！ `, Object.assign(document.createElement('b'), { textContent: `${round.labels.win} ${round.faces.filter(Boolean).length}枚` }), ` / ${round.count}枚`);
+  } else if (msg.phase === 'shuffle') {
+    banner.textContent = '混ぜています…';
+    shuffle();
+  } else if (msg.phase === 'pick') {
+    cards.forEach(({ card }) => card.classList.add('down'));
+    banner.innerHTML = '';
+    banner.append(`${who}、`, Object.assign(document.createElement('b'), { textContent: `1〜${round.count}` }), ' の番号をコメントしてね');
+    const bar = Object.assign(document.createElement('div'), { className: 'timer' });
+    const fill = document.createElement('i');
+    bar.append(fill);
+    banner.append(bar);
+    const total = Math.max(1, round.pickEndsAt - Date.now());
+    timer = setInterval(() => { fill.style.transform = `scaleX(${Math.max(0, (round.pickEndsAt - Date.now()) / total)})`; }, 200);
+  } else if ((msg.phase === 'reveal' || msg.phase === 'done') && round.picked && round.result) {
+    const chosen = cards[round.picked - 1];
+    if (!chosen) return;
+    banner.textContent = `${who}は ${round.picked} 番！`;
+    chosen.card.classList.add('chosen');
+    chosen.face.classList.toggle('win', round.result.win);
+    chosen.face.textContent = round.result.label;
+    chosen.card.style.left = `${(1040 - 132) / 2}px`;
+    chosen.card.style.top = `${(570 - 184) / 2 - 20}px`;
+    chosen.card.style.transform = 'scale(1.5)';
+    setTimeout(() => chosen.card.classList.remove('down'), 600);
+    setTimeout(() => { resultEl.textContent = round.result.win ? `${round.result.label}！` : `${round.result.label}…`; resultEl.className = `result show${round.result.win ? ' win' : ''}`; }, 1300);
+  }
+}
+
+fetch(`${BASE}/api/card-draw`).then((r) => r.json()).then(show).catch(() => {});
+// 段階の知らせ(type: cardDraw)は WebSocket で来る。切れたら1秒後につなぎ直す
+function listen() {
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${/[?&]preview=1/.test(location.search) ? '?preview=1' : ''}`);
+  ws.onmessage = (m) => { try { const msg = JSON.parse(m.data); if (msg.type === 'cardDraw') show(msg); } catch {} };
+  ws.onclose = () => setTimeout(listen, 1000);
+}
+listen();
+</script>
+</body>
+</html>

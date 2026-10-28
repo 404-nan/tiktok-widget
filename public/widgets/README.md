@@ -51,3 +51,6 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 - WebSocket を開くウィジェットは、URL に `preview=1` があるとき `/ws?preview=1` でつなぐ。サーバーはこれを配信ソフトからの接続(obs)として数えない(準備の印と自動でつなぐのため)。`test/preview-ws.test.js` で確かめている
 - `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す
 - ルーレットの `prize`(本格ホイール。はじめの形): 縁にピン(鋲)が同じ間かくで24本並び、ゴムの爪がピンに押されてしなり、外れるとパチンと戻って1回鳴る。爪のしなりと音は `lib/roulette-wheel.js`(スキンの `pegs` があるとき)、形と塗りは `lib/roulette-skins.js` の `prize`
+- `superchat.html`: スパチャ風コメント。コメントの `giftCoins`(その人がこの配信で送ったコイン)が minCoins 以上のものだけを、1件ずつ seconds 秒出す。待ちは20件まで
+- `omikuji.html`: おみくじ。木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢と朱印。運勢は大吉〜大凶(大凶は紙が震える)
+- `card-draw.html`: カードめくり。段階(show → shuffle → pick → reveal → done)はサーバーの `src/card-draw.js` が決めて WebSocket の `cardDraw` で送る。表で見せる並びは最初の段階だけ送る

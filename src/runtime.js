@@ -29,6 +29,7 @@ import { createEventBus } from './events.js';
 import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
+import { CardDraw } from './card-draw.js';
 import { Gacha } from './gacha.js';
 import { GachaViewers } from './gacha-viewers.js';
 import { SlotEngine } from './slot.js';
@@ -65,7 +66,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'ai', 'minecraft', 'combo'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'ai', 'minecraft', 'combo'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -84,7 +85,7 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/swarm$/, /^\/api\/combo$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/swarm$/, /^\/api\/combo$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/, /^\/api\/mc-gifts$/, /^\/api\/card-draw$/];
 
 /**
  * 配信者1人分を作る。
@@ -180,6 +181,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus });
   const omikuji = new Gacha(hub, { bus, name: 'omikuji' });
+  const cardDraw = new CardDraw(hub);
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
   const slot = new SlotEngine(hub, { bus });
   const relayStop = new RelayStopEngine(hub, { slot });
@@ -209,6 +211,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     gachaViewers.onEvent(e);
     gacha.onEvent(e);
     omikuji.onEvent(e);
+    cardDraw.onEvent(e);
     const relay = relayStop.onEvent(e);
     if (!relay) slot.onEvent(e);
     peka.onEvent(e);
@@ -257,6 +260,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
     omikuji.setConfig(config.omikuji);
+    cardDraw.setConfig(config.cardDraw);
     gachaViewers.setConfig(config.gacha);
     slot.setConfig(config.slots);
     relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
@@ -827,6 +831,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
         return res.json({ ok: true, gacha: started });
       }
+      if (body.target === 'cardDraw') {
+        const started = cardDraw.start({ kind: 'dev', user: body.user ? { id: `demo_${body.user}`, name: body.user } : null });
+        if (!started) return res.status(400).json({ error: 'カードめくりはオフです' });
+        return res.json({ ok: true, cardDraw: started });
+      }
       if (body.target === 'omikuji') {
         const started = omikuji.start({ kind: 'dev', source: 'dev' });
         if (!started) return res.status(400).json({ error: 'おみくじはオフです' });
@@ -859,6 +868,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.get('/api/gacha', (_req, res) => res.json(gacha.snapshot()));
   r.get('/api/omikuji', (_req, res) => res.json(omikuji.snapshot()));
+  r.get('/api/card-draw', (_req, res) => res.json(cardDraw.snapshot()));
   r.get('/api/gacha-viewers', (_req, res) => res.json(gachaViewers.snapshot()));
   r.post('/api/gacha-viewers/reset-free', (_req, res) => {
     gachaViewers.resetFree();
@@ -1225,6 +1235,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       swarm.close();
       gacha.close();
       omikuji.close();
+      cardDraw.close();
       gachaViewers.close();
       slot.close();
       relayStop.close();

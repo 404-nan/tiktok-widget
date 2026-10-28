@@ -1,0 +1,65 @@
+<!-- スパチャ風のコメント: この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す。色は送ったコインの合計で変わる -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スパチャ風コメント</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
+<style>
+body { padding: 12px; }
+.card { width: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 14px 32px rgba(0, 0, 0, .35); --head: #1E88E5; --body: #1565C0; --text: #FFFFFF; animation: in .4s var(--ease-out) both; }
+.card.out { animation: out .35s ease-in both; }
+.head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--head); color: var(--text); }
+.avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover; background: rgba(0, 0, 0, .2); }
+.who { display: grid; min-width: 0; }
+.name { font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .92; }
+.coins { font-family: var(--font-num); font-weight: 700; font-size: 22px; }
+.text { padding: 12px 16px 16px; background: var(--body); color: var(--text); font-weight: 700; font-size: 22px; line-height: 1.45; word-break: break-word; }
+/* 送ったコインの合計で色が変わる(多いほど目立つ) */
+.card[data-tier="2"] { --head: #00B8D4; --body: #00A5BF; --text: #062A30; }
+.card[data-tier="3"] { --head: #1DE9B6; --body: #00BFA5; --text: #06302A; }
+.card[data-tier="4"] { --head: #FFCA28; --body: #FFB300; --text: #2E2200; }
+.card[data-tier="5"] { --head: #F57C00; --body: #E65100; }
+.card[data-tier="6"] { --head: #E91E63; --body: #C2185B; }
+.card[data-tier="7"] { --head: #E62117; --body: #D00000; }
+@keyframes in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes out { to { transform: translateY(-12px); opacity: 0; } }
+</style>
+</head>
+<body><div id="slot"></div>
+<script type="module">
+import { setupWidget, connect, fmt } from './lib/overlay.js';
+const p = await setupWidget('superchats', { minCoins: 100, seconds: 8, avatars: true });
+const slot = document.getElementById('slot');
+const MAX_WAIT = 20; // 待ちは20件まで(説明にも書いてある)
+const queue = [];
+let showing = false;
+const tierOf = (coins) => (coins >= 10000 ? 7 : coins >= 5000 ? 6 : coins >= 2000 ? 5 : coins >= 1000 ? 4 : coins >= 500 ? 3 : coins >= 200 ? 2 : 1);
+function next() {
+  const e = queue.shift();
+  if (!e) { showing = false; slot.replaceChildren(); return; }
+  showing = true;
+  const card = Object.assign(document.createElement('div'), { className: 'card' });
+  card.dataset.tier = String(tierOf(e.giftCoins));
+  const head = Object.assign(document.createElement('div'), { className: 'head' });
+  if (p.avatars && e.user?.avatar) { const img = new Image(40, 40); img.className = 'avatar'; img.alt = ''; img.src = e.user.avatar; head.append(img); }
+  const who = Object.assign(document.createElement('div'), { className: 'who' });
+  who.append(Object.assign(document.createElement('span'), { className: 'name', textContent: e.user?.name ?? '' }), Object.assign(document.createElement('span'), { className: 'coins', textContent: `${fmt(e.giftCoins)} コイン` }));
+  head.append(who);
+  card.append(head, Object.assign(document.createElement('div'), { className: 'text', textContent: e.text }));
+  slot.replaceChildren(card);
+  setTimeout(() => { card.classList.add('out'); setTimeout(next, 350); }, Math.max(3, p.seconds) * 1000);
+}
+connect({
+  event(e) {
+    if (e.kind !== 'chat' || !e.text || (Number(e.giftCoins) || 0) < p.minCoins) return;
+    queue.push(e);
+    if (queue.length > MAX_WAIT) queue.shift();
+    if (!showing) next();
+  },
+  reset() { queue.length = 0; },
+});
+</script>
+</body>
+</html>
