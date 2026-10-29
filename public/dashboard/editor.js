@@ -38,6 +38,8 @@ const ENUM_LABELS = {
   'mode.hp': '固定HP', 'mode.rank-gap': '上の人とのコイン差',
   'resetMode.stream': '配信ごと', 'resetMode.daily': '日本時間の0時',
   'freeRequires.none': '条件なし', 'freeRequires.follow': 'フォローした人だけ',
+  'pickMode.viewer': '送った人がコメントで選ぶ', 'pickMode.random': 'おまかせ（ランダム）', 'pickMode.streamer': '配信者が選ぶ',
+  'timeoutMode.random': 'ランダムで引く', 'timeoutMode.streamer': '配信者が選ぶ（押さなければ同じ秒数のあとランダム）',
   'rankSource.manual': '手入力', 'rankSource.live': '配信の順位（無ければ手入力）',
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
   'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない',
@@ -75,6 +77,7 @@ const LABELS = {
   'gacha.freePerReset': '1人の無料回数', 'gacha.resetMode': '無料回数のリセット', 'gacha.freeRequires': '無料回数の条件',
   'gacha.paidRule': '有料回数のたまり方', 'gacha.command': '回すコメント', 'gacha.cooldownSec': '同じ人の間隔',
   'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
+  'omikuji.pickMode': '番号の選び方', 'omikuji.pickSeconds': '番号を待つ秒数', 'omikuji.timeoutMode': '時間切れのとき',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔', 'slots.idleMode': '待機中の表示',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
@@ -114,7 +117,7 @@ const BASIC = {
   mediaAlerts: ['enabled', 'rules'],
   giftSounds: ['enabled', 'masterVolume', 'maxSeconds', 'maxConcurrent', 'rules'],
   gacha: ['enabled', 'minCoins', 'gifts', 'freePerReset', 'resetMode', 'freeRequires', 'paidRule', 'command', 'cooldownSec', 'pity', 'tiers'],
-  omikuji: ['enabled', 'minCoins', 'gifts', 'tiers'],
+  omikuji: ['enabled', 'minCoins', 'gifts', 'pickMode', 'pickSeconds', 'timeoutMode', 'tiers'],
   slots: ['enabled', 'trigger', 'look', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
   cheers: ['title', 'goal', 'growth', 'loop', 'fullText', 'fullActions', 'sound', 'volume', 'color', 'fullColor'],
@@ -2712,7 +2715,8 @@ export function createEditor({ api, setMessage }) {
     box.classList.remove('open');
     box.classList.toggle('live', live);
     const chips = [...box.children];
-    if (!simple() || chips.length <= 5) return;
+    // おみくじの番号ボタンは配信中に押すので、たたまない
+    if (!simple() || chips.length <= 5 || tab === 'omikuji') return;
     chips.slice(4).forEach((c) => c.classList.add('extra'));
     const more = chip('ほかも試す', 'plus', () => {
       box.classList.add('open');
@@ -2743,6 +2747,9 @@ export function createEditor({ api, setMessage }) {
     const control = (target, action, data) => () => api('/api/control', { target, action, data });
     if (tab === 'roulettes') {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));
+    } else if (tab === 'omikuji') {
+      // 「配信者が選ぶ」番のとき、押した番号の棒で引く
+      for (let n = 1; n <= 10; n++) box.append(chip(`${n}番`, null, () => control('omikuji', 'pick', { n })().catch((e) => setMessage(e.message, true))));
     } else if (tab === 'votes') {
       const vote = (action, data) => control('vote', action, { id, ...(data ?? {}) });
       const options = payload.config.votes?.[id]?.options ?? [];

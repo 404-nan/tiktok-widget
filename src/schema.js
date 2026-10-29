@@ -634,11 +634,16 @@ SCHEMA.omikuji = {
   page: 'omikuji',
   title: 'おみくじ',
   desc:
-    'ギフトで引くおみくじ。待機 → 引いている → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
+    'ギフトで引くおみくじ。待機 →（番号を選ぶ）→ 引いている → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
+    '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
+    '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     'きっかけ: gifts のギフト / minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
+    pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
+    pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
+    timeoutMode: oneOf(['random', 'streamer'], 'random', '送った人が時間内に選ばなかったとき。random はランダム、streamer は配信者が選ぶ（配信者も押さなければ同じ秒数のあとランダム）'),
     rollMs: num(2500, '引いているミリ秒', { min: 0, max: 60000 }),
     tiers: {
       type: 'gachaTiers',

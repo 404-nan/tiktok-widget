@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- おみくじ: 木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢。段階と運勢は gacha.js が data-phase / data-tier に入れる -->
+<!-- おみくじ: (番号を選ぶ) → 木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢。段階・番号・運勢は gacha.js が data-phase / data-tier と文字に入れる -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -52,6 +52,16 @@
   .stage[data-phase="reveal"][data-tier="daikyo"] .slip { animation: unfold .6s .75s var(--ease-out) both, tremble .12s 1.8s 6 linear; }
   .kicker { position: absolute; left: 0; right: 0; bottom: -4px; margin: 0; text-align: center; font-weight: 700; font-size: 15px; color: var(--paper); text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
   .stage[data-phase="reveal"] .kicker, .stage[data-phase="done"] .kicker { display: none; }
+  /* 番号を選ぶ(仮の見た目): 上にだれが選ぶか、番号の一覧、残り秒。筒は止めておく */
+  .pick { display: none; position: absolute; left: 0; right: 0; top: 0; padding: 12px 10px; border-radius: 10px; background: rgba(43, 26, 16, .88); color: #FBF6EA; text-align: center; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; }
+  .stage[data-phase="pick"] .pick { display: block; }
+  .stage[data-phase="pick"] .kicker { display: none; }
+  .pick-who { margin: 0 0 8px; font-size: 17px; }
+  .pick-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .pick-list li { padding: 6px 0; border-radius: 6px; background: #FBF6EA; color: var(--ink); font-size: 22px; line-height: 1; }
+  .pick-left { margin: 8px 0 0; font-family: "Dela Gothic One", var(--font); font-size: 34px; line-height: 1; }
+  .pick-left::after { content: "秒"; margin-left: 4px; font-family: "Zen Kaku Gothic New", var(--font); font-size: 15px; }
+  .pick.soon .pick-left { color: #FF5A4E; }
   .time { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .plate { display: contents; }
   @keyframes shake { 0%, 100% { transform: rotate(-13deg); } 50% { transform: rotate(13deg) translateY(-6px); } }
@@ -77,28 +87,15 @@
       <span class="slip-foot" id="slipNo"></span>
       <span class="seal">開運<br>守護</span>
     </div>
+    <div class="pick" id="pick">
+      <p class="pick-who" id="pickWho"></p>
+      <ol class="pick-list" id="pickList"></ol>
+      <p class="pick-left" id="pickLeft"></p>
+    </div>
     <p class="kicker" id="phase">待機</p>
     <p class="time" id="time"></p>
   </div>
 </div>
 <script src="gacha.js"></script>
-<script>
-  // 棒と紙の番号(見た目だけ。運勢はサーバーが決める)。振り始めるたびに新しい番号にする
-  (function () {
-    var KANJI = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-    function kanji(n) { var s = ''; if (n >= 10) s += (n >= 20 ? KANJI[Math.floor(n / 10)] : '') + '十'; if (n % 10) s += KANJI[n % 10]; return s; }
-    var stage = document.getElementById('stage');
-    var last = '';
-    new MutationObserver(function () {
-      var phase = stage.getAttribute('data-phase');
-      if (phase === 'rolling' && last !== 'rolling') {
-        var no = '第' + kanji(1 + Math.floor(Math.random() * 50)) + '番';
-        document.getElementById('stickNo').textContent = no;
-        document.getElementById('slipNo').textContent = no;
-      }
-      last = phase;
-    }).observe(stage, { attributes: true, attributeFilter: ['data-phase'] });
-  })();
-</script>
 </body>
 </html>

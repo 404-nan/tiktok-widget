@@ -837,7 +837,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         return res.json({ ok: true, cardDraw: started });
       }
       if (body.target === 'omikuji') {
-        const started = omikuji.start({ kind: 'dev', source: 'dev' });
+        const started = omikuji.start({ kind: 'dev', source: 'dev', user: body.user ? { id: `demo_${body.user}`, name: body.user } : null });
         if (!started) return res.status(400).json({ error: 'おみくじはオフです' });
         return res.json({ ok: true, omikuji: started });
       }
@@ -962,6 +962,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return spin ? { status: 200, body: { ok: true, spin } } : { status: 404, body: { error: 'ルーレットの設定がありません' } };
     }
     if (target === 'roulette' && action === 'reset') roulette.clear();
+    // おみくじの「配信者が選ぶ」番の番号ボタン
+    if (target === 'omikuji' && action === 'pick') {
+      const chosen = omikuji.choose(data?.n);
+      return chosen.ok ? { status: 200, body: { ok: true, omikuji: omikuji.snapshot() } } : { status: 409, body: { error: chosen.error } };
+    }
     if (target === 'peka') {
       if (action !== 'bonusResolved' && action !== 'resolve') return { status: 400, body: { error: 'Peka は bonusResolved で解決してください' } };
       return { status: 200, body: { ok: true, peka: peka.resolve('bonusResolved') } };

@@ -10,7 +10,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `combo.html` | コンボ状態を送信者中心に表示し、背景透明で受信順に表示する |
 | `counter.html` | いいね・視聴者数などを表示する |
 | `cutin.html` | 通常カットインを表示する |
-| `gacha.html` / `gacha.js` | ガチャ画面と状態表示を行う |
+| `gacha.html` / `gacha.js` | ガチャ画面と状態表示を行う。`gacha.js` はおみくじと共通で、番号を選ぶ段階の一覧と残り秒も出す |
 | `gift-alert.html` | ギフト・フォロー・シェアの通知を表示する |
 | `gift-jar.html` | ギフト瓶を表示する |
 | `goal.html` | 目標バーを表示する |
@@ -52,5 +52,5 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 - `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す
 - ルーレットの `prize`(本格ホイール。はじめの形): 縁にピン(鋲)が同じ間かくで24本並び、ゴムの爪がピンに押されてしなり、外れるとパチンと戻って1回鳴る。爪のしなりと音は `lib/roulette-wheel.js`(スキンの `pegs` があるとき)、形と塗りは `lib/roulette-skins.js` の `prize`
 - `superchat.html`: スパチャ風コメント。コメントの `giftCoins`(その人がこの配信で送ったコイン)が minCoins 以上のものだけを、1件ずつ seconds 秒出す。待ちは20件まで
-- `omikuji.html`: おみくじ。木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢と朱印。運勢は大吉〜大凶(大凶は紙が震える)
+- `omikuji.html`: おみくじ。(番号を選ぶ: 番号の一覧と残り秒) →木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢と朱印。運勢は大吉〜大凶(大凶は紙が震える)
 - `card-draw.html`: カードめくり。段階(show → shuffle → pick → reveal → done)はサーバーの `src/card-draw.js` が決めて WebSocket の `cardDraw` で送る。表で見せる並びは最初の段階だけ送る

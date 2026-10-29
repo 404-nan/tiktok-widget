@@ -1,10 +1,13 @@
-/* ガチャ・おみくじ共通（body の data-kind で切り替え）。待機 → 回転中 → 結果 → 終了。段階の長さはサーバーの durations に合わせる。 */
+/* ガチャ・おみくじ共通（body の data-kind で切り替え）。待機 →（番号を選ぶ）→ 回転中 → 結果 → 終了。段階の長さはサーバーの durations に合わせる。
+   おみくじの番号を選ぶ段階では、棒の番号の一覧・だれが選ぶか・残り秒を #pick に出す（おみくじの画面にだけある）。 */
 (function () {
   var phaseEl = document.getElementById('phase');
   var resultEl = document.getElementById('result');
   var timeEl = document.getElementById('time');
   var stageEl = document.getElementById('stage');
   var plateEl = document.getElementById('plate');
+  var pickEl = document.getElementById('pick');
+  var countdown = null;
   var kind = document.body.getAttribute('data-kind') || 'gacha';
   var base = '';
   var pathMatch = location.pathname.match(/^\/t\/[^/]+/);
@@ -12,7 +15,7 @@
   if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
   var phases = (kind === 'omikuji'
-    ? { idle: '待機', rolling: '引いています', reveal: '運勢', done: '終了' }
+    ? { idle: '待機', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', done: '終了' }
     : { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' });
 
   function seconds(n) {
@@ -30,6 +33,48 @@
     return 'common';
   }
 
+  var KANJI = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  function kanji(n) {
+    var s = '';
+    if (n >= 10) s += (n >= 20 ? KANJI[Math.floor(n / 10)] : '') + '十';
+    if (n % 10) s += KANJI[n % 10];
+    return s;
+  }
+
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  // 番号を選ぶ段階: 一覧と残り秒。だれも選ばなければサーバーが時間切れで進める
+  function showPick(data) {
+    if (countdown) clearInterval(countdown);
+    countdown = null;
+    if (!pickEl) return;
+    var pick = data.phase === 'pick' ? data.pick : null;
+    if (!pick) return;
+    var user = data.trigger && data.trigger.user;
+    setText('pickWho', pick.by === 'viewer'
+      ? ((user && user.name ? user.name + ' さん、' : '') + '番号をコメントしてね')
+      : '配信者が番号を選んでいます');
+    var list = document.getElementById('pickList');
+    if (list) {
+      list.textContent = '';
+      for (var n = 1; n <= pick.count; n++) {
+        var li = document.createElement('li');
+        li.textContent = String(n);
+        list.appendChild(li);
+      }
+    }
+    var tick = function () {
+      var left = Math.max(0, Math.ceil((Number(pick.endsAt) - Date.now()) / 1000));
+      setText('pickLeft', String(left));
+      pickEl.classList.toggle('soon', left <= 3);
+    };
+    tick();
+    countdown = setInterval(tick, 250);
+  }
+
   function show(data) {
     if (!data) return;
     var phase = data.phase || 'idle';
@@ -40,6 +85,11 @@
     var d = data.durations || {};
     timeEl.textContent = '回転 ' + (d.rollMs || 0) + ' / 結果 ' + (d.revealMs || 0) + ' / 終了 ' + (d.doneMs || 0);
     stageEl.setAttribute('data-phase', phase);
+    if (data.stick) {
+      setText('stickNo', '第' + kanji(data.stick) + '番');
+      setText('slipNo', '第' + kanji(data.stick) + '番');
+    }
+    showPick(data);
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));
     stageEl.style.setProperty('--reveal', seconds(d.revealMs));
