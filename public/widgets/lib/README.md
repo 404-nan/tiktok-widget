@@ -20,9 +20,9 @@
 | `roulette.js` | ルーレット設定、待ち列、結果カード、停止時間、カットイン連携 |
 | `roulette.css` | 案内チップ、待ち回数、結果カード |
 | `roulette-wheel.js` | 丸型・カジノ・柔道の描画、ギリギリ演出 |
-| `roulette-skins.js` | 丸型、カジノ、柔道の塗り分け |
+| `roulette-skins.js` | 丸型・本格ホイールの描画と、カジノ・柔道の画像素材 |
 | `roulette-strip.js` | 横スライド型ルーレット |
-| `roulette-reel.js` / `roulette-reel.css` | スロット台型のリール、筐体、電球、レバー |
+| `roulette-reel.js` / `roulette-reel.css` | スロット台型のリール、筐体、電球、レバー。3本の筐体はネオン・和風の画像素材 |
 | `reel-plan.js` | スロット台で各リールを止める項目と3本のリーチ計画 |
 | `roulette-gift.js` | ギフトを送った人の名前 |
 | `slot-core.js` | スロット絵柄の対応表と開示演出の時刻表 |

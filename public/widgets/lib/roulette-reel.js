@@ -118,6 +118,7 @@ export function createReel(root) {
       title.textContent = r.name || 'ルーレット';
       root.classList.remove('spinning', 'done', 'chance', 'reach');
       root.classList.toggle('three', r.style === 'slot3');
+      root.dataset.slotLook = r.slotLook === 'wa' ? 'wa' : 'neon';
       layout();
       const count = r.style === 'slot3' ? 3 : 1;
       reels = [];

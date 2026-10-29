@@ -188,7 +188,7 @@ export const SIMPLE = {
         ],
         fields: ['rushOdds', 'sameSize', 'chance', 'items'],
       },
-      { title: '見た目', fields: ['name', 'style', 'labelDirection', 'scale'] },
+      { title: '見た目', fields: ['name', 'style', 'slotLook', 'labelDirection', 'scale'] },
     ],
   },
   votes: {
@@ -441,7 +441,7 @@ export const SIMPLE_LABELS = {
   'counters.show': '出す数', 'counters.layout': '並べかた', 'counters.color': '色',
   'goals.title': '見出し', 'goals.metric': '数えるもの', 'goals.goal': '目標の数', 'goals.step': '達成したら目標を上げる数', 'goals.color': 'バーの色',
   'rankings.title': '見出し', 'rankings.metric': '順位を決めるもの', 'rankings.limit': '出す人数',
-  'roulettes.gifts': '回すギフト', 'roulettes.rushOdds': 'RUSH中は確率を変える', 'roulettes.sameSize': '扇を同じ大きさにする', 'roulettes.labelDirection': '文字の向き', 'roulettes.chance': '当たりそうで当たらない演出', 'roulettes.items': 'マスと当たりやすさ', 'roulettes.name': '名前', 'roulettes.style': '形', 'roulettes.scale': '大きさ（倍）',
+  'roulettes.gifts': '回すギフト', 'roulettes.rushOdds': 'RUSH中は確率を変える', 'roulettes.sameSize': '扇を同じ大きさにする', 'roulettes.labelDirection': '文字の向き', 'roulettes.slotLook': '3本スロットの見た目', 'roulettes.chance': '当たりそうで当たらない演出', 'roulettes.items': 'マスと当たりやすさ', 'roulettes.name': '名前', 'roulettes.style': '形', 'roulettes.scale': '大きさ（倍）',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色',
   'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',

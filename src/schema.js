@@ -322,6 +322,7 @@ export const SCHEMA = {
       ...placementFields(40, 43),
       name: str('', '表示名（ダッシュボード用）'),
       style: oneOf(['prize', 'wheel', 'strip', 'casino', 'slot', 'slot3', 'judo'], 'prize', 'prize 縁にピンが並び、ゴムの爪がカチカチ鳴る本格ホイール(はじめの形) / wheel 丸いホイール(平らでシンプル) / strip 横に流れるカード / casino 金の縁と電球のカジノ台 / slot リールが縦に回るスロット台 / slot3 3本のリールが左から止まってそろうスロット（当たりの隣はリーチから最後の1本がギリギリで外れる） / judo 畳と畳縁の柔道場。当たりのカットインも形に合わせて変わる'),
+      slotLook: oneOf(['neon', 'wa'], 'neon', '3本スロットの筐体。neon ネオン / wa 和風の朱塗り'),
       gifts: list([], 'このギフト名（または ID）で回す。ギフト名の指定は minCoins より優先される'),
       minCoins: num(0, '合計コインがこれ以上のギフトでも回す（0 で無効）', { min: 0 }),
       maxCoins: num(0, 'minCoins で回すときの上限コイン（0 で上限なし）', { min: 0 }),

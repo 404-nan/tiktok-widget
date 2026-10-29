@@ -164,3 +164,38 @@
 @media (prefers-reduced-motion: reduce) {
   .spinning .cab-bulbs i, .done .cab-bulbs i, .lever.pull .lever-arm, .reel-tile.hit { animation: none; }
 }
+
+/* 選択済みの筐体素材。1200×1360 の元画像を0.4倍で置き、窓の座標は素材の目録に合わせる。 */
+.three[data-slot-look="neon"] {
+  --cabinet: url("../img/roulette/slot3-neon/cabinet.webp");
+  --glow: url("../img/roulette/slot3-neon/glow.webp");
+  --mark: url("../img/roulette/slot3-neon/payline-mark.webp");
+  --lever: url("../img/roulette/slot3-neon/lever.webp");
+  --window-left: 76px; --window-top: 160px; --window-width: 328px; --window-height: 216px;
+  --title-top: 128px;
+}
+.three[data-slot-look="wa"] {
+  --cabinet: url("../img/roulette/slot3-wa/cabinet.webp");
+  --glow: url("../img/roulette/slot3-wa/glow.webp");
+  --mark: url("../img/roulette/slot3-wa/payline-mark.webp");
+  --lever: url("../img/roulette/slot3-wa/lever.webp");
+  --window-left: 90px; --window-top: 180px; --window-width: 300px; --window-height: 200px;
+  --title-top: 142px;
+}
+.three .cab { width: 480px; height: 544px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.three .cab::before, .three .cab::after { content: ''; position: absolute; inset: 0; background: var(--cabinet) center / contain no-repeat; pointer-events: none; z-index: 2; }
+.three .cab::after { background-image: var(--glow); opacity: .65; z-index: 3; }
+.three.spinning .cab::after, .three.done .cab::after { animation: cabinet-glow 1.4s ease-in-out infinite alternate; }
+@keyframes cabinet-glow { from { opacity: .25; } to { opacity: 1; } }
+.three .cab-top { position: absolute; top: var(--title-top); left: var(--window-left); width: var(--window-width); height: 30px; border: 0; background: none; z-index: 4; }
+.three .cab-title { padding: 0; font-size: 24px; }
+.three .cab-bulbs, .three .cab-bottom { display: none; }
+.three .cab-window { position: absolute; left: var(--window-left); top: var(--window-top); width: var(--window-width); height: var(--window-height); border-radius: 6px; box-shadow: none; z-index: 1; }
+.three .payline i { width: 40px; height: 40px; margin-top: -20px; border: 0; background: var(--mark) center / contain no-repeat; }
+.three .payline i:last-child { transform: scaleX(-1); }
+.three .lever { width: 64px; height: 208px; margin: 160px 0 0 -8px; }
+.three .lever-base, .three .lever-arm i { display: none; }
+.three .lever-arm { left: 0; bottom: 0; width: 64px; height: 208px; border-radius: 0; background: var(--lever) center / contain no-repeat; }
+@media (prefers-reduced-motion: reduce) {
+  .three.spinning .cab::after, .three.done .cab::after { animation: none; }
+}
