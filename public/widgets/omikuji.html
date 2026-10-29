@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- おみくじ: (番号を選ぶ) → 木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢。段階・番号・運勢は gacha.js が data-phase / data-tier と文字に入れる -->
+<!-- おみくじ: (番号を選ぶ) → 木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢。段階・番号・運勢は gacha.js が data-phase / data-tier と文字に入れる。
+     見た目の決まりは omikuji-style.md(神社の木・和紙・墨・朱) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -8,69 +9,142 @@
 <link rel="stylesheet" href="lib/overlay.css">
 <link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
 <link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/900.css">
 <style>
   body { display: grid; place-items: center; padding: 16px; }
   .idle { display: none; margin: 0; font-weight: 700; color: var(--paper); }
   body.preview:not(.on) .idle { display: block; }
-  .stage { display: none; position: relative; width: 360px; height: 460px; --ink: #2B1A10; --shu: #C8261E; --tone: var(--shu); }
+  .stage {
+    display: none; position: relative; width: 360px; height: 460px;
+    --ink: #24180F; --shu: #C02A1C; --washi: #EFE6CF; --hinoki: #DCC08E; --hinoki-2: #C9A86F;
+    --tone: var(--shu);
+    font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700;
+    /* Dela Gothic One は太さが1つだけ。700 を継ぐと字が太らされて線がつぶれるので、太字を作らせない */
+    font-synthesis: none;
+  }
   body.on .stage { display: block; }
   /* 運勢の色(朱が基本。大吉は金、末吉は茶、凶は灰、大凶は墨) */
-  .stage[data-tier="daikichi"] { --tone: #B8860B; }
+  .stage[data-tier="daikichi"] { --tone: #A87A0C; }
   .stage[data-tier="suekichi"] { --tone: #6B4A2B; }
   .stage[data-tier="kyo"] { --tone: #55606B; }
-  .stage[data-tier="daikyo"] { --tone: #1E1430; }
+  .stage[data-tier="daikyo"] { --tone: #24180F; }
 
-  /* 木の筒(正面から)。上の穴から棒が出る */
-  .tube { position: absolute; left: 50%; bottom: 20px; width: 132px; height: 250px; margin-left: -66px; transform-origin: 50% 90%; }
-  .tube-body { position: absolute; inset: 0; border-radius: 14px; background: #8A5A2E; box-shadow: inset 18px 0 0 #A06C3A, inset -18px 0 0 #6E4523, 0 14px 28px rgba(0, 0, 0, .35); }
-  .tube-body::before, .tube-body::after { content: ""; position: absolute; left: 0; right: 0; height: 12px; background: #4A2E16; }
-  .tube-body::before { top: 18px; }
-  .tube-body::after { bottom: 18px; }
-  .tube-label { position: absolute; left: 50%; top: 52px; width: 46px; margin-left: -23px; padding: 12px 0; background: #F4ECDA; color: var(--shu); font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 24px; line-height: 1.15; text-align: center; writing-mode: vertical-rl; letter-spacing: .1em; box-shadow: 0 0 0 2px var(--shu) inset; }
-  .tube-hole { position: absolute; left: 50%; top: -6px; width: 30px; height: 12px; margin-left: -15px; border-radius: 50%; background: #2B1A10; }
-  .stick { position: absolute; left: 50%; bottom: 228px; width: 22px; height: 150px; margin-left: -11px; border-radius: 3px; background: #E9D9B4; box-shadow: inset 0 0 0 1px #B89B62; transform: translateY(150px); }
-  .stick-no { position: absolute; left: 0; right: 0; top: 10px; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 13px; color: var(--ink); writing-mode: vertical-rl; line-height: 22px; text-align: center; }
-  .stage[data-phase="rolling"] .tube { animation: shake .26s ease-in-out infinite; }
+  /* 和紙のすき目(小さな SVG のノイズを1枚だけ敷く。動かさない) */
+  .washi {
+    background-color: var(--washi);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .22 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23f)'/%3E%3C/svg%3E");
+  }
+
+  /* 木の六角の筒(正面から3つの面)。上の穴から棒が出る */
+  .tube { position: absolute; left: 50%; bottom: 6px; width: 124px; height: 214px; margin-left: -62px; transform-origin: 50% 92%; }
+  .tube-body {
+    position: absolute; inset: 14px 0 12px; background-color: #8C5A2C;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(40, 20, 6, .16) 0 1px, transparent 1px 7px, rgba(40, 20, 6, .1) 7px 8px, transparent 8px 13px),
+      linear-gradient(90deg, #6F4421 0 26px, transparent 26px calc(100% - 26px), #5A361A calc(100% - 26px));
+    box-shadow: 0 12px 22px rgba(0, 0, 0, .38);
+  }
+  /* 天板と台(墨の帯) */
+  .tube-body::before, .tube-body::after { content: ""; position: absolute; left: -4px; right: -4px; background: var(--ink); }
+  .tube-body::before { top: -14px; height: 16px; }
+  .tube-body::after { bottom: -12px; height: 14px; }
+  .tube-hole { position: absolute; left: 50%; top: 4px; z-index: 1; width: 22px; height: 7px; margin-left: -11px; border-radius: 50%; background: #0E0905; }
+  .tube-label {
+    position: absolute; left: 50%; top: 50px; width: 44px; margin-left: -22px; padding: 12px 0 10px;
+    color: var(--ink); font-size: 23px; line-height: 1.12; text-align: center; writing-mode: vertical-rl; letter-spacing: .08em;
+    transform: rotate(-1.5deg);
+    clip-path: polygon(2% 1%, 30% 0, 62% 2%, 98% 0, 100% 34%, 97% 70%, 100% 99%, 64% 100%, 30% 98%, 0 100%, 2% 66%, 0 30%);
+  }
+
+  /* 棒(引いた番号)。頭は番号の札と同じ形。選んだ札がこの棒になる */
+  .stick { position: absolute; left: 50%; bottom: 206px; width: 30px; height: 168px; margin-left: -15px; transform: translateY(168px); }
+  .stick::before { content: ""; position: absolute; left: 9px; right: 9px; top: 44px; bottom: 0; background: var(--hinoki); box-shadow: inset -3px 0 0 var(--hinoki-2); }
+  .stick-head { position: absolute; left: 0; right: 0; top: 0; height: 46px; padding-top: 10px; background: var(--hinoki); color: var(--ink); font-family: "Dela Gothic One", var(--font); font-weight: 400; font-size: 22px; line-height: 1; text-align: center; clip-path: polygon(50% 0, 100% 18%, 100% 100%, 0 100%, 0 18%); }
+  .stick-no { position: absolute; left: 9px; right: 9px; top: 52px; color: var(--ink); font-size: 11px; line-height: 12px; writing-mode: vertical-rl; text-align: center; }
+  .stage[data-phase="rolling"] .tube { animation: shake .26s .75s ease-in-out infinite; }
   /* 運勢が出る: 棒がすっと出て、筒が下がり、紙が上から開く */
   .stage[data-phase="reveal"] .stick { animation: rise .5s var(--ease-out) both; }
   .stage[data-phase="reveal"] .tube { animation: away .5s .55s var(--ease-out) both; }
   .stage[data-phase="done"] .stick, .stage[data-phase="done"] .tube { opacity: 0; }
 
-  /* 紙(運勢) */
-  .slip { position: absolute; left: 50%; top: 10px; width: 210px; height: 430px; margin-left: -105px; padding: 18px 14px; background: #FBF6EA; color: var(--ink); box-shadow: 0 0 0 3px var(--tone) inset, 0 0 0 7px #FBF6EA inset, 0 0 0 8px var(--tone) inset, 0 18px 36px rgba(0, 0, 0, .35); transform-origin: 50% 0; transform: scaleY(0); opacity: 0; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; }
+  /* 紙(運勢)。折り目が2本残る和紙。縁は墨の細線と運勢の色の太線 */
+  .slip {
+    position: absolute; left: 50%; top: 8px; width: 204px; height: 436px; margin-left: -102px; padding: 20px 14px 16px;
+    color: var(--ink); transform-origin: 50% 0; transform: scaleY(0); opacity: 0;
+    display: grid; grid-template-rows: auto 1fr auto; justify-items: center;
+    box-shadow: 0 16px 30px rgba(0, 0, 0, .36);
+  }
+  .slip::before { content: ""; position: absolute; inset: 9px; border: 4px solid var(--tone); outline: 1px solid var(--ink); outline-offset: 3px; pointer-events: none; }
+  .slip::after { content: ""; position: absolute; left: 0; right: 0; top: 33%; height: 34%; border-top: 1px solid rgba(36, 24, 15, .12); border-bottom: 1px solid rgba(36, 24, 15, .12); pointer-events: none; }
   .stage[data-phase="reveal"] .slip { animation: unfold .6s .75s var(--ease-out) both; }
   .stage[data-phase="done"] .slip { transform: none; opacity: 1; animation: fadeout var(--done, 1.2s) linear both; }
-  .slip-head { font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 16px; letter-spacing: .3em; color: var(--tone); }
-  .result { margin: 0; align-self: center; font-family: "Dela Gothic One", var(--font); font-size: 104px; line-height: 1.05; writing-mode: vertical-rl; color: var(--tone); }
+  .slip-head { font-size: 15px; letter-spacing: .4em; padding-left: .4em; color: var(--ink); }
+  /* 運勢の字は Zen Kaku Gothic New 900。Dela Gothic One は「凶」「吉」の中の空きがつぶれて、小さく重ねると読めない */
+  .result { margin: 0; align-self: center; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 900; font-size: 112px; line-height: 1.02; letter-spacing: -.02em; writing-mode: vertical-rl; color: var(--tone); }
   .stage[data-phase="reveal"] .result { animation: slam .5s 1.25s var(--ease-out) both; }
-  .slip-foot { font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 14px; color: var(--ink); }
-  /* 朱印(運勢が決まった印) */
-  .seal { position: absolute; right: 12px; bottom: 54px; width: 54px; height: 54px; border: 3px solid var(--shu); border-radius: 6px; color: var(--shu); font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 15px; line-height: 1.1; display: grid; place-items: center; text-align: center; transform: rotate(-10deg) scale(1.6); opacity: 0; }
+  .slip-foot { font-size: 14px; color: var(--ink); }
+  /* 朱印(白い字を彫った判。紙に押したように少しかすれる) */
+  .seal { position: absolute; right: 18px; bottom: 50px; width: 52px; height: 52px; padding: 5px; background: var(--shu); color: var(--washi); font-size: 15px; line-height: 1.12; display: grid; place-items: center; text-align: center; mix-blend-mode: multiply; transform: rotate(-8deg) scale(1.6); opacity: 0; clip-path: polygon(1% 3%, 99% 0, 100% 97%, 3% 100%); }
   .stage[data-phase="reveal"] .seal { animation: stamp .3s 1.7s ease-out both; }
-  .stage[data-phase="done"] .seal { transform: rotate(-10deg); opacity: .9; }
+  .stage[data-phase="done"] .seal { transform: rotate(-8deg); opacity: .92; }
   /* 大凶は、出たあと紙が少し震える */
   .stage[data-phase="reveal"][data-tier="daikyo"] .slip { animation: unfold .6s .75s var(--ease-out) both, tremble .12s 1.8s 6 linear; }
-  .kicker { position: absolute; left: 0; right: 0; bottom: -4px; margin: 0; text-align: center; font-weight: 700; font-size: 15px; color: var(--paper); text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
+  .kicker { position: absolute; left: 0; right: 0; bottom: -4px; margin: 0; text-align: center; font-size: 15px; color: var(--paper); text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
   .stage[data-phase="reveal"] .kicker, .stage[data-phase="done"] .kicker { display: none; }
-  /* 番号を選ぶ(仮の見た目): 上にだれが選ぶか、番号の一覧、残り秒。筒は止めておく */
-  .pick { display: none; position: absolute; left: 0; right: 0; top: 0; padding: 12px 10px; border-radius: 10px; background: rgba(43, 26, 16, .88); color: #FBF6EA; text-align: center; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; }
-  .stage[data-phase="pick"] .pick { display: block; }
-  .stage[data-phase="pick"] .kicker { display: none; }
-  .pick-who { margin: 0 0 8px; font-size: 17px; }
-  .pick-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
-  .pick-list li { padding: 6px 0; border-radius: 6px; background: #FBF6EA; color: var(--ink); font-size: 22px; line-height: 1; }
-  .pick-left { margin: 8px 0 0; font-family: "Dela Gothic One", var(--font); font-size: 34px; line-height: 1; }
-  .pick-left::after { content: "秒"; margin-left: 4px; font-family: "Zen Kaku Gothic New", var(--font); font-size: 15px; }
-  .pick.soon .pick-left { color: #FF5A4E; }
+
+  /* 番号を選ぶ: 左上にだれの番か(和紙の札)、右上に残り秒(判)、縄に1〜10の木札。筒は下で待つ */
+  .pick { display: none; position: absolute; inset: 0 0 220px; }
+  .stage[data-phase="pick"] .pick, .stage[data-phase="rolling"] .pick.has-chosen { display: block; }
+  .stage[data-phase="pick"] .kicker, .pick.has-chosen ~ .kicker { display: none; }
+  .pick-tag { position: absolute; left: 2px; top: 0; max-width: 262px; padding: 7px 18px 8px 12px; color: var(--ink); transform: rotate(-1.5deg); clip-path: polygon(0 0, 100% 4%, 96% 30%, 100% 62%, 97% 100%, 0 96%); box-shadow: 0 6px 14px rgba(0, 0, 0, .3); }
+  .pick[data-by="streamer"] .pick-tag { background: var(--ink); color: var(--washi); }
+  .pick-who { display: block; overflow: hidden; font-size: 21px; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; }
+  .pick-how { display: block; font-size: 14px; line-height: 1.3; }
+  /* 残り秒: 墨の枠の判。3秒を切ると朱で押し直す */
+  .pick-left { position: absolute; right: 4px; top: 2px; width: 64px; height: 64px; margin: 0; padding-top: 6px; border: 3px solid var(--ink); background: var(--washi); color: var(--ink); text-align: center; font-family: "Dela Gothic One", var(--font); font-weight: 400; font-size: 34px; line-height: 1; transform: rotate(3deg); box-shadow: 0 6px 14px rgba(0, 0, 0, .3); }
+  .pick-left::after { content: "秒"; display: block; margin-top: 1px; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 12px; }
+  .pick.soon .pick-left { background: var(--shu); border-color: var(--shu); color: var(--washi); }
+  .pick-left.tick { animation: press .32s ease-out; }
+  /* 縄(2本の撚り線) */
+  .rope { position: absolute; left: 0; top: 70px; width: 360px; height: 100px; overflow: visible; }
+  .rope path { fill: none; stroke-linecap: round; }
+  .rope .r1 { stroke: #6B4A2B; stroke-width: 5; }
+  .rope .r2 { stroke: #E2CFA4; stroke-width: 2; stroke-dasharray: 3 5; }
+  .pick-list { position: absolute; left: 12px; right: 12px; top: 74px; display: grid; grid-template-columns: repeat(5, 1fr); row-gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .pick-list li { position: relative; height: 74px; padding-top: 10px; transform-origin: 50% 0; transform: translateY(var(--sag, 0)) rotate(var(--r, 0deg)); transition: opacity .25s; }
+  /* 札を縄に結ぶ紐 */
+  .pick-list li::before { content: ""; position: absolute; left: 50%; top: 0; width: 2px; height: 14px; margin-left: -1px; background: var(--ink); }
+  .pick-list b { display: block; width: 56px; height: 62px; margin: 0 auto; padding-top: 15px; background-color: var(--hinoki); background-image: repeating-linear-gradient(90deg, rgba(90, 56, 20, .12) 0 1px, transparent 1px 6px); color: var(--ink); font-family: "Dela Gothic One", var(--font); font-weight: 400; font-size: 34px; line-height: 1; text-align: center; clip-path: polygon(50% 0, 100% 16%, 100% 100%, 0 100%, 0 16%); }
+  /* 縄のたるみに沿わせ、1枚ずつ少し傾ける(手で掛けた札) */
+  .pick-list li:nth-child(5n+1) { --sag: 2px; --r: -2deg; }
+  .pick-list li:nth-child(5n+2) { --sag: 5px; --r: 1.5deg; }
+  .pick-list li:nth-child(5n+3) { --sag: 6px; --r: -1deg; }
+  .pick-list li:nth-child(5n+4) { --sag: 5px; --r: 2.5deg; }
+  .pick-list li:nth-child(5n) { --sag: 2px; --r: -1.5deg; }
+  .pick-list li:nth-child(7) { --r: 3deg; }
+  .pick-list li:nth-child(9) { --r: -3deg; }
+  /* 残り3秒: 札が揺れはじめる */
+  .pick.soon .pick-list li { animation: sway .5s ease-in-out infinite alternate; }
+  .pick.soon .pick-list li:nth-child(even) { animation-delay: -.25s; }
+  /* 選ばれた瞬間: 札に朱の丸がつき、ほかの札は退き、選んだ札は筒の口へ落ちる(--dx/--dy は gacha.js が入れる) */
+  .pick.has-chosen .pick-list li { opacity: .18; animation: none; }
+  .pick.has-chosen .pick-list li.chosen { opacity: 1; z-index: 2; animation: drop .7s .25s cubic-bezier(.5, 0, .8, .4) both; }
+  /* 朱の筆で丸をつける(少しゆがんだ輪) */
+  .pick-list b { position: relative; }
+  .pick-list li.chosen b::after { content: ""; position: absolute; left: 5px; top: 9px; width: 42px; height: 42px; border: 4px solid var(--shu); border-right-color: transparent; border-radius: 52% 46% 50% 44%; transform: rotate(-30deg); }
+  .pick.has-chosen .pick-tag, .pick.has-chosen .pick-left { opacity: 0; transition: opacity .2s; }
   .time { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .plate { display: contents; }
-  @keyframes shake { 0%, 100% { transform: rotate(-13deg); } 50% { transform: rotate(13deg) translateY(-6px); } }
-  @keyframes rise { from { transform: translateY(150px); } to { transform: translateY(0); } }
+  @keyframes shake { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg) translateY(-6px); } }
+  @keyframes rise { from { transform: translateY(168px); } to { transform: translateY(0); } }
   @keyframes away { to { transform: translateY(40px) scale(.9); opacity: 0; } }
   @keyframes unfold { from { transform: scaleY(0); opacity: 1; } to { transform: scaleY(1); opacity: 1; } }
   @keyframes slam { 0% { transform: scale(1.6); opacity: 0; } 60% { transform: scale(.96); opacity: 1; } 100% { transform: none; opacity: 1; } }
-  @keyframes stamp { from { transform: rotate(-10deg) scale(1.6); opacity: 0; } to { transform: rotate(-10deg) scale(1); opacity: .9; } }
-  @keyframes tremble { 0%, 100% { margin-left: -105px; } 50% { margin-left: -102px; } }
+  @keyframes stamp { from { transform: rotate(-8deg) scale(1.6); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: .92; } }
+  @keyframes press { from { transform: rotate(3deg) scale(1.22); } to { transform: rotate(3deg) scale(1); } }
+  @keyframes sway { from { transform: translateY(var(--sag, 0)) rotate(calc(var(--r, 0deg) - 4deg)); } to { transform: translateY(var(--sag, 0)) rotate(calc(var(--r, 0deg) + 4deg)); } }
+  @keyframes drop { 0% { transform: translateY(var(--sag, 0)) rotate(0) scale(1.12); } 25% { transform: translateY(calc(var(--sag, 0) - 8px)) rotate(0) scale(1.12); } 100% { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(0) scale(.5); opacity: 0; } }
+  @keyframes tremble { 0%, 100% { margin-left: -102px; } 50% { margin-left: -99px; } }
   @keyframes fadeout { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .stage * { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
 </style>
@@ -79,17 +153,21 @@
 <p class="idle" id="idle">おみくじ・待機</p>
 <div class="stage" id="stage" data-phase="idle">
   <div class="plate" id="plate">
-    <div class="stick"><span class="stick-no" id="stickNo"></span></div>
-    <div class="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label">御神籤</div></div>
-    <div class="slip">
+    <div class="stick"><span class="stick-head" id="stickNum"></span><span class="stick-no" id="stickNo"></span></div>
+    <div class="tube" id="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label washi">御神籤</div></div>
+    <div class="slip washi">
       <span class="slip-head">御神籤</span>
       <p class="result" id="result"></p>
       <span class="slip-foot" id="slipNo"></span>
       <span class="seal">開運<br>守護</span>
     </div>
     <div class="pick" id="pick">
-      <p class="pick-who" id="pickWho"></p>
+      <svg class="rope" viewBox="0 0 360 100" aria-hidden="true">
+        <path class="r1" d="M4 2 Q180 16 356 2"/><path class="r2" d="M4 2 Q180 16 356 2"/>
+        <path class="r1" d="M4 84 Q180 98 356 84"/><path class="r2" d="M4 84 Q180 98 356 84"/>
+      </svg>
       <ol class="pick-list" id="pickList"></ol>
+      <p class="pick-tag washi"><span class="pick-who" id="pickWho"></span><span class="pick-how" id="pickHow"></span></p>
       <p class="pick-left" id="pickLeft"></p>
     </div>
     <p class="kicker" id="phase">待機</p>
