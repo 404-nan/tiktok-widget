@@ -2702,6 +2702,8 @@ export function createEditor({ api, setMessage }) {
   // そのウィジェットの条件に合うテストのギフトを送る
   function testGift() {
     const e = isObj(tab) ? {} : payload.config[tab]?.[id] ?? {};
+    // おみくじは仮の名前の人が送った形で始め、番号待ちから見せる（名前がないと番号待ちを飛ばすため）
+    if (tab === 'omikuji') return api('/api/dev/trigger', { target: 'omikuji', user: 'テスト視聴者' });
     if (e.gifts?.length) return api('/api/simulate', { kind: 'gift', giftName: e.gifts[0], diamonds: 10 });
     if (e.minCoins > 1) return api('/api/simulate', { kind: 'gift', giftName: 'テストギフト', diamonds: e.minCoins });
     if (e.events?.length && !e.events.includes('gift')) return api('/api/simulate', { kind: e.events[0] });
@@ -2749,7 +2751,16 @@ export function createEditor({ api, setMessage }) {
       box.append(chip('まわす', 'rotate-cw', control('roulette', 'spin', { id })), chip('待ち列を消す', null, control('roulette', 'reset')));
     } else if (tab === 'omikuji') {
       // 「配信者が選ぶ」番のとき、押した番号の棒で引く
-      for (let n = 1; n <= 10; n++) box.append(chip(`${n}番`, null, () => control('omikuji', 'pick', { n })().catch((e) => setMessage(e.message, true))));
+      // 押せるのは配信者の番のときだけ。画面を開いている間、1秒ごとに今の番を見る
+      const numbers = [];
+      for (let n = 1; n <= 10; n++) numbers.push(chip(`${n}番`, null, () => control('omikuji', 'pick', { n })().catch((e) => setMessage(e.message, true))));
+      const sync = (state) => numbers.forEach((b) => { b.disabled = state?.pick?.by !== 'streamer'; });
+      sync(null);
+      box.append(...numbers);
+      const poll = setInterval(() => {
+        if (!numbers[0].isConnected) return clearInterval(poll);
+        api('/api/omikuji').then(sync).catch(() => sync(null));
+      }, 1000);
     } else if (tab === 'votes') {
       const vote = (action, data) => control('vote', action, { id, ...(data ?? {}) });
       const options = payload.config.votes?.[id]?.options ?? [];

@@ -49,7 +49,7 @@ export class Gacha {
     this.forced = false;
     this.trigger = null;
     this.stick = null; // 選ばれた棒の番号
-    this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }
+    this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }（endsAt はサーバーの時計）
     this.durations = durationsOf(this.config);
     this.timers = new Set();
   }
@@ -76,9 +76,16 @@ export class Gacha {
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
       trigger: this.trigger,
-      pick: this.pick,
+      pick: this.#pickView(),
       stick: this.stick,
     };
+  }
+
+  /** 画面へ渡す番号待ち。配信 PC の時計とずれても合うよう、締め切りの時刻ではなく残りのミリ秒を渡す */
+  #pickView() {
+    if (!this.pick) return null;
+    const { by, count, endsAt } = this.pick;
+    return { by, count, leftMs: Math.max(0, endsAt - Date.now()) };
   }
 
   /** 配信者が番号を選ぶ（配信者の番のときだけ） */
@@ -212,7 +219,7 @@ export class Gacha {
       pending: this.pending.length,
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
-      pick: this.pick,
+      pick: this.#pickView(),
       stick: this.stick,
       event: name,
     };

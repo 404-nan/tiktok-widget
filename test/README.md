@@ -46,7 +46,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `gacha-room.test.js` | 無料回は配信の roomId が変わったときだけ戻る |
 | `events.test.js` | イベントバスのテスト |
 | `gacha.test.js` | ガチャのテスト |
-| `omikuji-pick.test.js` | おみくじの番号の選び方(本人のコメントだけ・時間切れ・配信者が選ぶ・配信者も押さない・待ち列) |
+| `omikuji-pick.test.js` | おみくじの番号の選び方(本人のコメントだけ・時間切れ・配信者が選ぶ・配信者も押さない・待ち列・残りはミリ秒で渡す) |
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
 | `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |

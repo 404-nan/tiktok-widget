@@ -110,3 +110,14 @@ test('選んでいる間の次のギフトは待ち列で待ち、終わった�
   assert.equal(sent.at(-1).trigger.user.name, 'もも');
   omikuji.close();
 });
+
+test('画面へは締め切りの時刻ではなく残りのミリ秒を渡す(配信 PC の時計がずれても合う)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji, sent } = setup({ pickSeconds: 10 });
+  omikuji.onEvent(gift('u1', 'ゆず'));
+  assert.deepEqual(sent.at(-1).pick, { by: 'viewer', count: STICKS, leftMs: 10000 });
+  t.mock.timers.tick(4000);
+  assert.equal(omikuji.snapshot().pick.leftMs, 6000);
+  assert.equal('endsAt' in omikuji.snapshot().pick, false);
+  omikuji.close();
+});

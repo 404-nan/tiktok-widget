@@ -66,8 +66,10 @@
         list.appendChild(li);
       }
     }
+    // 残りはサーバーから受け取った時点からの経過で数える（配信 PC の時計がずれていても合う）
+    var endsAt = Date.now() + Math.max(0, Number(pick.leftMs) || 0);
     var tick = function () {
-      var left = Math.max(0, Math.ceil((Number(pick.endsAt) - Date.now()) / 1000));
+      var left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
       setText('pickLeft', String(left));
       pickEl.classList.toggle('soon', left <= 3);
     };
