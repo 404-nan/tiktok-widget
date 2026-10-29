@@ -182,7 +182,8 @@
   --window-left: 90px; --window-top: 180px; --window-width: 300px; --window-height: 200px;
   --title-top: 142px;
 }
-.three .cab { width: 480px; height: 544px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+/* 筐体の画像(::before・::after の z-index)は筐体の中だけで重ねる。外の結果のカードより上に出さない */
+.three .cab { width: 480px; height: 544px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; isolation: isolate; }
 .three .cab::before, .three .cab::after { content: ''; position: absolute; inset: 0; background: var(--cabinet) center / contain no-repeat; pointer-events: none; z-index: 2; }
 .three .cab::after { background-image: var(--glow); opacity: .65; z-index: 3; }
 .three.spinning .cab::after, .three.done .cab::after { animation: cabinet-glow 1.4s ease-in-out infinite alternate; }
