@@ -109,12 +109,7 @@ export class CardDraw {
   #go(phase, ms, then) {
     this.phase = phase;
     this.#emit();
-    const delay = Math.max(0, Number(ms) || 0);
-    if (delay === 0) {
-      then();
-      return;
-    }
-    const t = setTimeout(() => { this.timers.delete(t); then(); }, delay);
+    const t = setTimeout(() => { this.timers.delete(t); then(); }, Math.max(0, Number(ms) || 0));
     if (typeof t.unref === 'function') t.unref();
     this.timers.add(t);
   }
