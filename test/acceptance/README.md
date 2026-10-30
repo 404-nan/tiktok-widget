@@ -12,6 +12,7 @@
 | `ootori.test.js` / `ootori-wiring.test.js` | 大トリの完成条件と設定・操作経路・画面の配線を確認する |
 | `relay-stop.test.js` / `relay-stop-wiring.test.js` | リレー停止の完成条件と設定・操作経路・画面の配線を確認する |
 | `push-button.test.js` | 押しボタンの設定・集計・操作入口・公開コードを確認する |
+| `ideas-sync.test.js` | IDEAS.md の ✅ と見出しの画面パスが public/widgets の実物と合うか確認する |
 | `participation-vote-review.test.js` | コメント投票のレビュー条件を確認する |
 | `cheer.test.js` / `cheer-public.test.js` | いいね応援の設定・集計・操作入口・公開コードを確認する |
 | `templates.test.js` / `pre-ship-review-templates.test.js` | 配信テンプレートの完成条件と画面のつなぎ目を確認する |
