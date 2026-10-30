@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- パチンコ演出の見本。配信画面に重ねるウィジェット(背景は透明)。部品は parts.js、演出(部品の並び)は presets.js。?preset=chance|cutin|jackpot|puchun で選び、?main=字 などで画面の字を変える。
+     ?char=画像URL で配信者の立ち絵(?eyes=左目x,左目y,右目x,右目y で目の光をその絵の位置に)、?text=ナイス,ギフト で決めの字、?t=秒 でその時刻で止める、?loop=1 でくり返し、?post=0 で仕上げ(WebGL の効果)なし、?scale=0.5 で半分の細かさ、?ratio=1:1 や 4:3 で画面の縦横の比 -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>パチンコ演出</title>
+<style>
+  @font-face { font-family: "Reggae One"; font-weight: 400; src: url(fonts/reggae-one-japanese-400-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; src: url(/vendor/fonts/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-700-normal.woff2) format("woff2"); }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<!-- 墨(ink)の輪郭を液体のようにつなぐフィルター -->
+<svg width="0" height="0" style="position:absolute"><filter id="goo"><feGaussianBlur stdDeviation="9"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 28 -11"/></filter></svg>
+<script src="fx.js"></script>
+<script src="parts.js"></script>
+<script src="presets.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  // 演出は presets.js から ?preset=名前 で選ぶ(無いときはプチュン)。画面の字は ?キー=字(キーは presets.js の fields)。?text= は main と同じ
+  var preset = Fx.presets[q.get('preset')] || Fx.presets.puchun, T = {};
+  preset.fields.forEach(function (f) { T[f.key] = (q.get(f.key) || (f.key === 'main' && q.get('text')) || f.def).slice(0, f.max || 20); });
+  var TIMELINE = preset.timeline(T);
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || q.get('reduced') === '1';
+  if (reduced) TIMELINE = Fx.reducedTimeline(T);
+  var allText = preset.fields.map(function (f) { return T[f.key]; }).join('');
+
+  var canvas = document.getElementById('fx');
+  // ?scale=0.5 で中の絵を半分の細かさで描く(遅いパソコン用。画面いっぱいに引きのばす)
+  var scale = +(q.get('scale') || 1);
+  // ?ratio=1:1 や 4:3: 画面の中に、その縦横の比の枠をまん中に置いて、そこだけで演出する(無いときは画面いっぱい)
+  var W0 = +q.get('w') || innerWidth, H0 = +q.get('h') || innerHeight, r = (q.get('ratio') || '').split(':').map(Number);
+  if (r[0] > 0 && r[1] > 0) { var k = Math.min(W0 / r[0], H0 / r[1]); W0 = r[0] * k; H0 = r[1] * k; }
+  canvas.style.position = 'absolute'; canvas.style.width = W0 + 'px'; canvas.style.height = H0 + 'px';
+  canvas.style.left = 'calc(50% - ' + W0 / 2 + 'px)'; canvas.style.top = 'calc(50% - ' + H0 / 2 + 'px)';
+  canvas.width = Math.round(W0 * scale); canvas.height = Math.round(H0 * scale);
+  var opts = { reduced: reduced, post: q.get('post') !== '0' };
+  var fx = new Fx(canvas, TIMELINE, opts);
+  window.fx = fx;
+  window.fxRender = function (t) { fx.render(t); };
+
+  var ready = [document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText), document.fonts.load('700 20px "Zen Kaku Gothic New"', 'ここに立ち絵' + allText)];
+  if (q.get('eyes')) opts.eyes = q.get('eyes').split(',').map(Number);
+  if (q.get('char')) ready.push(new Promise(function (ok) { var im = new Image(); im.onload = function () { opts.charImage = im; ok(); }; im.onerror = ok; im.src = q.get('char'); }));
+  Promise.all(ready).then(function () {
+    if (q.get('nowarm') !== '1') fx.warm();
+    window.fxReady = true;
+    if (q.get('t') != null) return fx.render(+q.get('t'));
+    if (q.get('hold') === '1') return;
+    (function go() { fx.play(q.get('loop') === '1' ? go : null); })();
+  });
+})();
+</script>
+</body>
+</html>
