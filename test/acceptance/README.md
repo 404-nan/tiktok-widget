@@ -19,6 +19,7 @@
 | `visitors.test.js` | 初見・常連の匿名記録と来場テロップの境界、保存、設定、画面を確認する |
 | `combo.test.js` / `combo-wiring.test.js` / `combo-pre-ship.test.js` | コンボの回数・段階・終了・配線・公開スクリプトを確認する |
 | `cutin-premium.test.js` | カットインのプレミア演出カードの完成条件を確認する |
+| `puchun-gift.test.js` | パチンコ演出をギフトで流すカード(`docs/cards/puchun-gift.md`)の AC-1〜4・6 を確認する。設定の保存、ギフト名・コイン数での選び方、連打の数だけ流れること、初めは使わない状態。実装前は失敗する |
 | `mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確認する |
 | `mc-goal-alert.test.js` / `mc-goal-alert-wiring.test.js` | ゴール接近警報の距離、段階警報、到達、RCON、画面を確認する |
 | `perf-hub.test.js` / `perf-history.test.js` / `perf-cleanup.test.js` | 差分配信、履歴保存、ウィジェット側の後片付けを確認する |
