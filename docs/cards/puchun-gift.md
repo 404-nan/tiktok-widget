@@ -41,3 +41,6 @@ for: raikone-users
 ## 4巡目(ルー君)
 - 演出を切り替えると保存が断られる件は、ルー君が直した(`editor.js`: 演出の切り替えは1回の merge の保存で `preset` と `texts: {}` を一緒に書く)。API で、前のやり方は ok=false、新しいやり方は ok=true になるのを確かめた
 - 残りは証拠の画面だけ。撮り方: `PORT=3977 TW_CONFIG=<空の一時フォルダ>/config.yaml TW_DATA=<同>/data node server.js` で立て、playwright は `/home/lul/ruu-work/tw/node_modules/playwright/index.mjs` を import する。ダッシュボードの「その他」に puchuns が見えないなら、使える設定(entitled)にする方法を README から探して使う。撮るのは「puchuns の条件の画面(演出・字の欄・比率・見本ボタン)」と「見本を押して流れている画面」を、390×844 と 1280×800 で。真っ白・演出だけの画面は不可。`debug.png` のような作業用の画像は置かない
+
+## 2巡目(レビューで見つかったもの)
+- AC-11 既存の演出から別の演出に切り替えて保存したとき、前の演出にしかない字を残さず新しい演出の設定が保存され、再読み込み後もその演出が流れる。
