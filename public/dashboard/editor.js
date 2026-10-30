@@ -2662,7 +2662,10 @@ export function createEditor({ api, setMessage }) {
   function currentWidget() {
     if (tab === 'minecraft') return null;
     const section = tab === 'theme' ? 'alerts' : tab;
-    const wid = tab === 'theme' ? Object.keys(payload.config.alerts ?? {})[0] : tab === 'roulettes' ? '*' : isObj(tab) ? null : id;
+    const wid = tab === 'theme'
+      ? Object.keys(payload.config.alerts ?? {})[0]
+      : tab === 'roulettes' || tab === 'puchuns' ? '*'
+        : isObj(tab) ? null : id;
     return payload.widgets.find((w) => w.section === section && w.id === wid && !w.extra);
   }
 
