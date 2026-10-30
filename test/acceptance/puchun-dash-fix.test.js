@@ -137,7 +137,7 @@ browserTest('AC-2 透明の背景のページ(OBS の代わり)で、演出の�
 
 // ---- AC-3 ----
 
-browserTest('AC-3 「配信で使用中」は、配信につないでいなくても、カットインと同じ条件で出る', async () => {
+browserTest('AC-3 「配信ではこれが出る」は、配信につないでいなくても、カットインと同じ条件で出る', async () => {
   await withBrowser(async ({ browser, baseUrl }) => {
     // 同じ形に揃える: どちらも2件。配信にはつないでいない(テスト用の隔離サーバー)
     await patch(baseUrl, ['cutins', 'alt'], { minCoins: 50 });
@@ -147,11 +147,11 @@ browserTest('AC-3 「配信で使用中」は、配信につないでいなく�
     const countOn = async (title) => {
       await openWidget(page, baseUrl, title);
       let n = 0;
-      for (const label of await page.getByText('配信で使用中').all()) if (await label.isVisible()) n += 1;
+      for (const label of await page.getByText('配信ではこれが出る').all()) if (await label.isVisible()) n += 1;
       return n;
     };
     const cutins = await countOn('カットイン');
     const puchuns = await countOn('パチンコ演出');
-    assert.equal(puchuns, cutins, `「配信で使用中」の数がカットイン(${cutins})とパチンコ演出(${puchuns})で違います`);
+    assert.equal(puchuns, cutins, `「配信ではこれが出る」の数がカットイン(${cutins})とパチンコ演出(${puchuns})で違います`);
   });
 });
