@@ -409,6 +409,22 @@ SCHEMA.cutins = {
   },
 };
 
+SCHEMA.puchuns = {
+  kind: 'map',
+  page: 'puchun/puchun',
+  title: 'パチンコ演出',
+  desc: 'ギフト名またはコイン数に合う演出を流す。連打は個数ぶん、上限をつけずに順に流す。URL は /widgets/puchun/puchun.html',
+  size: () => [1080, 1920],
+  fields: {
+    preset: oneOf(['chance', 'cutin', 'jackpot', 'puchun'], 'puchun', '演出。チャンス / カットイン / 大当たり / プチュン'),
+    ratio: oneOf(['full', '1:1', '4:3', '16:9'], 'full', '画面の比率'),
+    texts: { type: 'object', default: {}, desc: '演出ごとの字。見本にあるキーをそのまま書く' },
+    gifts: list([], 'このギフト名または GiftID なら流す。コイン数より先に判定する'),
+    minCoins: num(0, 'この合計コイン以上で流す（0 で無効）', { min: 0 }),
+    maxCoins: num(0, 'コイン数の上限（0 で上限なし）', { min: 0 }),
+  },
+};
+
 SCHEMA.imageCutins = {
   kind: 'map',
   page: 'image-cutin',
@@ -966,6 +982,7 @@ export const SECTIONS = Object.keys(SCHEMA);
 
 /** 各セクションの初期値（map のセクションは1件分） */
 export function defaultsFor(section) {
+  if (section === 'puchuns') return {};
   const out = {};
   for (const [key, f] of Object.entries(SCHEMA[section].fields)) out[key] = structuredClone(f.default);
   return out;

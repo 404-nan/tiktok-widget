@@ -558,7 +558,10 @@ function checkTimerRules(value, where, issues) {
 
 function checkFields(section, raw, where, issues) {
   const { fields } = SCHEMA[section];
-  const out = defaultsFor(section);
+  // puchuns は「設定が無い」状態を空 map として扱うが、作った1件の中身は初期値で補う。
+  const out = section === 'puchuns'
+    ? Object.fromEntries(Object.entries(SCHEMA[section].fields).map(([key, field]) => [key, structuredClone(field.default)]))
+    : defaultsFor(section);
   if (raw == null) return out;
   if (typeof raw !== 'object' || Array.isArray(raw)) {
     issues.errors.push(`${where}: 「項目: 値」の形で書いてください`);
@@ -570,7 +573,9 @@ function checkFields(section, raw, where, issues) {
       continue;
     }
     if (value == null) continue;
-    out[key] = section === 'votes' && key === 'options'
+    out[key] = section === 'puchuns' && key === 'texts'
+      ? checkPuchunTexts(value, raw.preset ?? out.preset, `${where}.${key}`, issues)
+      : section === 'votes' && key === 'options'
       ? checkVoteOptions(value, `${where}.${key}`, issues)
       : section === 'pushButtons' && key === 'steps'
         ? checkPushSteps(value, `${where}.${key}`, issues)
@@ -579,6 +584,38 @@ function checkFields(section, raw, where, issues) {
           : checkValue(fields[key], value, `${where}.${key}`, issues);
   }
   if (section === 'stepup' && out.scale === 'custom') checkStepupThresholds(out, where, issues);
+  return out;
+}
+
+const PUCHUN_TEXT_KEYS = {
+  chance: ['main', 'sub'],
+  cutin: ['say', 'main'],
+  jackpot: ['num', 'main', 'sub'],
+  puchun: ['main'],
+};
+
+function checkPuchunTexts(value, preset, where, issues) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    issues.errors.push(`${where}: 演出の字はキーごとの文字で書いてください`);
+    return {};
+  }
+  const allowed = new Set(PUCHUN_TEXT_KEYS[preset] ?? []);
+  const out = {};
+  for (const [key, text] of Object.entries(value)) {
+    if (!allowed.has(key)) {
+      issues.errors.push(`${where}.${key}: 選んだ演出では使えない字です`);
+      continue;
+    }
+    if (typeof text !== 'string') {
+      issues.errors.push(`${where}.${key}: 文字で書いてください`);
+      continue;
+    }
+    if (text.length > 20) {
+      issues.errors.push(`${where}.${key}: 20字以内で書いてください`);
+      continue;
+    }
+    out[key] = text;
+  }
   return out;
 }
 
@@ -846,6 +883,10 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
         const size = hasTall && hasStrip ? [820, 680] : hasTall ? [600, 680] : [820, 330];
         out.push({ section, id: '*', title: 'ルーレット（全部）', url: `${base}/widgets/roulette.html`, size });
       }
+      continue;
+    }
+    if (section === 'puchuns') {
+      if (entries.length) out.push({ section, id: '*', title: def.title, url: `${base}/widgets/puchun/puchun.html`, size: def.size({}) });
       continue;
     }
     for (const [id, e] of entries) {

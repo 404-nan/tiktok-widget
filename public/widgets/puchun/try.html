@@ -1,0 +1,144 @@
+<!doctype html>
+<!-- 演出をためす画面(配信者向けの見本)。演出を選んで字を打つと、右の画面でその場で流れる。
+     演出の一覧と字の欄は presets.js から作る。流すのは puchun.html(iframe)。配信ソフトに入れる URL もここで出す -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>演出をためす</title>
+<style>
+  @font-face { font-family: "Zen Kaku Gothic New"; font-weight: 400; src: url(/vendor/fonts/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-400-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; src: url(/vendor/fonts/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-700-normal.woff2) format("woff2"); }
+  :root { --bg: #1d1e23; --panel: #25262b; --line: #3a3b42; --ink: #F6F5F1; --sub: #A6A6AF; --key: #FFC53D; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Zen Kaku Gothic New", sans-serif; }
+  main { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 28px; max-width: 1100px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  .lead { color: var(--sub); margin: 0 0 20px; }
+  h2 { font-size: 15px; margin: 22px 0 8px; }
+  .pick { display: grid; gap: 6px; }
+  .pick label { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-items: center; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .pick input { grid-row: span 2; accent-color: var(--key); width: 18px; height: 18px; margin: 0; }
+  .pick b { font-size: 16px; }
+  .pick b small { font-weight: 400; color: var(--key); margin-left: 8px; font-size: 13px; }
+  .pick span { color: var(--sub); font-size: 13px; }
+  .pick label:has(input:checked) { border-color: var(--key); }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-weight: 700; margin-bottom: 4px; }
+  .field input { width: 100%; padding: 9px 10px; font: inherit; color: var(--ink); background: #111113; border: 1px solid var(--line); border-radius: 4px; }
+  .field input:focus { outline: 2px solid var(--key); outline-offset: 0; }
+  .hint { color: var(--sub); font-size: 13px; margin: 2px 0 0; }
+  .seg { display: flex; }
+  .seg button { flex: 1; padding: 8px 0; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); cursor: pointer; }
+  .seg button + button { border-left: 0; }
+  .seg button:first-child { border-radius: 4px 0 0 4px; } .seg button:last-child { border-radius: 0 4px 4px 0; }
+  .seg button[aria-pressed="true"] { background: var(--key); color: #111113; font-weight: 700; border-color: var(--key); }
+  .play { width: 100%; margin-top: 22px; padding: 12px; font: 700 16px "Zen Kaku Gothic New", sans-serif; color: #111113; background: var(--key); border: 0; border-radius: 6px; cursor: pointer; }
+  .url { display: flex; gap: 6px; }
+  .url input { flex: 1; min-width: 0; padding: 8px; font: 13px monospace; color: var(--sub); background: #111113; border: 1px solid var(--line); border-radius: 4px; }
+  .url button { padding: 0 12px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+  .stage { position: sticky; top: 24px; align-self: start; justify-self: center; width: min(100%, 405px); aspect-ratio: 9 / 16;
+           background: repeating-linear-gradient(135deg, #2c2d33 0 14px, #303137 14px 28px); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .stage p { position: absolute; inset: auto 0 10px; margin: 0; text-align: center; color: var(--sub); font-size: 13px; }
+  .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+  /* スマホでは見本を上に置き、字を打つあいだも見えるように上に貼りつける */
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } .stage { order: -1; top: 0; z-index: 1; width: min(100%, 220px); } }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>演出をためす</h1>
+    <p class="lead">演出を選んで字を変えると、見本の画面ですぐに流れます。</p>
+
+    <h2>どの演出にする?</h2>
+    <div class="pick" id="pick"></div>
+
+    <h2>画面に出る字</h2>
+    <div id="fields"></div>
+
+    <h2>演出を出す形</h2>
+    <div class="seg" id="ratio">
+      <button type="button" data-v="" aria-pressed="true">縦の全画面</button>
+      <button type="button" data-v="1:1" aria-pressed="false">正方形 1:1</button>
+      <button type="button" data-v="4:3" aria-pressed="false">横長 4:3</button>
+    </div>
+
+    <button class="play" id="play" type="button">もう一度流す</button>
+
+    <h2>配信ソフトに入れる URL</h2>
+    <div class="url"><input id="url" readonly aria-label="配信ソフトに入れる URL"><button id="copy" type="button">URL をコピー</button></div>
+    <p class="hint">この URL を、配信ソフトのブラウザのウィジェットに入れます。</p>
+  </section>
+
+  <div class="stage" aria-label="配信の画面(見本)">
+    <p>配信の画面</p>
+    <iframe id="view" title="演出の見え方"></iframe>
+  </div>
+</main>
+<script>
+// presets.js は Fx.presets に入るので、読むだけの入れ物を先に置く
+window.Fx = {};
+</script>
+<script src="presets.js"></script>
+<script>
+(function () {
+  var presets = Fx.presets, SIZE = { '小': '小さいギフト向け', '中': '中くらいのギフト向け', '大': '大きいギフト向け', '特大': 'いちばん大きいギフト向け' };
+  var state = { preset: 'chance', ratio: '', text: {} }, timer;
+  var pick = document.getElementById('pick'), fields = document.getElementById('fields'), view = document.getElementById('view'), url = document.getElementById('url');
+
+  Object.keys(presets).forEach(function (name) {
+    var p = presets[name], l = document.createElement('label');
+    l.innerHTML = '<input type="radio" name="preset"><b></b><span></span>';
+    l.querySelector('input').value = name;
+    l.querySelector('input').checked = name === state.preset;
+    l.querySelector('b').textContent = p.label;
+    l.querySelector('b').insertAdjacentHTML('beforeend', '<small></small>');
+    l.querySelector('small').textContent = SIZE[p.size];
+    l.querySelector('span').textContent = p.about;
+    pick.appendChild(l);
+  });
+  pick.addEventListener('change', function (e) { state.preset = e.target.value; drawFields(); play(); });
+
+  // 字の欄は演出ごとに変わる。打った字は演出を変えても、同じ欄(キー)なら残す
+  function drawFields() {
+    fields.textContent = '';
+    presets[state.preset].fields.forEach(function (f) {
+      var d = document.createElement('div'), id = 'f-' + f.key;
+      d.className = 'field';
+      d.innerHTML = '<label></label><input type="text">';
+      d.querySelector('label').textContent = f.label; d.querySelector('label').htmlFor = id;
+      var input = d.querySelector('input');
+      input.id = id; input.maxLength = f.max || 20; input.placeholder = f.def;
+      input.value = state.text[f.key] != null ? state.text[f.key] : f.def;
+      input.addEventListener('input', function () { state.text[f.key] = input.value; clearTimeout(timer); timer = setTimeout(play, 600); });
+      if (f.def.indexOf(',') >= 0 || f.key === 'main') d.insertAdjacentHTML('beforeend', '<p class="hint">「,」で行を分けられます。長い字は自動で小さくなります。</p>');
+      fields.appendChild(d);
+    });
+  }
+
+  document.getElementById('ratio').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    state.ratio = b.dataset.v;
+    this.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    play();
+  });
+
+  function link() {
+    var q = new URLSearchParams({ preset: state.preset });
+    presets[state.preset].fields.forEach(function (f) { var v = (state.text[f.key] || '').trim(); if (v && v !== f.def) q.set(f.key, v); });
+    if (state.ratio) q.set('ratio', state.ratio);
+    return new URL('puchun.html?' + q, location.href).href;
+  }
+  function play() { var u = link(); url.value = u; view.src = u + '&_=' + Date.now(); }
+
+  document.getElementById('play').addEventListener('click', play);
+  document.getElementById('copy').addEventListener('click', function () {
+    var b = this;
+    navigator.clipboard.writeText(url.value).then(function () { b.textContent = 'コピーしました'; setTimeout(function () { b.textContent = 'URL をコピー'; }, 1500); });
+  });
+  drawFields(); play();
+})();
+</script>
+</body>
+</html>
