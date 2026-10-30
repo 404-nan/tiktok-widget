@@ -1406,8 +1406,11 @@ export function createEditor({ api, setMessage }) {
       control = document.createElement('select');
       for (const v of field.values) control.append(new Option(ENUM_LABELS[`${key}.${v}`] ?? ENUM_LABELS[v] ?? v, v, false, v === value));
       control.addEventListener('change', () => {
-        save(key, control.value);
-        if (tab === 'puchuns' && key === 'preset') setTimeout(render, 200);
+        // 演出を変えたら字の欄も変わる。前の演出の字が残ると保存が断られるので、1回の保存で字を空にする
+        if (tab === 'puchuns' && key === 'preset') {
+          patch([tab, id], { merge: true, value: { preset: control.value, texts: {} } });
+          setTimeout(render, 200);
+        } else save(key, control.value);
       });
       if (tab === 'puchuns' && (key === 'preset' || key === 'ratio')) control.dataset[`puchun${key[0].toUpperCase()}${key.slice(1)}`] = '1';
     } else if (field.type === 'color') {
