@@ -573,7 +573,9 @@ function checkFields(section, raw, where, issues) {
       continue;
     }
     if (value == null) continue;
-    out[key] = section === 'votes' && key === 'options'
+    out[key] = section === 'puchuns' && key === 'texts'
+      ? checkPuchunTexts(value, raw.preset ?? out.preset, `${where}.${key}`, issues)
+      : section === 'votes' && key === 'options'
       ? checkVoteOptions(value, `${where}.${key}`, issues)
       : section === 'pushButtons' && key === 'steps'
         ? checkPushSteps(value, `${where}.${key}`, issues)
@@ -582,6 +584,38 @@ function checkFields(section, raw, where, issues) {
           : checkValue(fields[key], value, `${where}.${key}`, issues);
   }
   if (section === 'stepup' && out.scale === 'custom') checkStepupThresholds(out, where, issues);
+  return out;
+}
+
+const PUCHUN_TEXT_KEYS = {
+  chance: ['main', 'sub'],
+  cutin: ['say', 'main'],
+  jackpot: ['num', 'main', 'sub'],
+  puchun: ['main'],
+};
+
+function checkPuchunTexts(value, preset, where, issues) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    issues.errors.push(`${where}: 演出の字はキーごとの文字で書いてください`);
+    return {};
+  }
+  const allowed = new Set(PUCHUN_TEXT_KEYS[preset] ?? []);
+  const out = {};
+  for (const [key, text] of Object.entries(value)) {
+    if (!allowed.has(key)) {
+      issues.errors.push(`${where}.${key}: 選んだ演出では使えない字です`);
+      continue;
+    }
+    if (typeof text !== 'string') {
+      issues.errors.push(`${where}.${key}: 文字で書いてください`);
+      continue;
+    }
+    if (text.length > 20) {
+      issues.errors.push(`${where}.${key}: 20字以内で書いてください`);
+      continue;
+    }
+    out[key] = text;
+  }
   return out;
 }
 

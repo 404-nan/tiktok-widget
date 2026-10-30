@@ -64,18 +64,27 @@
   // 本体はギフトごとの指示を受け取り、1件ずつ別の演出として再生する。
   if (new URLSearchParams(location.search).get('play') !== '1') {
     const duration = { chance: 2200, cutin: 3800, jackpot: 6500, puchun: 8000 };
+    const queue = [];
+    let playing = false;
+    const playNext = () => {
+      const play = queue.shift();
+      if (!play) { playing = false; return; }
+      playing = true;
+      const query = new URLSearchParams({ preset: play.preset, ratio: play.ratio || 'full', play: '1' });
+      for (const [key, value] of Object.entries(play.texts ?? {})) query.set(key, value);
+      const frame = document.createElement('iframe');
+      frame.className = 'puchun-play';
+      frame.src = `${location.pathname}?${query}`;
+      frame.title = 'パチンコ演出';
+      document.body.append(frame);
+      setTimeout(() => { frame.remove(); playNext(); }, duration[play.preset] ?? 8000);
+    };
     connect({
       puchun(message) {
         const play = message?.play;
         if (!play?.preset) return;
-        const query = new URLSearchParams({ preset: play.preset, ratio: play.ratio || 'full', play: '1' });
-        for (const [key, value] of Object.entries(play.texts ?? {})) query.set(key, value);
-        const frame = document.createElement('iframe');
-        frame.className = 'puchun-play';
-        frame.src = `${location.pathname}?${query}`;
-        frame.title = 'パチンコ演出';
-        document.body.append(frame);
-        setTimeout(() => frame.remove(), duration[play.preset] ?? 8000);
+        queue.push(play);
+        if (!playing) playNext();
       },
     });
   }

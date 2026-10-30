@@ -205,7 +205,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
-    for (const play of puchunPlays(hub.config, e)) hub.broadcast({ type: 'puchun', play });
+    if (entitled('puchuns')) {
+      for (const play of puchunPlays(hub.config, e)) hub.broadcast({ type: 'puchun', play });
+    }
     dareba.record(e);
     throne.onEvent(e);
     mediaAlerts.onEvent(e);
