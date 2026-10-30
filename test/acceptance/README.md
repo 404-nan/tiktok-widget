@@ -21,8 +21,8 @@
 | `cutin-premium.test.js` | カットインのプレミア演出カードの完成条件を確認する |
 | `puchun-gift.test.js` | パチンコ演出をギフトで流すカード(`docs/cards/puchun-gift.md`)の AC-1〜4・6 を確認する。設定の保存、ギフト名・コイン数での選び方、連打の数だけ流れること、初めは使わない状態。実装前は失敗する |
 | `puchun-gift-round2.test.js` | 同じカードの「2巡目」AC-7〜10 を確認する。×200 でも iframe は同時に1個以下で全部流れること、`puchuns` を使えない配信者では流れないこと、`texts` の余計なキー・文字列でない値・20字超は保存が断られること |
-| `puchun-dash-fix.test.js` | パチンコ演出の画面のずれを直すカード(`docs/cards/puchun-dash-fix.md`)の AC-1〜3 を、実ブラウザで確認する。URL の欄が空でないこと・別のタブで流れること、演出の外が白くならないこと(見本と透明の背景)、「配信で使用中」の数がカットインと同じこと。AC-4 は全体テストで確認する |
-| `active-label.test.js` | 「配信で使用中」を「配信ではこれが出る」に直すカード(`docs/cards/active-label.md`)の AC-1〜3 を確認する。`editor.js` のラベルの文字、`docs/words.md` の1行、実ブラウザで新しい配信者のカットインのタブに新しい言葉が1つだけ見え古い言葉が無いこと(playwright が無ければ失敗)。AC-4 は全体テストで確認する。実装前なので今は失敗する |
+| `puchun-dash-fix.test.js` | パチンコ演出の画面のずれを直すカード(`docs/cards/puchun-dash-fix.md`)の AC-1〜3 を、実ブラウザで確認する。URL の欄が空でないこと・別のタブで流れること、演出の外が白くならないこと(見本と透明の背景)、「配信ではこれが出る」の数がカットインと同じこと。AC-4 は全体テストで確認する |
+| `active-label.test.js` | 「配信で使用中」を「配信ではこれが出る」に直すカード(`docs/cards/active-label.md`)の AC-1〜3 を確認する。`editor.js` のラベルの文字、`docs/words.md` の1行、実ブラウザで新しい配信者のカットインのタブに新しい言葉が1つだけ見え古い言葉が無いこと(playwright が無ければ失敗)。AC-4 は全体テストで確認する |
 | `mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確認する |
 | `mc-goal-alert.test.js` / `mc-goal-alert-wiring.test.js` | ゴール接近警報の距離、段階警報、到達、RCON、画面を確認する |
 | `perf-hub.test.js` / `perf-history.test.js` / `perf-cleanup.test.js` | 差分配信、履歴保存、ウィジェット側の後片付けを確認する |

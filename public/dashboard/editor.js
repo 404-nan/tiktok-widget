@@ -942,7 +942,7 @@ export function createEditor({ api, setMessage }) {
     if (payload.config.active?.[tab] === id) {
       const active = document.createElement('span');
       active.className = 'entry-active';
-      active.textContent = '配信で使用中';
+      active.textContent = '配信ではこれが出る';
       box.append(active);
     }
   }
