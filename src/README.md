@@ -63,7 +63,7 @@
 | `roulette.js` | ルーレットを抽選し、結果を配る |
 | `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定する |
 | `rush.js` | RUSH の突入、延長、終了を管理する |
-| `schema.js` | `pushButtons` を含む設定項目・初期値・日本語説明を定義する |
+| `schema.js` | `pushButtons` とカットインの段階ごとの声を含む設定項目・初期値・日本語説明を定義する |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |
 | `slot.js` | スロットの抽選と状態を管理する |
 | `stepup.js` | ステップアップ予告の合計・段階・冷却を管理する |

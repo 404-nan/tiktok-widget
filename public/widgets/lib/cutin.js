@@ -33,6 +33,7 @@ const TIER_DEFAULTS = {
   minCoins: 100, greenCoins: 300, redCoins: 1000, goldCoins: 5000, rainbowCoins: 20000, gifts: [], events: [],
   blueText: 'チャンス', greenText: 'チャンス!!', redText: '激アツ', goldText: '超激アツ', rainbowText: '確定',
   word: true, yieldToImage: false, rouletteWin: true, rouletteWinText: '', slotWin: true, angle: -8, hold: 1.1, shake: 1, freeze: true, lines: true, sound: true, volume: 0.5,
+  blueVoice: '', greenVoice: '', redVoice: '', goldVoice: '', rainbowVoice: '', voiceVolume: 0.8,
 };
 
 /**
@@ -452,6 +453,27 @@ export async function startCutin(section) {
     } catch {}
   };
 
+  // 段階の声は文字が出る直前に1回だけ鳴らす。存在しないメディアでも演出は止めない。
+  function playVoice(tier) {
+    const mediaId = p[`${tier}Voice`];
+    if (!mediaId) return;
+    // 音声の失敗を待たず、カットイン本体の時間軸から切り離す。
+    setTimeout(() => {
+      try {
+        const voice = new Audio(mediaUrl(`/api/media-alerts/${mediaId}/file`));
+        voice.preload = 'auto';
+        voice.volume = Math.max(0, Math.min(1, Number(p.voiceVolume)));
+        const cleanup = () => voice.remove();
+        voice.onended = cleanup;
+        voice.onerror = cleanup;
+        const playing = voice.play();
+        if (playing && playing.catch) playing.catch(cleanup);
+      } catch {
+        // 声の読み込み失敗で、カットイン本体を止めない。
+      }
+    }, 0);
+  }
+
   // --- ガガガガ（揺れ） ---
   async function shake(seconds) {
     const el = $('shaker');
@@ -665,6 +687,7 @@ export async function startCutin(section) {
 
     // 虹: フリーズ（暗転して無音）→ キュイン
     if (job.freeze ?? (tier === 'rainbow' && p.freeze)) await freeze(!result.promoted);
+    playVoice(tier);
 
     // ルーレットの形ごとの当たり（job.look）。スロット台は 7 が1つずつ叩きつけられてから帯が入る
     const look = job.jackpot ? lookOf(job.look) : {};
