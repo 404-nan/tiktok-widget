@@ -34,6 +34,7 @@ export function createWheel(root) {
   const ctx = canvas.getContext('2d');
   let r = null; // 表示中のルーレット
   let images = new Map();
+  let skinImages = {}; // スキンの素材（縁・針など）。名前 → 読み込んだ画像
   let size = 0;
   let rotation = 0;
   let pointerKick = 0;
@@ -75,7 +76,7 @@ export function createWheel(root) {
     const { rim, rad } = skin.geometry(c);
     const now = performance.now();
     const s = {
-      ctx, c, rad, rim, r, now, rotation, lights, pointerKick,
+      ctx, c, rad, rim, r, now, rotation, lights, pointerKick, img: skinImages,
       items: r.items,
       pointerColor: rainbowPointer ? `hsl(${(now / 3) % 360}, 95%, 55%)` : '',
     };
@@ -185,6 +186,12 @@ export function createWheel(root) {
         if (it.src) loadImage(it.src).then((img) => img && (images.set(it.src, img), draw()));
       }
       const skin = skinFor(r.style);
+      skinImages = {};
+      const loading = skinImages;
+      for (const [name, url] of Object.entries(skin.images ?? {})) {
+        // 読み込み中に別の形へ切り替わったら、古い形の画像は使わない
+        loadImage(url).then((img) => img && loading === skinImages && ((skinImages[name] = img), draw()));
+      }
       document.fonts.load(`${skin.weight ?? '900'} 24px ${skin.font ?? FONT}`, `${r.items.map((it) => it.label).join('')}柔`).then(draw, draw);
       resize();
     },

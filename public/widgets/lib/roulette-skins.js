@@ -96,10 +96,83 @@ const plain = {
   },
 };
 
+// ---------------------------------------------------------------- 画像の素材を使う形（カジノ・柔道）
+// 縁・針・中心は画像（public/widgets/img/roulette/<形>/）。扇は布や畳の画像を敷き、項目の文字はコードで描く。
+// 画像は 1200px 四方の盤に合わせて作ってあり（ART が盤の座標）、canvas の FIT 倍の大きさで真ん中に置く。
+// 上のすき間は、針を縁より上から垂らすため。
+
+const ART = 1200;
+const FIT = 0.92;
+const art = (name, file) => new URL(`../img/roulette/${name}/${file}.webp`, import.meta.url).href;
+/** 盤の座標 1px が canvas で何 px か */
+const unit = (c) => (c * 2 * FIT) / ART;
+/** 盤の座標 → canvas の座標 */
+const at = (c, v) => c + (v - ART / 2) * unit(c);
+/** 扇の半径（盤の座標で r px）と縁の太さ。geometry に使う */
+const artGeometry = (c, r) => ({ rad: r * unit(c), rim: c - r * unit(c) });
+
+/** 扇に敷く画像の模様。盤と一緒に回るよう、回転に合わせて模様もずらす */
+function texture(s, img) {
+  if (!img) return null;
+  const p = s.ctx.createPattern(img, 'repeat');
+  p.setTransform(new DOMMatrix().translate(s.c, s.c).rotate((s.rotation * 180) / Math.PI).scale(unit(s.c)));
+  return p;
+}
+
+/** 縁の画像を盤いっぱいに置く */
+function drawRim({ ctx, c }, img) {
+  if (!img) return;
+  ctx.drawImage(img, at(c, 0), at(c, 0), ART * unit(c), ART * unit(c));
+}
+
+/** 中心の飾り。外径 size（盤の座標）で、盤と一緒に回す */
+function drawHub(s, img, size) {
+  if (!img) return;
+  const { ctx, c, rotation } = s;
+  const w = size * unit(c);
+  ctx.save();
+  ctx.translate(c, c);
+  ctx.rotate(rotation);
+  ctx.drawImage(img, -w / 2, -w / 2, w, w);
+  ctx.restore();
+}
+
+/**
+ * 上の針。canvas の上端から垂らし、付け根を軸にペグに当たると少しはじかれる。
+ * w・h は盤の座標での大きさ。確定演出のときは、宝石（jewel: 針の画像の中の楕円）だけを虹色に塗りかえる。
+ */
+function drawPointer(s, img, { w, h, jewel }) {
+  if (!img) return;
+  const { ctx, c, pointerKick, pointerColor } = s;
+  const k = unit(c);
+  ctx.save();
+  ctx.translate(c, 0);
+  ctx.rotate(pointerKick);
+  ctx.scale(k, k);
+  ctx.shadowColor = 'rgba(0, 0, 0, .5)';
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 8;
+  ctx.drawImage(img, -w / 2, 0, w, h);
+  ctx.shadowColor = 'transparent';
+  if (pointerColor && jewel) {
+    ctx.globalCompositeOperation = 'color';
+    ctx.beginPath();
+    ctx.ellipse(jewel.x - w / 2, jewel.y, jewel.rx, jewel.ry, 0, 0, TAU);
+    ctx.fillStyle = pointerColor;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 // ---------------------------------------------------------------- カジノ
 
-const CASINO = { red: '#B3101C', black: '#1A1A1E', green: '#0E6E3C', text: '#FFE9A6' };
-const BULBS = 28;
+const CASINO = { text: '#FFE9A6', line: '#2B1A05' };
+const CASINO_ART = Object.fromEntries(['rim', 'pointer', 'hub', 'tex-red', 'tex-black', 'tex-green'].map((f) => [f, art('casino', f)]));
+// rim.png の縁の真珠（電球）の中心。上の真ん中の右から時計回り（盤の座標）
+const CASINO_BULBS = [
+  [670, 131], [825, 171], [948, 256], [1034, 364], [1088, 490], [1086, 708], [1034, 823], [948, 925], [825, 1008],
+  [373, 1009], [250, 925], [164, 823], [112, 708], [110, 490], [165, 365], [251, 255], [374, 171], [529, 131],
+];
 
 /** 電球の点き方。回っている間は追いかけるように流れ、止まったら全部が点滅する。ふだんは静かに全部点けておく */
 function bulbOn(k, lights, now) {
@@ -112,80 +185,23 @@ const casino = {
   font: '"Dela Gothic One", "Zen Kaku Gothic New", sans-serif',
   weight: '400',
   lights: true,
-  geometry: (c) => ({ rim: 50, rad: c - 52 }),
-  back({ ctx, c, rad, lights, now }) {
-    const outer = c - 2;
-    // 外側のマホガニーの木枠
-    const wood = ctx.createRadialGradient(c, c, rad + 8, c, c, outer);
-    wood.addColorStop(0, '#2A0705');
-    wood.addColorStop(0.45, '#6E1F14');
-    wood.addColorStop(0.8, '#4A120C');
-    wood.addColorStop(1, '#1E0504');
-    disc(ctx, c, outer);
-    ctx.fillStyle = wood;
-    ctx.fill();
-    // 木枠の外周と、扇の外の金の縁
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = gold(ctx, 0, 0, c * 2, c * 2);
-    disc(ctx, c, outer - 1.5);
-    ctx.stroke();
-    ring(ctx, c, rad + 11, rad - 1);
-    ctx.fillStyle = gold(ctx, c - rad, c - rad, c + rad, c + rad);
-    ctx.fill();
-    disc(ctx, c, rad + 11);
-    ctx.strokeStyle = 'rgba(0, 0, 0, .55)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    // 電球
-    const br = (outer + rad + 11) / 2;
-    for (let k = 0; k < BULBS; k++) {
-      const a = (k / BULBS) * TAU - Math.PI / 2;
-      const x = c + Math.cos(a) * br;
-      const y = c + Math.sin(a) * br;
-      const on = bulbOn(k, lights, now);
-      // 台座
-      ctx.beginPath();
-      ctx.arc(x, y, 8.5, 0, TAU);
-      ctx.fillStyle = gold(ctx, x - 9, y - 9, x + 9, y + 9);
-      ctx.fill();
-      if (on) {
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, 17);
-        glow.addColorStop(0, 'rgba(255, 236, 170, .9)');
-        glow.addColorStop(1, 'rgba(255, 190, 60, 0)');
-        ctx.beginPath();
-        ctx.arc(x, y, 17, 0, TAU);
-        ctx.fillStyle = glow;
-        ctx.fill();
-      }
-      const bulb = ctx.createRadialGradient(x - 2, y - 2, 0.5, x, y, 6.5);
-      bulb.addColorStop(0, on ? '#FFFFFF' : '#A88A55');
-      bulb.addColorStop(0.45, on ? '#FFF2B0' : '#6B4C1C');
-      bulb.addColorStop(1, on ? '#F5A623' : '#3A2508');
-      ctx.beginPath();
-      ctx.arc(x, y, 6, 0, TAU);
-      ctx.fillStyle = bulb;
-      ctx.fill();
-    }
-  },
-  fill({ ctx, c, rad }, it, i) {
-    let base;
-    if (!it.autoColor) base = it.fill;
-    else if (it.win) base = CASINO.green;
-    else base = it.order % 2 === 0 ? CASINO.red : CASINO.black;
-    if (!/^#[0-9a-f]{6}$/i.test(base)) return base;
-    // 中心は暗く、外へ向かって明るい（盤のくぼみ）
-    const g = ctx.createRadialGradient(c, c, rad * 0.2, c, c, rad);
-    g.addColorStop(0, shade(base, -0.55));
-    g.addColorStop(0.55, base);
-    g.addColorStop(1, shade(base, 0.12));
-    return g;
+  images: CASINO_ART,
+  // 扇は縁の窓（直径 約 840px）より少し大きく描き、はみ出しは縁の画像で隠す
+  geometry: (c) => artGeometry(c, 432),
+  back() {},
+  fill(s, it) {
+    if (!it.autoColor) return it.fill;
+    const tex = it.win ? 'tex-green' : it.order % 2 === 0 ? 'tex-red' : 'tex-black';
+    return texture(s, s.img[tex]) ?? it.fill;
   },
   ink: (_s, it) => (it.autoColor ? CASINO.text : it.ink),
   overSegments({ ctx, c, rad }) {
-    // 盤の内側の影（縁の金から落ちる影）
-    const g = ctx.createRadialGradient(c, c, rad * 0.82, c, c, rad);
-    g.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    g.addColorStop(1, 'rgba(0, 0, 0, .45)');
+    // 盤のくぼみ: 中心と縁ぎわを暗く
+    const g = ctx.createRadialGradient(c, c, rad * 0.25, c, c, rad);
+    g.addColorStop(0, 'rgba(0, 0, 0, .35)');
+    g.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+    g.addColorStop(0.85, 'rgba(0, 0, 0, 0)');
+    g.addColorStop(1, 'rgba(0, 0, 0, .5)');
     disc(ctx, c, rad);
     ctx.fillStyle = g;
     ctx.fill();
@@ -198,249 +214,90 @@ const casino = {
       ctx.beginPath();
       ctx.moveTo(c + Math.cos(a) * rad * 0.27, c + Math.sin(a) * rad * 0.27);
       ctx.lineTo(x, y);
-      ctx.strokeStyle = '#2B1A05';
+      ctx.strokeStyle = CASINO.line;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.strokeStyle = gold(ctx, c, c, x, y);
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+  },
+  hub: (s) => drawHub(s, s.img.hub, 2 * 432 * 0.27 * (360 / 340)),
+  front(s) {
+    const { ctx, c, lights, now } = s;
+    drawRim(s, s.img.rim);
+    // 点いている電球に光を足す（画像の真珠は消えた状態）
+    if (!s.img.rim) return;
+    const k = unit(c);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    CASINO_BULBS.forEach(([bx, by], i) => {
+      if (!bulbOn(i, lights, now)) return;
+      const x = at(c, bx);
+      const y = at(c, by);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 46 * k);
+      g.addColorStop(0, 'rgba(255, 244, 200, .95)');
+      g.addColorStop(0.35, 'rgba(255, 200, 90, .55)');
+      g.addColorStop(1, 'rgba(255, 150, 30, 0)');
+      ctx.beginPath();
+      ctx.arc(x, y, 46 * k, 0, TAU);
+      ctx.fillStyle = g;
+      ctx.fill();
+    });
+    ctx.restore();
+  },
+  // 針の画像（200×260）を 1.12 倍。先が縁の内側の金を越えて、扇に少しかかる
+  pointer: (s) => drawPointer(s, s.img.pointer, { w: 224, h: 291, jewel: { x: 112, y: 121, rx: 31, ry: 45 } }),
+};
+
+// ---------------------------------------------------------------- 柔道
+
+// 畳（淡い緑と濃い緑）を交互に。当たりは紅。境目は細い金
+const JUDO = { ink: '#17171A', line: '#8A5A1E' };
+const JUDO_ART = Object.fromEntries(['rim', 'pointer', 'hub', 'tex-tatami', 'tex-tatami2', 'tex-beni'].map((f) => [f, art('judo', f)]));
+const JUDO_RAD = 480; // 縁の窓（直径 約 900〜950px）より少し大きく
+
+const judo = {
+  font: '"Dela Gothic One", "Zen Kaku Gothic New", sans-serif',
+  weight: '400',
+  images: JUDO_ART,
+  geometry: (c) => artGeometry(c, JUDO_RAD),
+  back() {},
+  fill(s, it) {
+    if (!it.autoColor) return it.fill;
+    const tex = it.win ? 'tex-beni' : it.order % 2 === 0 ? 'tex-tatami' : 'tex-tatami2';
+    return texture(s, s.img[tex]) ?? it.fill;
+  },
+  ink: (_s, it) => (it.autoColor ? (it.win ? '#FFFFFF' : JUDO.ink) : it.ink),
+  overSegments({ ctx, c, rad }) {
+    // 縁ぎわに落ちる影
+    const g = ctx.createRadialGradient(c, c, rad * 0.8, c, c, rad);
+    g.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    g.addColorStop(1, 'rgba(0, 0, 0, .35)');
+    disc(ctx, c, rad);
+    ctx.fillStyle = g;
+    ctx.fill();
+  },
+  dividers({ ctx, c, rad, items, rotation }) {
+    for (const it of items) {
+      const a = it.start * TAU + rotation;
+      const x = c + Math.cos(a) * rad;
+      const y = c + Math.sin(a) * rad;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = JUDO.line;
       ctx.lineWidth = 4;
       ctx.stroke();
       ctx.strokeStyle = gold(ctx, c, c, x, y);
       ctx.lineWidth = 2;
       ctx.stroke();
-      // 縁の鋲
-      ctx.beginPath();
-      ctx.arc(c + Math.cos(a) * (rad + 5), c + Math.sin(a) * (rad + 5), 4, 0, TAU);
-      ctx.fillStyle = '#FFF4C4';
-      ctx.fill();
-      ctx.strokeStyle = '#6E4B0E';
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
     }
   },
-  hub({ ctx, c, rad, rotation }) {
-    const R = rad * 0.27;
-    // 受け皿（暗い金）→ 金の円盤 → 回る十字の腕
-    disc(ctx, c, R);
-    ctx.fillStyle = '#24170A';
-    ctx.fill();
-    disc(ctx, c, R - 4);
-    ctx.fillStyle = gold(ctx, c - R, c - R, c + R, c + R);
-    ctx.fill();
-    disc(ctx, c, R * 0.62);
-    const inner = ctx.createRadialGradient(c - R * 0.2, c - R * 0.2, 2, c, c, R * 0.62);
-    inner.addColorStop(0, '#FFF4C4');
-    inner.addColorStop(0.5, '#C8962E');
-    inner.addColorStop(1, '#5E3F0B');
-    ctx.fillStyle = inner;
-    ctx.fill();
-    ctx.save();
-    ctx.translate(c, c);
-    ctx.rotate(rotation);
-    for (let k = 0; k < 4; k++) {
-      ctx.rotate(Math.PI / 2);
-      ctx.beginPath();
-      ctx.moveTo(-3, 0);
-      ctx.lineTo(3, 0);
-      ctx.lineTo(2, -R * 0.95);
-      ctx.lineTo(-2, -R * 0.95);
-      ctx.closePath();
-      ctx.fillStyle = gold(ctx, -4, 0, 4, -R);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(0, -R * 0.95, 5.5, 0, TAU);
-      const ball = ctx.createRadialGradient(-2, -R * 0.95 - 2, 0.5, 0, -R * 0.95, 5.5);
-      ball.addColorStop(0, '#FFFFFF');
-      ball.addColorStop(0.5, '#F2CF6B');
-      ball.addColorStop(1, '#6E4B0E');
-      ctx.fillStyle = ball;
-      ctx.fill();
-    }
-    ctx.restore();
-    disc(ctx, c, 7);
-    ctx.fillStyle = '#FFF4C4';
-    ctx.fill();
-  },
-  pointer({ ctx, c, pointerKick, pointerColor }) {
-    ctx.save();
-    ctx.translate(c, 4);
-    ctx.rotate(pointerKick);
-    ctx.shadowColor = 'rgba(0, 0, 0, .55)';
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetY = 4;
-    ctx.beginPath();
-    ctx.moveTo(-22, 0);
-    ctx.lineTo(22, 0);
-    ctx.lineTo(0, 62);
-    ctx.closePath();
-    ctx.fillStyle = gold(ctx, -22, 0, 22, 40);
-    ctx.fill();
-    ctx.shadowColor = 'transparent';
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#4A3008';
-    ctx.stroke();
-    // 赤い宝石（確定演出のときは虹色）
-    ctx.beginPath();
-    ctx.arc(0, 18, 9, 0, TAU);
-    const jewel = ctx.createRadialGradient(-3, 15, 1, 0, 18, 9);
-    jewel.addColorStop(0, '#FFFFFF');
-    jewel.addColorStop(0.35, pointerColor || '#FF3B48');
-    jewel.addColorStop(1, pointerColor ? '#222222' : '#7A0610');
-    ctx.fillStyle = jewel;
-    ctx.fill();
-    ctx.strokeStyle = '#4A3008';
-    ctx.stroke();
-    ctx.restore();
-  },
-  front({ ctx, c, rad }) {
-    // ガラスの映り込み（左上にだけ、回らない）
-    ctx.save();
-    disc(ctx, c, rad);
-    ctx.clip();
-    const g = ctx.createLinearGradient(c - rad, c - rad, c, c);
-    g.addColorStop(0, 'rgba(255, 255, 255, .16)');
-    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.beginPath();
-    ctx.ellipse(c - rad * 0.3, c - rad * 0.45, rad * 0.75, rad * 0.4, -0.6, 0, TAU);
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.restore();
-  },
-};
-
-// ---------------------------------------------------------------- 柔道
-
-// 畳（い草の緑）を2色で交互に。当たりは紅。境目は紺の畳縁
-const JUDO = { igusa: '#B7B46B', igusa2: '#A3A15A', beni: '#C3121E', heri: '#1D2440', ink: '#17171A' };
-
-const judo = {
-  font: '"Dela Gothic One", "Zen Kaku Gothic New", sans-serif',
-  weight: '400',
-  geometry: (c) => ({ rim: 30, rad: c - 32 }),
-  back({ ctx, c, rad }) {
-    const outer = c - 2;
-    // 畳縁（紺地に、細い2本線と白い菱の紋）
-    disc(ctx, c, outer);
-    ctx.fillStyle = JUDO.heri;
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, .28)';
-    ctx.lineWidth = 1.5;
-    for (const k of [outer - 5, rad + 6]) {
-      disc(ctx, c, k);
-      ctx.stroke();
-    }
-    const mid = (outer + rad) / 2 + 0.5;
-    const count = 36;
-    ctx.fillStyle = '#E9E4D4';
-    for (let k = 0; k < count; k++) {
-      const a = (k / count) * TAU;
-      ctx.save();
-      ctx.translate(c + Math.cos(a) * mid, c + Math.sin(a) * mid);
-      ctx.rotate(a);
-      ctx.beginPath();
-      ctx.moveTo(0, -4.5);
-      ctx.lineTo(4.5, 0);
-      ctx.lineTo(0, 4.5);
-      ctx.lineTo(-4.5, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
-  },
-  fill(_s, it) {
-    if (!it.autoColor) return it.fill;
-    if (it.win) return JUDO.beni;
-    return it.order % 2 === 0 ? JUDO.igusa : JUDO.igusa2;
-  },
-  ink: (_s, it) => (it.autoColor ? (it.win ? '#FFFFFF' : JUDO.ink) : it.ink),
-  overSegments({ ctx, c, rad }) {
-    // い草の目: 細い同心円をすき間なく重ねる
-    ctx.save();
-    disc(ctx, c, rad);
-    ctx.clip();
-    ctx.lineWidth = 1;
-    for (let k = rad * 0.14; k < rad; k += 3) {
-      disc(ctx, c, k);
-      ctx.strokeStyle = (k / 3) % 2 < 1 ? 'rgba(60, 52, 10, .16)' : 'rgba(255, 255, 230, .10)';
-      ctx.stroke();
-    }
-    ctx.restore();
-  },
-  dividers({ ctx, c, rad, items, rotation }) {
-    for (const it of items) {
-      const a = it.start * TAU + rotation;
-      ctx.beginPath();
-      ctx.moveTo(c, c);
-      ctx.lineTo(c + Math.cos(a) * rad, c + Math.sin(a) * rad);
-      ctx.strokeStyle = JUDO.heri;
-      ctx.lineWidth = 7;
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(255, 255, 255, .25)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-  },
-  hub({ ctx, c, rad }) {
-    const R = rad * 0.2;
-    // 黒帯の結び目: 結び目から帯の端が2本、ハの字に垂れる（回らない）
-    for (const side of [-1, 1]) {
-      ctx.save();
-      ctx.translate(c + side * R * 0.25, c + R * 0.55);
-      ctx.rotate(side * -0.42);
-      ctx.beginPath();
-      ctx.moveTo(-R * 0.27, 0);
-      ctx.lineTo(R * 0.27, 0);
-      ctx.lineTo(R * 0.27, R * 1.35);
-      ctx.lineTo(-R * 0.27, R * 1.45);
-      ctx.closePath();
-      ctx.fillStyle = '#121214';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, .25)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(-R * 0.12, R * 0.15);
-      ctx.lineTo(-R * 0.12, R * 1.3);
-      ctx.strokeStyle = '#D6A93A';
-      ctx.setLineDash([4, 3]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-    disc(ctx, c, R);
-    ctx.fillStyle = '#121214';
-    ctx.fill();
-    ctx.setLineDash([5, 4]);
-    disc(ctx, c, R - 6);
-    ctx.strokeStyle = '#D6A93A';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.font = `400 ${Math.round(R * 1.05)}px "Dela Gothic One", "Zen Kaku Gothic New", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('柔', c, c + 2);
-  },
-  pointer({ ctx, c, pointerKick, pointerColor }) {
-    // 審判の旗: 白い縁取りの紅い旗
-    ctx.save();
-    ctx.translate(c, 2);
-    ctx.rotate(pointerKick);
-    ctx.beginPath();
-    ctx.moveTo(-20, 0);
-    ctx.lineTo(20, 0);
-    ctx.lineTo(20, 26);
-    ctx.lineTo(0, 52);
-    ctx.lineTo(-20, 26);
-    ctx.closePath();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 9;
-    ctx.strokeStyle = JUDO.ink;
-    ctx.stroke();
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.stroke();
-    ctx.fillStyle = pointerColor || JUDO.beni;
-    ctx.fill();
-    ctx.restore();
-  },
+  hub: (s) => drawHub(s, s.img.hub, 2 * JUDO_RAD * 0.2 * (360 / 340)),
+  front: (s) => drawRim(s, s.img.rim),
+  // 針の画像（200×260）を 1.035 倍。先が縁の内側の金を越えて、扇に少しかかる
+  pointer: (s) => drawPointer(s, s.img.pointer, { w: 207, h: 269, jewel: { x: 103, y: 67, rx: 25, ry: 25 } }),
 };
 
 // ---------------------------------------------------------------- 本格ホイール(テレビの抽選ホイール)

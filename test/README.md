@@ -78,3 +78,5 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
 最後に直した日: 2026-10-21
+
+`roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

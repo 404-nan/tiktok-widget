@@ -54,3 +54,5 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 - `superchat.html`: スパチャ風コメント。コメントの `giftCoins`(その人がこの配信で送ったコイン)が minCoins 以上のものだけを、1件ずつ seconds 秒出す。待ちは20件まで
 - `omikuji.html`: おみくじ。木の筒を振る → 棒が出て「第◯番」→ 紙が開いて運勢と朱印。運勢は大吉〜大凶(大凶は紙が震える)
 - `card-draw.html`: カードめくり。段階(show → shuffle → pick → reveal → done)はサーバーの `src/card-draw.js` が決めて WebSocket の `cardDraw` で送る。表で見せる並びは最初の段階だけ送る
+
+`img/roulette/` は、カジノ・柔道・3本スロットの選択済み画像素材です。
