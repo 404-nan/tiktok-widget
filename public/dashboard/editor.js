@@ -100,6 +100,14 @@ const LABELS = {
   pausedExtend: '一時停止中もギフトで延びる', 'timers.hint': '案内文（空なら自動）', showHint: '案内文と延長の合計を出す',
   'timers.avatars': '延ばした人のアイコン', warnMinutes: '時計を朱にする残り（分）', dangerMinutes: '赤く脈打つ残り（分）', endText: '0 になったときの文字',
 };
+
+// puchun.html の presets.js と同じ順・キーで、ダッシュボードに字の欄を出す。
+const PUCHUN_TEXT_FIELDS = {
+  chance: [{ key: 'main', label: '大きい字', def: 'チャンス!' }, { key: 'sub', label: '帯の字', def: 'ギフトありがとう!' }],
+  cutin: [{ key: 'say', label: 'セリフ', def: 'いくぞ!', max: 14 }, { key: 'main', label: '決めの字', def: '激アツ' }],
+  jackpot: [{ key: 'num', label: 'そろう図柄', def: '777', max: 5 }, { key: 'main', label: '決めの字', def: '大当たり' }, { key: 'sub', label: '帯の字', def: 'ギフトありがとう!' }],
+  puchun: [{ key: 'main', label: '決めの字', def: 'ナイス,ギフト' }],
+};
 // フォームの上に出す、よく使う設定
 const BASIC = {
   alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
@@ -1185,6 +1193,7 @@ export function createEditor({ api, setMessage }) {
       form.append(del);
     }
     if (tab === 'mediaAlerts') form.append(mediaLibrary());
+    if (tab === 'puchuns') form.append(puchunPreviewButton());
     if (tab === 'giftSounds') {
       form.append(giftSoundStatusView({
         dev: devMode,
@@ -1266,6 +1275,7 @@ export function createEditor({ api, setMessage }) {
       return wrap;
     }
     if (field.type === 'gachaPaidRule') return gachaPaidRuleEditor(key, value);
+    if (tab === 'puchuns' && key === 'texts') return puchunTextEditor(value);
     if (field.type === 'slotTrigger') {
       const wrap = document.createElement('div');
       wrap.className = 'field items-field';
@@ -1395,7 +1405,11 @@ export function createEditor({ api, setMessage }) {
     if (field.type === 'enum') {
       control = document.createElement('select');
       for (const v of field.values) control.append(new Option(ENUM_LABELS[`${key}.${v}`] ?? ENUM_LABELS[v] ?? v, v, false, v === value));
-      control.addEventListener('change', () => save(key, control.value));
+      control.addEventListener('change', () => {
+        save(key, control.value);
+        if (tab === 'puchuns' && key === 'preset') setTimeout(render, 200);
+      });
+      if (tab === 'puchuns' && (key === 'preset' || key === 'ratio')) control.dataset[`puchun${key[0].toUpperCase()}${key.slice(1)}`] = '1';
     } else if (field.type === 'color') {
       control = colorControl(value, (v) => save(key, v, 250));
     } else if (field.type === 'list' && field.values) {
@@ -1509,6 +1523,70 @@ export function createEditor({ api, setMessage }) {
     if (control) wrap.append(control);
     if (wrap.hint) wrap.append(wrap.hint);
     return wrap;
+  }
+
+  function puchunTextEditor(value) {
+    const wrap = labelFor('texts', schema.sections.puchuns.fields.texts);
+    const preset = payload.config.puchuns?.[id]?.preset ?? 'puchun';
+    const fields = PUCHUN_TEXT_FIELDS[preset] ?? PUCHUN_TEXT_FIELDS.puchun;
+    const box = document.createElement('div');
+    box.className = 'stack';
+    const texts = value && typeof value === 'object' ? value : {};
+    for (const field of fields) {
+      const label = document.createElement('label');
+      label.className = 'field';
+      label.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: field.label }));
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = field.max ?? 20;
+      input.value = texts[field.key] ?? '';
+      input.placeholder = field.def;
+      input.dataset.puchunText = field.key;
+      input.addEventListener('input', () => {
+        const next = {};
+        for (const item of box.querySelectorAll('[data-puchun-text]')) next[item.dataset.puchunText] = item.value;
+        save('texts', next, 500);
+      });
+      label.append(input);
+      box.append(label);
+    }
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = '空なら見本の字を使います。20字まで。連打は個数ぶん、上限なしで順に流します。';
+    box.append(hint);
+    wrap.append(box);
+    if (wrap.hint) wrap.append(wrap.hint);
+    return wrap;
+  }
+
+  function puchunPreviewButton() {
+    const box = document.createElement('div');
+    box.className = 'field wide';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn primary pressable';
+    button.textContent = '見本';
+    button.addEventListener('click', () => {
+      const widget = currentWidget();
+      const url = new URL(widget?.url ?? `${BASE}/widgets/puchun/puchun.html`, location.origin);
+      const preset = document.querySelector('[data-puchun-preset]')?.value ?? 'puchun';
+      const ratio = document.querySelector('[data-puchun-ratio]')?.value ?? 'full';
+      url.searchParams.set('preset', preset);
+      url.searchParams.set('ratio', ratio);
+      url.searchParams.set('play', '1');
+      url.searchParams.set('preview', '1');
+      for (const input of document.querySelectorAll('[data-puchun-text]')) {
+        if (input.value) url.searchParams.set(input.dataset.puchunText, input.value);
+      }
+      previewUrl = null;
+      $('frame').src = `${url.pathname}${url.search}`;
+      fitPreview([1080, 1920]);
+    });
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = 'いま入力している演出・字・比率を、ダッシュボードの中で1回流します。配信画面には出ません。';
+    box.append(button, hint);
+    return box;
   }
 
   function colorControl(value, onChange) {
