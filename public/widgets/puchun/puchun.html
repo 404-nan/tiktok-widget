@@ -10,6 +10,7 @@
   @font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; src: url(/vendor/fonts/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-700-normal.woff2) format("woff2"); }
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
   canvas { display: block; width: 100vw; height: 100vh; }
+  .puchun-play { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -50,11 +51,34 @@
   Promise.all(ready).then(function () {
     if (q.get('nowarm') !== '1') fx.warm();
     window.fxReady = true;
+    if (q.get('play') !== '1' && !q.has('preset')) return;
     if (q.get('t') != null) return fx.render(+q.get('t'));
     if (q.get('hold') === '1') return;
     (function go() { fx.play(q.get('loop') === '1' ? go : null); })();
   });
 })();
+</script>
+<script type="module">
+  import { connect } from '/widgets/lib/overlay.js';
+
+  // 本体はギフトごとの指示を受け取り、1件ずつ別の演出として再生する。
+  if (new URLSearchParams(location.search).get('play') !== '1') {
+    const duration = { chance: 2200, cutin: 3800, jackpot: 6500, puchun: 8000 };
+    connect({
+      puchun(message) {
+        const play = message?.play;
+        if (!play?.preset) return;
+        const query = new URLSearchParams({ preset: play.preset, ratio: play.ratio || 'full', play: '1' });
+        for (const [key, value] of Object.entries(play.texts ?? {})) query.set(key, value);
+        const frame = document.createElement('iframe');
+        frame.className = 'puchun-play';
+        frame.src = `${location.pathname}?${query}`;
+        frame.title = 'パチンコ演出';
+        document.body.append(frame);
+        setTimeout(() => frame.remove(), duration[play.preset] ?? 8000);
+      },
+    });
+  }
 </script>
 </body>
 </html>

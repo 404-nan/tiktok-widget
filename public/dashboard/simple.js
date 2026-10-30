@@ -11,7 +11,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats']],
   ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts', 'cardDraw']],
-  ['豪華な演出', ['obs', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
+  ['豪華な演出', ['obs', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 
 // 初めて開いた人が選ぶ遊び方。使うものと、足りないときに作る設定をまとめる。
@@ -57,6 +57,7 @@ export const INFO = {
   ootori: { icon: 'crown', desc: 'ラスト10分の最後にギフトを送った人を大トリにする' },
   dareba: { icon: 'sparkles', desc: 'ギフトの勢いが落ちたときに小さな事件を起こす' },
   cutins: { icon: 'zap', desc: '大きいギフトで「激アツ」の帯がドンと入る' },
+  puchuns: { icon: 'sparkles', desc: 'ギフトが来たら、選んだパチンコ演出と字を順に流す' },
   imageCutins: { icon: 'image', desc: '自分の写真が入るカットイン' },
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
   stepup: { icon: 'trending-up', desc: 'みんなのギフトの合計で STEP 1 から STEP 5 まで一段ずつ上がる' },

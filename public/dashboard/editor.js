@@ -17,7 +17,7 @@ import { renderRouletteUrls as renderRouletteUrlBox } from './roulette-urls.js';
 import { createTemplatesView } from './templates.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'imageCutins', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -42,6 +42,7 @@ const ENUM_LABELS = {
   'timeoutMode.random': 'ランダムで引く', 'timeoutMode.streamer': '配信者が選ぶ（押さなければ同じ秒数のあとランダム）',
   'rankSource.manual': '手入力', 'rankSource.live': '配信の順位（無ければ手入力）',
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
+  chance: 'チャンス予告', cutin: 'キャラのカットイン', jackpot: '大当たり', puchun: 'プチュン', full: '全画面',
   'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない',
 };
 // 項目の短い名前（説明は下に小さく出す）
@@ -109,6 +110,7 @@ const BASIC = {
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost', 'word', 'textWeight', 'yieldToImage', 'rouletteWin', 'rouletteWinText', 'slotWin'],
+  puchuns: ['preset', 'ratio', 'texts', 'gifts', 'minCoins', 'maxCoins'],
   imageCutins: ['photo', 'bluePhoto', 'greenPhoto', 'redPhoto', 'goldPhoto', 'rainbowPhoto', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
@@ -1366,6 +1368,25 @@ export function createEditor({ api, setMessage }) {
       });
       wrap.append(input, labelText(key));
       wrap.title = field.desc ?? '';
+      return wrap;
+    }
+
+    if (field.type === 'object') {
+      const control = document.createElement('textarea');
+      control.rows = 4;
+      control.className = 'mono';
+      control.value = JSON.stringify(value ?? {}, null, 2);
+      control.addEventListener('change', () => {
+        try {
+          const next = JSON.parse(control.value);
+          if (!next || Array.isArray(next) || typeof next !== 'object') throw new Error('object');
+          save(key, next);
+        } catch {
+          setMessage('字の形は JSON で入力してください', true);
+        }
+      });
+      wrap.append(control);
+      if (wrap.hint) wrap.append(wrap.hint);
       return wrap;
     }
 

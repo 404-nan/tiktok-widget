@@ -558,7 +558,10 @@ function checkTimerRules(value, where, issues) {
 
 function checkFields(section, raw, where, issues) {
   const { fields } = SCHEMA[section];
-  const out = defaultsFor(section);
+  // puchuns は「設定が無い」状態を空 map として扱うが、作った1件の中身は初期値で補う。
+  const out = section === 'puchuns'
+    ? Object.fromEntries(Object.entries(SCHEMA[section].fields).map(([key, field]) => [key, structuredClone(field.default)]))
+    : defaultsFor(section);
   if (raw == null) return out;
   if (typeof raw !== 'object' || Array.isArray(raw)) {
     issues.errors.push(`${where}: 「項目: 値」の形で書いてください`);
@@ -846,6 +849,10 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
         const size = hasTall && hasStrip ? [820, 680] : hasTall ? [600, 680] : [820, 330];
         out.push({ section, id: '*', title: 'ルーレット（全部）', url: `${base}/widgets/roulette.html`, size });
       }
+      continue;
+    }
+    if (section === 'puchuns') {
+      if (entries.length) out.push({ section, id: '*', title: def.title, url: `${base}/widgets/puchun/puchun.html`, size: def.size({}) });
       continue;
     }
     for (const [id, e] of entries) {

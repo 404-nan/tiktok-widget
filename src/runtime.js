@@ -22,6 +22,7 @@ import { StepupEngine } from './stepup.js';
 import { SwarmEngine } from './swarm.js';
 import { ComboEngine } from './combo.js';
 import { drawCutin } from './cutin-draw.js';
+import { puchunPlays } from './puchun.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
@@ -66,7 +67,7 @@ const timerSeconds = (o) => {
 
 // 管理者が配信者ごとに「使える / 使えない」を決められるもの（ウィジェットと、WIN数の全画面演出・Minecraft 連携）。
 // premium: true の豪華な演出は、最初は使えない。ほかは最初から使える
-const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'ai', 'minecraft', 'combo'];
+const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'ai', 'minecraft', 'combo'];
 const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -204,6 +205,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   bindRouletteActions(hub, bus, actionDeps);
   bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
   hub.on('event', (e) => {
+    for (const play of puchunPlays(hub.config, e)) hub.broadcast({ type: 'puchun', play });
     dareba.record(e);
     throne.onEvent(e);
     mediaAlerts.onEvent(e);
