@@ -1,8 +1,13 @@
 // 高額ギフトなどのガチャ（name='omikuji' ならおみくじ。同じ仕組みで設定・画面・イベント名だけ別）。待機 → 回転 → 結果 → 終了。一度に1回で、重なった分は待ち列。
-// 画面は /widgets/gacha.html。各段階の長さはイベントに載せる。
+// おみくじは回す前に「番号を選ぶ」段階（pick）を入れられる。送った人のコメント / 配信者のボタン / 時間切れでランダム。運勢は番号と関係なく重みで決める。
+// 画面は /widgets/gacha.html・/widgets/omikuji.html。各段階の長さはイベントに載せる。
 
 import { defaultsFor } from './schema.js';
 import { giftDisplayName, giftMatches } from './gifts.js';
+import { pickNumber } from './card-draw.js';
+
+/** おみくじの棒の数（番号は 1〜STICKS） */
+export const STICKS = 10;
 
 
 /**
@@ -43,6 +48,8 @@ export class Gacha {
     this.tier = null;
     this.forced = false;
     this.trigger = null;
+    this.stick = null; // 選ばれた棒の番号
+    this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }（endsAt はサーバーの時計）
     this.durations = durationsOf(this.config);
     this.timers = new Set();
   }
@@ -69,7 +76,25 @@ export class Gacha {
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
       trigger: this.trigger,
+      pick: this.#pickView(),
+      stick: this.stick,
     };
+  }
+
+  /** 画面へ渡す番号待ち。配信 PC の時計とずれても合うよう、締め切りの時刻ではなく残りのミリ秒を渡す */
+  #pickView() {
+    if (!this.pick) return null;
+    const { by, count, endsAt } = this.pick;
+    return { by, count, leftMs: Math.max(0, endsAt - Date.now()) };
+  }
+
+  /** 配信者が番号を選ぶ（配信者の番のときだけ） */
+  choose(n) {
+    if (this.phase !== 'pick' || this.pick?.by !== 'streamer') return { ok: false, error: '今は配信者が番号を選ぶときではありません' };
+    const stick = pickNumber(String(n), this.pick.count);
+    if (!stick) return { ok: false, error: `番号は 1〜${this.pick.count} です` };
+    this.#roll(stick);
+    return { ok: true, stick };
   }
 
   /** オフのときは null。回しているときは待ち列に入れる */
@@ -85,7 +110,16 @@ export class Gacha {
   }
 
   onEvent(e) {
-    if (this.config.enabled === false || e?.kind !== 'gift') return;
+    if (this.config.enabled === false) return;
+    if (e?.kind === 'chat' && this.pick?.by === 'viewer') {
+      // 番号を拾うのは、ギフトを送った本人のコメントだけ
+      const who = this.trigger?.user;
+      const same = who && (e.user?.id ? e.user.id === who.id : e.user?.name === who.name);
+      const stick = same ? pickNumber(e.text, this.pick.count) : null;
+      if (stick) this.#roll(stick);
+      return;
+    }
+    if (e?.kind !== 'gift') return;
     const gifts = Array.isArray(this.config.gifts) ? this.config.gifts : [];
     const min = Number(this.config.minCoins) || 0;
     const byGift = gifts.length > 0 && giftMatches(e.gift, gifts);
@@ -108,14 +142,48 @@ export class Gacha {
 
   #begin(trigger) {
     this.seq += 1;
-    this.phase = 'rolling';
     this.trigger = trigger;
     this.durations = durationsOf(this.config);
+    const mode = this.config.pickMode;
+    // 送った人が分からない（テスト・動作から）ときは、時間切れと同じ扱いにする
+    if (mode === 'viewer' && trigger.user) this.#waitPick('viewer');
+    else if (mode === 'streamer' || (mode === 'viewer' && this.config.timeoutMode === 'streamer')) this.#waitPick('streamer');
+    else this.#roll(this.#randomStick(), true);
+    return { ok: true, queued: false, phase: this.phase, seq: this.seq, durations: { ...this.durations } };
+  }
+
+  /**
+   * 番号を待つ。送った人の時間切れは timeoutMode に従い、配信者の番も時間切れならランダムで引く（止まったままにしない）
+   */
+  #waitPick(by) {
+    const first = this.phase !== 'pick';
+    const seconds = Math.max(1, Number(this.config.pickSeconds) || 10);
+    this.phase = 'pick';
+    this.pick = { by, count: STICKS, endsAt: Date.now() + seconds * 1000 };
+    if (first) this.#emit('start');
+    this.#emit('pick');
+    this.#arm(seconds * 1000, () => {
+      if (this.phase !== 'pick') return;
+      if (by === 'viewer' && this.config.timeoutMode === 'streamer') this.#waitPick('streamer');
+      else this.#roll(this.#randomStick());
+    });
+  }
+
+  #randomStick() {
+    return 1 + Math.floor(this.random() * STICKS);
+  }
+
+  /** 棒が決まったら振って引く。運勢は番号と関係なく、ここで重みで決める */
+  #roll(stick, first = false) {
+    this.close();
+    this.stick = stick;
+    this.pick = null;
+    this.phase = 'rolling';
     const rolled = rollTier(this.config.tiers, this.pityCount, Number(this.config.pity) || 0, this.random);
     this.pityCount = rolled.pityCount;
     this.tier = rolled.tier;
     this.forced = rolled.forced;
-    this.#emit('start');
+    if (first) this.#emit('start');
     this.#emit('rolling');
     this.#arm(this.durations.rollMs, () => {
       if (this.phase !== 'rolling') return;
@@ -131,19 +199,19 @@ export class Gacha {
           this.tier = null;
           this.forced = false;
           this.trigger = null;
+          this.stick = null;
           this.#emit('idle');
           const next = this.pending.shift();
           if (next) this.#begin(next);
         });
       });
     });
-    return { ok: true, queued: false, phase: 'rolling', seq: this.seq, durations: { ...this.durations } };
   }
 
   #emit(name) {
     const show = name === 'reveal' || name === 'done';
     const payload = {
-      phase: name === 'idle' ? 'idle' : name === 'start' ? 'rolling' : this.phase,
+      phase: name === 'idle' ? 'idle' : this.phase,
       seq: this.seq,
       durations: this.durations,
       trigger: this.trigger,
@@ -151,6 +219,8 @@ export class Gacha {
       pending: this.pending.length,
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
+      pick: this.#pickView(),
+      stick: this.stick,
       event: name,
     };
     this.hub.broadcast({ type: this.name, ...payload });
