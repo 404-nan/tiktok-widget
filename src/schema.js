@@ -386,6 +386,12 @@ const cutinFields = () => ({
   lines: bool(true, '集中線を出す'),
   sound: bool(true, '効果音'),
   volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+  blueVoice: str('', '青の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
+  greenVoice: str('', '緑の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
+  redVoice: str('', '赤の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
+  goldVoice: str('', '金の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
+  rainbowVoice: str('', '虹の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
+  voiceVolume: num(0.8, '段階ごとの声の音量（0〜1）', { min: 0, max: 1 }),
 });
 
 SCHEMA.cutins = {

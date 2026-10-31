@@ -22,6 +22,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `acceptance/cheer.test.js` / `cheer-public.test.js` | いいね応援の設定・集計・操作入口・公開コードを確認する |
 | `acceptance/combo.test.js` / `combo-wiring.test.js` / `combo-pre-ship.test.js` | コンボの回数・段階・終了・配線・公開スクリプトを確認する |
 | `acceptance/cutin-premium.test.js` | カットインのプレミア演出カードを確認する |
+| `acceptance/cutin-voice.test.js` | カットインの段階ごとの声を実ブラウザで確認する |
 | `acceptance/info-feed.test.js` | ニュースティッカーと最近のサポーターを確認する |
 | `acceptance/visitors.test.js` | 初見・常連の匿名記録と来場テロップを確認する |
 | `acceptance/perf-hub.test.js` / `perf-history.test.js` / `perf-cleanup.test.js` | WebSocket差分、履歴保存、後片付けを確認する |

@@ -20,6 +20,7 @@
 | `visitors.test.js` | 初見・常連の匿名記録と来場テロップの境界、保存、設定、画面を確認する |
 | `combo.test.js` / `combo-wiring.test.js` / `combo-pre-ship.test.js` | コンボの回数・段階・終了・配線・公開スクリプトを確認する |
 | `cutin-premium.test.js` | カットインのプレミア演出カードの完成条件を確認する |
+| `cutin-voice.test.js` | カットインの段階ごとの声のカード(`docs/cards/cutin-voice.md`)の AC-1〜4 を、実ブラウザ(playwright)で確認する。声が全部空なら音声を読み込まないこと、赤だけ1回鳴ること、昇格では最後の段階の声だけ鳴ること、存在しない mediaId でも最後まで出ること。AC-5〜8 は全体テスト・dev・README で確認する。実装前は失敗する |
 | `puchun-gift.test.js` | パチンコ演出をギフトで流すカード(`docs/cards/puchun-gift.md`)の AC-1〜4・6 を確認する。設定の保存、ギフト名・コイン数での選び方、連打の数だけ流れること、初めは使わない状態。実装前は失敗する |
 | `puchun-gift-round2.test.js` | 同じカードの「2巡目」AC-7〜10 を確認する。×200 でも iframe は同時に1個以下で全部流れること、`puchuns` を使えない配信者では流れないこと、`texts` の余計なキー・文字列でない値・20字超は保存が断られること |
 | `puchun-dash-fix.test.js` | パチンコ演出の画面のずれを直すカード(`docs/cards/puchun-dash-fix.md`)の AC-1〜3 を、実ブラウザで確認する。URL の欄が空でないこと・別のタブで流れること、演出の外が白くならないこと(見本と透明の背景)、「配信ではこれが出る」の数がカットインと同じこと。AC-4 は全体テストで確認する |
