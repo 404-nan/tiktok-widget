@@ -168,6 +168,38 @@ async function refreshPlan() {
   renderPlan(me?.billing);
 }
 
+async function setupAnnouncements() {
+  const data = await api('/api/announcements').catch(() => null);
+  if (!data) return;
+  if (data.version) $('appVersion').textContent = `バージョン ${data.version}`;
+  const items = (data.announcements ?? []).slice(0, 3);
+  if (!items.length) return;
+  if (data.version) $('updatesVersion').textContent = `いまのバージョンは ${data.version} です`;
+  $('updatesPanel').hidden = false;
+  $('updatesList').replaceChildren(...items.map((item) => {
+    const article = document.createElement('article');
+    article.className = 'note';
+    const title = document.createElement('h3');
+    title.textContent = item.title;
+    const date = document.createElement('time');
+    date.dateTime = item.date;
+    date.textContent = item.date;
+    const meta = document.createElement('p');
+    meta.className = 'note-meta';
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = item.typeLabel ?? item.type;
+    const version = document.createElement('span');
+    version.textContent = `バージョン ${item.version}`;
+    meta.append(badge, version);
+    const body = document.createElement('p');
+    body.className = 'note-body';
+    body.textContent = item.body;
+    article.append(title, date, meta, body);
+    return article;
+  }));
+}
+
 async function setupNotes() {
   const me = await api('/api/me').catch(() => null);
   const notes = (await api('/api/notes').catch(() => ({ notes: [] }))).notes ?? [];
@@ -302,6 +334,7 @@ const ingestSection = $('ingestSection');
 if (advancedConnection && ingestSection) advancedConnection.append(ingestSection);
 setupIngest({ api });
 setupNotes();
+setupAnnouncements();
 refreshPlan();
 setupDevTools();
 clearLog();
