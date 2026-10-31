@@ -92,6 +92,7 @@ browserTest('AC-1 カットインの「赤の声」が select で、音声だけ
     const voice = await upload(baseUrl, 'akai-koe.wav', 'audio/wav', WAV);
     await upload(baseUrl, 'tachie-gazo.png', 'image/png', PNG);
     await patch(baseUrl, ['cutins', 'alt'], { minCoins: 50 });
+    await patch(baseUrl, ['active', 'cutins'], 'alt'); // ダッシュボードは使用中のプリセットを開くので揃える
     const page = await openDashboard(browser, baseUrl, 'カットイン');
     const select = await findSelect(page, /赤の声/);
     const texts = await optionTexts(select);
