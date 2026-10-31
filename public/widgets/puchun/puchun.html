@@ -45,7 +45,7 @@
   window.fx = fx;
   window.fxRender = function (t) { fx.render(t); };
 
-  var ready = [document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText), document.fonts.load('700 20px "Zen Kaku Gothic New"', 'ここに立ち絵' + allText)];
+  var ready = [document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText), document.fonts.load('700 20px "Zen Kaku Gothic New"', allText)];
   if (q.get('eyes')) opts.eyes = q.get('eyes').split(',').map(Number);
   if (q.get('char')) ready.push(new Promise(function (ok) { var im = new Image(); im.onload = function () { opts.charImage = im; ok(); }; im.onerror = ok; im.src = q.get('char'); }));
   Promise.all(ready).then(function () {
@@ -71,6 +71,7 @@
       if (!play) { playing = false; return; }
       playing = true;
       const query = new URLSearchParams({ preset: play.preset, ratio: play.ratio || 'full', play: '1' });
+      if (play.charImage) query.set('char', `/api/media-alerts/${play.charImage}/file`);
       for (const [key, value] of Object.entries(play.texts ?? {})) query.set(key, value);
       const frame = document.createElement('iframe');
       frame.className = 'puchun-play';

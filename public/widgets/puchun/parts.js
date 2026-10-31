@@ -375,9 +375,6 @@
       ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(2, 1.1 * u);
       for (var i = 0; i < 12; i++) { ctx.beginPath(); ctx.moveTo((-44 + i * 3) * u, 100 * u); ctx.lineTo((-30 + i * 3) * u, 70 * u); ctx.stroke(); }
     }
-    ctx.fillStyle = mode === 'mono' ? '#000' : 'rgba(44,58,92,.55)';
-    ctx.font = '700 ' + Math.round(5 * u) + 'px "Zen Kaku Gothic New", sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('ここに立ち絵', 0, 88 * u);
     ctx.restore();
   }
   // 立ち絵を1枚の絵にしておく(opts.charImage があればそれ、なければ仮の影)。mono は白黒の2値

@@ -27,6 +27,7 @@ export function puchunPlays(config, event) {
     id: entry.id,
     preset: entry.preset,
     ratio: entry.ratio,
+    charImage: entry.charImage ?? '',
     texts: { ...(entry.texts ?? {}) },
   }));
 }

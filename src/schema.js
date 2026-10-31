@@ -424,6 +424,7 @@ SCHEMA.puchuns = {
   fields: {
     preset: oneOf(['chance', 'cutin', 'jackpot', 'puchun'], 'puchun', '演出。チャンス / カットイン / 大当たり / プチュン'),
     ratio: oneOf(['full', '1:1', '4:3', '16:9'], 'full', '画面の比率'),
+    charImage: str('', '立ち絵の画像（メディアのID。空なら仮の影だけ）'),
     texts: { type: 'object', default: {}, desc: '演出ごとの字。見本にあるキーをそのまま書く' },
     gifts: list([], 'このギフト名または GiftID なら流す。コイン数より先に判定する'),
     minCoins: num(0, 'この合計コイン以上で流す（0 で無効）', { min: 0 }),
