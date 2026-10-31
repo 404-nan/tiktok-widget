@@ -17,6 +17,13 @@ const TTS_BAD_WORDS = [
   '死ね', 'しね', '殺す', 'ころす', '消えろ', 'きもい', 'うざい', 'うぜえ', 'ばか', 'アホ', 'まぬけ',
   'クズ', 'ゴミ', 'くそ', 'くたばれ', '黙れ', '害虫', '無能', '低能', 'ブス', 'しねえ',
 ].map(foldKana);
+// 悪口を中に含むふつうの言葉。先に消してから悪口を探す(「シネマ」「ばかり」を読まなくならないように)
+const TTS_SAFE_WORDS = ['シネマ', 'ばかり', 'ばっかり', 'ばかでかい', 'ゴミ箱', 'ゴミ拾い', 'ゴミ出し'].map(foldKana);
+const hasBadWord = (text) => {
+  let folded = foldKana(text);
+  for (const word of TTS_SAFE_WORDS) folded = folded.split(word).join(' ');
+  return TTS_BAD_WORDS.some((word) => folded.includes(word));
+};
 
 /** 設定から「このコメントを出すか」を決める関数を作る */
 export function chatFilter(p = {}) {
@@ -53,7 +60,7 @@ const MAX_SPEECH = 60; // これより長いコメントは途中まで読む
 /** 読み上げる文。読むものが残らなければ空文字 */
 export function speechText(e, p = {}) {
   const originalText = String(e?.text ?? '');
-  if (p.ttsSkipBadWords === true && TTS_BAD_WORDS.some((word) => foldKana(originalText).includes(word))) return '';
+  if (p.ttsSkipBadWords === true && hasBadWord(originalText)) return '';
   let text = originalText
     .replace(/https?:\/\/\S+/g, ' ')
     .replace(EMOJI, ' ')

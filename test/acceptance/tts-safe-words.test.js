@@ -32,6 +32,9 @@ test('AC-4: 悪口を含まないコメントの読み上げは変わらない',
   const p = settings();
   assert.equal(speechText(chat('こんばんは'), p), 'さくらさん、こんばんは');
   assert.equal(speechText(chat('こんばんは'), settings({ ttsName: false })), 'こんばんは');
+  // 悪口を中に含むふつうの言葉は読む
+  for (const text of ['シネマ行く', '食べてばかり', 'ゴミ箱どこ']) assert.equal(speechText(chat(text), p), `さくらさん、${text}`);
+  assert.equal(speechText(chat('シネマ見てる奴は死ね'), p), '');
 });
 
 // 2巡目

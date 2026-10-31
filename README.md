@@ -301,7 +301,7 @@ roulettes:
 - **コメント欄**: `chats.<名前>` で形（`style: telop` テロップ風 / `bubble` 吹き出し風）、最大件数 `maxItems`、消すまでの秒数 `lifetime`（0 で消さない）、アイコン `avatars`、文字の大きさ `fontSize` を選べます
   - ギフトを送った人: この配信で送ったコインの合計が `gifterCoins` 以上で金の帯 → `bigGifterCoins` 以上で太い金の縁 → `topGifterCoins` 以上で金の面（出たときに一度だけ光が走る）。名前の横に「1,200 コイン」のように合計が出ます（`showCoins: false` で隠す）。合計はサーバーが持っているので、OBS を読み込み直しても変わらず、最近のコメントも続きから出ます。集計をリセットすると合計も 0 に戻ります
   - 隠す: `hideWords`（NG ワード。大文字小文字・全角半角は区別しない）、`hideUsers`（ユーザー ID か名前）、`hideCommands`（「!」「！」で始まるコメント。初期値はオン）
-  - 読み上げ: `tts: true` で、パソコンに入っている日本語の声で読みます（よくある悪口を読まない `ttsSkipBadWords` は初期値オン、速さ `ttsRate`、音量 `ttsVolume`、名前も読む `ttsName`、ギフトを送った人だけ `ttsGiftersOnly`）。「www」は「わら」、「8888」は「ぱちぱち」と読み、絵文字と URL は読みません。コメントが速すぎるときは読み飛ばします。OBS のブラウザソースで声が出ないときは、同じ URL を Chrome などで開いておくと読み上げられます（ダッシュボードのプレビューでは読みません）
+  - 読み上げ: `tts: true` で、パソコンに入っている日本語の声で読みます（よくある悪口を読まない `ttsSkipBadWords` は初期値オン。「シネマ」「ばかり」のように悪口を中に含むふつうの言葉は読む、速さ `ttsRate`、音量 `ttsVolume`、名前も読む `ttsName`、ギフトを送った人だけ `ttsGiftersOnly`）。「www」は「わら」、「8888」は「ぱちぱち」と読み、絵文字と URL は読みません。コメントが速すぎるときは読み飛ばします。OBS のブラウザソースで声が出ないときは、同じ URL を Chrome などで開いておくと読み上げられます（ダッシュボードのプレビューでは読みません）
 - **WIN数**: クリアしたらダッシュボード・モニターのボタンか、URL を開いて +1（Stream Deck の「Webサイト」などに登録すればゲーム中でも押せます）
   - `http://127.0.0.1:3939/api/wins/default/win` … +1 ／ `…/add?value=-1` … -1 ／ `…/undo` … 1つ戻す ／ `…/set?value=5` … 5 にする ／ `…/reset` … 0 にリセット（`default` の所を `all` にすると全部）
   - ギフトで増減: `wins.default.rules` に `{gifts: [Lion], add: -1, text: 妨害成功}`（個数分減る）や `{gifts: [Universe], reset: true}`（0 にリセット）。上から順に最初に合ったものを使います。0 より下（-1 WIN など）まで減り、マイナスの数は赤で出ます（0 で止めたいときは `negative: false`）
