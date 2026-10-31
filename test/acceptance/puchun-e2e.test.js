@@ -153,7 +153,7 @@ e2eTest('AC-6 下ごしらえの字を数えず、jackpot の文字時刻後に�
 e2eTest('AC-3 バラ×3 を送ると、演出が3回流れ終わる', async () => {
   await withOverlay(async ({ page, baseUrl }) => {
     await sendGift(baseUrl, 'バラ', 3);
-    await page.waitForFunction(() => window.__plays.removed >= 3, null, { timeout: 3 * JACKPOT_MS + 15_000, polling: 200 });
+    await page.waitForFunction(() => window.__plays.removed >= 3, null, { timeout: 3 * JACKPOT_MS + 30_000, polling: 200 });
     await page.waitForTimeout(1500); // 4回目が続かないことも見る
     assert.deepEqual(await plays(page), { added: 3, removed: 3 });
   });

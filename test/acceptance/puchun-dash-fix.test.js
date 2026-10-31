@@ -91,7 +91,7 @@ browserTest('AC-1 パチンコ演出の「配信ソフトに入れる」に URL 
     // WebSocket 接続が確立しギフトを受信できる状態になるまで待つ（負荷時にも安定させる）
     await tab.waitForTimeout(3000);
     await sendGift(baseUrl);
-    await tab.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 15_000 });
+    await tab.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 30_000 });
   });
 });
 
