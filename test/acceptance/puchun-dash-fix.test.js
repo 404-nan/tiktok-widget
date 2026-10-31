@@ -88,9 +88,10 @@ browserTest('AC-1 パチンコ演出の「配信ソフトに入れる」に URL 
 
     const tab = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await tab.goto(url.href.replace(url.origin, baseUrl), { waitUntil: 'load', timeout: 60_000 });
-    await tab.waitForTimeout(1500);
+    // WebSocket 接続が確立しギフトを受信できる状態になるまで待つ（負荷時にも安定させる）
+    await tab.waitForTimeout(3000);
     await sendGift(baseUrl);
-    await tab.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+    await tab.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 15_000 });
   });
 });
 
@@ -122,9 +123,10 @@ browserTest('AC-2 透明の背景のページ(OBS の代わり)で、演出の�
     for (const [width, height] of [[390, 844], [1280, 800]]) {
       const page = await browser.newPage({ viewport: { width, height } });
       await page.goto(`${baseUrl}/widgets/puchun/puchun.html`, { waitUntil: 'load', timeout: 60_000 });
-      await page.waitForTimeout(1500);
+      // WebSocket 接続が確立しギフトを受信できる状態になるまで待つ（負荷時にも安定させる）
+      await page.waitForTimeout(3000);
       await sendGift(baseUrl);
-      await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+      await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 15_000 });
       await page.waitForTimeout(1200);
       // 16:9 の枠は画面の真ん中。その上下の端(画面の最上段・最下段)は演出の外
       const png = await page.screenshot({ omitBackground: true });

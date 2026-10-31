@@ -10,7 +10,7 @@
 | `gift-names.js` / `gift-names-ja.js` | ギフト名データ。`gift-names-ja.js` はスクリプトが作る |
 | `gift-name.js` | ES5ウィジェット用のギフト名の引き方 |
 | `brush.js` | 筆でかすれた帯や木炭の線の描画 |
-| `chat.js` | コメント欄の表示対象と読み上げの決まり |
+| `chat.js` | コメント欄の表示対象と読み上げ（よくある悪口の初期除外を含む）の決まり |
 | `vessels.js` | ギフト瓶の入れ物の形 |
 | `sha256.js` | OBS WebSocketのパスワード認証用ES5 SHA-256 |
 | `cutin.js` | カットインの動き、段階色、段階ごとの声、ルーレットの当たり、スロット大当たり |

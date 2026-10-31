@@ -93,6 +93,7 @@ export const SCHEMA = {
       hideUsers: list([], 'このユーザー（ID か名前）のコメントは出さない'),
       hideCommands: bool(true, '「!」で始まるコメント（ボットへのコマンド）を出さない'),
       tts: bool(false, 'コメントを読み上げる（パソコンに入っている日本語の声）'),
+      ttsSkipBadWords: bool(true, 'よくある悪口や「死ね」などは読み上げない'),
       ttsRate: num(1.1, '読み上げの速さ（1 がふつう）', { min: 0.5, max: 2 }),
       ttsVolume: num(1, '読み上げの音量（0〜1）', { min: 0, max: 1 }),
       ttsName: bool(true, '名前も読む（「さくらさん、こんばんは」）'),

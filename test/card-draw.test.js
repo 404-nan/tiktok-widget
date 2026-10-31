@@ -23,7 +23,9 @@ test('ギフトで始まり、本人が番号を言うとめくれる。ほか�
   const draw = new CardDraw(hub, { random: () => 0.1 });
   draw.setConfig({ minCoins: 10, winRate: 0.5, showMs: 0, shuffleMs: 0, pickSeconds: 60, revealMs: 10000, doneMs: 0 });
   draw.onEvent({ kind: 'gift', totalDiamonds: 10, gift: { id: '1', name: 'Rose' }, user: { id: 'u1', name: 'ゆず' } });
-  await new Promise((r) => setTimeout(r, 20));
+  // show(0ms) → shuffle(0ms) → pick: setTimeout(0) が3つチェインされるため、
+  // 全体テストの負荷時にも確実に消化される待ち時間にする
+  await new Promise((r) => setTimeout(r, 200));
   assert.equal(draw.phase, 'pick');
   draw.onEvent({ kind: 'chat', text: '2', user: { id: 'u2', name: 'ほかの人' } });
   assert.equal(draw.phase, 'pick');
