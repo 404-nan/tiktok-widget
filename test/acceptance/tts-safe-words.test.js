@@ -1,5 +1,6 @@
 // 読み上げで、よくある悪口を最初から読まない(docs/cards/tts-safe-words.md)の受け入れテスト。
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { defaultsFor } from '../../src/schema.js';
 import { chatFilter, speechText } from '../../public/widgets/lib/chat.js';
@@ -31,4 +32,16 @@ test('AC-4: 悪口を含まないコメントの読み上げは変わらない',
   const p = settings();
   assert.equal(speechText(chat('こんばんは'), p), 'さくらさん、こんばんは');
   assert.equal(speechText(chat('こんばんは'), settings({ ttsName: false })), 'こんばんは');
+});
+
+// 2巡目
+test('AC-7: /api/config が失敗して chat.html のフォールバック設定で動くときも、「死ね」は読まない', () => {
+  // 設定の取得に失敗すると、setupWidget は chat.html に書かれたフォールバックをそのまま使う
+  const html = readFileSync(new URL('../../public/widgets/chat.html', import.meta.url), 'utf8');
+  const literal = html.match(/setupWidget\('chats',\s*(\{[\s\S]*?\n\s*\})\s*\)/)?.[1];
+  assert.ok(literal, 'chat.html に setupWidget("chats", {...}) のフォールバックが見つからない');
+  const fallback = new Function(`return (${literal});`)();
+  assert.equal(fallback.ttsSkipBadWords, true);
+  const p = { ...fallback, tts: true };
+  assert.equal(speechText(chat('お前は死ね'), p), '');
 });
