@@ -3,13 +3,10 @@
 // 本番(3939)は使わず、一時の設定・一時のポートでサーバーを立てる。playwright が無い環境では飛ばさず失敗にする。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 import { startLocalServer } from '../../scripts/perf/lib/process.mjs';
 
 const root = new URL('../../', import.meta.url).pathname;
 const PLAYWRIGHT = '/home/lul/ruu-work/tw/node_modules/playwright/index.mjs';
-const SHOT = path.join(root, 'artifacts/shots/puchun-char.png');
 // 立ち絵として分かる小さな画像(64×64、ふちが青緑・まん中が赤)
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAcElEQVR42u3aMREAIAwEwch5/4MIXAUBVKko2OIMbH2VvfrnCgAAAAAAAAAAAAAAAAAAAAAwrpOnAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMEgAAAAAAAAAAAAAAAAAAAACAqwMHBt5ZHrAf2QAAAABJRU5ErkJggg==', 'base64');
 const MISSING = 'deadbeefdeadbeef';
@@ -166,12 +163,10 @@ browserTest('AC-2 実ブラウザで、charImage の画像が iframe から読�
       const file = `/api/media-alerts/${media.id}/file`;
       await page.waitForFunction((needle) => window.__char.images.some((draw) => draw.src.includes(needle) && draw.dw > 0 && draw.dh > 0), file, { timeout: 15_000, polling: 100 });
       assert.ok(requested.some((url) => url.includes(file)), 'iframe が画像を読みに行っていません');
-      // 画像は下ごしらえで1枚の絵にされる。再生中にその絵が貼られてから撮る(下ごしらえの時に撮ると画面は空)
-      await page.waitForFunction((needle) => window.__char.arts.some((draw) => draw.src.includes(needle) && !draw.warming), file, { timeout: 15_000, polling: 100 });
-      await page.waitForTimeout(300);
-      fs.mkdirSync(path.dirname(SHOT), { recursive: true });
-      await page.screenshot({ path: SHOT });
-      assert.ok(fs.statSync(SHOT).size > 0, '画面の写真が空です');
+      // 画像は下ごしらえで1枚の絵にされ、再生中に貼られる。貼られたことまでを確かめる。
+      // 画面の写真はここでは撮らない: 頭なしのブラウザは WebGL の画面を2枚目から真っ黒に撮る(2026-10-31 に確かめた)。
+      // 写真の証拠は puchun.html?preset=cutin&play=1&char=… を開いて最初の1枚で撮る(カードの末尾)
+      await page.waitForFunction((needle) => window.__char.arts.some((draw) => draw.src.includes(needle) && !draw.warming), file, { timeout: 15_000, polling: 50 });
     } finally {
       await page.close();
     }
