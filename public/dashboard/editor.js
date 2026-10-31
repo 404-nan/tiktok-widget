@@ -93,7 +93,7 @@ const LABELS = {
   fontSize: '文字の大きさ（px）', highlight: 'ギフトした人のコメントを目立たせる', showCoins: '送ったコインの合計を出す',
   gifterCoins: '目立たせるコイン（1段目・金の帯）', bigGifterCoins: '2段目（金の縁）のコイン', topGifterCoins: '3段目（金の面）のコイン',
   hideWords: 'NG ワード（カンマ区切り）', hideUsers: '隠すユーザー（ID か名前、カンマ区切り）', hideCommands: '「!」で始まるコマンドを隠す',
-  tts: '読み上げる', ttsRate: '読み上げの速さ', ttsVolume: '読み上げの音量', ttsName: '名前も読む', ttsGiftersOnly: 'ギフトした人だけ読み上げる',
+  tts: '読み上げる', ttsSkipBadWords: '悪口は読み上げない', ttsRate: '読み上げの速さ', ttsVolume: '読み上げの音量', ttsName: '名前も読む', ttsGiftersOnly: 'ギフトした人だけ読み上げる',
   'timers.title': '見出し', startMinutes: '初めの時間（分）', maxHours: '上限（時間。0 で上限なし）', coinSeconds: '1 コインで延びる秒数',
   'timers.minCoins': '延びる最低コイン', 'timers.rules': '指定のギフトで延ばす（YAML）', followSeconds: 'フォローで延びる秒数',
   shareSeconds: 'シェアで延びる秒数', likeEvery: 'いいね何回ごとに延ばすか（0 で延ばさない）', likeSeconds: 'いいねで延びる秒数',

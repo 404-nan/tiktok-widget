@@ -141,7 +141,7 @@
     style: 'telop', maxItems: 8, lifetime: 60, avatars: true, fontSize: 22, color: 'accent',
     highlight: true, showCoins: true, gifterCoins: 1, bigGifterCoins: 1000, topGifterCoins: 10000,
     hideWords: [], hideUsers: [], hideCommands: true,
-    tts: false, ttsRate: 1.1, ttsVolume: 1, ttsName: true, ttsGiftersOnly: false,
+    tts: false, ttsSkipBadWords: true, ttsRate: 1.1, ttsVolume: 1, ttsName: true, ttsGiftersOnly: false,
   });
   // ダッシュボードのプレビュー（?sound=0）では読み上げない
   const muted = new URLSearchParams(location.search).get('sound') === '0';
