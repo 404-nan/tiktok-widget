@@ -351,12 +351,19 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json({ ok: true });
   });
 
-  r.get('/api/me', (req, res) => {
+  // /api/me と、その更新系（widgets / template / guide / name）で返す形をそろえる。
+  // ダッシュボードは更新の返事で画面の状態（me）を丸ごと入れ替えるので、
+  // features が欠けた返事を受けると「使えるもの」の判定が全部ずれて、カードが消えてしまう。
+  const meJson = (req) => {
     const me = info();
     const tenant = me.mode === 'tenant';
     const features = tenant ? Object.fromEntries(Object.entries(FEATURES).filter(([key]) => entitled(key))) : FEATURES;
     const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
-    res.json({ ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) });
+    return { ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) };
+  };
+
+  r.get('/api/me', (req, res) => {
+    res.json(meJson(req));
   });
   r.get('/api/env', (req, res) => {
     const dev = isDevEnv(req);
@@ -368,19 +375,19 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w) && entitled(w)) : null;
     if (!list) return res.status(400).json({ error: 'widgets を一覧で送ってください' });
     setWidgets(list);
-    res.json({ ok: true, ...info() });
+    res.json({ ok: true, ...meJson(req) });
   });
   r.put('/api/me/template', (req, res) => {
     if (!setTemplate) return res.status(400).json({ error: '1人で使うときは遊び方を選びません' });
-    try { setTemplate(req.body?.template); res.json({ ok: true, ...info() }); } catch (err) { res.status(400).json({ error: err.message }); }
+    try { setTemplate(req.body?.template); res.json({ ok: true, ...meJson(req) }); } catch (err) { res.status(400).json({ error: err.message }); }
   });
   r.put('/api/me/guide', (req, res) => {
     if (!setGuideDone) return res.status(400).json({ error: '1人で使うときは案内を保存しません' });
-    try { setGuideDone(req.body?.done !== false); res.json({ ok: true, ...info() }); } catch (err) { res.status(400).json({ error: err.message }); }
+    try { setGuideDone(req.body?.done !== false); res.json({ ok: true, ...meJson(req) }); } catch (err) { res.status(400).json({ error: err.message }); }
   });
   r.put('/api/me/name', (req, res) => {
     if (!setDisplayName) return res.status(400).json({ error: 'この画面では表示名を変更できません' });
-    try { setDisplayName(req.body?.name); res.json({ ok: true, ...info() }); } catch (err) { res.status(400).json({ error: err.message }); }
+    try { setDisplayName(req.body?.name); res.json({ ok: true, ...meJson(req) }); } catch (err) { res.status(400).json({ error: err.message }); }
   });
 
   r.get('/api/status', (_req, res) => {
