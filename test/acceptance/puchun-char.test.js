@@ -64,7 +64,7 @@ const INIT = () => {
       } else if (source && source.__charImageSrc) {
         rec.arts.push({
           src: source.__charImageSrc, dx: args[0], dy: args[1], dw: args[2] ?? source.width, dh: args[3] ?? source.height,
-          canvas: this.canvas.id, cw: this.canvas.width, ch: this.canvas.height, at: performance.now(),
+          canvas: this.canvas.id, cw: this.canvas.width, ch: this.canvas.height, at: performance.now(), warming: Boolean(window.fx?.warming),
         });
         if (!this.canvas.__charImageSrc) this.canvas.__charImageSrc = source.__charImageSrc;
       }
@@ -166,7 +166,9 @@ browserTest('AC-2 実ブラウザで、charImage の画像が iframe から読�
       const file = `/api/media-alerts/${media.id}/file`;
       await page.waitForFunction((needle) => window.__char.images.some((draw) => draw.src.includes(needle) && draw.dw > 0 && draw.dh > 0), file, { timeout: 15_000, polling: 100 });
       assert.ok(requested.some((url) => url.includes(file)), 'iframe が画像を読みに行っていません');
-      await page.waitForTimeout(900); // 立ち絵が出ているところを撮る
+      // 画像は下ごしらえで1枚の絵にされる。再生中にその絵が貼られてから撮る(下ごしらえの時に撮ると画面は空)
+      await page.waitForFunction((needle) => window.__char.arts.some((draw) => draw.src.includes(needle) && !draw.warming), file, { timeout: 15_000, polling: 100 });
+      await page.waitForTimeout(300);
       fs.mkdirSync(path.dirname(SHOT), { recursive: true });
       await page.screenshot({ path: SHOT });
       assert.ok(fs.statSync(SHOT).size > 0, '画面の写真が空です');
