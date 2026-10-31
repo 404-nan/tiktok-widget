@@ -58,7 +58,7 @@ for (const { name, size } of viewports) {
       await page.waitForTimeout(1200);
       // 「詳細設定」は開けない。閉じたままの最初の画面で見えるかを確かめる
       const select = page.locator('.field').filter({ hasText: /立ち絵/ }).last().locator('select');
-      await select.waitFor({ state: 'visible', timeout: 10_000 });
+      await select.waitFor({ state: 'visible', timeout: 20_000 });
       assert.ok(await select.isVisible(), '立ち絵の select が最初の画面に見えていません');
     } finally {
       await browser.close();

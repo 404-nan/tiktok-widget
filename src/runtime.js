@@ -48,6 +48,8 @@ import { GiftCatalog, bundledGifts, mergeGiftCatalog, bundledCoinCount } from '.
 import { EulerUsage } from './euler-usage.js';
 import { giftNamesDocument, lookupGiftJa } from './gift-display.js';
 import { isDevEnv } from './env.js';
+import { PRODUCT_VERSION } from './version.js';
+import { listAnnouncements } from './announcements.js';
 import { Ingest } from './ingest.js';
 import { getTemplate, previewTemplate, templateList } from './templates.js';
 import { InfoFeed } from './info-feed.js';
@@ -370,6 +372,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     res.json({ dev, environment: dev ? 'dev' : 'prod' });
   });
   r.get('/api/notes', (_req, res) => res.json({ notes: notes?.list?.() ?? [] }));
+  // 製品の更新お知らせ（バージョン付き）。データはコードと一緒に版管理する src/announcements.json。
+  r.get('/api/announcements', (_req, res) => res.json({ version: PRODUCT_VERSION, announcements: listAnnouncements() }));
   r.put('/api/me/widgets', (req, res) => {
     if (!setWidgets) return res.status(400).json({ error: '1人で使うときは選べません（全部使えます）' });
     const list = Array.isArray(req.body?.widgets) ? req.body.widgets.filter((w) => SECTIONS.includes(w) && entitled(w)) : null;

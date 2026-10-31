@@ -1460,6 +1460,8 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .note h3 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.6; }
 .note time { font-size: 14px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .note-body { grid-column: 1 / -1; margin: 0; font-size: 14px; color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-meta { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s-2); margin: 0; font-size: 14px; color: var(--text-secondary); }
+.app-footer { padding: var(--s-4); text-align: center; font-size: 12px; color: var(--text-secondary); }
 
 /* テスト送信: 入力欄は同じ幅、ボタンは同じ大きさで横に並べる */
 .dev-panel > .stack { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--card-pad-y) var(--card-pad-x); }

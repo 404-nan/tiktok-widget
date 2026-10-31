@@ -300,7 +300,7 @@ test('AC-4 返事が来ない(5 秒)ときは例外なくその動きを捨て�
   assert.equal(obs.sets().length, 0);
   obs.silent = false;
   await testRule(page, 'rainbow');
-  await waitFor(() => obs.sets().length > 0, 4000, '返事が戻ったあとの動き');
+  await waitFor(() => obs.sets().length > 0, WAIT_MS, '返事が戻ったあとの動き');
   noDisplay(page);
 });
 

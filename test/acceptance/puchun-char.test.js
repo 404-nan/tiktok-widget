@@ -156,6 +156,7 @@ browserTest('AC-2 実ブラウザで、charImage の画像が iframe から読�
     try {
       await sendGift(baseUrl);
       await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+      await page.waitForFunction(() => document.querySelector('iframe.puchun-play')?.src, null, { timeout: 15_000, polling: 100 });
       const src = await iframeSrc(page);
       assert.ok(src, '演出の iframe の URL がありません');
       assert.equal(new URL(src).searchParams.get('char'), `/api/media-alerts/${media.id}/file`, 'iframe に charImage の画像を渡していません');

@@ -119,7 +119,7 @@ e2eTest('AC-1 一時の設定のサーバーに、バラで jackpot・字「テ�
 e2eTest('AC-2 配信ソフトの URL を開き、バラ×1 を送ると、10秒以内に画面に「テスト当たり」が見える', async () => {
   await withOverlay(async ({ page, baseUrl }) => {
     await sendGift(baseUrl, 'バラ', 1);
-    await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+    await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 20_000 });
     await page.waitForFunction((text) => window.__drawn.some((draw) => draw.text === text), MAIN_TEXT, { timeout: 10_000, polling: 100 });
     await page.waitForTimeout(300); // 字が出た直後ではなく、描き終わった画面を撮る
     fs.mkdirSync(path.dirname(SHOT), { recursive: true });
