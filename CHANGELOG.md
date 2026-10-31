@@ -12,3 +12,4 @@
 - tts-safe-words: 読み上げで、よくある悪口を最初から読まない
 - shots-nested-slow: ふだんの npm test の中で npm test 全部をもう1回走らせない(全体を写して確かめるのは SHOTS_TMP_FULL=1 のときだけ)
 - shots-tmp: テストを走らせても repo の中のファイルが変わらないようにする
+- shots-nested-slow: npm test の中で npm test 全部をもう1回走らせない
