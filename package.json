@@ -10,7 +10,7 @@
     "demo": "node server.js --demo",
     "tw": "node bin/tw.js",
     "mcp": "node mcp/server.js",
-    "test": "node --test"
+    "test": "node --test --test-concurrency=1"
   },
   "engines": {
     "node": ">=20"
