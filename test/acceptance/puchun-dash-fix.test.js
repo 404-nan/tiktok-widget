@@ -143,6 +143,9 @@ browserTest('AC-3 「配信ではこれが出る」は、配信につないで�
     await patch(baseUrl, ['cutins', 'alt'], { minCoins: 50 });
     await addPuchuns(baseUrl);
     await patch(baseUrl, ['puchuns', 'b'], { preset: 'chance', minCoins: 100 });
+    // 「使っているもの」は使用中の種類を開くので、どちらも使用中を最後の種類にして条件を揃える
+    await patch(baseUrl, ['active', 'cutins'], 'alt');
+    await patch(baseUrl, ['active', 'puchuns'], 'b');
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const countOn = async (title) => {
       await openWidget(page, baseUrl, title);

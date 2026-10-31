@@ -367,7 +367,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   /** カードを押した: 使っていなければ使うものに足して、設定を開く */
-  async function openCard(section, { newest = false } = {}) {
+  async function openCard(section, { activeId } = {}) {
     if (isTenant() && section !== 'theme' && !me.widgets.includes(section)) {
       try {
         me = await api('/api/me/widgets', { widgets: [...me.widgets, section] }, 'PUT');
@@ -378,7 +378,9 @@ export function createEditor({ api, setMessage }) {
     }
     view = 'detail';
     const ids = entriesOf(section);
-    select(section, newest && ids.length ? ids[ids.length - 1] : undefined);
+    // 明示された使用中のプリセットを開く。default は未指定時の既定なので、新しく足した種類を開く。
+    const preferredId = activeId && activeId !== 'default' ? activeId : ids[ids.length - 1];
+    select(section, ids.includes(preferredId) ? preferredId : undefined);
     $('widgetsPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
@@ -769,7 +771,7 @@ export function createEditor({ api, setMessage }) {
       const activeId = payload.config.active?.[t];
       const preset = activeId && payload.config[t]?.[activeId] ? (payload.config[t][activeId].kindName || payload.config[t][activeId].name || '') : '';
       open.append(icon(INFO[t]?.icon ?? 'square'), Object.assign(document.createElement('span'), { className: 'home-used-name', textContent: schema.sections[t].title }), Object.assign(document.createElement('span'), { className: 'hint', textContent: preset }));
-      open.addEventListener('click', () => openCard(t, { newest: true }));
+      open.addEventListener('click', () => openCard(t, { activeId }));
       const w = payload.widgets.find((x) => x.section === t && (x.id === activeId || x.id === '*' || !x.id));
       li.append(open);
       if (w?.url) {
