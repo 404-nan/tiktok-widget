@@ -87,7 +87,8 @@ async function withPage(settings, fn) {
     const show = async (message) => {
       const before = await page.evaluate(() => window.__stageSeen.ended);
       await page.evaluate((m) => window.__sockets.forEach((s) => s.onmessage({ data: JSON.stringify(m) })), message);
-      await page.waitForFunction((n) => window.__stageSeen.ended > n, before, { timeout: 20_000 });
+      // 全体の直列実行で負荷が高いと、単独6秒が20秒を超えた(2026-10-31)。止まったかどうかは60秒でも分かる
+      await page.waitForFunction((n) => window.__stageSeen.ended > n, before, { timeout: 60_000 });
       await page.waitForTimeout(500); // 遅れて鳴るもの・読み込みを待つ
     };
     const plays = () => page.evaluate(() => window.__plays.slice());
