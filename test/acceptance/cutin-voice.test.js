@@ -82,13 +82,13 @@ async function withPage(settings, fn) {
     await page.route(/\/api\/media-alerts\/aaaa0000000\d\/file/, (route) => route.fulfill({ status: 200, contentType: 'audio/wav', body: WAV }));
     await page.addInitScript(INIT);
     await page.goto(`${server.baseUrl}/widgets/cutin.html`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await page.waitForFunction(() => window.__sockets.length > 0, null, { timeout: 30_000 });
+    // 1本目は cutin.html の名前つき妨害の接続。カットインの接続は設定を読んだあとの2本目で、それより前に送ると無視される
+    await page.waitForFunction(() => window.__sockets.length >= 2, null, { timeout: 30_000 });
     // 1つ出して、帯が入り、抜けて、画面が元に戻るまで待つ
     const show = async (message) => {
       const before = await page.evaluate(() => window.__stageSeen.ended);
       await page.evaluate((m) => window.__sockets.forEach((s) => s.onmessage({ data: JSON.stringify(m) })), message);
-      // 全体の直列実行で負荷が高いと、単独6秒が20秒を超えた(2026-10-31)。止まったかどうかは60秒でも分かる
-      await page.waitForFunction((n) => window.__stageSeen.ended > n, before, { timeout: 60_000 });
+      await page.waitForFunction((n) => window.__stageSeen.ended > n, before, { timeout: 20_000 });
       await page.waitForTimeout(500); // 遅れて鳴るもの・読み込みを待つ
     };
     const plays = () => page.evaluate(() => window.__plays.slice());
