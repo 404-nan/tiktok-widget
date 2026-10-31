@@ -1,6 +1,6 @@
 // カード docs/cards/puchun-e2e.md の AC-1〜5 を、本物のサーバーと実ブラウザで通しで確かめる受け入れテスト。
 // 一時の設定でサーバーを別ポートに立て、ギフトは「試しのイベント」(/api/simulate)で送る。本番(3939)は使わない。
-// 画面に出た字は canvas の中なので、画面の中で fillText が呼ばれた字を外から記録して数える(本番コードは足さない)。
+// 画面に出た字は canvas の中なので、画面の中で fillText と、その字の canvas を貼る drawImage を外から記録する(本番コードは足さない)。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -63,8 +63,20 @@ async function openOverlay(browser, baseUrl) {
     top.__drawn = top.__drawn ?? [];
     const original = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function fillText(text, ...rest) {
-      top.__drawn.push(String(text));
+      top.__drawn.push({ text: String(text), warming: Boolean(window.fx?.warming), at: performance.now() });
+      this.canvas.__text = String(text);
       return original.call(this, text, ...rest);
+    };
+    // 字は下ごしらえで別の canvas に1回だけ描かれ、再生中はその canvas を drawImage で貼る。
+    // 字の canvas から作った canvas にも同じ字の印を付け、再生中に貼られたら「再生中の字」として数える
+    const originalDraw = CanvasRenderingContext2D.prototype.drawImage;
+    CanvasRenderingContext2D.prototype.drawImage = function drawImage(source, ...rest) {
+      const text = source?.__text;
+      if (text) {
+        if (window.fx?.warming) this.canvas.__text = text;
+        else top.__drawn.push({ text, warming: false, at: performance.now() });
+      }
+      return originalDraw.call(this, source, ...rest);
     };
   });
   await page.goto(await dashboardWidgetUrl(baseUrl, 'rose'), { waitUntil: 'load', timeout: 60_000 });
@@ -106,8 +118,30 @@ e2eTest('AC-2 配信ソフトの URL を開き、バラ×1 を送ると、10秒�
   await withOverlay(async ({ page, baseUrl }) => {
     await sendGift(baseUrl, 'バラ', 1);
     await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
-    await page.waitForFunction((text) => window.__drawn.includes(text), MAIN_TEXT, { timeout: 10_000, polling: 100 });
+    await page.waitForFunction((text) => window.__drawn.some((draw) => draw.text === text), MAIN_TEXT, { timeout: 10_000, polling: 100 });
     await page.waitForTimeout(300); // 字が出た直後ではなく、描き終わった画面を撮る
+    fs.mkdirSync(path.dirname(SHOT), { recursive: true });
+    await page.screenshot({ path: SHOT });
+    assert.ok(fs.statSync(SHOT).size > 0, '画面の写真が空です');
+  });
+});
+
+e2eTest('AC-6 下ごしらえの字を数えず、jackpot の文字時刻後に見えている canvas を撮る', async () => {
+  await withOverlay(async ({ page, baseUrl }) => {
+    await sendGift(baseUrl, 'バラ', 1);
+    await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+    await page.waitForTimeout(3500); // jackpot の文字時刻(3.15秒)を過ぎてから見る
+    const frame = page.frames().find((candidate) => candidate !== page.mainFrame() && candidate.url().includes('/widgets/puchun/puchun.html'));
+    assert.ok(frame, '演出の iframe が見つかりません');
+    const evidence = await frame.evaluate(() => {
+      const canvas = document.getElementById('fx');
+      return { visible: canvas.toDataURL() !== document.createElement('canvas').toDataURL(), ready: window.fxReady === true };
+    });
+    const draws = await page.evaluate((text) => window.__drawn.filter((draw) => draw.text === text), MAIN_TEXT);
+    assert.ok(draws.some((draw) => draw.warming), '下ごしらえで字が描かれていません');
+    assert.ok(draws.some((draw) => !draw.warming), '再生中の字を数えられません');
+    assert.ok(evidence.ready && evidence.visible, '文字時刻後の見えている canvas が空です');
+
     fs.mkdirSync(path.dirname(SHOT), { recursive: true });
     await page.screenshot({ path: SHOT });
     assert.ok(fs.statSync(SHOT).size > 0, '画面の写真が空です');
