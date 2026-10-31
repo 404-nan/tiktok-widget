@@ -170,7 +170,17 @@ export function createEditor({ api, setMessage }) {
   let testVoteParticipant = 0;
   let alertMedia = []; // メディア通知に入れたファイル
   let templatesView = null;
-  let refreshMediaSelects = () => {};
+  // 入れたメディアから選ぶ欄を作り直す関数。画面を描き直すたびに空にする
+  let mediaSelectRefreshers = [];
+  const refreshMediaSelects = () => mediaSelectRefreshers.forEach((refresh) => refresh());
+  // 入れたメディアから選ぶ select の中身を詰める。kind を渡すとその種類（audio/image/video）だけ並べる
+  const fillSelect = (sel, current, { kind, empty, missing } = {}) => {
+    const chosen = current || sel.value || '';
+    sel.replaceChildren(new Option(empty, ''));
+    for (const item of alertMedia) if (!kind || item.kind === kind) sel.append(new Option(`${item.name}（${item.id}）`, item.id));
+    if (chosen && !alertMedia.some((item) => item.id === chosen && (!kind || item.kind === kind))) sel.append(new Option(`${chosen}（${missing}）`, chosen));
+    sel.value = chosen;
+  };
   const simple = () => mode === 'simple';
   const isObj = (t) => schema.sections[t]?.kind === 'object';
 
@@ -357,7 +367,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   /** カードを押した: 使っていなければ使うものに足して、設定を開く */
-  async function openCard(section) {
+  async function openCard(section, { newest = false } = {}) {
     if (isTenant() && section !== 'theme' && !me.widgets.includes(section)) {
       try {
         me = await api('/api/me/widgets', { widgets: [...me.widgets, section] }, 'PUT');
@@ -367,7 +377,8 @@ export function createEditor({ api, setMessage }) {
       }
     }
     view = 'detail';
-    select(section);
+    const ids = entriesOf(section);
+    select(section, newest && ids.length ? ids[ids.length - 1] : undefined);
     $('widgetsPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
@@ -758,7 +769,7 @@ export function createEditor({ api, setMessage }) {
       const activeId = payload.config.active?.[t];
       const preset = activeId && payload.config[t]?.[activeId] ? (payload.config[t][activeId].kindName || payload.config[t][activeId].name || '') : '';
       open.append(icon(INFO[t]?.icon ?? 'square'), Object.assign(document.createElement('span'), { className: 'home-used-name', textContent: schema.sections[t].title }), Object.assign(document.createElement('span'), { className: 'hint', textContent: preset }));
-      open.addEventListener('click', () => openCard(t));
+      open.addEventListener('click', () => openCard(t, { newest: true }));
       const w = payload.widgets.find((x) => x.section === t && (x.id === activeId || x.id === '*' || !x.id));
       li.append(open);
       if (w?.url) {
@@ -1039,7 +1050,7 @@ export function createEditor({ api, setMessage }) {
 
   function render() {
     syncRushOdds = () => {};
-    refreshMediaSelects = () => {};
+    mediaSelectRefreshers = [];
     // 色見本をテーマの色に合わせる
     const theme = payload.config.theme ?? {};
     for (const t of ['accent', 'gold', 'ink', 'paper']) {
@@ -1124,8 +1135,11 @@ export function createEditor({ api, setMessage }) {
         const fields = g.fields.filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
         form.append(listGroup(g.title, [...(g.presets ?? []).map((preset) => presetRow(preset, values)), ...fields.map((key) => fieldFor(key, def.fields[key], values[key]))]));
       }
+      // メディアは名前から選ぶ必要があるので、種類を持つ欄だけはかんたんにも出す。
+      const mediaFields = Object.keys(def.fields).filter((key) => def.fields[key].mediaKind);
+      if (mediaFields.length) form.append(listGroup('メディア', mediaFields.map((key) => fieldFor(key, def.fields[key], values[key]))));
       // まとまりに入っていない項目は、ここに畳んでおく（押したときだけ開く）
-      const shown = new Set(easy.groups.flatMap((g) => g.fields));
+      const shown = new Set([...easy.groups.flatMap((g) => g.fields), ...mediaFields]);
       const others = Object.keys(def.fields).filter((k) => !shown.has(k) && !unusable(k) && !(isMinecraftField(tab, k) && !usesMinecraft()));
       if (shouldRenderDetails({ tab, restCount: others.length, streamDeckUrlCount: streamDeckUrls().length })) {
         const more = document.createElement('details');
@@ -1453,6 +1467,13 @@ export function createEditor({ api, setMessage }) {
       for (const [rid, r] of names) control.append(new Option(r.name ? `${r.name}（${rid}）` : rid, rid, false, rid === value));
       if (value && !names.some(([rid]) => rid === value)) control.append(new Option(`${value}（見つかりません）`, value, false, true));
       control.addEventListener('change', () => save(key, control.value));
+    } else if (field.mediaKind) {
+      // 入れたメディアの名前から選ぶ（保存するのは mediaId）
+      control = document.createElement('select');
+      const options = { kind: field.mediaKind, empty: 'なし', missing: '見つからないメディア' };
+      fillSelect(control, value, options);
+      mediaSelectRefreshers.push(() => fillSelect(control, control.value, options));
+      control.addEventListener('change', () => save(key, control.value));
     } else if (field.type === 'commands') {
       // コマンドの一覧: 1行に1つ
       control = document.createElement('textarea');
@@ -1661,14 +1682,6 @@ export function createEditor({ api, setMessage }) {
       save('rules', rules, delay);
     };
 
-    const fillSelect = (sel, current) => {
-      const chosen = current || sel.value || '';
-      sel.replaceChildren(new Option('メディアを選ぶ', ''));
-      for (const item of alertMedia) sel.append(new Option(`${item.name}（${item.id}）`, item.id));
-      if (chosen && !alertMedia.some((item) => item.id === chosen)) sel.append(new Option(`${chosen}（一覧にない）`, chosen));
-      sel.value = chosen;
-    };
-
     const draw = () => {
       list.replaceChildren(...rows.map((r, i) => {
         const row = document.createElement('div');
@@ -1677,7 +1690,7 @@ export function createEditor({ api, setMessage }) {
         media.className = 'field';
         const mediaSel = document.createElement('select');
         mediaSel.setAttribute('aria-label', '再生するメディア');
-        fillSelect(mediaSel, r.mediaId);
+        fillSelect(mediaSel, r.mediaId, { empty: 'メディアを選ぶ', missing: '一覧にない' });
         mediaSel.addEventListener('change', () => { r.mediaId = mediaSel.value; commit(0); });
         media.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: 'メディア' }), mediaSel);
         const gifts = document.createElement('label');
@@ -1717,7 +1730,7 @@ export function createEditor({ api, setMessage }) {
         row.append(media, gifts, coins, follow, buttons);
         return row;
       }));
-      refreshMediaSelects = () => list.querySelectorAll('select').forEach((sel, i) => fillSelect(sel, rows[i]?.mediaId));
+      mediaSelectRefreshers.push(() => list.querySelectorAll('select').forEach((sel, i) => fillSelect(sel, rows[i]?.mediaId, { empty: 'メディアを選ぶ', missing: '一覧にない' })));
     };
 
     const addRow = document.createElement('div');
@@ -3241,6 +3254,7 @@ export function createEditor({ api, setMessage }) {
         api('/api/me').catch(() => ({ mode: 'local' })),
         api('/api/env').catch(() => ({ dev: false })),
       ]);
+      alertMedia = (await api('/api/media-alerts').catch(() => ({}))).items || [];
       preparation = await api('/api/preparation').catch(() => preparation);
       devMode = env?.dev === true;
       if (isTenant()) document.querySelector('.brand-title').textContent = `${me.name} のライコネ`;

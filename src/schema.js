@@ -386,11 +386,11 @@ const cutinFields = () => ({
   lines: bool(true, '集中線を出す'),
   sound: bool(true, '効果音'),
   volume: num(0.5, '効果音の音量（0〜1）', { min: 0, max: 1 }),
-  blueVoice: str('', '青の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
-  greenVoice: str('', '緑の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
-  redVoice: str('', '赤の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
-  goldVoice: str('', '金の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
-  rainbowVoice: str('', '虹の段階で鳴らす声（メディアのID。空なら鳴らさない）'),
+  blueVoice: str('', '青の声（メディアのID。空なら鳴らさない）', { mediaKind: 'audio' }),
+  greenVoice: str('', '緑の声（メディアのID。空なら鳴らさない）', { mediaKind: 'audio' }),
+  redVoice: str('', '赤の声（メディアのID。空なら鳴らさない）', { mediaKind: 'audio' }),
+  goldVoice: str('', '金の声（メディアのID。空なら鳴らさない）', { mediaKind: 'audio' }),
+  rainbowVoice: str('', '虹の声（メディアのID。空なら鳴らさない）', { mediaKind: 'audio' }),
   voiceVolume: num(0.8, '段階ごとの声の音量（0〜1）', { min: 0, max: 1 }),
 });
 
@@ -424,7 +424,7 @@ SCHEMA.puchuns = {
   fields: {
     preset: oneOf(['chance', 'cutin', 'jackpot', 'puchun'], 'puchun', '演出。チャンス / カットイン / 大当たり / プチュン'),
     ratio: oneOf(['full', '1:1', '4:3', '16:9'], 'full', '画面の比率'),
-    charImage: str('', '立ち絵の画像（メディアのID。空なら仮の影だけ）'),
+    charImage: str('', '立ち絵の画像（メディアのID。空なら仮の影だけ）', { mediaKind: 'image' }),
     texts: { type: 'object', default: {}, desc: '演出ごとの字。見本にあるキーをそのまま書く' },
     gifts: list([], 'このギフト名または GiftID なら流す。コイン数より先に判定する'),
     minCoins: num(0, 'この合計コイン以上で流す（0 で無効）', { min: 0 }),
