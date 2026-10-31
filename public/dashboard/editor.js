@@ -378,8 +378,8 @@ export function createEditor({ api, setMessage }) {
     }
     view = 'detail';
     const ids = entriesOf(section);
-    // 明示された使用中のプリセットを開く。default は未指定時の既定なので、新しく足した種類を開く。
-    const preferredId = activeId && activeId !== 'default' ? activeId : ids[ids.length - 1];
+    // 使用中のプリセットを開く。使用中が不明なときだけ最後の種類を開く。
+    const preferredId = activeId && ids.includes(activeId) ? activeId : ids[ids.length - 1];
     select(section, ids.includes(preferredId) ? preferredId : undefined);
     $('widgetsPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
