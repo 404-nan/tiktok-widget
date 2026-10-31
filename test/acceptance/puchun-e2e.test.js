@@ -4,12 +4,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { startLocalServer } from '../../scripts/perf/lib/process.mjs';
 
 const root = new URL('../../', import.meta.url).pathname;
 const PLAYWRIGHT = '/home/lul/ruu-work/tw/node_modules/playwright/index.mjs';
-const SHOT = path.join(root, 'artifacts/shots/puchun-e2e.png');
+const SHOT_DIR = process.env.SHOT_DIR || fs.mkdtempSync(path.join(os.tmpdir(), 'tiktok-widget-shots-'));
+const SHOT = path.join(SHOT_DIR, 'puchun-e2e.png');
 const MAIN_TEXT = 'テスト当たり';
 const JACKPOT_MS = 6500; // public/widgets/puchun/puchun.html の jackpot の長さ
 
