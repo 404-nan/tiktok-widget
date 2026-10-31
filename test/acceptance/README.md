@@ -24,11 +24,11 @@
 | `puchun-gift.test.js` | パチンコ演出をギフトで流すカード(`docs/cards/puchun-gift.md`)の AC-1〜4・6 を確認する。設定の保存、ギフト名・コイン数での選び方、連打の数だけ流れること、初めは使わない状態。実装前は失敗する |
 | `puchun-gift-round2.test.js` | 同じカードの「2巡目」AC-7〜10 を確認する。×200 でも iframe は同時に1個以下で全部流れること、`puchuns` を使えない配信者では流れないこと、`texts` の余計なキー・文字列でない値・20字超は保存が断られること |
 | `puchun-dash-fix.test.js` | パチンコ演出の画面のずれを直すカード(`docs/cards/puchun-dash-fix.md`)の AC-1〜3 を、実ブラウザで確認する。URL の欄が空でないこと・別のタブで流れること、演出の外が白くならないこと(見本と透明の背景)、「配信ではこれが出る」の数がカットインと同じこと。AC-4 は全体テストで確認する |
-| `puchun-e2e.test.js` | パチンコ演出を本物のサーバーと実ブラウザで通しで確かめるカード(`docs/cards/puchun-e2e.md`)の AC-1〜5 を確認する。バラで jackpot の設定を API で保存 → 配信ソフトの URL を開く → 試しのギフトで「テスト当たり」が10秒以内に出る・×3 で3回流れ終わる・バラ以外では出ない。playwright が無ければ失敗。写真は一時置き場(`os.tmpdir()/puchun-e2e.png`)。`artifacts/` の証拠画像は上書きしない |
-| `shots-nested-slow.test.js` | 入れ子で全体テストを走らせないカード(`docs/cards/shots-nested-slow.md`)の AC-3 を確認する。`SHOTS_TMP_FULL` が無いとき `shots-tmp.test.js` の AC-3 が理由つきで skip になること。実装前は失敗する |
+| `shots-nested-slow.test.js` | 入れ子で全体テストを走らせないカード(`docs/cards/shots-nested-slow.md`)の AC-3 を確認する。`SHOTS_TMP_FULL` が無いとき `shots-tmp.test.js` の AC-3 が理由つきで skip になること。実装前は失敗する。写しの中で全体を走らせて確かめたいときは `SHOTS_TMP_FULL=1 node --test test/acceptance/shots-tmp.test.js` |
 | `media-pick.test.js` | 声と立ち絵を「メディアから選ぶ」欄にするカード(`docs/cards/media-pick.md`)の AC-1〜3 を、実ブラウザのダッシュボードで確認する。赤の声は音声だけ・立ち絵は画像だけが並ぶこと、選ぶと redVoice / charImage が mediaId になり「なし」で空になること、メディアを足すと select に出ること。AC-4 は全体テストで確認する。実装前は失敗する |
 | `media-pick-round2.test.js` | 同じカードの「2巡目」AC-5 を確認する。パチンコ演出を開いた最初の画面(詳細設定は閉じたまま)に立ち絵の select が PC・スマホで見えること、証拠写真 `media-pick-pc.png` / `media-pick-mobile.png` が指定の大きさ(1280×800 / 390×844)であること。写真の中身までは見ない |
 | `media-pick-round3.test.js` | 同じカードの「3巡目」AC-6 を確認する。プリセットが2つ以上あり使用中が最後ではないとき、ホームの「使っているもの」を押すと、一覧の最後ではなく使用中のプリセットの編集画面が開くこと。実装前は失敗する |
+| `puchun-e2e.test.js` | パチンコ演出を本物のサーバーと実ブラウザで通しで確かめるカード(`docs/cards/puchun-e2e.md`)の AC-1〜5 を確認する。バラで jackpot の設定を API で保存 → 配信ソフトの URL を開く → 試しのギフトで「テスト当たり」が10秒以内に出る・×3 で3回流れ終わる・バラ以外では出ない。playwright が無ければ失敗。写真は `SHOT_DIR` があればその中、なければ一時ディレクトリに保存する |
 | `active-label.test.js` | 「配信で使用中」を「配信ではこれが出る」に直すカード(`docs/cards/active-label.md`)の AC-1〜3 を確認する。`editor.js` のラベルの文字、`docs/words.md` の1行、実ブラウザで新しい配信者のカットインのタブに新しい言葉が1つだけ見え古い言葉が無いこと(playwright が無ければ失敗)。AC-4 は全体テストで確認する |
 | `mc-named-sabotage.test.js` | 名前入りMinecraft妨害の安全化、状態、上限、テスト隔離を確認する |
 | `mc-goal-alert.test.js` / `mc-goal-alert-wiring.test.js` | ゴール接近警報の距離、段階警報、到達、RCON、画面を確認する |

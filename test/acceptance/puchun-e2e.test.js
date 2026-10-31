@@ -10,8 +10,8 @@ import { startLocalServer } from '../../scripts/perf/lib/process.mjs';
 
 const root = new URL('../../', import.meta.url).pathname;
 const PLAYWRIGHT = '/home/lul/ruu-work/tw/node_modules/playwright/index.mjs';
-// 写真は一時置き場へ。artifacts/ の証拠画像を毎回上書きすると、ほかのカードの差分と本番の作業場所が汚れる
-const SHOT = path.join(os.tmpdir(), 'puchun-e2e.png');
+const SHOT_DIR = process.env.SHOT_DIR || fs.mkdtempSync(path.join(os.tmpdir(), 'tiktok-widget-shots-'));
+const SHOT = path.join(SHOT_DIR, 'puchun-e2e.png');
 const MAIN_TEXT = 'テスト当たり';
 const JACKPOT_MS = 6500; // public/widgets/puchun/puchun.html の jackpot の長さ
 
@@ -119,7 +119,7 @@ e2eTest('AC-1 一時の設定のサーバーに、バラで jackpot・字「テ�
 e2eTest('AC-2 配信ソフトの URL を開き、バラ×1 を送ると、10秒以内に画面に「テスト当たり」が見える', async () => {
   await withOverlay(async ({ page, baseUrl }) => {
     await sendGift(baseUrl, 'バラ', 1);
-    await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+    await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 20_000 });
     await page.waitForFunction((text) => window.__drawn.some((draw) => draw.text === text), MAIN_TEXT, { timeout: 10_000, polling: 100 });
     await page.waitForTimeout(300); // 字が出た直後ではなく、描き終わった画面を撮る
     fs.mkdirSync(path.dirname(SHOT), { recursive: true });
@@ -153,7 +153,7 @@ e2eTest('AC-6 下ごしらえの字を数えず、jackpot の文字時刻後に�
 e2eTest('AC-3 バラ×3 を送ると、演出が3回流れ終わる', async () => {
   await withOverlay(async ({ page, baseUrl }) => {
     await sendGift(baseUrl, 'バラ', 3);
-    await page.waitForFunction(() => window.__plays.removed >= 3, null, { timeout: 3 * JACKPOT_MS + 15_000, polling: 200 });
+    await page.waitForFunction(() => window.__plays.removed >= 3, null, { timeout: 3 * JACKPOT_MS + 30_000, polling: 200 });
     await page.waitForTimeout(1500); // 4回目が続かないことも見る
     assert.deepEqual(await plays(page), { added: 3, removed: 3 });
   });

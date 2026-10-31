@@ -30,6 +30,11 @@
     <div class="notes-list" id="notesList"></div>
   </section>
 
+  <section class="notes-panel" id="updatesPanel" hidden>
+    <div class="notes-head"><h2>アップデートのお知らせ</h2><span class="hint" id="updatesVersion"></span></div>
+    <div class="notes-list" id="updatesList"></div>
+  </section>
+
   <section class="dev-panel" id="testSendPanel" data-dev-only hidden>
     <div class="notes-head"><h2>テスト送信</h2><span class="hint">画面の確認用。集計には残りません。</span></div>
     <div class="stack">
@@ -260,6 +265,8 @@
     </div>
   </section>
 </main>
+
+<footer class="app-footer">ライコネ <span id="appVersion"></span></footer>
 
 <button class="mobile-menu-backdrop" id="mobileMenuBackdrop" type="button" aria-label="メニューを閉じる"></button>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

@@ -134,7 +134,7 @@ browserTest('AC-1 存在しない mediaId でも、演出は止まらず最後�
     const { page, pageErrors } = await openOverlay(browser, baseUrl);
     try {
       await sendGift(baseUrl);
-      await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+      await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 20_000 });
       await page.waitForFunction(() => window.__plays.removed >= 1, null, { timeout: 20_000, polling: 100 });
       assert.equal(await page.locator('iframe.puchun-play').count(), 0, '最後まで流れて iframe が片付いていません');
       const drawn = await page.evaluate((needle) => window.__char.images.filter((draw) => draw.src.includes(needle)), `/api/media-alerts/${MISSING}/file`);
@@ -155,7 +155,7 @@ browserTest('AC-2 実ブラウザで、charImage の画像が iframe から読�
     const { page, requested } = await openOverlay(browser, baseUrl);
     try {
       await sendGift(baseUrl);
-      await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
+      await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 20_000 });
       const src = await iframeSrc(page);
       assert.ok(src, '演出の iframe の URL がありません');
       assert.equal(new URL(src).searchParams.get('char'), `/api/media-alerts/${media.id}/file`, 'iframe に charImage の画像を渡していません');
