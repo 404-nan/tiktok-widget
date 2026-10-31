@@ -118,7 +118,7 @@ const BASIC = {
   goals: ['title', 'metric', 'goal', 'step', 'color'],
   rankings: ['title', 'metric', 'limit', 'avatars'],
   cutins: ['minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost', 'word', 'textWeight', 'yieldToImage', 'rouletteWin', 'rouletteWinText', 'slotWin'],
-  puchuns: ['preset', 'ratio', 'texts', 'gifts', 'minCoins', 'maxCoins'],
+  puchuns: ['preset', 'ratio', 'charImage', 'texts', 'gifts', 'minCoins', 'maxCoins'],
   imageCutins: ['photo', 'bluePhoto', 'greenPhoto', 'redPhoto', 'goldPhoto', 'rainbowPhoto', 'imageStyle', 'crop', 'layout', 'minCoins', 'greenCoins', 'redCoins', 'goldCoins', 'rainbowCoins', 'gifts', 'premium', 'premiumRate', 'premiumPatterns', 'promote', 'promoteRate', 'rushBoost'],
   wins: ['title', 'goal', 'rules', 'negative', 'lossPreset', 'gainPreset', 'comboUp', 'power', 'clearFx', 'minusAmbient', 'celebrate', 'winText', 'milestone', 'style', 'color'],
   timers: ['title', 'startMinutes', 'maxHours', 'coinSeconds', 'minCoins', 'rules', 'followSeconds', 'likeEvery', 'likeSeconds'],
