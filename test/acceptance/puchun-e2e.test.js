@@ -10,8 +10,8 @@ import { startLocalServer } from '../../scripts/perf/lib/process.mjs';
 
 const root = new URL('../../', import.meta.url).pathname;
 const PLAYWRIGHT = '/home/lul/ruu-work/tw/node_modules/playwright/index.mjs';
-// 写真は一時置き場へ。artifacts/ の証拠画像を毎回上書きすると、ほかのカードの差分と本番の作業場所が汚れる
-const SHOT = path.join(os.tmpdir(), 'puchun-e2e.png');
+const SHOT_DIR = process.env.SHOT_DIR || fs.mkdtempSync(path.join(os.tmpdir(), 'tiktok-widget-shots-'));
+const SHOT = path.join(SHOT_DIR, 'puchun-e2e.png');
 const MAIN_TEXT = 'テスト当たり';
 const JACKPOT_MS = 6500; // public/widgets/puchun/puchun.html の jackpot の長さ
 
