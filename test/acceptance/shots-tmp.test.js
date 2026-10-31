@@ -1,7 +1,7 @@
 // カード docs/cards/shots-tmp.md の AC-1〜4 を確かめる受け入れテスト(AC-5 の npm test 全部通るは全体の実行で確かめる)。
 // テストを走らせても repo の中のファイルが変わらないこと。作業ツリーを一時の場所へ写し、そこで本物の npm test を走らせて git status を見る。
 // 写した先でもこのテストが入っているので、入れ子の実行では環境変数 SHOTS_TMP_NESTED で自分を飛ばす(無限に呼び合わないため)。
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,7 +10,10 @@ import { execFileSync, spawnSync } from 'node:child_process';
 
 const root = new URL('../../', import.meta.url).pathname;
 const NESTED = process.env.SHOTS_TMP_NESTED === '1';
+// 写しの中の npm test 全部は重い(全体の時間がほぼ2倍)ので、SHOTS_TMP_FULL=1 のときだけ走らせる
+const FULL = process.env.SHOTS_TMP_FULL === '1';
 const nestedTest = (name, fn) => test(name, { timeout: 900_000, skip: NESTED && '入れ子の実行では自分を飛ばす' }, fn);
+const fullTest = (name, fn) => test(name, { timeout: 900_000, skip: NESTED ? '入れ子の実行では自分を飛ばす' : !FULL && '重いので SHOTS_TMP_FULL=1 のときだけ走らせる' }, fn);
 
 // node_modules は repo の外にある本物を使う(写さない)。見つからなければ失敗にする
 function findNodeModules() {
@@ -19,8 +22,13 @@ function findNodeModules() {
 }
 
 // 作業ツリー(未コミットの変更を含む)を一時の場所へ写し、コミットして「きれいなチェックアウト」にする
+// 写しは1つ数百MBになるので、終わったら消す(残すと /tmp に溜まる)
+const copies = [];
+after(() => copies.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
+
 function cleanCopy() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shots-tmp-copy-'));
+  copies.push(dir);
   fs.cpSync(root, dir, { recursive: true, filter: (src) => !['node_modules', 'data', '.git'].includes(path.basename(src)) || src === root });
   const nodeModules = findNodeModules();
   assert.ok(nodeModules, 'node_modules が見つかりません');
@@ -64,7 +72,7 @@ test('AC-2 puchun-e2e は写真が空でないことの確かめを残してい�
   assert.match(source, /画面の写真が空です/);
 });
 
-nestedTest('AC-3 きれいなチェックアウトで npm test を走らせたあと、git status --porcelain が何も出さない', () => {
+fullTest('AC-3 きれいなチェックアウトで npm test を走らせたあと、git status --porcelain が何も出さない', () => {
   const { dir, git } = cleanCopy();
   assert.equal(git('status', '--porcelain').trim(), '', '走らせる前からきれいではありません');
   // npm test の成否はここでは見ない(AC-5 で見る)。見るのは走らせたあとの repo の中だけ

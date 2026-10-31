@@ -10,4 +10,5 @@
 - puchun-char: パチンコ演出の立ち絵を、配信者が入れた絵にする
 - media-pick: 声と立ち絵の欄を、IDを打つ欄から「メディアから選ぶ」欄にする
 - tts-safe-words: 読み上げで、よくある悪口を最初から読まない
+- shots-nested-slow: ふだんの npm test の中で npm test 全部をもう1回走らせない(全体を写して確かめるのは SHOTS_TMP_FULL=1 のときだけ)
 - shots-tmp: テストを走らせても repo の中のファイルが変わらないようにする
