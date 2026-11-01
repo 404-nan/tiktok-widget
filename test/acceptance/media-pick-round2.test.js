@@ -37,6 +37,16 @@ const pngSize = (file) => {
   return { width: head.readUInt32BE(16), height: head.readUInt32BE(20) };
 };
 
+// 左の列(スマホは下のタブ「ウィジェット」で出る一覧)から、そのウィジェットを開く。ホームの「使っているもの」は 198d901 で無くなった
+async function openFromMenu(page, title) {
+  const tab = page.locator('.rk-tab', { hasText: 'ウィジェット' });
+  if (await tab.isVisible()) await tab.click();
+  const open = page.locator(`.side-item[data-name="${title}"]`);
+  await open.waitFor({ state: 'visible', timeout: 15_000 });
+  await open.click();
+  await page.waitForTimeout(1200);
+}
+
 const viewports = [
   { name: 'PC', size: { width: 1280, height: 800 } },
   { name: 'スマホ', size: { width: 390, height: 844 } },
@@ -52,10 +62,7 @@ for (const { name, size } of viewports) {
       const page = await browser.newPage({ viewport: size });
       await page.goto(`${server.baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
       await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-      const open = page.locator('.home-used-open', { hasText: 'パチンコ演出' }).first();
-      await open.waitFor({ state: 'visible', timeout: 15_000 });
-      await open.click();
-      await page.waitForTimeout(1200);
+      await openFromMenu(page, 'パチンコ演出');
       // 「詳細設定」は開けない。閉じたままの最初の画面で見えるかを確かめる
       const select = page.locator('.field').filter({ hasText: /立ち絵/ }).last().locator('select');
       await select.waitFor({ state: 'visible', timeout: 20_000 });

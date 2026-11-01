@@ -147,7 +147,8 @@ browserTest('AC-1: PC 1280 で、左のアイコン列・上の帯・ウィジ�
     const settings = await one(page, '設定', inRail, '左の列に「設定」がありません');
     await one(page, 'その他', inRail, '左の列に「その他」がありません');
     assert.ok(guide.box.y > home.box.y + 300 && settings.box.y > guide.box.y, '使い方と設定が左の列のいちばん下に並んでいません');
-    for (const label of ['配信中に見る', '配信の記録', 'ためしに動かす']) {
+    // 配信中に見るはホームの中身になり、上の帯からは外した(198d901)
+    for (const label of ['配信の記録', 'ためしに動かす']) {
       await one(page, label, (b) => b.y < 72 && b.x > 72, `上の帯に「${label}」がありません`);
     }
     await (await one(page, /^ギフト/, inRail, '左の列にギフトのウィジェットがありません')).locator.click();
@@ -163,13 +164,19 @@ browserTest('AC-1: PC 1280 で、左のアイコン列・上の帯・ウィジ�
 browserTest('AC-3: 配信中に見る・配信の記録を開いても、左の列と上の帯が残り、URL の階層から出ない', async () => {
   await withPage(1280, 900, async (page, baseUrl) => {
     const start = new URL(page.url()).pathname;
-    for (const label of ['配信中に見る', '配信の記録']) {
-      await (await one(page, label, (b) => b.y < 72, `上の帯に「${label}」がありません`)).locator.click();
+    // 配信中に見るはホーム(左の列)の中身、配信の記録は上の帯から開く(198d901)
+    const opens = [
+      ['配信中に見る', 'ホーム', (b) => b.x < 96, 'iframe.embedded-page[src*="/monitor/"]'],
+      ['配信の記録', '配信の記録', (b) => b.y < 72, 'iframe.embedded-page[src*="/history/"]'],
+    ];
+    for (const [label, button, where, frame] of opens) {
+      await (await one(page, button, where, `「${label}」を開く「${button}」がありません`)).locator.click();
       await page.waitForTimeout(800);
+      assert.equal(await page.locator(frame).count(), 1, `${label}がダッシュボードの枠の中に開いていません`);
       assert.equal(new URL(page.url()).pathname, start, `${label}でダッシュボードの外へ移りました`);
       assert.ok(page.url().startsWith(baseUrl));
       await one(page, 'ホーム', (b) => b.x < 96, `${label}で左の列が消えました`);
-      await one(page, '配信中に見る', (b) => b.y < 72, `${label}で上の帯が消えました`);
+      await one(page, '配信の記録', (b) => b.y < 72, `${label}で上の帯が消えました`);
     }
   });
 });
@@ -190,7 +197,8 @@ browserTest('AC-4: 見え方の枠で「このウィジェットだけ / 配信�
 browserTest('AC-5: スマホ 390 で下のタブが出て、全部のタブが押せる', async () => {
   await withPage(390, 800, async (page) => {
     const bottom = (b) => b.y > 800 - 120;
-    const labels = ['ホーム', 'ウィジェット', '配信中', '記録', 'その他'];
+    // 「配信中」のタブはホームと同じなので外した(198d901)
+    const labels = ['ホーム', 'ウィジェット', '記録', 'その他'];
     for (const label of labels) {
       const tab = await one(page, label, bottom, `下のタブに「${label}」がありません`);
       assert.ok(tab.box.height >= 44, `「${label}」のタブが 44px より低いです(${tab.box.height})`);

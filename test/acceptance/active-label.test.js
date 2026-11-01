@@ -13,6 +13,16 @@ const OLD_WORD = '配信で使用中';
 
 // ---- AC-1 ----
 
+// 左の列(スマホは下のタブ「ウィジェット」で出る一覧)から、そのウィジェットを開く。ホームの「使っているもの」は 198d901 で無くなった
+async function openFromMenu(page, title) {
+  const tab = page.locator('.rk-tab', { hasText: 'ウィジェット' });
+  if (await tab.isVisible()) await tab.click();
+  const open = page.locator(`.side-item[data-name="${title}"]`);
+  await open.waitFor({ state: 'visible', timeout: 15_000 });
+  await open.click();
+  await page.waitForTimeout(1200);
+}
+
 test('AC-1 editor.js の entry-active ラベルの文字が「配信ではこれが出る」で、つないでいることを言う言葉が無い', () => {
   const src = readFileSync(`${root}public/dashboard/editor.js`, 'utf8');
   const m = src.match(/className\s*=\s*'entry-active';\s*\n?\s*\w+\.textContent\s*=\s*'([^']*)'/);
@@ -41,10 +51,7 @@ test('AC-3 配信につないでいない新しい配信者の、カットイン
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(`${server.baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-    const open = page.locator('.home-used-open', { hasText: 'カットイン' }).first();
-    await open.waitFor({ state: 'visible', timeout: 15_000 });
-    await open.click();
-    await page.waitForTimeout(1200);
+    await openFromMenu(page, 'カットイン');
 
     let visible = 0;
     for (const el of await page.getByText(NEW_WORD).all()) if (await el.isVisible()) visible += 1;
