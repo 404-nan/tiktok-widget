@@ -2757,7 +2757,7 @@ export function createEditor({ api, setMessage }) {
       renderRouletteUrls(null);
       return;
     }
-    const explicit = !isObj(tab) && tab !== 'roulettes' ? (() => { const u = new URL(w.url, location.origin); u.searchParams.set('id', id); return `${u.pathname}${u.search}`; })() : w.url;
+    const explicit = !isObj(tab) && tab !== 'roulettes' ? (() => { const u = new URL(w.url, location.origin); u.searchParams.set('id', id); return `${u.origin}${u.pathname}${u.search}`; })() : w.url;
     $('widgetUrl').value = explicit;
     $('sizeHint').textContent =
       tab === 'roulettes'
@@ -2792,7 +2792,7 @@ export function createEditor({ api, setMessage }) {
     // 配信画面ぜんぶのときは、全部が1本で出る URL と大きさを見せる
     if (simple() && previewAll) {
       const allW = payload.widgets.find((x) => x.section === 'all');
-      $('widgetUrl').value = allW?.url ?? `${BASE}/widgets/all.html`;
+      $('widgetUrl').value = allW?.url ?? `${location.origin}${BASE}/widgets/all.html`;
       $('sizeHint').textContent = `幅 ${allW?.size?.[0] ?? 1080}・高さ ${allW?.size?.[1] ?? 1920}(この URL 1本で、使っているものが全部出ます)`;
     }
     const allUrl = payload.widgets.find((x) => x.section === 'all')?.url ?? `${BASE}/widgets/all.html`;
