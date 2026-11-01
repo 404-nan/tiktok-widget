@@ -44,10 +44,11 @@ const upload = async (baseUrl, name, mime, body) => {
   return data.item;
 };
 
-// ホームの「使っているもの」から、そのウィジェットの設定画面を開く(ページは読み直さない)
-async function openFromHome(page, title) {
-  await page.getByText('ホーム', { exact: true }).first().click();
-  const open = page.locator('.home-used-open', { hasText: title }).first();
+// 左の列(スマホは下のタブ「ウィジェット」で出る一覧)から、そのウィジェットを開く。ホームの「使っているもの」は 198d901 で無くなった
+async function openFromMenu(page, title) {
+  const tab = page.locator('.rk-tab', { hasText: 'ウィジェット' });
+  if (await tab.isVisible()) await tab.click();
+  const open = page.locator(`.side-item[data-name="${title}"]`);
   await open.waitFor({ state: 'visible', timeout: 15_000 });
   await open.click();
   await page.waitForTimeout(1200);
@@ -56,7 +57,7 @@ async function openDashboard(browser, baseUrl, title) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-  await openFromHome(page, title);
+  await openFromMenu(page, title);
   return page;
 }
 
@@ -138,11 +139,11 @@ browserTest('AC-3 ダッシュボードでメディアを1つ足すと、その�
     assert.ok(!before.some((text) => text.includes('atarashii-koe.wav')), '足す前から名前が並んでいます');
 
     // ダッシュボードのアップロードで足す(ページは読み直さない)
-    await openFromHome(page, 'メディア通知');
+    await openFromMenu(page, 'メディア通知');
     await page.locator('input[type=file]').first().setInputFiles({ name: 'atarashii-koe.wav', mimeType: 'audio/wav', buffer: WAV });
     await page.getByText('atarashii-koe.wav').first().waitFor({ state: 'visible', timeout: 10_000 });
 
-    await openFromHome(page, 'カットイン');
+    await openFromMenu(page, 'カットイン');
     const after = await optionTexts(await findSelect(page, /赤の声/));
     assert.ok(after.some((text) => text.includes('atarashii-koe.wav')), `足したメディアが select に出ていません: ${JSON.stringify(after)}`);
   });

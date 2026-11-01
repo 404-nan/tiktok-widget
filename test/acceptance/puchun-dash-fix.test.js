@@ -36,14 +36,19 @@ const addPuchuns = async (baseUrl, extra = {}) => {
   await patch(baseUrl, ['puchuns', 'a'], { preset: 'jackpot', ratio: 'full', texts: { main: '大当たり' }, minCoins: 1, ...extra });
 };
 
-// ホームの「使っているもの」から、そのウィジェットの画面を開く
-async function openWidget(page, baseUrl, title) {
-  await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-  const open = page.locator('.home-used-open', { hasText: title }).first();
+// 左の列(スマホは下のタブ「ウィジェット」で出る一覧)から、そのウィジェットを開く。ホームの「使っているもの」は 198d901 で無くなった
+async function openFromMenu(page, title) {
+  const tab = page.locator('.rk-tab', { hasText: 'ウィジェット' });
+  if (await tab.isVisible()) await tab.click();
+  const open = page.locator(`.side-item[data-name="${title}"]`);
   await open.waitFor({ state: 'visible', timeout: 15_000 });
   await open.click();
   await page.waitForTimeout(1200);
+}
+async function openWidget(page, baseUrl, title) {
+  await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
+  await openFromMenu(page, title);
 }
 
 // スクリーンショット(PNG)の、割合で指した点の色を返す。透明の背景はそのまま(alpha 0)で返る。
@@ -145,7 +150,7 @@ browserTest('AC-3 「配信ではこれが出る」は、配信につないで�
     await patch(baseUrl, ['cutins', 'alt'], { minCoins: 50 });
     await addPuchuns(baseUrl);
     await patch(baseUrl, ['puchuns', 'b'], { preset: 'chance', minCoins: 100 });
-    // 「使っているもの」は使用中の種類を開くので、どちらも使用中を最後の種類にして条件を揃える
+    // 左の列は最後の種類を開くので、どちらも使用中を最後の種類にして条件を揃える
     await patch(baseUrl, ['active', 'cutins'], 'alt');
     await patch(baseUrl, ['active', 'puchuns'], 'b');
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
