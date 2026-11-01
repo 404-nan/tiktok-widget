@@ -30,6 +30,15 @@ const PORT = Number(process.env.PORT) || 3939;
 const HOST = process.env.HOST || '127.0.0.1';
 // TW_HOSTED=1: 配信者ごとの URL（/t/<鍵>/...）と管理画面だけを出す（1人用の /dashboard/ は出さない）
 const HOSTED = process.env.TW_HOSTED === '1';
+const WS_REJECTION_LOG_INTERVAL_MS = 60_000;
+const wsRejectionLoggedAt = new Map();
+
+function logWsRejected(reason) {
+  const now = Date.now();
+  if (now - (wsRejectionLoggedAt.get(reason) ?? -Infinity) < WS_REJECTION_LOG_INTERVAL_MS) return;
+  wsRejectionLoggedAt.set(reason, now);
+  console.log(`ws rejected: ${reason}`);
+}
 
 // Cloudflare などで動かすとき（TW_VAULT あり）: data/ を置き場から戻してから始める
 const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
@@ -491,9 +500,12 @@ server.on('upgrade', (req, socket, head) => {
   let role = 'owner';
   let tenantId = null;
   const m = pathname.match(/^\/t\/([^/]+)\/ws$/);
+  let rejectionReason = null;
   if (m) {
     const found = tenants.byKey(m[1]);
-    if (found?.tenant.enabled) {
+    if (!found) rejectionReason = 'no-tenant';
+    else if (!found.tenant.enabled) rejectionReason = 'disabled';
+    else {
       rt = tenants.runtime(found.tenant.id);
       // ダッシュボードの中の見本は、配信ソフトからの接続(obs)と分ける。準備の印と自動でつなぐに数えないため
       role = found.role === 'obs' && requestUrl.searchParams.get('preview') === '1' ? 'preview' : found.role;
@@ -501,8 +513,12 @@ server.on('upgrade', (req, socket, head) => {
     }
   } else if (pathname === '/ws') {
     rt = local;
+    if (!rt) rejectionReason = 'bad-path';
+  } else {
+    rejectionReason = 'bad-path';
   }
   if (!rt) {
+    logWsRejected(rejectionReason ?? 'bad-path');
     socket.destroy();
     return;
   }
