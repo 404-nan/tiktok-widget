@@ -13,3 +13,5 @@
 - shots-nested-slow: ふだんの npm test の中で npm test 全部をもう1回走らせない(全体を写して確かめるのは SHOTS_TMP_FULL=1 のときだけ)
 - shots-tmp: テストを走らせても repo の中のファイルが変わらないようにする
 - shots-nested-slow: npm test の中で npm test 全部をもう1回走らせない
+- obs-attempt-count: 配信ごとに OBS の接続回数を記録し、断られた接続を journal に残す
+- dash-tests-green: 本番ブランチで落ちているダッシュボードの受け入れテスト13件を緑に戻す
