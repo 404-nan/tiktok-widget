@@ -16,5 +16,5 @@ test('準備の印は時刻を一度だけ保存し、再起動後も読める',
   first.mark('testedAt');
   first.setAutoConnect(false);
   const second = new PreparationStore(file, () => now);
-  assert.deepEqual(second.snapshot(), { selectedAt: null, widgetAt: 100, testedAt: 200, liveAt: null, autoConnect: false });
+  assert.deepEqual(second.snapshot(), { selectedAt: null, widgetAt: 100, testedAt: 200, liveAt: null, prepDismissedAt: null, autoConnect: false });
 });

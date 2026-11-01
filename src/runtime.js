@@ -399,6 +399,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   r.get('/api/preparation', (_req, res) => res.json(preparation.snapshot()));
   r.put('/api/preparation/auto', (req, res) => res.json(preparation.setAutoConnect(req.body?.on !== false)));
+  r.put('/api/preparation/dismiss', (_req, res) => { preparation.mark('prepDismissedAt'); res.json(preparation.snapshot()); });
   r.get('/api/euler-usage', (_req, res) => res.json(eulerUsage.snapshot()));
 
   // 見本は設定中だけ出す。OBS 用の鍵では読むだけにする。
