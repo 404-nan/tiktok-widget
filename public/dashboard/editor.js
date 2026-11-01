@@ -847,7 +847,7 @@ export function createEditor({ api, setMessage }) {
       );
       const label = document.createTextNode('コピー');
       const copy = chip(label, 'copy', () => {
-        copyText(w.url);
+        copyText(new URL(w.url, location.origin).href);
         flashCopied(copy, label);
       });
       const setting = chip('設定', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
@@ -2757,7 +2757,7 @@ export function createEditor({ api, setMessage }) {
       renderRouletteUrls(null);
       return;
     }
-    const explicit = !isObj(tab) && tab !== 'roulettes' ? (() => { const u = new URL(w.url, location.origin); u.searchParams.set('id', id); return `${u.origin}${u.pathname}${u.search}`; })() : w.url;
+    const explicit = !isObj(tab) && tab !== 'roulettes' ? (() => { const u = new URL(w.url, location.origin); u.searchParams.set('id', id); return u.href; })() : new URL(w.url, location.origin).href;
     $('widgetUrl').value = explicit;
     $('sizeHint').textContent =
       tab === 'roulettes'
@@ -2792,7 +2792,7 @@ export function createEditor({ api, setMessage }) {
     // 配信画面ぜんぶのときは、全部が1本で出る URL と大きさを見せる
     if (simple() && previewAll) {
       const allW = payload.widgets.find((x) => x.section === 'all');
-      $('widgetUrl').value = allW?.url ?? `${location.origin}${BASE}/widgets/all.html`;
+      $('widgetUrl').value = new URL(allW?.url ?? `${BASE}/widgets/all.html`, location.origin).href;
       $('sizeHint').textContent = `幅 ${allW?.size?.[0] ?? 1080}・高さ ${allW?.size?.[1] ?? 1920}(この URL 1本で、使っているものが全部出ます)`;
     }
     const allUrl = payload.widgets.find((x) => x.section === 'all')?.url ?? `${BASE}/widgets/all.html`;
