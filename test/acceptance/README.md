@@ -6,6 +6,7 @@
 | --- | --- |
 | `guard.test.js` / `guard-round2.test.js` / `guard-round3.test.js` | 1人用の操作を本番で使わせないガードの確認 |
 | `obs.test.js` | 偽の obs-websocket と vm 上のページで OBS カードの AC-1〜13 を確認する。AC-14 は全体テストで確認する |
+| `obs-attempt-count.test.js` | 配信ごとの OBS 接続回数(`obsConnects`)と、断った upgrade の `ws rejected` 行を確認する。AC-6 は全体テストで確認する |
 | `dareba.test.js` | ダレ場の判定、進行、停止、テスト送信を確認する |
 | `peka.test.js` / `peka-wiring.test.js` | ペカの完成条件とランタイム・API・CLI・MCP・画面の配線を確認する |
 | `throne.test.js` / `throne-wiring.test.js` | 動く王座の完成条件と設定・操作経路・画面の配線を確認する |
