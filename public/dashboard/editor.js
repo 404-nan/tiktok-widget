@@ -17,7 +17,7 @@ import { renderRouletteUrls as renderRouletteUrlBox } from './roulette-urls.js';
 import { createTemplatesView } from './templates.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'throne', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'mcGifts', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
