@@ -17,7 +17,11 @@
 <script type="module">
 import { BASE, connect } from './lib/overlay.js';
 
-if (new URLSearchParams(location.search).has('preview')) document.body.classList.add('preview');
+// preview=1 は「動きを確認」（プレースホルダー枠と暗背景を出す）
+// preview=live は「配信画面そのまま」（本番と同じ見え方）
+const _pv = new URLSearchParams(location.search).get('preview');
+if (_pv === '1') document.body.classList.add('preview');
+const _isPreview = _pv === '1' || _pv === 'live';
 
 const stage = document.querySelector('#stage');
 const frameMap = new Map();
@@ -75,7 +79,7 @@ function setFrame(key, url, x, y, scale, size, z) {
     frameMap.set(key, f);
     stage.append(f);
   }
-  if (document.body.classList.contains('preview')) { const u = new URL(url, location.href); u.searchParams.set('preview', '1'); url = u.href; }
+  if (_isPreview) { const u = new URL(url, location.href); u.searchParams.set('preview', _pv); url = u.href; }
   if (f.src !== new URL(url, location.href).href) f.src = url;
   f.style.width = `${size[0]}px`;
   f.style.height = `${size[1]}px`;
@@ -103,7 +107,7 @@ function render(config, me = {}) {
       wanted.add(key);
       const [x, y, scale] = place(section, entry, index);
       const size = sizeFor(section, entry);
-      if (document.body.classList.contains('preview')) setPlaceholder(key, title[section], 1080 * x / 100, 1920 * y / 100, scale, size);
+      if (_pv === '1') setPlaceholder(key, title[section], 1080 * x / 100, 1920 * y / 100, scale, size);
       setFrame(key, pageUrl(map[section][0], id), 1080 * x / 100, 1920 * y / 100, scale, size, 2);
     });
   }
@@ -114,7 +118,7 @@ function render(config, me = {}) {
     const entry = config[section] || {};
     const [x, y, scale] = place(section, entry, 0);
     const size = sizeFor(section, entry);
-    if (document.body.classList.contains('preview')) setPlaceholder(key, title[section], 1080 * x / 100, 1920 * y / 100, scale, size);
+    if (_pv === '1') setPlaceholder(key, title[section], 1080 * x / 100, 1920 * y / 100, scale, size);
     setFrame(key, pageUrl('slot', null), 1080 * x / 100, 1920 * y / 100, scale, size, 2);
   }
   for (const section of full) {

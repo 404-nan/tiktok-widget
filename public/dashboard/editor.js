@@ -2711,6 +2711,8 @@ export function createEditor({ api, setMessage }) {
   let previewUrl = null;
   // 見え方の枠: このウィジェットだけ / 配信画面ぜんぶ(all.html)
   let previewAll = false;
+  // プレビューの見え方: false=「配信画面そのまま」(preview=live)、true=「動きを確認」(preview=1)
+  let previewDebug = true;
   function previewModeSwitch() {
     let box = $('previewMode');
     if (!box) {
@@ -2721,12 +2723,21 @@ export function createEditor({ api, setMessage }) {
         b.addEventListener('click', () => { previewAll = all; updateUrl(true); });
         box.append(b);
       }
+      // 「動きを確認」チェックボックス（チェックを外すと「配信画面そのまま」）
+      const debugLabel = Object.assign(document.createElement('label'), { className: 'check preview-debug-check' });
+      const debugCb = Object.assign(document.createElement('input'), { type: 'checkbox', id: 'previewDebugCb', checked: previewDebug });
+      debugCb.addEventListener('change', () => { previewDebug = debugCb.checked; previewUrl = null; updateUrl(true); });
+      debugLabel.append(debugCb, ' 動きを確認');
+      box.append(debugLabel);
       // 切り替えと見え方の枠を1つの列にまとめる(右の列の高さに引っぱられて、枠の上に隙間ができないように)
       const left = Object.assign(document.createElement('div'), { className: 'preview-left' });
       $('preview').before(left);
       left.append(box, $('preview'));
     }
-    for (const b of box.children) b.setAttribute('aria-pressed', String(b.dataset.all === String(previewAll)));
+    for (const b of [...box.querySelectorAll('button')]) b.setAttribute('aria-pressed', String(b.dataset.all === String(previewAll)));
+    // チェックボックスの同期（初回以外にも呼ばれるため）
+    const debugCb = $('previewDebugCb');
+    if (debugCb) debugCb.checked = previewDebug;
     // 配信画面ぜんぶのときは、置き場所と大きさを変える画面(配信画面の編集)へ行ける
     let edit = $('stageEditBtn');
     if (!edit) {
@@ -2798,7 +2809,7 @@ export function createEditor({ api, setMessage }) {
     const allUrl = payload.widgets.find((x) => x.section === 'all')?.url ?? `${BASE}/widgets/all.html`;
     const shownSize = previewAll ? [1080, 1920] : w.size;
     const url = new URL(previewAll ? allUrl : explicit, location.origin);
-    url.searchParams.set('preview', '1');
+    url.searchParams.set('preview', previewDebug ? '1' : 'live');
     url.searchParams.set('sound', '0');
     url.searchParams.set('keep', '0');
     const next = `${url.pathname}${url.search}`;

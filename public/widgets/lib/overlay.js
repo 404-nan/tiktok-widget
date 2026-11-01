@@ -200,7 +200,11 @@ export function setupPage() {
   const q = new URLSearchParams(location.search);
   window.__twWidgetQueryId = q.get('id');
   if (q.get('theme') === 'light') document.documentElement.dataset.theme = 'light';
-  if (q.get('preview') === '1') document.body.classList.add('preview');
+  // preview=1 は「動きを確認」（待機の目印やプレースホルダーを出す）
+  // preview=live は「配信画面そのまま」（本番と同じ見え方。body.preview を付けない）
+  const pv = q.get('preview');
+  if (pv === '1') document.body.classList.add('preview');
+  if (pv === '1' || pv === 'live') document.body.classList.add('preview-any');
   const scale = Number(q.get('scale'));
   if (scale > 0 && scale !== 1) document.documentElement.style.zoom = String(scale);
   // ?accent=ff4f1f で差し色（朱）を変えられる
@@ -261,8 +265,9 @@ export const list = (s) =>
  */
 export function connect(handlers) {
   const compact = new URLSearchParams(loc.search || '').get('compact') === '1';
-    // ダッシュボードの中の見本(preview=1)は、配信ソフトからの接続として数えない
-  const preview = new URLSearchParams(loc.search || '').get('preview') === '1';
+    // ダッシュボードの中の見本(preview=1 / preview=live)は、配信ソフトからの接続として数えない
+  const pv = new URLSearchParams(loc.search || '').get('preview');
+  const preview = pv === '1' || pv === 'live';
   const query = [compact && 'compact=1', preview && 'preview=1'].filter(Boolean).join('&');
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${query ? `?${query}` : ''}`;
   let ws;
