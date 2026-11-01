@@ -506,7 +506,6 @@ export function createEditor({ api, setMessage }) {
       // 左の細い列では短い名前(ギフト通知→ギフト、目標バー→目標)。全部の名前は押したあとの見出しに出る
       ...used.map((t) => item(INFO[t].icon, desktop ? railName(schema.sections[t].title) : schema.sections[t].title, onDetail(t), () => openCard(t), '', schema.sections[t].title)),
       item('plus', desktop ? 'その他' : 'その他のウィジェット', view === 'catalog', goTo('catalog'), '', 'その他のウィジェット'),
-      item('activity', '配信中に見る', view === 'monitor', goTo('monitor')),
       item('chart-column', '配信の記録', view === 'history', goTo('history')),
     );
     // 設定は、PC ではサイドバーのいちばん左下に固定する
@@ -522,7 +521,7 @@ export function createEditor({ api, setMessage }) {
       if (!top) { top = Object.assign(document.createElement('header'), { id: 'rkTop', className: 'rk-top' }); document.body.append(top); }
       const go = (label, next) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: label }); b.setAttribute('aria-current', String(view === next)); b.addEventListener('click', goTo(next)); return b; };
       const links = Object.assign(document.createElement('div'), { className: 'rk-links' });
-      links.append(go('配信中に見る', 'monitor'), go('配信の記録', 'history'));
+      links.append(go('配信の記録', 'history'));
       top.replaceChildren(brand, connection, links);
       menu.querySelectorAll('.side-item').forEach((b) => { if (/配信中に見る|配信の記録/.test(b.textContent)) b.remove(); });
       const head = document.createElement('div');
@@ -562,7 +561,6 @@ export function createEditor({ api, setMessage }) {
       tabsBar.replaceChildren(
         tabBtn('house', 'ホーム', view === 'home', goTo('home')),
         tabBtn('gift', 'ウィジェット', view === 'detail' || view === 'catalog', openMenu),
-        tabBtn('activity', '配信中', view === 'monitor', goTo('monitor')),
         tabBtn('chart-column', '記録', view === 'history', goTo('history')),
         tabBtn('menu', 'その他', view === 'more' || view === 'settings', goTo('more')),
       );
@@ -626,9 +624,12 @@ export function createEditor({ api, setMessage }) {
 
   // ホームは配信前に見る3つだけに絞る。
   // 配信中に見る・配信の記録は、ダッシュボードの枠の中に開く(左の列と上の帯を残す)
+  function embeddedFrame(which) {
+    return Object.assign(document.createElement('iframe'), { className: 'embedded-page', title: which === 'monitor' ? '配信中に見る' : '配信の記録', src: `${BASE}/${which}/?embed=1` });
+  }
+
   function renderEmbedded(which) {
-    const frame = Object.assign(document.createElement('iframe'), { className: 'embedded-page', title: which === 'monitor' ? '配信中に見る' : '配信の記録', src: `${BASE}/${which}/?embed=1` });
-    $('cards').replaceChildren(viewHead(which === 'monitor' ? '配信中に見る' : '配信の記録'), frame);
+    $('cards').replaceChildren(viewHead(which === 'monitor' ? '配信中に見る' : '配信の記録'), embeddedFrame(which));
   }
 
   // スマホの「その他」: 設定・使い方・その他のウィジェット
@@ -647,8 +648,21 @@ export function createEditor({ api, setMessage }) {
     $('cards').replaceChildren(viewHead('その他'), list);
   }
 
+  // ホームは「配信中に見る」。配信の準備は、初配信が終わるまで（か、バツで消すまで）だけ上に置く
   function renderHome() {
     const box = $('cards');
+    const parts = [viewHead('ホーム')];
+    if (!preparation.liveAt && !preparation.prepDismissedAt) parts.push(prepCard());
+    parts.push(embeddedFrame('monitor'), homeTopCards);
+    box.replaceChildren(...parts);
+    api('/api/preparation').then((next) => {
+      if (JSON.stringify(next) === JSON.stringify(preparation)) return;
+      preparation = next;
+      if (view === 'home') renderHome();
+    }).catch(() => {});
+  }
+
+  function prepCard() {
     // GOV.UK の Task list の形: 行ごとに「済み・まだ」と、まだの行にはそれをするボタン
     const steps = [
       ['出すものを選ぶ', Boolean(preparation.selectedAt) || usedSections().length > 0, '選ぶ', goTo('catalog')],
@@ -675,18 +689,21 @@ export function createEditor({ api, setMessage }) {
     });
     const card = document.createElement('section');
     card.className = 'home-card';
-    card.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }), list);
-    // 準備の一覧は、初めのうち(4つ全部が済むまで)だけ出す
-    const allDone = steps.every(([, done]) => done);
-    // ふだんのホーム: 前回の配信のまとめと、使っているウィジェット(すぐ開ける・ためせる・URL をコピーできる)
-    const grid = Object.assign(document.createElement('div'), { className: 'home-grid' });
-    grid.append(lastStreamCard(), usedWidgetsCard(), perStreamCard());
-    box.replaceChildren(viewHead('ホーム'), ...(allDone ? [] : [card]), grid, homeTopCards);
-    api('/api/preparation').then((next) => {
-      if (JSON.stringify(next) === JSON.stringify(preparation)) return;
-      preparation = next;
-      if (view === 'home') renderHome();
-    }).catch(() => {});
+    const head = document.createElement('div');
+    head.className = 'home-card-head';
+    head.append(Object.assign(document.createElement('h3'), { textContent: '配信の準備' }));
+    const close = Object.assign(document.createElement('button'), { type: 'button', className: 'icon-btn pressable' });
+    close.setAttribute('aria-label', '配信の準備を閉じる');
+    close.append(icon('x'));
+    close.addEventListener('click', async () => {
+      try {
+        preparation = await api('/api/preparation/dismiss', {}, 'PUT');
+        if (view === 'home') renderHome();
+      } catch (e) { setMessage(e.message, true); }
+    });
+    head.append(close);
+    card.append(head, list);
+    return card;
   }
 
   const fmtNum = (n) => Number(n ?? 0).toLocaleString('ja-JP');

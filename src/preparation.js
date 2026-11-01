@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const EMPTY = { selectedAt: null, widgetAt: null, testedAt: null, liveAt: null, autoConnect: true };
+const EMPTY = { selectedAt: null, widgetAt: null, testedAt: null, liveAt: null, prepDismissedAt: null, autoConnect: true };
 
 export class PreparationStore {
   constructor(file, now = Date.now) {
