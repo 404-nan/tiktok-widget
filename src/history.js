@@ -42,6 +42,7 @@ class Session {
     this.endedAt = null;
     this.widgetMs = trackWidget ? 0 : null;
     this.widgetSince = trackWidget && widgetConnected ? startedAt : null;
+    this.obsConnects = trackWidget && widgetConnected ? 1 : 0;
     this.totals = { coins: 0, gifts: 0, likes: 0, follows: 0, shares: 0, comments: 0, peakViewers: 0 };
     this.timeline = []; // 1分ごと
     this.gifters = new Map();
@@ -144,6 +145,7 @@ class Session {
       endedAt: this.endedAt,
       durationMs,
       widgetMs,
+      obsConnects: this.obsConnects,
       widgetUsed: widgetMs != null && widgetMs >= durationMs / 2,
       totals: { ...this.totals, uniqueGifters: this.gifters.size },
       coinsPerHour: coinsPerHour(this.totals.coins, durationMs),
@@ -153,6 +155,7 @@ class Session {
   setWidgetConnection(connected, at) {
     if (this.widgetMs == null) return;
     if (connected) {
+      this.obsConnects += 1;
       if (this.widgetSince == null) this.widgetSince = Math.max(this.startedAt, at);
       return;
     }
