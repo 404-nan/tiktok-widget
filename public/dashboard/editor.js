@@ -17,7 +17,7 @@ import { renderRouletteUrls as renderRouletteUrlBox } from './roulette-urls.js';
 import { createTemplatesView } from './templates.js';
 
 const $ = (id) => document.getElementById(id);
-const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'minecraft', 'theme'];
+const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'throne', 'rush', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'mcGifts', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 const ENUM_LABELS = {
@@ -887,13 +887,18 @@ export function createEditor({ api, setMessage }) {
       return;
     }
     const names = entriesOf(tab);
+    // プリセットがまだ無いときは選ぶものが無いので出さない（空のときは render 側の「まだ作っていません」が出る）
+    if (!names.length) {
+      box.hidden = true;
+      return;
+    }
     box.hidden = false;
     const isRoulette = tab === 'roulettes';
     const label = document.createElement('span');
     label.className = isRoulette ? 'entry-label is-roulette' : 'entry-label';
     label.textContent = isRoulette ? '保存したルーレット' : 'プリセット';
     // プリセットの選び方: 名前の欄(ダブルクリックでその場で直せる) + ▾ のメニュー(切り替え・新しく作る・名前を変える・消す)
-    const titleOf = (name) => payload.config[tab][name].kindName || payload.config[tab][name].name || payload.config[tab][name].title || `${schema.sections[tab].title} ${names.indexOf(name) + 1}`;
+    const titleOf = (name) => payload.config[tab][name]?.kindName || payload.config[tab][name]?.name || payload.config[tab][name]?.title || `${schema.sections[tab].title} ${names.indexOf(name) + 1}`;
     const picker = Object.assign(document.createElement('div'), { className: 'entry-picker' });
     const nameInput = Object.assign(document.createElement('input'), { className: 'entry-name', value: titleOf(id), readOnly: true });
     nameInput.setAttribute('aria-label', isRoulette ? '保存したルーレットの名前' : `${schema.sections[tab].title}のプリセットの名前`);
