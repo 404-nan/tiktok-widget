@@ -18,7 +18,7 @@ const patch = async (baseUrl, path, value) => {
   assert.ok(res.ok && !body.errors?.length, `設定を保存できません: ${JSON.stringify(body.error ?? body.errors)}`);
 };
 
-test('AC-6 使用中のプリセットが最後ではないとき、ホームの「使っているもの」を押すと使用中のプリセットの編集画面が開く', { timeout: 120_000 }, async () => {
+test('AC-6 使用中のプリセットが最後ではないとき、左の列から開くと使用中のプリセットの編集画面が開く', { timeout: 120_000 }, async () => {
   assert.ok(chromium, `playwright が使えません(${PLAYWRIGHT}): ${playwrightError?.message}`);
   const server = await startLocalServer(root);
   const browser = await chromium.launch({ headless: true });
@@ -30,7 +30,7 @@ test('AC-6 使用中のプリセットが最後ではないとき、ホームの
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(`${server.baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-    const open = page.locator('.home-used-open', { hasText: 'パチンコ演出' }).first();
+    const open = page.locator('.side-item[data-name="パチンコ演出"]');
     await open.waitFor({ state: 'visible', timeout: 15_000 });
     await open.click();
     await page.waitForTimeout(1200);
@@ -44,7 +44,7 @@ test('AC-6 使用中のプリセットが最後ではないとき、ホームの
   }
 });
 
-test('AC-6 使用中が default のとき、ホームの「使っているもの」を押すと default の編集画面が開く', { timeout: 120_000 }, async () => {
+test('AC-6 使用中が default のとき、左の列から開くと default の編集画面が開く', { timeout: 120_000 }, async () => {
   assert.ok(chromium, `playwright が使えません(${PLAYWRIGHT}): ${playwrightError?.message}`);
   const server = await startLocalServer(root);
   const browser = await chromium.launch({ headless: true });
@@ -55,7 +55,7 @@ test('AC-6 使用中が default のとき、ホームの「使っているもの
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(`${server.baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-    const open = page.locator('.home-used-open', { hasText: 'パチンコ演出' }).first();
+    const open = page.locator('.side-item[data-name="パチンコ演出"]');
     await open.waitFor({ state: 'visible', timeout: 15_000 });
     await open.click();
     await page.waitForTimeout(1200);

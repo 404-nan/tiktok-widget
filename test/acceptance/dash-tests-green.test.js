@@ -27,7 +27,7 @@ const timeouts = (src) => [...src.matchAll(/timeout:\s*([\d_]+)/g)].map((m) => N
 // 子の node --test を走らせ、要約の数字を返す
 function runTests(args) {
   const r = spawnSync(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', ...args], {
-    cwd: root, encoding: 'utf8', maxBuffer: 1 << 26, env: { ...process.env, DASH_TESTS_GREEN_CHILD: '1' },
+    cwd: root, encoding: 'utf8', maxBuffer: 1 << 26, env: { ...process.env, NODE_TEST_CONTEXT: undefined, DASH_TESTS_GREEN_CHILD: '1' },
   });
   const num = (k) => Number((r.stdout.match(new RegExp(`^# ${k} (\\d+)`, 'm')) ?? [])[1] ?? NaN);
   const failed = [...r.stdout.matchAll(/^\s*not ok \d+ - (.*)$/gm)].map((m) => m[1]);

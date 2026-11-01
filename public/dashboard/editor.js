@@ -367,7 +367,7 @@ export function createEditor({ api, setMessage }) {
   }
 
   /** カードを押した: 使っていなければ使うものに足して、設定を開く */
-  async function openCard(section, { activeId } = {}) {
+  async function openCard(section, { activeId = payload?.config.active?.[section] } = {}) {
     if (isTenant() && section !== 'theme' && !me.widgets.includes(section)) {
       try {
         me = await api('/api/me/widgets', { widgets: [...me.widgets, section] }, 'PUT');
