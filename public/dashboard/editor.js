@@ -1154,7 +1154,7 @@ export function createEditor({ api, setMessage }) {
       (key === 'volume' && values.sound === false) ||
       (key === 'maxCoins' && !Number(values.minCoins));
     if (easy) {
-      if (easy.note && (section !== 'minecraft' || isTenant())) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
+      if (easy.note && (tab !== 'minecraft' || isTenant())) form.append(Object.assign(document.createElement('p'), { className: 'desc', textContent: easy.note }));
       for (const g of easy.groups) {
         const fields = g.fields.filter((key) => !(isMinecraftField(tab, key) && !usesMinecraft()));
         form.append(listGroup(g.title, [...(g.presets ?? []).map((preset) => presetRow(preset, values)), ...fields.map((key) => fieldFor(key, def.fields[key], values[key]))]));
@@ -1420,6 +1420,7 @@ export function createEditor({ api, setMessage }) {
     }
 
     if (field.type === 'object') {
+      const wrap = labelFor(key, field);
       const control = document.createElement('textarea');
       control.rows = 4;
       control.className = 'mono';
