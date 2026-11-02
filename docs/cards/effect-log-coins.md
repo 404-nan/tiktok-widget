@@ -19,3 +19,5 @@ for: 北極星
 
 ## 証拠
 新しいテストの結果と npm test 全体の結果。一時サーバーの報告 JSON で coins と倍率が数字になっている部分。
+
+一時サーバーの報告(本物の History・EffectLog・normalize で作った配信。デモでない): coins 合計 350 は配信の合計と一致、medianCoinsPerMinute 20、cutin の倍率 10(前15→後150)。写真: artifacts/shots/effect-log-coins-1280.png と -390.png。
