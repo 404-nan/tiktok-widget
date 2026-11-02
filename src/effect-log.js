@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { eventCoinTotal } from './gifts.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -59,7 +60,7 @@ export class EffectLog {
     const ordinal = (this.session.actors.get(actorKey) || 0) + 1;
     this.session.actors.set(actorKey, ordinal);
     const gift = event.gift || {};
-    this.queue.push({ ts: event.ts ?? this.now(), kind: 'gift', giftId: gift.id ?? null, giftName: gift.name ?? null, coins: finite(event.coins ?? gift.coins ?? gift.diamondCount), actor: actorKey, ordinal, test: Boolean(event.test) });
+    this.queue.push({ ts: event.ts ?? this.now(), kind: 'gift', giftId: gift.id ?? null, giftName: gift.name ?? null, coins: eventCoinTotal(event), actor: actorKey, ordinal, test: Boolean(event.test) });
   }
 
   effect(type, values = {}, { test = false, ts = this.now() } = {}) {
