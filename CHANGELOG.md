@@ -15,3 +15,4 @@
 - shots-nested-slow: npm test の中で npm test 全部をもう1回走らせない
 - obs-attempt-count: 配信ごとに OBS の接続回数を記録し、断られた接続を journal に残す
 - dash-tests-green: 本番ブランチで落ちているダッシュボードの受け入れテスト13件を緑に戻す
+- preview-live-not-obs: 見本の「動きを確認」を外すと、見本が配信ソフトの接続として数えられるのを直す

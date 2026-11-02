@@ -59,11 +59,11 @@
   function add(item) { var kind = kindOf(item.visits); if (!config || !allowed(kind)) return; queue.push(item); while (queue.length > (Number(config.maxQueue) || 5)) queue.shift(); next(); }
   function connect() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var socket = new WebSocket(proto + '//' + location.host + basePath() + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
+    var socket = new WebSocket(proto + '//' + location.host + basePath() + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
     socket.onmessage = function (event) { var data; try { data = JSON.parse(event.data); } catch (e) { return; } if (data.type === 'visitor') add(data.visitor); if (data.type === 'config') loadConfig(function () {}); };
     socket.onclose = function () { window.setTimeout(connect, 1500); };
   }
-  function preview() { if (!queryValue('preview')) return; window.setTimeout(function () { add({ user: { name: 'はじめての人' }, visits: 1 }); window.setTimeout(function () { add({ user: { name: 'いつもの人' }, visits: config.regularVisits }); }, 1200); }, 100); }
+  function preview() { if (queryValue('preview') !== '1') return; window.setTimeout(function () { add({ user: { name: 'はじめての人' }, visits: 1 }); window.setTimeout(function () { add({ user: { name: 'いつもの人' }, visits: config.regularVisits }); }, 1200); }, 100); }
   card.addEventListener('animationend', function () { card.classList.remove('in'); });
   loadConfig(function () { connect(); preview(); });
 }());
