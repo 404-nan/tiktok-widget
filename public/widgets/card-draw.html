@@ -157,7 +157,7 @@ function show(msg) {
 fetch(`${BASE}/api/card-draw`).then((r) => r.json()).then(show).catch(() => {});
 // 段階の知らせ(type: cardDraw)は WebSocket で来る。切れたら1秒後につなぎ直す
 function listen() {
-  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${/[?&]preview=1/.test(location.search) ? '?preview=1' : ''}`);
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''}`);
   ws.onmessage = (m) => { try { const msg = JSON.parse(m.data); if (msg.type === 'cardDraw') show(msg); } catch {} };
   ws.onclose = () => setTimeout(listen, 1000);
 }
