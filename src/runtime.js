@@ -805,6 +805,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     if (req.body?.on) {
       await tiktok.disconnect();
       demo.start();
+      preparation.mark('testedAt');
       hub.setStatus({ mode: 'demo', username: null, message: 'デモモードでイベントを流しています' });
     } else {
       demo.stop();

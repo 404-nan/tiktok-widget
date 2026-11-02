@@ -40,7 +40,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | おみくじの番号の選び方 | 送った人がコメントで棒の番号(1〜10)を選ぶ(初期値) / おまかせ / 配信者がダッシュボードの番号ボタン(配信者の番のときだけ押せる)で選ぶ。ダッシュボードの「ためしに1つ出す」は仮の名前で番号待ちから始まる。待つ秒数は設定(初期値10秒)。時間切れはランダム(初期値)か配信者が選ぶ。配信者も押さなければ同じ秒数のあとランダム。運勢は番号と関係なく重みで決まる。見た目は神社の木札・和紙・墨・朱(決まりは omikuji-style.md)。選んだ札は筒の口へ落ち、同じ番号の棒が出る | 作りかけ(見た目はめにの確認待ち) | `src/gacha.js`、`public/widgets/omikuji.html` |
 | スパチャ風コメント | この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す。色は送ったコインの合計で変わる | できた | `public/widgets/superchat.html` |
 | 妨害マイクラのギフト表 | 妨害マイクラで、どのギフトを送ると何が起きるかを配信画面に出す(行が多いと順にめくる)。表は配信者の minecraft.superstreamFile、無ければ TW_MC_GIFT_TABLE(貸出サーバーのモードの superstream.yml) | できた | `public/widgets/mc-gifts.html`、`src/superstream.js` の `giftTable` |
-| 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1 / preview=live)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
+| 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、「ためしに動かす」でデモを始めるか配信中にテスト送信すると「ためす」を済みにする。配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1 / preview=live)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
 | 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する | できた（開発サーバー確認まで） | `public/dashboard/`、`test/kind-ui-playwright.test.js` |
 | 配信中のウィジェット未接続案内 | `/api/status` の `widgetConnected` が false のまま配信中なら、ホームで入れ方を案内し、配信ごとに閉じられる | できた | `src/runtime.js`、`public/dashboard/editor.js` |
 
