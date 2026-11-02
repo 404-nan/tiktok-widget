@@ -8,6 +8,8 @@ const HISTORY_SIZE = 20;
 const VIEWER_LIMIT = 50;
 const JST = 'Asia/Tokyo';
 
+const isDemoEvent = (event) => event?.test === true || String(event?.user?.id ?? '').startsWith('demo_');
+
 const DENY = {
   cooldown: 'まだ続けて回せません',
   'no-credits': '回数がありません',
@@ -259,7 +261,7 @@ export class GachaViewers {
   }
 
   onEvent(event) {
-    if (this.config.enabled === false || !event) return null;
+    if (this.config.enabled === false || !event || isDemoEvent(event)) return null;
     const user = event.user;
     if (event.kind === 'follow') {
       const id = this.#id(user);
@@ -385,7 +387,7 @@ export class GachaViewers {
   }
 
   list() {
-    return Object.keys(this.store.all())
+    return this.#realIds()
       .sort((a, b) => {
         const byTime = this.#activity(b) - this.#activity(a);
         if (byTime) return byTime;
@@ -400,7 +402,7 @@ export class GachaViewers {
   snapshot() {
     return {
       viewers: this.list(),
-      total: Object.keys(this.store.all()).length,
+      total: this.#realIds().length,
       freePerReset: this.#freeLimit(),
       resetMode: this.config.resetMode,
       command: this.#command(),
@@ -410,6 +412,10 @@ export class GachaViewers {
   close() {
     this.offResult?.();
     this.store.close?.();
+  }
+
+  #realIds() {
+    return Object.keys(this.store.all()).filter((id) => !id.startsWith('demo_'));
   }
 
   #result(event) {

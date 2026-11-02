@@ -32,7 +32,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 性能改善（perf-fix） | compact の明示接続・履歴保存・復元テストはできた。画面性能とサーバー p95/RSS は未達。`src/hub.js`、`public/widgets/lib/overlay.js`、`test/acceptance/` | 作りかけ | - |
 | カットインのプレミア柄・昇格・RUSH格上げ・段階写真・段階ごとの声 | - | できた | `src/cutin-draw.js`、`public/widgets/lib/cutin-premium.js`、`public/widgets/lib/cutin.js` |
 | カットインの画面撮影と本番反映 | - | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
-| ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
+| ガチャの視聴者ごとの回数 | 視聴者ごとに無料回を配り、ギフトのコインで有料回をためて、コメントで回す。デモとテストは数えない。景品は演出だけで換金しない | できた | `src/gacha-viewers.js`、`public/dashboard/gacha-viewers-form.js` |
 | ダッシュボードの明るさ | 設定画面でライトとダークを切り替える | できた | `public/dashboard/common.js`、`public/dashboard/style.css` |
 | カードめくり | 当たり・ハズレのカードを見せて混ぜ、番号つきで並べる。ギフトを送った人がコメントで番号を言うと、そのカードがめくれて結果が出る(結果は確率で決める。番号が来なければ時間で自動) | できた | `public/widgets/card-draw.html`、`src/card-draw.js` |
 | パチンコ演出 | ギフト名またはコイン数に合う4本の演出(チャンス・カットイン・大当たり・プチュン)を流し、設定した字と比率で表示する。連打は個数ぶん順に流す。立ち絵はダッシュボードでメディアの画像から選べ、空なら仮の影だけ。ホームの「使っているもの」からは使用中のプリセットを開く | できた（URL・透明背景・使用中表示・立ち絵を開発サーバーで確認） | `src/puchun.js`、`public/widgets/puchun/` |
