@@ -133,6 +133,8 @@ e2eTest('AC-6 下ごしらえの字を数えず、jackpot の文字時刻後に�
     await sendGift(baseUrl, 'バラ', 1);
     await page.waitForSelector('iframe.puchun-play', { state: 'attached', timeout: 10_000 });
     await page.waitForTimeout(3500); // jackpot の文字時刻(3.15秒)を過ぎてから見る
+    // 負荷が高いと 3.5 秒では再生の字がまだ描かれないので、描かれるのを待つ
+    await page.waitForFunction((text) => window.__drawn.some((draw) => draw.text === text && !draw.warming), MAIN_TEXT, { timeout: 20_000 }).catch(() => {});
     const frame = page.frames().find((candidate) => candidate !== page.mainFrame() && candidate.url().includes('/widgets/puchun/puchun.html'));
     assert.ok(frame, '演出の iframe が見つかりません');
     const evidence = await frame.evaluate(() => {
