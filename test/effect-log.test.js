@@ -10,8 +10,8 @@ test('ギフトは匿名の送信者番号と回数だけを残す', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-effect-'));
   const log = new EffectLog(dir, { secret: 'secret' });
   log.start('s1', 0);
-  log.gift({ kind: 'gift', ts: 1, user: { id: 'user-1', name: '表示名' }, gift: { id: 7, name: 'Rose' }, coins: 10 });
-  log.gift({ kind: 'gift', ts: 2, user: { id: 'user-1', name: '表示名' }, gift: { id: 7, name: 'Rose' }, coins: 10 });
+  log.gift({ kind: 'gift', ts: 1, user: { id: 'user-1', name: '表示名' }, totalDiamonds: 10, gift: { id: 7, name: 'Rose', diamonds: 10, count: 1 } });
+  log.gift({ kind: 'gift', ts: 2, user: { id: 'user-1', name: '表示名' }, totalDiamonds: 10, gift: { id: 7, name: 'Rose', diamonds: 10, count: 1 } });
   log.end(1000);
   const text = fs.readFileSync(path.join(dir, 's1.events.jsonl'), 'utf8');
   assert.match(text, new RegExp(actorDigest('secret', 'user-1')));
