@@ -3374,6 +3374,13 @@ export function createEditor({ api, setMessage }) {
       $('actions').classList.toggle('live', live);
       // 出す・消すが変わるときだけ描き直す(毎回描き直すと見本の iframe が読み直しになる)
       if (view === 'home' && !!liveNoWidgetCard() !== !!document.querySelector('.live-no-widget')) renderHome();
+      // デモ中は状態が5秒ごとに来る。済みになるまでの1回だけ描き直す(見本の iframe を読み直さない)
+      if (view === 'home' && status.mode === 'demo' && !preparation.testedAt) {
+        api('/api/preparation').then((nextPreparation) => {
+          preparation = nextPreparation;
+          if (view === 'home') renderHome();
+        }).catch(() => {});
+      }
     },
     /** 管理者が豪華な演出をオン/オフしたとき */
     async onEntitlements() {
