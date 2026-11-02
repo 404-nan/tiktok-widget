@@ -1314,6 +1314,9 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   width: 100%;
   padding: 0;
 }
+.live-no-widget { margin: var(--card-gap) 0 0; }
+.live-no-widget h2 { margin: 0; font-size: 20px; }
+.live-no-widget p { margin: 0; line-height: 1.6; }
 /* 上の余白はカードが持つ（カードが1枚も出ていないときは、何も足さない） */
 .top-cards > .notes-panel,
 .top-cards > .plan-panel,

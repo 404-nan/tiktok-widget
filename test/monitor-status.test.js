@@ -25,7 +25,7 @@ test('接続状態の表示文は mode ごとに決まり、LIVE はユーザー
 test('設定画面は WebSocket が無くても /api/status を5秒ごとに読んで接続状態を出す', () => {
   const src = read('../public/dashboard/app.js');
   assert.match(src, /setInterval\(pollStatus, 5000\)/);
-  assert.match(src, /function pollStatus\(\) \{[\s\S]*?api\('\/api\/status'\)[\s\S]*?applyPolledStatus\(s\.status, ticket\)/);
+  assert.match(src, /function pollStatus\(\) \{[\s\S]*?api\('\/api\/status'\)[\s\S]*?applyPolledStatus\(s\.status, ticket, s\.widgetConnected\)/);
   assert.match(src, /statusGate\.markReceived\(\)/);
   assert.match(src, /\$\('statusText'\)\.textContent = statusText\(status\)/);
   assert.match(src, /\$\('status'\)\.dataset\.mode = status\.mode/);
