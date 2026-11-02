@@ -221,7 +221,7 @@
 
   function connect() {
     var protocol = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
-    var socket = new WebSocket(protocol + '//' + location.host + base + '/ws' + (/[?&]preview=1/.test(location.search) ? '?preview=1' : ''));
+    var socket = new WebSocket(protocol + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
     socket.onmessage = function (event) {
       try { receive(JSON.parse(event.data)); } catch (error) {}
     };
@@ -242,7 +242,7 @@
     request.send(null);
   }
 
-  if (new URLSearchParams(location.search).has('preview')) render(sampleVote());
+  if (new URLSearchParams(location.search).get('preview') === '1') render(sampleVote());
   else loadState();
   connect();
 }());
