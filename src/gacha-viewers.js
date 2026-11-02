@@ -387,8 +387,7 @@ export class GachaViewers {
   }
 
   list() {
-    return Object.keys(this.store.all())
-      .filter((id) => !id.startsWith('demo_'))
+    return this.#realIds()
       .sort((a, b) => {
         const byTime = this.#activity(b) - this.#activity(a);
         if (byTime) return byTime;
@@ -401,10 +400,9 @@ export class GachaViewers {
   }
 
   snapshot() {
-    const viewers = this.list();
     return {
-      viewers,
-      total: Object.keys(this.store.all()).length,
+      viewers: this.list(),
+      total: this.#realIds().length,
       freePerReset: this.#freeLimit(),
       resetMode: this.config.resetMode,
       command: this.#command(),
@@ -414,6 +412,10 @@ export class GachaViewers {
   close() {
     this.offResult?.();
     this.store.close?.();
+  }
+
+  #realIds() {
+    return Object.keys(this.store.all()).filter((id) => !id.startsWith('demo_'));
   }
 
   #result(event) {

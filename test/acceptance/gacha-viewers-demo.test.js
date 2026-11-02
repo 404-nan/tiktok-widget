@@ -123,6 +123,7 @@ test('AC-4 保存済みに demo_ の人がいても、一覧の API には出さ
   try {
     const body = await getViewersApi(runtime);
     assert.deepEqual(body.viewers.map((v) => v.userId), ['viewer1']);
+    assert.equal(body.total, 1); // 画面の「全部で N 人」もデモを数えない
   } finally {
     await runtime.close();
   }
