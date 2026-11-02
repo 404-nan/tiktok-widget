@@ -207,8 +207,10 @@ test('AC-4 「閉じる」を押すとその配信のあいだは出ず(読み�
     await h.banner().getByRole('button', { name: '閉じる' }).click();
     await h.page.waitForTimeout(200);
     assert.ok(!(await h.shown()), '押した直後に消えていません');
+    await h.page.evaluate(() => { document.querySelector('#cards').firstElementChild.dataset.keep = '1'; });
     await h.advance(30);
     assert.ok(!(await h.shown()), '閉じたあと、同じ配信のうちに出ています');
+    assert.equal(await h.page.evaluate(() => document.querySelector('#cards').firstElementChild.dataset.keep), '1', '閉じたあと、ホームが描き直されています');
 
     await h.page.reload({ waitUntil: 'domcontentloaded' });
     await h.page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
