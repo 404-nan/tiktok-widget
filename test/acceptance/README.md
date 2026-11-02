@@ -7,6 +7,7 @@
 | `guard.test.js` / `guard-round2.test.js` / `guard-round3.test.js` | 1人用の操作を本番で使わせないガードの確認 |
 | `obs.test.js` | 偽の obs-websocket と vm 上のページで OBS カードの AC-1〜13 を確認する。AC-14 は全体テストで確認する |
 | `obs-attempt-count.test.js` | 配信ごとの OBS 接続回数(`obsConnects`)と、断った upgrade の `ws rejected` 行を確認する。AC-6 は全体テストで確認する |
+| `effect-log-coins.test.js` | 効果ログ(`src/effect-log.js`)のコインが本物の形のギフトで `eventCoinTotal`・配信の合計と一致し、報告の倍率が数字になることを確認する。AC-5・6 は全体テストと README で確認する |
 | `live-no-widget.test.js` | 配信中に配信ソフトへライコネが入っていないとき、`/api/status` の `widgetConnected` とホームの案内の出方(60秒・閉じる・見本は数えない)を確認する。AC-6・7 は全体テストと目で確認する |
 | `dareba.test.js` | ダレ場の判定、進行、停止、テスト送信を確認する |
 | `peka.test.js` / `peka-wiring.test.js` | ペカの完成条件とランタイム・API・CLI・MCP・画面の配線を確認する |
@@ -50,4 +51,4 @@
 - 使うもの: `src/`、`public/`、`../helpers/guard-harness.js`
 - 使われるところ: `test/README.md` と `npm test`
 
-最後に直した日: 2026-10-31
+最後に直した日: 2026-11-02
