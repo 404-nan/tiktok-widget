@@ -352,21 +352,25 @@ setupStreamerAi({ box: $('streamerAiView'), intro: $('streamerAiIntro'), body: $
 // 出した時点より新しい受信がある返事は捨て、遅れた idle で live を戻さない。
 const statusGate = createStatusGate();
 
-function applyPolledStatus(status, ticket) {
+function applyPolledStatus(status, ticket, widgetConnected) {
   if (!statusGate.acceptPoll(ticket)) return;
-  if (status) renderStatus(status);
+  if (status) {
+    if (typeof widgetConnected === 'boolean') status.widgetConnected = widgetConnected;
+    renderStatus(status);
+    editor.onStatus(status);
+  }
 }
 
 function pollStatus() {
   const ticket = statusGate.startPoll();
-  api('/api/status').then((s) => applyPolledStatus(s.status, ticket)).catch(() => {});
+  api('/api/status').then((s) => applyPolledStatus(s.status, ticket, s.widgetConnected)).catch(() => {});
 }
 
 setInterval(pollStatus, 5000);
 const bootTicket = statusGate.startPoll();
 api('/api/status')
-  .then(({ recent, status }) => {
-    applyPolledStatus(status, bootTicket);
+  .then(({ recent, status, widgetConnected }) => {
+    applyPolledStatus(status, bootTicket, widgetConnected);
     for (const e of [...recent].reverse()) addLog(e, { animate: false });
   })
   .catch(() => {});

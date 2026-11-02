@@ -395,7 +395,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
 
   r.get('/api/status', (_req, res) => {
-    res.json({ status: hub.status, state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
+    res.json({ status: hub.status, widgetConnected: hub.hasClient('obs'), state: hub.state, recent: hub.recent, demo: demo.running, minecraft: minecraft.status, session: history.current?.summary() ?? null });
   });
   r.get('/api/preparation', (_req, res) => res.json(preparation.snapshot()));
   r.put('/api/preparation/auto', (req, res) => res.json(preparation.setAutoConnect(req.body?.on !== false)));

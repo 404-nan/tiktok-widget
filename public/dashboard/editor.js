@@ -167,6 +167,8 @@ export function createEditor({ api, setMessage }) {
   let mode = 'simple';
   let view = 'home';
   let live = false; // TikTok につないでいる間は、テスト送信は画面に出るだけ
+  let liveStatus = { mode: 'idle', startedAt: null, widgetConnected: false };
+  let liveStartedAt = null;
   let testVoteParticipant = 0;
   let alertMedia = []; // メディア通知に入れたファイル
   let templatesView = null;
@@ -652,6 +654,8 @@ export function createEditor({ api, setMessage }) {
   function renderHome() {
     const box = $('cards');
     const parts = [viewHead('ホーム')];
+    const notice = liveNoWidgetCard();
+    if (notice) parts.push(notice);
     if (!preparation.liveAt && !preparation.prepDismissedAt) parts.push(prepCard());
     parts.push(embeddedFrame('monitor'), homeTopCards);
     box.replaceChildren(...parts);
@@ -660,6 +664,27 @@ export function createEditor({ api, setMessage }) {
       preparation = next;
       if (view === 'home') renderHome();
     }).catch(() => {});
+  }
+
+  function liveNoWidgetCard() {
+    const { mode, startedAt, widgetConnected } = liveStatus;
+    const liveSince = liveStartedAt ?? startedAt;
+    if (mode !== 'live' || widgetConnected || !startedAt || !liveSince || Date.now() - liveSince < 60 * 1000) return null;
+    const key = `live-no-widget:${startedAt}`;
+    if (store.get(key, false)) return null;
+    const card = Object.assign(document.createElement('section'), { className: 'home-card live-no-widget' });
+    card.append(
+      Object.assign(document.createElement('h2'), { textContent: '配信画面にライコネが出ていません' }),
+      Object.assign(document.createElement('p'), { textContent: '配信ソフトに URL を入れると出ます。わざと使っていないなら、閉じてかまいません' }),
+    );
+    const actions = Object.assign(document.createElement('div'), { className: 'row wrap' });
+    const guide = Object.assign(document.createElement('button'), { type: 'button', className: 'btn primary pressable', textContent: '入れ方を見る' });
+    const close = Object.assign(document.createElement('button'), { type: 'button', className: 'btn pressable', textContent: '閉じる' });
+    guide.addEventListener('click', goTo('obs'));
+    close.addEventListener('click', () => { store.set(key, true); card.remove(); });
+    actions.append(guide, close);
+    card.append(actions);
+    return card;
   }
 
   function prepCard() {
@@ -3342,7 +3367,13 @@ export function createEditor({ api, setMessage }) {
     /** TikTok につながった・切れた（配信中のテスト送信は画面に出るだけになる） */
     onStatus(status) {
       live = status.mode === 'live';
+      const next = { mode: status.mode, startedAt: status.startedAt ?? null, widgetConnected: typeof status.widgetConnected === 'boolean' ? status.widgetConnected : liveStatus.widgetConnected };
+      if (next.mode === 'live' && liveStatus.mode !== 'live') liveStartedAt = Date.now();
+      if (next.mode !== 'live') liveStartedAt = null;
+      liveStatus = next;
       $('actions').classList.toggle('live', live);
+      // 出す・消すが変わるときだけ描き直す(毎回描き直すと見本の iframe が読み直しになる)
+      if (view === 'home' && !!liveNoWidgetCard() !== !!document.querySelector('.live-no-widget')) renderHome();
     },
     /** 管理者が豪華な演出をオン/オフしたとき */
     async onEntitlements() {
