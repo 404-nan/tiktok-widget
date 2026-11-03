@@ -50,7 +50,7 @@ browserTest('AC-1 3秒の打ち切りは書体だけで、遅い立ち絵は待�
   let release;
   const held = new Promise((ok) => { release = ok; });
   await page.route('**/slow-char.png', async (route) => { await held; await route.fulfill({ status: 404 }); });
-  await page.goto(baseUrl + PUCHUN + '?char=/slow-char.png', { waitUntil: 'commit' });
+  await page.goto(baseUrl + PUCHUN + '&char=/slow-char.png', { waitUntil: 'commit' });
   await page.waitForTimeout(4000);
   assert.notEqual(await page.evaluate(() => window.fxReady), true);
   release();
