@@ -1867,10 +1867,11 @@ input[type=number], .num, .kpi-value, .count, time { font-variant-numeric: tabul
 #widgetUrl, .url-row input, .rk-top #username { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 /* 使用中は差し色の札(緑にしない) */
 .entry-active, .entry-live { color: var(--rk-acc) !important; font-weight: 700; letter-spacing: .02em; }
-/* 左の列: 文字は1行、選んでいるものに差し色の線 */
+/* 左の列: 文字を折り返し、選んでいるものに差し色の線 */
 @media (min-width: 900px) {
   [data-mode=simple] .side-item { font-size: 12px; padding: 6px 0; }
-  [data-mode=simple] .side-item span { white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%; }
+  /* 細い列でも名前を読めるよう、項目の高さを文字に合わせて折り返す。 */
+  [data-mode=simple] .side-item span { white-space: normal; overflow: visible; text-overflow: clip; max-width: 100%; overflow-wrap: anywhere; }
   [data-mode=simple] .side-item[aria-current=true] { background: transparent; box-shadow: inset 3px 0 0 var(--rk-acc); border-radius: 0; }
   .rk-top { gap: 12px; }
   .rk-top .btn, .rk-top .input-wrap { border-radius: var(--r-sm); }
@@ -1975,6 +1976,11 @@ p, .desc, .hint { text-wrap: pretty; }
 .home-used-open { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--text-primary); text-align: left; font-size: 14px; }
 .home-used-name { font-weight: 700; }
 @media (min-width: 900px) { [data-mode=simple] .side-item span { letter-spacing: -.1em; } }
+
+/* スマホ共通の入力高さより、見本のスイッチの形を優先する。 */
+@media (max-width: 899px) {
+  body[data-mode=simple] #cards > .sample-control > .check input[type=checkbox] { min-height: 0; }
+}
 .home-card-head h3 { white-space: nowrap; }
 .home-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn.is-armed { background: var(--rk-acc) !important; color: var(--rk-acc-ink) !important; }
