@@ -860,7 +860,9 @@ export function createEditor({ api, setMessage }) {
     const updateSample = (s) => { sampleBtn.checked = Boolean(s.on); sampleText.textContent = s.on && s.until ? `あと ${Math.max(1, Math.ceil((s.until - Date.now()) / 60000))} 分` : '場所と大きさを決めるときに使います。15分で自動で消えます（配信中は出ません）'; };
     sampleBtn.onchange = async () => { try { updateSample(await api('/api/sample', { on: sampleBtn.checked }, 'POST')); if (sampleBtn.checked) store.set('sample-tried', true); } catch (e) { sampleBtn.checked = false; setMessage(e.message, true); } };
     api('/api/sample').then(updateSample).catch(() => {}); sample.append(sampleRow, sampleText);
-    const rows = obsList().filter((w) => w.section !== 'all').map((w) => {
+    const primaryRows = [];
+    const otherRows = [];
+    obsList().filter((w) => w.section !== 'all').forEach((w) => {
       const row = document.createElement('div');
       row.className = 'srow url-item';
       const main = document.createElement('span');
@@ -878,11 +880,21 @@ export function createEditor({ api, setMessage }) {
       const setting = chip('設定', 'settings-2', () => { view = 'detail'; select(w.section, w.id === '*' ? undefined : w.id); });
       setting.setAttribute('aria-label', `${obsTitle(w)}の設定`);
       row.append(icon(INFO[w.section].icon), main, copy, setting);
-      return row;
+      // map の設定がある URLを先に出し、初期設定だけの URL は下へまとめる。
+      (!isObj(w.section) && entriesOf(w.section).length > 0 ? primaryRows : otherRows).push(row);
     });
     box.replaceChildren(viewHead('配信ソフトに入れる URL', 'コピーした URL を、OBS や TikTok LIVE Studio の「ブラウザ」ソースに貼ります'), sample);
-    if (rows.length) box.append(listGroup('コピーして貼るURL（1つにつき1ソース）', rows));
+    if (primaryRows.length) box.append(listGroup('コピーして貼るURL（1つにつき1ソース）', primaryRows));
     else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'まだ出すものがありません。左の「出すものを選ぶ」から選んでください。' }));
+    if (otherRows.length) {
+      const more = document.createElement('details');
+      more.className = 'url-others';
+      more.open = primaryRows.length === 0;
+      const summary = document.createElement('summary');
+      summary.textContent = 'ほかの URL';
+      more.append(summary, listGroup('', otherRows));
+      box.append(more);
+    }
     const all = obsList().find((w) => w.section === 'all');
     if (all) { const link = Object.assign(document.createElement('button'), { className: 'text-btn pressable', type: 'button', textContent: '1つにまとめて入れたいときは「1つにまとめる」へ' }); link.onclick = goTo('stage'); box.append(link); }
   }

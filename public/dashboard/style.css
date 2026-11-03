@@ -1008,6 +1008,11 @@ body[data-mode=simple] [data-dev-only] { display: none !important; }
 .url-item .chip { flex: none; white-space: nowrap; }
 .srow > .srow-go { --size: 16px; color: var(--text-tertiary); }
 .url-item .chip { flex: none; }
+.url-others { display: grid; gap: 6px; width: 100%; min-width: 0; }
+.url-others > .sgroup { width: calc(100% - 2px); }
+.url-others:not([open]) > :not(summary) { display: none; }
+.url-others > summary { cursor: pointer; color: var(--text-secondary); font-size: 14px; }
+.url-others > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 14px; color: var(--text-secondary); }
 #cards { gap: 20px; }
 
