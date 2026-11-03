@@ -22,3 +22,5 @@
 - gacha-viewers-demo: ガチャの視聴者の記録に、デモとテストの視聴者を混ぜない
 - first-run-walk: 初めての配信者になって、最初の配信までを開発用の画面で歩く
 - puchun-try-phone: ぷちゅんの書体待ちで演出が止まらないようにし、ためす画面をスマホで使いやすくする
+- gift-coins-refresh: ギフトのコインと日本語名の表を、今の TikTok の一覧に更新する
+- url-first-choice: 配信ソフトに入れる URL の画面で、選んだものを先頭に出す
