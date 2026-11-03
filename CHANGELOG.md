@@ -24,3 +24,4 @@
 - puchun-try-phone: ぷちゅんの書体待ちで演出が止まらないようにし、ためす画面をスマホで使いやすくする
 - gift-coins-refresh: ギフトのコインと日本語名の表を、今の TikTok の一覧に更新する
 - url-first-choice: 配信ソフトに入れる URL の画面で、選んだものを先頭に出す
+- giftlist-keep-names: ギフトの表を作り直しても、前の名前を黙って変えない
