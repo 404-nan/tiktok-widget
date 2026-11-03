@@ -4,6 +4,7 @@
 // 注意: webcast_language=ja だけだと英語名で返る。必ず ja-JP。ログイン・API キー・有料プランは不要。
 // 使い方: node scripts/giftlist.js [roomId ...]   （roomId を付けるとその部屋のギフトも足す。無くても約700件取れる）
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 const OUT = new URL('../src/gift-names-ja.json', import.meta.url);
 const COINS = new URL('../src/gift-coins.json', import.meta.url);
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
@@ -27,17 +28,37 @@ for (const room of rooms) {
 }
 const old = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')).names ?? {} : {};
 const names = { ...old }; // 前に取れたものは残す（そのときの部屋にしか無いギフトがあるため）
+const nameChanges = [];
 let added = 0;
 for (const [id, nameEn] of en) {
   const nameJa = ja.get(id);
-  if (nameJa && nameJa !== nameEn) { if (!names[id]) added++; names[id] = [nameEn, nameJa]; }
+  if (!nameJa || nameJa === nameEn) continue;
+  if (names[id]) {
+    if (names[id][0] !== nameEn || names[id][1] !== nameJa) {
+      nameChanges.push(`${id}: 名前 ${JSON.stringify(names[id])} → ${JSON.stringify([nameEn, nameJa])}`);
+    }
+    continue;
+  }
+  added++;
+  names[id] = [nameEn, nameJa];
 }
-if (ja.size && [...ja.values()].every((n, i, a) => en.get([...ja.keys()][i]) === n)) {
+if (!ja.size || [...ja.entries()].every(([id, name]) => en.get(id) === name)) {
   console.error('日本語名が1件も返っていません（webcast_language=ja-JP になっているか確認）'); process.exit(1);
 }
 fs.writeFileSync(OUT, JSON.stringify({ source: `TikTok webcast gift/list (webcast_language=ja-JP), ${new Date().toISOString().slice(0, 10)}`, names }, null, 0).replace(/\],"/g, '],\n"') + '\n');
 const oldCoins = fs.existsSync(COINS) ? JSON.parse(fs.readFileSync(COINS, 'utf8')).coins ?? {} : {};
 const nextCoins = { ...oldCoins };
-for (const [id, n] of coins) nextCoins[id] = n;
+const coinChanges = [];
+for (const [id, n] of coins) {
+  if (oldCoins[id] != null && oldCoins[id] !== n) coinChanges.push(`${id}: コイン ${oldCoins[id]} → ${n}`);
+  nextCoins[id] = n;
+}
 fs.writeFileSync(COINS, JSON.stringify({ source: `TikTok webcast gift/list diamond_count, ${new Date().toISOString().slice(0, 10)}`, coins: nextCoins }, null, 2) + '\n');
+const built = spawnSync(process.execPath, [new URL('./build-gift-names.js', import.meta.url).pathname], { encoding: 'utf8' });
+if (built.status !== 0) {
+  process.stderr.write(built.stderr || 'ブラウザ用のギフト名表を作れませんでした\n');
+  process.exit(built.status ?? 1);
+}
+for (const change of nameChanges) console.log(change);
+for (const change of coinChanges) console.log(change);
 console.log(`en ${en.size} / ja ${ja.size} → 対応表 ${Object.keys(names).length} 件（新規 ${added}）、コイン ${Object.keys(nextCoins).length} 件`);
