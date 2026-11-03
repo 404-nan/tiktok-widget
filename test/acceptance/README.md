@@ -18,6 +18,7 @@
 | `push-button.test.js` | 押しボタンの設定・集計・操作入口・公開コードを確認する |
 | `dash-tests-green.test.js` | ダッシュボードの受け入れテスト6ファイルが通り、テストを消す・skip・待ち時間を伸ばすだけで通していないことを確認する |
 | `gift-coins-refresh.test.mjs` | ギフトのコイン表と日本語名の表が今の一覧に更新され、件数・値・前の名前が守られていることを確認する |
+| `giftlist-keep-names.test.mjs` | `scripts/giftlist.js` を偽の fetch で動かし、表にある id の名前を上書きしないこと・変わった名前とコインを1件1行で出すこと・ブラウザ用の表も作り直すこと・日本語名が無いとき何も書かずに止まることを確認する(実装前は失敗する) |
 | `ideas-sync.test.js` | IDEAS.md の ✅ と見出しの画面パスが public/widgets の実物と合うか確認する |
 | `participation-vote-review.test.js` | コメント投票のレビュー条件を確認する |
 | `cheer.test.js` / `cheer-public.test.js` | いいね応援の設定・集計・操作入口・公開コードを確認する |
