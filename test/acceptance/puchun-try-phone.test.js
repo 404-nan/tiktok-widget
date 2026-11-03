@@ -45,6 +45,19 @@ browserTest('AC-1 書体の読み込みが終わらなくても、3秒すぎて�
   await page.close();
 });
 
+browserTest('AC-1 3秒の打ち切りは書体だけで、遅い立ち絵は待つ', async ({ browser, baseUrl }) => {
+  const page = await browser.newPage();
+  let release;
+  const held = new Promise((ok) => { release = ok; });
+  await page.route('**/slow-char.png', async (route) => { await held; await route.fulfill({ status: 404 }); });
+  await page.goto(baseUrl + PUCHUN + '?char=/slow-char.png', { waitUntil: 'commit' });
+  await page.waitForTimeout(4000);
+  assert.notEqual(await page.evaluate(() => window.fxReady), true);
+  release();
+  await page.waitForFunction(() => window.fxReady === true, null, { timeout: 5000 });
+  await page.close();
+});
+
 browserTest('AC-1 書体が普通に読めるときは、書体が読めてから fxReady が true になる', async ({ browser, baseUrl }) => {
   const page = await browser.newPage();
   await page.goto(baseUrl + PUCHUN);
