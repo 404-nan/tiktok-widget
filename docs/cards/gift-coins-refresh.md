@@ -5,12 +5,14 @@ for: raikone-users
 
 なぜ要るか(配信者): 表は 10/14 のまま。今の一覧には表に無いギフトが54件ある。表に無いギフトはコインが分からず、配信後の報告と貸出のギフト集計から漏れる。
 前提(確かめた): `node scripts/giftlist.js` を一時の写しで実行すると、コインの表は690件→744件。増えるだけで、消える件と値が変わる件は0。この結果はカードのコミットの次に、表のコミットとして入っている。
-触ってよい: src/gift-coins.json src/gift-names-ja.json src/README.md test/acceptance/gift-coins-refresh.test.mjs
+触ってよい: src/gift-coins.json src/gift-names-ja.json public/widgets/lib/gift-names-ja.js src/README.md test/acceptance/gift-coins-refresh.test.mjs
 
 ## 完成の条件
 - AC-1 src/gift-coins.json は744件以上で、source の日付が 2026-11-03。
 - AC-2 表のどの値も0以上の数。既存の見本(5655 は 1、5269 は 1)が変わっていない。
 - AC-3 src/gift-names-ja.json は765件以上で、前の表にあった名前が消えていない(コインの表にあって名前が無い id は17件あり、これは今回直さない)。
+- AC-5 前の表にあった名前(英語と日本語)は1つも変わらない。新しい一覧で名前が変わっていた3件(5879、59450、1322386)は、表示と判定が変わらないよう前の名前のままにする。
+- AC-6 ブラウザ用の表 public/widgets/lib/gift-names-ja.js は scripts/build-gift-names.js で作り直してあり、新しい名前も入っている。
 - AC-4 既存のテストも全部通る。ネットにつなぐテストは作らない。
 
 ## 作らないもの
@@ -18,3 +20,6 @@ for: raikone-users
 
 ## 証拠
 回帰テストと全テストの結果。
+
+## 2巡目(ルー君 2026-11-03)
+前提の「値が変わる件は0」はコインの表だけの話で、名前は3件変わっていた。実装役はそれに合わせて既存テストを書き換えたので、書き換えを戻し、名前を前のものに戻した。これで AC は全部満たす形にして、作業場所に入れた。残りは確かめとレビュー。

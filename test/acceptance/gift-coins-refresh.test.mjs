@@ -33,3 +33,17 @@ test('AC-3 名前の表は765件以上で、前の表の名前が消えていな
     assert.ok(id in names, `名前が消えた: ${id}`);
   }
 });
+
+test('AC-5 前の表の名前は英語も日本語も変わらない', () => {
+  const names = now('src/gift-names-ja.json').names;
+  for (const [id, pair] of Object.entries(before('src/gift-names-ja.json').names)) {
+    assert.deepEqual(names[id], pair, id);
+  }
+});
+
+test('AC-6 ブラウザ用の表は対応表から作り直してある', async () => {
+  const { default: table } = await import(root + 'public/widgets/lib/gift-names-ja.js');
+  for (const [id, pair] of Object.entries(now('src/gift-names-ja.json').names)) {
+    if (pair[1]) assert.equal(table.byId[id], pair[1], id);
+  }
+});
