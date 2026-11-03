@@ -45,7 +45,9 @@
   window.fx = fx;
   window.fxRender = function (t) { fx.render(t); };
 
-  var ready = [document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText), document.fonts.load('700 20px "Zen Kaku Gothic New"', allText)];
+  // 書体の読み込みに失敗しても演出は止めない(失敗を握りつぶし、長くても3秒で先へ進む)
+  var fonts = Promise.all([document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText).catch(function () {}), document.fonts.load('700 20px "Zen Kaku Gothic New"', allText).catch(function () {})]);
+  var ready = [Promise.race([fonts, new Promise(function (ok) { setTimeout(ok, 3000); })])];
   if (q.get('eyes')) opts.eyes = q.get('eyes').split(',').map(Number);
   if (q.get('char')) ready.push(new Promise(function (ok) { var im = new Image(); im.onload = function () { opts.charImage = im; ok(); }; im.onerror = ok; im.src = q.get('char'); }));
   Promise.all(ready).then(function () {
