@@ -25,3 +25,4 @@
 - gift-coins-refresh: ギフトのコインと日本語名の表を、今の TikTok の一覧に更新する
 - url-first-choice: 配信ソフトに入れる URL の画面で、選んだものを先頭に出す
 - giftlist-keep-names: ギフトの表を作り直しても、前の名前を黙って変えない
+- side-names-wrap: ダッシュボードの左の列の名前を切らない。幅390の「見本を出す」のスイッチの形を直す
