@@ -192,6 +192,16 @@ function copyField(label, url) {
   return el('div', { className: 'group-item' }, el('span', { className: 'url-label', textContent: label }), el('div', { className: 'url' }, input, b));
 }
 
+function handoverMessage(t) {
+  return [
+    `①この URL を開きます: ${t.urls.short}`,
+    `4桁の数字 ${t.pin} を入れます。`,
+    '②出すものを選びます。',
+    '③配信ソフトに URL を入れます。',
+    '④「ためしに動かす」を押して、画面を確かめます。',
+  ].join('\n');
+}
+
 // --- 人数 ---
 
 const premiumKeys = () => Object.keys(data.features).filter((k) => data.features[k].premium);
@@ -387,6 +397,10 @@ function tenantDetail(t) {
         ),
       ),
       el('p', { className: 'sub hint', textContent: '短い URL と 4桁の数字を渡すと、配信者は数字を入れて開けます（一度入れた端末は次から数字なし）。下の URL はそのまま開けます。' }),
+      button('案内文をコピー', () => {
+        copyText(handoverMessage(t));
+        message('案内文をコピーしました');
+      }),
       copyField('ダッシュボード', t.urls.dashboard),
       el('div', { className: 'monitor-url' }, copyField('モニター', t.urls.monitor)),
     ),
