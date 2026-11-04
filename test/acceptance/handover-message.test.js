@@ -113,7 +113,7 @@ e2e('AC-2 コピーした文に、短い URL(/d/<短いID>)と4桁の数字が�
     assert.ok(copied.includes(`${baseUrl}/d/${t.shortId}`), `短い URL が入っていません:\n${copied}`);
     assert.match(copied, pinPattern(t.pin), `4桁の数字が入っていません:\n${copied}`);
     assert.ok(!/\/t\//.test(copied), `/t/<鍵>/ の URL が入っています:\n${copied}`);
-    for (const key of [t.key, t.obsKey]) assert.ok(!copied.includes(key), '鍵が入っています');
+    for (const u of [t.urls.dashboard, t.urls.obs]) assert.ok(!copied.includes(u.match(/\/t\/([^/]+)\//)[1]), '鍵が入っています');
   });
 });
 
@@ -163,10 +163,10 @@ e2e('AC-5 文の中の URL を開いて文の中の数字を入れると、そ�
     try {
       const guest = await fresh.newPage();
       await guest.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      // 4桁入れると画面が自分で送るので、ボタンは押さない
       await guest.locator('#pin').fill(pin);
-      await guest.locator('#go').click();
       const t = await currentTenant(baseUrl, tenant.id);
-      await guest.waitForURL(`${baseUrl}/t/${t.key}/dashboard/`, { timeout: 30_000 });
+      await guest.waitForURL(t.urls.dashboard, { timeout: 30_000 });
     } finally {
       await fresh.close();
     }
