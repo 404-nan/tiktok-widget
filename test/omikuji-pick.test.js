@@ -98,7 +98,9 @@ test('おまかせはすぐ引く。運勢は番号と関係なく重みで決�
 
 test('選んでいる間の次のギフトは待ち列で待ち、終わったら順に選ぶ', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const { omikuji, sent } = setup();
+  // 大吉だと結果の表示が長くなる（見せ場）ので、このテストでは大吉を外して進み方だけを見る
+  const tiers = defaultsFor('omikuji').tiers.map((tier) => (tier.id === 'daikichi' ? { ...tier, weight: 0 } : tier));
+  const { omikuji, sent } = setup({ tiers });
   omikuji.onEvent(gift('u1', 'ゆず'));
   omikuji.onEvent(gift('u2', 'もも'));
   assert.equal(omikuji.pending.length, 1);

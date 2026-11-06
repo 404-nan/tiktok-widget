@@ -115,7 +115,14 @@
     var d = data.durations || {};
     timeEl.textContent = '回転 ' + (d.rollMs || 0) + ' / 結果 ' + (d.revealMs || 0) + ' / 終了 ' + (d.doneMs || 0);
     stageEl.setAttribute('data-phase', phase);
-    if (data.stick) {
+    if (data.displayMode) stageEl.setAttribute('data-display', data.displayMode);
+    if (data.resultFont) stageEl.setAttribute('data-font', data.resultFont);
+    var shortDisplay = kind === 'omikuji' && data.displayMode === 'short';
+    if (shortDisplay) {
+      setText('stickNo', '');
+      setText('slipNo', '');
+      setText('stickNum', '');
+    } else if (data.stick) {
       setText('stickNo', '第' + kanji(data.stick) + '番');
       setText('slipNo', '第' + kanji(data.stick) + '番');
       setText('stickNum', String(data.stick));

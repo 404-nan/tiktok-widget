@@ -8,14 +8,16 @@
 <title>おみくじ</title>
 <link rel="stylesheet" href="lib/overlay.css">
 <link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<link rel="stylesheet" href="/vendor/fonts/shippori-mincho/800.css">
+<link rel="stylesheet" href="/vendor/fonts/yuji-syuku/400.css">
 <link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
 <link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/900.css">
 <style>
-  body { display: grid; place-items: center; padding: 16px; }
+  body { display: grid; place-items: start center; padding: 6px; }
   .idle { display: none; margin: 0; font-weight: 700; color: var(--paper); }
   body.preview:not(.on) .idle { display: block; }
   .stage {
-    display: none; position: relative; width: 360px; height: 460px;
+    display: none; position: relative; width: 360px; height: 460px; transform-origin: 50% 0;
     --ink: #24180F; --shu: #C02A1C; --washi: #EFE6CF; --hinoki: #DCC08E; --hinoki-2: #C9A86F;
     --tone: var(--shu);
     font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700;
@@ -28,6 +30,23 @@
   .stage[data-tier="suekichi"] { --tone: #6B4A2B; }
   .stage[data-tier="kyo"] { --tone: #55606B; }
   .stage[data-tier="daikyo"] { --tone: #24180F; }
+
+  /* 大吉だけの見せ場: 金の後光と金粉（ほかの運勢では出ない） */
+  .glory { position: absolute; left: 50%; top: 216px; width: 580px; height: 580px; margin-left: -290px; margin-top: -290px; pointer-events: none; opacity: 0;
+    background: radial-gradient(closest-side, rgba(255, 183, 28, .34) 0%, rgba(255, 183, 28, .12) 46%, transparent 72%); }
+  .glory::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(240, 186, 40, .5) 0deg 5deg, transparent 5deg 11deg);
+    -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 78%); mask-image: radial-gradient(closest-side, #000 30%, transparent 78%); }
+  .glory::after { content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(255, 218, 100, 1) 0 2.6px, transparent 3.6px), radial-gradient(circle, rgba(255, 196, 48, .9) 0 2px, transparent 3px), radial-gradient(circle, rgba(255, 238, 170, .95) 0 1.4px, transparent 2.4px);
+    background-size: 90px 90px, 130px 130px, 70px 70px; background-position: 0 0, 30px 20px, 12px 44px; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .glory, .stage[data-tier="daikichi"][data-phase="done"] .glory { opacity: 1; transition: opacity .45s ease-out; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .glory::before, .stage[data-tier="daikichi"][data-phase="done"] .glory::before { animation: spin-slow 16s linear infinite; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .glory::after, .stage[data-tier="daikichi"][data-phase="done"] .glory::after { animation: dust-fall 2.6s linear infinite; }
+  .stage[data-tier="daikichi"] .slip { box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 44px rgba(255, 196, 0, .38); }
+  .stage[data-tier="daikichi"] .result { text-shadow: 0 0 24px rgba(255, 196, 0, .5), 0 2px 0 rgba(120, 80, 0, .30); }
+  .stage[data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .6s 1.25s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .5s var(--ease-out) both; }
 
   /* 和紙のすき目(小さな SVG のノイズを1枚だけ敷く。動かさない) */
   .washi {
@@ -67,7 +86,7 @@
   .stage[data-phase="reveal"] .tube { animation: away .5s .55s var(--ease-out) both; }
   .stage[data-phase="done"] .stick, .stage[data-phase="done"] .tube { opacity: 0; }
 
-  /* 紙(運勢)。折り目が2本残る和紙。縁は墨の細線と運勢の色の太線 */
+  /* 紙(運勢)。縁は墨の細線と運勢の色の太線 */
   .slip {
     position: absolute; left: 50%; top: 8px; width: 204px; height: 436px; margin-left: -102px; padding: 20px 14px 16px;
     color: var(--ink); transform-origin: 50% 0; transform: scaleY(0); opacity: 0;
@@ -75,7 +94,6 @@
     box-shadow: 0 16px 30px rgba(0, 0, 0, .36);
   }
   .slip::before { content: ""; position: absolute; inset: 9px; border: 4px solid var(--tone); outline: 1px solid var(--ink); outline-offset: 3px; pointer-events: none; }
-  .slip::after { content: ""; position: absolute; left: 0; right: 0; top: 33%; height: 34%; border-top: 1px solid rgba(36, 24, 15, .12); border-bottom: 1px solid rgba(36, 24, 15, .12); pointer-events: none; }
   .stage[data-phase="reveal"] .slip { animation: unfold .6s .75s var(--ease-out) both; }
   .stage[data-phase="done"] .slip { transform: none; opacity: 1; animation: fadeout var(--done, 1.2s) linear both; }
   .slip-head { font-size: 15px; letter-spacing: .4em; padding-left: .4em; color: var(--ink); }
@@ -91,6 +109,21 @@
   .stage[data-phase="reveal"][data-tier="daikyo"] .slip { animation: unfold .6s .75s var(--ease-out) both, tremble .12s 1.8s 6 linear; }
   .kicker { position: absolute; left: 0; right: 0; bottom: -4px; margin: 0; text-align: center; font-size: 15px; color: var(--paper); text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
   .stage[data-phase="reveal"] .kicker, .stage[data-phase="done"] .kicker { display: none; }
+
+  .stage[data-font="bold"] .result { font-family: "Dela Gothic One", var(--font); font-weight: 400; }
+  .stage[data-font="mincho"] .result { font-family: "Shippori Mincho", var(--font); font-weight: 800; }
+  .stage[data-font="brush"] .result { font-family: "Yuji Syuku", var(--font); font-weight: 400; }
+  .stage[data-display="short"] .slip-foot { display: none; }
+  .stage[data-display="short"] .stick-head, .stage[data-display="short"] .stick-no { visibility: hidden; }
+  .stage[data-display="short"] .result { font-size: 150px; }
+  .stage[data-display="short"][data-phase="rolling"] .tube { animation: short-shake .4s ease-in-out 1 both; }
+  .stage[data-display="short"][data-phase="reveal"] .stick { animation: rise .4s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"] .tube { animation: away .4s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"] .slip { animation: unfold .4s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"] .result { animation: slam .4s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"] .seal { right: 14px; bottom: 14px; animation: stamp .3s ease-out both; }
+  .stage[data-display="short"][data-phase="done"] .seal { right: 14px; bottom: 14px; }
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikyo"] .slip { animation: unfold .4s var(--ease-out) both, tremble .12s .4s 6 linear; }
 
   /* 番号を選ぶ: 左上にだれの番か(和紙の札)、右上に残り秒(判)、縄に1〜10の木札。筒は下で待つ */
   .pick { display: none; position: absolute; inset: 0 0 220px; }
@@ -136,10 +169,14 @@
   .time { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .plate { display: contents; }
   @keyframes shake { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg) translateY(-6px); } }
+  @keyframes short-shake { 0%, 100% { transform: none; } 50% { transform: rotate(12deg) translateY(-6px); } }
   @keyframes rise { from { transform: translateY(168px); } to { transform: translateY(0); } }
   @keyframes away { to { transform: translateY(40px) scale(.9); opacity: 0; } }
   @keyframes unfold { from { transform: scaleY(0); opacity: 1; } to { transform: scaleY(1); opacity: 1; } }
   @keyframes slam { 0% { transform: scale(1.6); opacity: 0; } 60% { transform: scale(.96); opacity: 1; } 100% { transform: none; opacity: 1; } }
+  @keyframes slam-gold { 0% { transform: scale(1.85); opacity: 0; } 55% { transform: scale(.93); opacity: 1; } 78% { transform: scale(1.05); } 100% { transform: none; opacity: 1; } }
+  @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes dust-fall { from { background-position: 0 -30px, 30px -10px, 12px 14px; } to { background-position: 0 60px, 30px 120px, 12px 114px; } }
   @keyframes stamp { from { transform: rotate(-8deg) scale(1.6); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: .92; } }
   @keyframes press { from { transform: rotate(3deg) scale(1.22); } to { transform: rotate(3deg) scale(1); } }
   @keyframes sway { from { transform: translateY(var(--sag, 0)) rotate(calc(var(--r, 0deg) - 4deg)); } to { transform: translateY(var(--sag, 0)) rotate(calc(var(--r, 0deg) + 4deg)); } }
@@ -155,6 +192,7 @@
   <div class="plate" id="plate">
     <div class="stick"><span class="stick-head" id="stickNum"></span><span class="stick-no" id="stickNo"></span></div>
     <div class="tube" id="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label washi">御神籤</div></div>
+    <div class="glory" aria-hidden="true"></div>
     <div class="slip washi">
       <span class="slip-head">御神籤</span>
       <p class="result" id="result"></p>
@@ -174,6 +212,19 @@
     <p class="time" id="time"></p>
   </div>
 </div>
+<script>
+  // 舞台は 360x460 で作ってある。置かれた枠がそれより小さいときは、切らずに縮めて全部見せる
+  (() => {
+    const fit = () => {
+      const s = document.getElementById('stage');
+      if (!s) return;
+      const k = Math.min(1, (innerHeight - 12) / 460, (innerWidth - 12) / 360);
+      s.style.transform = k < 1 ? 'scale(' + k + ')' : '';
+    };
+    addEventListener('resize', fit);
+    fit();
+  })();
+</script>
 <script src="gacha.js"></script>
 </body>
 </html>

@@ -34,6 +34,15 @@ test('重みで引き、天井は指定回数の外れの次', () => {
   assert.equal(miss.pityCount, 1);
 });
 
+test('重み 0 の運勢は、どう引いても選ばれない', () => {
+  const tiers = [
+    { id: 'zero', label: 'ゼロ', weight: 0, pity: false },
+    { id: 'one', label: 'イチ', weight: 1, pity: false },
+  ];
+  assert.equal(rollTier(tiers, 0, 0, () => 0).tier.id, 'one');
+  assert.equal(rollTier(tiers, 0, 0, () => 0.999).tier.id, 'one');
+});
+
 test('待機→回転→結果→終了。長さをイベントに載せる', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const { gacha, sent, bus } = setup();

@@ -357,7 +357,7 @@ function checkGachaTiers(value, where, issues, section = 'gacha') {
   }
   const ids = new Set();
   let pitySeen = false;
-  return value.map((raw, i) => {
+  const tiers = value.map((raw, i) => {
     const at = `${where}[${i}]`;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       issues.errors.push(`${at}: { id, label, weight, actions } で書いてください`);
@@ -369,7 +369,7 @@ function checkGachaTiers(value, where, issues, section = 'gacha') {
     ids.add(id);
     const label = String(raw.label ?? id).trim() || id;
     const weight = Number(raw.weight ?? 1);
-    if (!(weight > 0)) issues.errors.push(`${at}.weight: 0 より大きい数にしてください`);
+    if (!Number.isFinite(weight) || weight < 0) issues.errors.push(`${at}.weight: 0 以上の数にしてください`);
     const wantPity = raw.pity === true || raw.pity === 'true';
     const pity = wantPity && !pitySeen;
     if (wantPity && pitySeen) issues.warnings.push(`${at}.pity: 天井の対象は1つだけ使います（先のものを使います）`);
@@ -377,8 +377,10 @@ function checkGachaTiers(value, where, issues, section = 'gacha') {
     const actions = raw.actions == null ? [] : checkActions(raw.actions, `${at}.actions`, issues);
     const known = ['id', 'label', 'weight', 'pity', 'actions'];
     for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
-    return { id: TIER_ID.test(id) ? id : `tier${i}`, label, weight: weight > 0 ? weight : 1, pity, actions };
+    return { id: TIER_ID.test(id) ? id : `tier${i}`, label, weight: Number.isFinite(weight) && weight >= 0 ? weight : 1, pity, actions };
   });
+  if (tiers.every((tier) => !(tier.weight > 0))) issues.errors.push(`${where}: weight の合計を 0 より大きくしてください（全部 0 だと引けません）`);
+  return tiers;
 }
 
 function checkCommands(value, where, issues) {

@@ -50,7 +50,7 @@ export class Gacha {
     this.trigger = null;
     this.stick = null; // 選ばれた棒の番号
     this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }（endsAt はサーバーの時計）
-    this.durations = durationsOf(this.config);
+    this.durations = durationsOf(this.config, this.name);
     this.timers = new Set();
   }
 
@@ -78,7 +78,14 @@ export class Gacha {
       trigger: this.trigger,
       pick: this.#pickView(),
       stick: this.stick,
+      ...this.#displayOptions(),
     };
+  }
+
+  #displayOptions() {
+    return this.name === 'omikuji'
+      ? { displayMode: this.config.displayMode, resultFont: this.config.resultFont }
+      : {};
   }
 
   /** 画面へ渡す番号待ち。配信 PC の時計とずれても合うよう、締め切りの時刻ではなく残りのミリ秒を渡す */
@@ -143,7 +150,11 @@ export class Gacha {
   #begin(trigger) {
     this.seq += 1;
     this.trigger = trigger;
-    this.durations = durationsOf(this.config);
+    this.durations = durationsOf(this.config, this.name);
+    if (this.name === 'omikuji' && this.config.displayMode === 'short') {
+      this.#roll(this.#randomStick(), true);
+      return { ok: true, queued: false, phase: this.phase, seq: this.seq, durations: { ...this.durations } };
+    }
     const mode = this.config.pickMode;
     // 送った人が分からない（テスト・動作から）ときは、時間切れと同じ扱いにする
     if (mode === 'viewer' && trigger.user) this.#waitPick('viewer');
@@ -189,7 +200,9 @@ export class Gacha {
       if (this.phase !== 'rolling') return;
       this.phase = 'reveal';
       this.#emit('reveal');
-      this.#arm(this.durations.revealMs, () => {
+      // 大吉だけ、結果の余韻を長く取る（見せ場）
+      const revealMs = this.tier?.id === 'daikichi' ? Math.round(this.durations.revealMs * 1.5) : this.durations.revealMs;
+      this.#arm(revealMs, () => {
         if (this.phase !== 'reveal') return;
         this.phase = 'done';
         this.#emit('done');
@@ -221,6 +234,7 @@ export class Gacha {
       forced: show ? this.forced : false,
       pick: this.#pickView(),
       stick: this.stick,
+      ...this.#displayOptions(),
       event: name,
     };
     this.hub.broadcast({ type: this.name, ...payload });
@@ -238,7 +252,13 @@ export class Gacha {
   }
 }
 
-function durationsOf(cfg) {
+const SHORT_TEMPOS = {
+  quick: { rollMs: 400, revealMs: 1700, doneMs: 500 },
+  normal: { rollMs: 520, revealMs: 2150, doneMs: 620 },
+  slow: { rollMs: 700, revealMs: 2700, doneMs: 800 },
+};
+function durationsOf(cfg, name) {
+  if (name === 'omikuji' && cfg?.displayMode === 'short') return { ...(SHORT_TEMPOS[cfg?.tempo] || SHORT_TEMPOS.normal) };
   const n = (v, fallback) => {
     const x = Number(v);
     return Number.isFinite(x) && x >= 0 ? x : fallback;
