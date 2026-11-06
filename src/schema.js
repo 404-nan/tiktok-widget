@@ -4,6 +4,7 @@
 
 export const COLOR_TOKENS = ['accent', 'gold', 'ink', 'ink-2', 'paper'];
 export const GIFT_EVENTS = ['gift', 'follow', 'share'];
+export const LAST_KINDS = ['follow', 'gift', 'share', 'like', 'chat'];
 export const METRICS = ['follows', 'likes', 'diamonds', 'gifts', 'shares', 'comments', 'viewers'];
 
 const str = (def, desc, extra) => ({ type: 'string', default: def, desc, ...extra });
@@ -943,9 +944,13 @@ SCHEMA.tickers = {
   },
 };
 SCHEMA.supporters = {
-  kind: 'map', page: 'supporters', title: '最近のサポーター', desc: '最近フォロー・ギフト・シェアした人を上から表示する。URL は /widgets/supporters.html?id=<名前>', size: (e) => [420, 72 + e.limit * 60],
+  kind: 'map', page: 'supporters', title: '最近のサポーター', desc: '最近フォロー・ギフト・シェアした人を上から表示する。表示の型が last のときは、種類ごとに最後の1人を出し続ける。URL は /widgets/supporters.html?id=<名前>', size: (e) => e.displayType === 'last' ? [420, 72 + (Array.isArray(e.lastKinds) ? e.lastKinds.length : 5) * 60] : [420, 72 + e.limit * 60],
   fields: {
     title: str('最近のサポーター', '見出し。空なら出さない'), events: list(['follow', 'gift'], '出すイベント', GIFT_EVENTS), minCoins: num(1, 'ギフトの最低コイン', { min: 0 }), limit: num(5, '表示件数', { min: 1, max: 10 }), avatars: bool(true, 'アイコンを出す'), lifetime: num(0, 'この秒数をすぎたら消す（0 で消さない）', { min: 0, max: 3600 }), color: color('accent', '新しいカードの印の色'),
+    displayType: oneOf(['list', 'last'], 'list', '表示の型。list は最近の一覧、last は種類ごとに最後の1人を出し続ける'),
+    lastKinds: list(['follow', 'gift', 'share', 'like', 'chat'], '「最後の1人」型で出す枠（種類）', LAST_KINDS),
+    lastOrder: list(['follow', 'gift', 'share', 'like', 'chat'], '「最後の1人」型の枠の並び順', LAST_KINDS),
+    lastFollowLabel: str('最後のフォロー', 'フォロー枠のラベル文'), lastGiftLabel: str('最後のギフト', 'ギフト枠のラベル文'), lastShareLabel: str('最後のシェア', 'シェア枠のラベル文'), lastLikeLabel: str('最後のいいね', 'いいね枠のラベル文'), lastChatLabel: str('最後の発言', '発言枠のラベル文'),
   },
 };
 
