@@ -101,14 +101,16 @@ test('AC-2 testEvent は画面に出すだけ(WebSocket で配る)で、snapshot
 });
 
 // --- AC-3 ---
-test('AC-3 reset で空になり、snapshot は { items }、close で購読を外す', () => {
+test('AC-3 reset で空になり、snapshot は { items, last }、close で購読を外す', () => {
   need();
   const { hub, feed } = setup();
   hub.publish({ kind: 'follow', user: user('a') });
-  assert.deepEqual(Object.keys(feed.snapshot()), ['items']);
+  assert.deepEqual(Object.keys(feed.snapshot()), ['items', 'last']);
+  assert.equal(feed.snapshot().last.follow.user.name, 'a');
   assert.equal(feed.snapshot().items.length, 1);
   hub.reset();
   assert.deepEqual(feed.snapshot().items, []);
+  assert.deepEqual(feed.snapshot().last, {});
   hub.publish({ kind: 'follow', user: user('b') });
   const listeners = ['event', 'testEvent', 'reset'].map((n) => hub.listenerCount(n));
   feed.close();
@@ -137,7 +139,7 @@ test('AC-4 GET /api/info-feed が snapshot を返し、OBS 用の鍵でも読め
     for (const { url } of [dash, obs]) {
       const res = await fetch(`${url}/api/info-feed`);
       assert.equal(res.status, 200);
-      assert.deepEqual(await res.json(), { items: [] });
+      assert.deepEqual(await res.json(), { items: [], last: {} });
     }
   } finally {
     dash.server.close();
