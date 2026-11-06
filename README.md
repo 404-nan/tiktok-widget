@@ -40,7 +40,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | パチンコ演出 | ギフト名またはコイン数に合う4本の演出(チャンス・カットイン・大当たり・プチュン)を流し、設定した字と比率で表示する。連打は個数ぶん順に流す。立ち絵はダッシュボードでメディアの画像から選べ、空なら仮の影だけ。ホームの「使っているもの」からは使用中のプリセットを開く | できた（URL・透明背景・使用中表示・立ち絵を開発サーバーで確認） | `src/puchun.js`、`public/widgets/puchun/` |
 | おみくじ(作り直し) | 木の筒を振る → 棒が出て「第◯番」→ 紙が開いて大吉〜大凶と朱印 | できた | `public/widgets/omikuji.html` |
 | おみくじの番号の選び方 | 送った人がコメントで棒の番号(1〜10)を選ぶ(初期値) / おまかせ / 配信者がダッシュボードの番号ボタン(配信者の番のときだけ押せる)で選ぶ。ダッシュボードの「ためしに1つ出す」は仮の名前で番号待ちから始まる。待つ秒数は設定(初期値10秒)。時間切れはランダム(初期値)か配信者が選ぶ。配信者も押さなければ同じ秒数のあとランダム。運勢は番号と関係なく重みで決まる。見た目は神社の木札・和紙・墨・朱(決まりは omikuji-style.md)。選んだ札は筒の口へ落ち、同じ番号の棒が出る | 作りかけ(見た目はめにの確認待ち) | `src/gacha.js`、`public/widgets/omikuji.html` |
-| スパチャ風コメント | この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す。色は送ったコインの合計で変わる | できた | `public/widgets/superchat.html` |
+| スパチャ風コメント | この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す。色は送ったコインの合計で変わる | できた | `public/widgets/superchat/index.html` |
 | 妨害マイクラのギフト表 | 妨害マイクラで、どのギフトを送ると何が起きるかを配信画面に出す(行が多いと順にめくる)。表は配信者の minecraft.superstreamFile、無ければ TW_MC_GIFT_TABLE(貸出サーバーのモードの superstream.yml) | できた | `public/widgets/mc-gifts.html`、`src/superstream.js` の `giftTable` |
 | 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、「ためしに動かす」でデモを始めるか配信中にテスト送信すると「ためす」を済みにする。配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1 / preview=live)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
 | 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する。管理画面から短い URL・4桁の数字・使い始めの手順をまとめてコピーできる。配信ソフトに入れる URL は設定済みを先頭に出し、ほかを折りたためる | できた（開発サーバー確認まで） | `public/dashboard/`、`public/admin/admin.js`、`test/kind-ui-playwright.test.js` |
@@ -81,7 +81,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ニュースティッカー `ticker`（できた） | お知らせ・目標・最近のギフトを画面下の帯に流す | 1080 × 72 |
 | 最近のサポーター `supporters`（できた） | 最近フォロー・ギフト・シェアした人を上から表示する | 420 × 72 + 60 × 件数 |
 | 初見さん・常連さん `visitors`（作りかけ・本番前の見た目確認待ち） | 配信ごとの匿名記録で初見・おかえり・常連を迎える。名前とユーザー ID は保存しない | 760 × 160 |
-| コンボ `combo` | 同じ人が一定時間内に続けてギフトを送ると ×2、×3…と数え、送信者・回数・段階・合計を受信順に表示する。背景は透明、終了カード・リセット・開発用テスト表示・WebAudio に対応（状態: できた） | 1080 × 1920（`public/widgets/combo.html`） |
+| コンボ `combo` | 同じ人が一定時間内に続けてギフトを送ると ×2、×3…と数え、送信者・回数・段階・合計を受信順に表示する。背景は透明、終了カード・リセット・開発用テスト表示・WebAudio に対応（状態: できた） | 1080 × 1920（`public/widgets/combo/index.html`） |
 
 配信テンプレートは、ダッシュボードの「かんたん」→「配信テンプレート」から使います。CLI は `npm run tw -- templates`、MCP は `list_templates` / `preview_template` / `apply_template` です。
 
@@ -112,13 +112,13 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 | 何が | 上限 | 超えたら | ファイル |
 | --- | --- | --- | --- |
-| ギフト通知の順番待ち | 30件 | 古いものから出さずに飛ばす | `public/widgets/gift-alert.html` |
-| スパチャ風コメントの順番待ち | 20件 | 古いものから出さずに飛ばす(ダッシュボードの説明にも書いてある) | `public/widgets/superchat.html` |
+| ギフト通知の順番待ち | 30件 | 古いものから出さずに飛ばす | `public/widgets/gift-alert/index.html` |
+| スパチャ風コメントの順番待ち | 20件 | 古いものから出さずに飛ばす(ダッシュボードの説明にも書いてある) | `public/widgets/superchat/index.html` |
 | カットインの順番待ち | 20件 | 古いものから出さずに飛ばす | `public/widgets/lib/cutin.js` |
 | メディア通知の順番待ち | 30件 | 古いものから再生せずに飛ばす | `src/media-alerts.js` |
-| ギフト別サウンドの待ち | 10件 | 古いものから鳴らさずに飛ばす | `src/gift-sounds.js`、`public/widgets/sounds.js` |
-| コンボ画面の順番待ち | 20件 | 古いものから出さずに飛ばす | `public/widgets/combo.html` |
-| 初見さん・常連さんの待ち | 設定の `maxQueue`（既定5人） | 古い人から出さずに飛ばす | `public/widgets/visitors.js` |
+| ギフト別サウンドの待ち | 10件 | 古いものから鳴らさずに飛ばす | `src/gift-sounds.js`、`public/widgets/sounds/sounds.js` |
+| コンボ画面の順番待ち | 20件 | 古いものから出さずに飛ばす | `public/widgets/combo/index.html` |
+| 初見さん・常連さんの待ち | 設定の `maxQueue`（既定5人） | 古い人から出さずに飛ばす | `public/widgets/visitors/visitors.js` |
 | WIN数の「1つ戻す」 | 50回まで | それより前には戻せない | `src/wins.js` |
 | 順番待ちの仕組み `createQueue` | 既定は上限なし。`max` を渡した画面だけ上の表の数 | 古いものから飛ばす | `public/widgets/lib/overlay.js` |
 | ボス討伐から次のボスまでのダメージ | - | 数字だけ出し、次のボスには持ち越さない | `src/boss.js` |
@@ -495,7 +495,7 @@ public/history/        統計・履歴
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
 test/                  node --test のテスト（acceptance/obs.test.js は偽OBS v5形の受け入れテスト）
 public/widgets/        各ウィジェット（lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
-public/widgets/visitors.html / visitors.js  初見・常連の来場テロップ
+public/widgets/visitors/index.html / visitors.js  初見・常連の来場テロップ
 test/                  node --test のテスト（acceptance/visitors.test.js は来場テロップの完成条件）
 public/dashboard/      設定画面（[README](public/dashboard/README.md)、common.js / charts.js は3画面で共通）
 public/monitor/        配信中モニター

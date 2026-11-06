@@ -78,7 +78,7 @@ test('レビュー再現: swarm の表示文字は1〜2文字に制限する', (
 });
 
 test('レビュー再現: カードの演出フックが公開画面にある', () => {
-  const source = ['stepup.html', 'stepup.js', 'swarm.html', 'swarm.js']
+  const source = ['stepup/index.html', 'stepup/stepup.js', 'swarm/index.html', 'swarm/swarm.js']
     .map((file) => fs.readFileSync(path.join(root, 'public/widgets', file), 'utf8')).join('\n');
   for (const token of ['freeze', 'confetti', 'shake', 'rumble']) assert.match(source, new RegExp(token));
 });

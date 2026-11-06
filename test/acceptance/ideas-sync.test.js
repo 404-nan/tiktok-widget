@@ -51,7 +51,9 @@ test('AC-3 ✅ の見出しに書かれた /widgets/*.html が public/widgets �
   for (const h of done) {
     for (const [, p] of h.matchAll(/(\/widgets\/[\w./-]+\.html)/g)) {
       n += 1;
-      assert.ok(fs.existsSync(path.join(root, 'public', p)), `${p} がある (${h})`);
+      const flat = path.join(root, 'public', p);
+      const folded = flat.replace(/\/([\w-]+)\.html$/, '/$1/index.html');
+      assert.ok(fs.existsSync(flat) || fs.existsSync(folded), `${p} がある (${h})`);
     }
   }
   assert.ok(n > 0);

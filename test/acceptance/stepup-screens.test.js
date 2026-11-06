@@ -8,14 +8,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const readWidget = (name) => fs.readFileSync(path.join(root, 'public/widgets', name), 'utf8');
 
 test('AC-1: ステップアップと群の画面ファイルがある', () => {
-  for (const file of ['stepup.html', 'stepup.js', 'swarm.html', 'swarm.js']) {
+  for (const file of ['stepup/index.html', 'stepup/stepup.js', 'swarm/index.html', 'swarm/swarm.js']) {
     assert.equal(fs.existsSync(path.join(root, 'public/widgets', file)), true, file);
   }
 });
 
 test('AC-2: ステップアップ画面がサーバーのイベントとプレビューを扱う', () => {
-  const html = readWidget('stepup.html');
-  const script = readWidget('stepup.js');
+  const html = readWidget('stepup/index.html');
+  const script = readWidget('stepup/stepup.js');
   const source = html + script;
 
   assert.match(source, /\/ws/);
@@ -27,8 +27,8 @@ test('AC-2: ステップアップ画面がサーバーのイベントとプレ�
 });
 
 test('AC-2: 群の画面がサーバーのイベントとプレビューを扱う', () => {
-  const html = readWidget('swarm.html');
-  const script = readWidget('swarm.js');
+  const html = readWidget('swarm/index.html');
+  const script = readWidget('swarm/swarm.js');
   const source = html + script;
 
   assert.match(source, /\/ws/);
@@ -39,7 +39,7 @@ test('AC-2: 群の画面がサーバーのイベントとプレビューを扱�
 });
 
 test('AC-2: 画面は日本語の見出しを持ち、外部 CDN を参照しない', () => {
-  const source = ['stepup.html', 'stepup.js', 'swarm.html', 'swarm.js'].map(readWidget).join('\n');
+  const source = ['stepup/index.html', 'stepup/stepup.js', 'swarm/index.html', 'swarm/swarm.js'].map(readWidget).join('\n');
   assert.match(source, /lang=["']ja["']/);
   assert.doesNotMatch(source, /https?:\/\//i);
   assert.doesNotMatch(source, /(?:unpkg|jsdelivr|cdnjs|fonts\.googleapis|fonts\.gstatic)/i);
