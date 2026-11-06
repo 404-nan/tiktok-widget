@@ -16,8 +16,8 @@ function loadCore() {
 }
 
 const Core = loadCore();
-const html = read('public/widgets/slot.html');
-const widget = read('public/widgets/slot.js');
+const html = read('public/widgets/slot/index.html');
+const widget = read('public/widgets/slot/slot.js');
 const config = defaultsFor('slots');
 
 test('絵柄は SVG 6 種で、slot.html に 1 回ずつ書いてある', () => {

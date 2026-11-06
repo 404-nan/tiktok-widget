@@ -1,0 +1,24 @@
+{
+  "id": "slots",
+  "name": "スロット",
+  "desc": "",
+  "size": [
+    1080,
+    600
+  ],
+  "page": "slot.html",
+  "events": [],
+  "sample": {
+    "label": "スロットを回す",
+    "post": {
+      "path": "/api/dev/trigger",
+      "body": {
+        "target": "slot"
+      }
+    }
+  },
+  "sounds": [],
+  "sharedWith": [
+    "relayStop"
+  ]
+}

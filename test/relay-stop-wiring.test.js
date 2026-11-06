@@ -18,8 +18,8 @@ test('リレー停止の設定と実行経路が登録されている', () => {
 });
 
 test('公開ウィジェットはリレー状態を受け、公開JavaScriptはES5のまま', () => {
-  const html = read('public/widgets/slot.html');
-  const js = read('public/widgets/slot.js');
+  const html = read('public/widgets/slot/index.html');
+  const js = read('public/widgets/slot/slot.js');
   assert.match(html, /あと1人/);
   assert.match(js, /relay-stop|relayStop/);
   assert.doesNotMatch(js, /=>|\b(let|const)\b|`/);

@@ -1,0 +1,33 @@
+{
+  "id": "puchuns",
+  "name": "プチュン",
+  "desc": "ギフトで育つパチンコ演出。溜め→閃光→決め字→結果。",
+  "size": [
+    1080,
+    1920
+  ],
+  "page": "puchun/puchun.html",
+  "events": [
+    "gift"
+  ],
+  "sample": {
+    "label": "ギフト（大）",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "gift",
+        "giftName": "Lion",
+        "diamonds": 29999,
+        "count": 1
+      }
+    }
+  },
+  "sounds": [
+    "charge",
+    "flash",
+    "slam",
+    "sparkle",
+    "whoosh",
+    "out"
+  ]
+}
