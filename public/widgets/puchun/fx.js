@@ -77,7 +77,7 @@
   }
 
   // 仕上げのふだんの強さ。タイムラインの part: 'post' の行が、その間だけ足す
-  var POST_BASE = { bloom: .55, ca: .35, grain: .07, vig: .12, flash: 0, scan: 0, blur: 0, angle: 0, thr: .62, zoom: 0, swirl: 0 };
+  var POST_BASE = { bloom: .55, ca: .35, grain: .035, vig: .12, flash: 0, scan: 0, blur: 0, angle: 0, thr: .62, zoom: 0, swirl: 0 };
 
   /**
    * timeline: [{ t: 始まる秒, part: '部品の名前', dur: 秒数, ...部品ごとの値 }](t の代わりに at でもよい)

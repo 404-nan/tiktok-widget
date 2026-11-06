@@ -28,6 +28,8 @@ export function puchunPlays(config, event) {
     preset: entry.preset,
     ratio: entry.ratio,
     charImage: entry.charImage ?? '',
+    sound: entry.sound !== false,
+    volume: Number(entry.volume ?? 90),
     texts: { ...(entry.texts ?? {}) },
   }));
 }
@@ -36,5 +38,5 @@ export function puchunPlays(config, event) {
 export function puchunTestPlay(config, id) {
   const entry = config?.puchuns?.[id];
   if (!entry) return null;
-  return { id, preset: entry.preset, ratio: entry.ratio, texts: { ...(entry.texts ?? {}) } };
+  return { id, preset: entry.preset, ratio: entry.ratio, sound: entry.sound !== false, volume: Number(entry.volume ?? 90), texts: { ...(entry.texts ?? {}) } };
 }

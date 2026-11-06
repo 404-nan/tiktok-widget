@@ -1,13 +1,15 @@
 <!doctype html>
-<!-- パチンコ演出の見本。配信画面に重ねるウィジェット(背景は透明)。部品は parts.js、演出(部品の並び)は presets.js。?preset=chance|cutin|jackpot|puchun で選び、?main=字 などで画面の字を変える。
+<!-- パチンコ演出の見本。配信画面に重ねるウィジェット(背景は透明)。部品は parts-*.js、演出(部品の並び)は presets.js。?preset=chance|cutin|jackpot|puchun で選び、?main=字 などで画面の字を変える。
      ?char=画像URL で配信者の立ち絵(?eyes=左目x,左目y,右目x,右目y で目の光をその絵の位置に)、?text=ナイス,ギフト で決めの字、?t=秒 でその時刻で止める、?loop=1 でくり返し、?post=0 で仕上げ(WebGL の効果)なし、?scale=0.5 で半分の細かさ、?ratio=1:1 や 4:3 で画面の縦横の比 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <title>パチンコ演出</title>
+<link rel="stylesheet" href="/vendor/fonts/yuji-syuku/400.css">
 <style>
   @font-face { font-family: "Reggae One"; font-weight: 400; src: url(fonts/reggae-one-japanese-400-normal.woff2) format("woff2"); }
   @font-face { font-family: "Zen Kaku Gothic New"; font-weight: 700; src: url(/vendor/fonts/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-700-normal.woff2) format("woff2"); }
+  /* Yuji Syuku は分割ファイル（unicode-range）だけのパッケージなので、専用の css を読む */
   html, body { margin: 0; height: 100%; background: transparent; color-scheme: dark; overflow: hidden; }
   canvas { display: block; width: 100vw; height: 100vh; }
   .puchun-play { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; pointer-events: none; }
@@ -18,7 +20,12 @@
 <!-- 墨(ink)の輪郭を液体のようにつなぐフィルター -->
 <svg width="0" height="0" style="position:absolute"><filter id="goo"><feGaussianBlur stdDeviation="9"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 28 -11"/></filter></svg>
 <script src="fx.js"></script>
-<script src="parts.js"></script>
+<script src="sound.js"></script>
+<script src="parts-base.js"></script>
+<script src="parts-scene.js"></script>
+<script src="parts-effect.js"></script>
+<script src="parts-light.js"></script>
+<script src="parts-text.js"></script>
 <script src="presets.js"></script>
 <script>
 (function () {
@@ -46,7 +53,7 @@
   window.fxRender = function (t) { fx.render(t); };
 
   // 書体の読み込みに失敗しても演出は止めない(失敗を握りつぶし、長くても3秒で先へ進む)
-  var fonts = Promise.all([document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText).catch(function () {}), document.fonts.load('700 20px "Zen Kaku Gothic New"', allText).catch(function () {})]);
+  var fonts = Promise.all([document.fonts.load('400 100px "Reggae One"', '0123456789ナイスギフト' + allText).catch(function () {}), document.fonts.load('400 100px "Yuji Syuku"', allText).catch(function () {}), document.fonts.load('700 20px "Zen Kaku Gothic New"', allText).catch(function () {})]);
   var ready = [Promise.race([fonts, new Promise(function (ok) { setTimeout(ok, 3000); })])];
   if (q.get('eyes')) opts.eyes = q.get('eyes').split(',').map(Number);
   if (q.get('char')) ready.push(new Promise(function (ok) { var im = new Image(); im.onload = function () { opts.charImage = im; ok(); }; im.onerror = ok; im.src = q.get('char'); }));
@@ -56,7 +63,12 @@
     if (q.get('play') !== '1' && !q.has('preset')) return;
     if (q.get('t') != null) return fx.render(+q.get('t'));
     if (q.get('hold') === '1') return;
-    (function go() { fx.play(q.get('loop') === '1' ? go : null); })();
+    (function go() {
+      // 音の拍と映像の開始をそろえる（音が出ない環境では待ちなしで今までどおり）
+      var delay = (q.get('t') == null && Fx.soundStart) ? Fx.soundStart(preset.sound, { volume: q.get('vol') != null ? +q.get('vol') : undefined, muted: q.get('sound') === '0' }) : 0;
+      var start = function () { fx.play(q.get('loop') === '1' ? go : null); };
+      if (delay > 0) setTimeout(start, delay * 1000); else start();
+    })();
   });
 })();
 </script>
@@ -73,6 +85,8 @@
       if (!play) { playing = false; return; }
       playing = true;
       const query = new URLSearchParams({ preset: play.preset, ratio: play.ratio || 'full', play: '1' });
+      if (play.sound === false) query.set('sound', '0');
+      if (play.volume != null) query.set('vol', String(Math.max(0, Math.min(100, Number(play.volume) || 0)) / 100));
       if (play.charImage) query.set('char', `/api/media-alerts/${play.charImage}/file`);
       for (const [key, value] of Object.entries(play.texts ?? {})) query.set(key, value);
       const frame = document.createElement('iframe');
