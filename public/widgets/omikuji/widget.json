@@ -1,0 +1,10 @@
+{
+  "id": "omikuji",
+  "name": "おみくじ",
+  "desc": "ギフトで引くおみくじ。番号を選ぶ従来型と、番号選びなしの短い型が選べる。",
+  "size": [640, 500],
+  "page": "omikuji.html",
+  "events": ["gift", "omikuji.start"],
+  "sample": { "post": "/api/dev/trigger", "body": { "target": "omikuji", "user": "検査室" } },
+  "sounds": []
+}

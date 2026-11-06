@@ -431,6 +431,20 @@ app.get('/in/:key', ingestRequest);
 app.post('/in', ingestRequest);
 app.get('/in', ingestRequest);
 
+
+// 部品フォルダの付け替え：/widgets/<id>.html へのアクセスを、部品フォルダ public/widgets/<id>/index.html へ寄せる。
+// 住所（/widgets/<id>.html）は配信者の資産なので変えない。フォルダが無い部品は今までどおり。
+const WIDGET_PAGE_RE = /^\/widgets\/([A-Za-z0-9_-]+)\.html$/;
+const widgetFolderFile = (id) => path.join(PUBLIC, 'widgets', id, 'index.html');
+function widgetFolderAlias(req, _res, next) {
+  const m = WIDGET_PAGE_RE.exec(req.path);
+  if (m && fs.existsSync(widgetFolderFile(m[1]))) {
+    const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    req.url = `/widgets/${m[1]}/index.html${q}`;
+  }
+  next();
+}
+
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
 function billingAllows(fn, fallback) {
   try {
@@ -474,20 +488,21 @@ app.use('/t/:key', (req, res, next) => {
   if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return res.sendFile(lockedPage);
   if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
   const rt = tenants.runtime(tenant.id);
-  tenantStatic(req, res, () => rt.router(req, res, next));
+  widgetFolderAlias(req, res, () => tenantStatic(req, res, () => rt.router(req, res, next)));
 });
 
 // --- 1人で使うときの URL（/dashboard/ など） ---
 
 if (local) {
   app.get('/', (_req, res) => res.redirect('/dashboard/'));
+  app.use(widgetFolderAlias);
   app.use(express.static(PUBLIC));
   app.use(local.router);
 } else {
   app.get('/', (_req, res) => res.redirect('/admin/'));
   app.use('/admin', express.static(path.join(PUBLIC, 'admin')));
   app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'))); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
-  app.use('/widgets', express.static(path.join(PUBLIC, 'widgets')));
+  app.use('/widgets', (req, res, next) => { const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; req.url = `/${m[1]}/index.html${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets')));
   app.use('/help', express.static(path.join(PUBLIC, 'help'))); // 配信者向け使い方（鍵なしで開ける）
 }
 
