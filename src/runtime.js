@@ -46,6 +46,7 @@ import { bindControl } from './runtime-control.js';
 import { Ingest } from './ingest.js';
 import { InfoFeed } from './info-feed.js';
 import { VisitorLog } from './visitors.js';
+import { Points } from './points.js';
 import { PreparationStore } from './preparation.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -157,6 +158,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const omikuji = new Gacha(hub, { bus, name: 'omikuji' });
   const cardDraw = new CardDraw(hub);
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
+  const points = new Points(hub, { file: path.join(dataDir, 'points.json'), omikuji });
+  gachaViewers.setPoints(points);
   const slot = new SlotEngine(hub, { bus });
   const relayStop = new RelayStopEngine(hub, { slot });
   const peka = new Peka(hub);
@@ -239,6 +242,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     omikuji.setConfig(config.omikuji);
     cardDraw.setConfig(config.cardDraw);
     gachaViewers.setConfig(config.gacha);
+    points.setConfig(config.points);
     slot.setConfig(config.slots);
     relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
     peka.setConfig(config.peka);
@@ -291,7 +295,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const { readGifts } = bindRoutes(r, {
     id, hub, store, info: () => info(), entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
-    preparation, ingest, eulerUsage, infoFeed, visitors, history,
+    preparation, ingest, eulerUsage, infoFeed, visitors, points, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
@@ -442,6 +446,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       omikuji.close();
       cardDraw.close();
       gachaViewers.close();
+      points.close();
       slot.close();
       relayStop.close();
       ootori.close();

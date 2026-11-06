@@ -638,6 +638,7 @@ SCHEMA.gacha = {
       desc: '有料回数をためるギフト。対象ギフトまたは最低コインに合ったギフトから、spinsPerCoins コインごとに1回ためる',
     },
     command: str('!ガチャ', '有料回を使うコメント（完全一致）'),
+    pointsCost: num(100, 'ポイントで回すときの値段（ポイント。0 でポイントでは回さない）', { min: 0, max: 100000 }),
     cooldownSec: num(5, '同じ視聴者が続けて回せる最短間隔（秒）', { min: 0, max: 3600 }),
     rollMs: num(3000, '回転しているミリ秒', { min: 0, max: 60000 }),
     revealMs: num(2500, '結果を出しているミリ秒', { min: 0, max: 60000 }),
@@ -983,6 +984,26 @@ SCHEMA.visitors = {
     firstText: str('はじめまして！ゆっくりしていってね', '初見さんの文'), returningText: str('また来てくれてありがとう', 'おかえりの文'), regularText: str('{visits}回目の来場、いつもありがとう', '常連さんの文。{visits} は回数に置き換わる'),
     duration: num(4, '1件を出す秒数', { min: 1, max: 30 }), maxQueue: num(5, '待たせる最大人数（超えると古い人から出さずに飛ばす）', { min: 1, max: 50 }), avatars: bool(true, 'アイコンを出す'),
     keepDays: num(90, '記録を残す日数', { min: 1, max: 365 }),
+  },
+};
+
+// 視聴者ポイントの土台。貯める側（付与ルール）と使う側（おみくじの値段・コマンド）をここで決める。記録は配信者ごとの points.json
+SCHEMA.points = {
+  kind: 'object', title: 'ポイント', desc: '視聴者の行動（コメント・いいね・フォロー・ギフト・滞在）でポイントが貯まり、おみくじやガチャをポイントで引ける。レベルは累計で上がる、表示だけの数字。',
+  fields: {
+    enabled: bool(true, 'ポイントを使う'),
+    commentPoints: num(1, 'コメント1回でもらえるポイント', { min: 0, max: 1000 }),
+    commentCooldownSec: num(10, 'コメントでもらえる間隔（秒）。この間隔より速い連投では増えない', { min: 0, max: 3600 }),
+    likeEvery: num(100, 'いいね何件ごとにポイントを付けるか', { min: 1, max: 100000 }),
+    likePoints: num(1, 'いいねの区切りごとにもらえるポイント', { min: 0, max: 1000 }),
+    followPoints: num(10, 'フォローでもらえるポイント', { min: 0, max: 10000 }),
+    giftMultiplier: num(1, 'ギフトでもらえるポイント = コイン数 × この倍率', { min: 0, max: 100 }),
+    stayMinutes: num(5, '滞在の区切り（分）', { min: 1, max: 120 }),
+    stayPoints: num(2, '滞在の区切りごとにもらえるポイント', { min: 0, max: 1000 }),
+    levelEvery: num(100, '累計何ポイントごとにレベルが1上がるか', { min: 1, max: 1000000 }),
+    command: str('!ポイント', '自分の残高と順位を返すコメント（完全一致）'),
+    omikujiCommand: str('!おみくじ', 'おみくじをポイントで引くコメント（完全一致）'),
+    omikujiCost: num(100, 'おみくじをポイントで引く値段（0 で無効）', { min: 0, max: 100000 }),
   },
 };
 

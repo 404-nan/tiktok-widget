@@ -53,7 +53,7 @@ function cleanViewer(value) {
         tier: String(item?.tier ?? item?.tierId ?? 'none'),
         label: String(item?.label ?? item?.tier ?? '？'),
         at: String(item?.at ?? ''),
-        cost: item?.cost === 'paid' ? 'paid' : 'free',
+        cost: item?.cost === 'paid' ? 'paid' : item?.cost === 'points' ? 'points' : 'free',
       }))
     : [];
   return out;
@@ -189,6 +189,11 @@ export class GachaViewers {
     this.config.paidRule = { ...defaultsFor('gacha').paidRule, ...(value?.paidRule || {}) };
   }
 
+  /** ポイント基盤をつなぐ（無料回・有料回が無いときの「ポイントで引く」用）。 */
+  setPoints(points) {
+    this.points = points ?? null;
+  }
+
   #id(user) {
     return String(user?.id || user?.name || '').trim();
   }
@@ -307,14 +312,25 @@ export class GachaViewers {
     const freeAllowed = this.config.freeRequires !== 'follow' || this.followers.has(found.id) || dev;
     const freeLeft = freeAllowed && found.viewer.free.used < this.#freeLimit();
     const paidLeft = found.viewer.paid.credits > 0;
+    const pointsCost = Math.max(0, Math.floor(Number(this.config.pointsCost) || 0));
+    const pointsLeft = Boolean(this.points) && pointsCost > 0 && this.points.balance(found.id) >= pointsCost;
     let cost = null;
     if (prefer === 'paid') cost = paidLeft ? 'paid' : null;
     else if (prefer === 'free') cost = freeLeft ? 'free' : null;
+    else if (prefer === 'points') cost = pointsLeft ? 'points' : null;
     else if (freeLeft) cost = 'free';
     else if (paidLeft) cost = 'paid';
+    else if (pointsLeft) cost = 'points';
     if (!cost) {
       this.#forget(found);
       return fail(!freeAllowed && !paidLeft ? 'follow' : 'no-credits');
+    }
+    if (cost === 'points') {
+      const spent = this.points.spend({ id: found.id, name: found.viewer.name }, pointsCost, 'gacha');
+      if (!spent.ok) {
+        this.#forget(found);
+        return fail('no-credits');
+      }
     }
 
     const started = this.gacha.start({
@@ -324,11 +340,12 @@ export class GachaViewers {
       user: { id: found.id, name: found.viewer.name },
     });
     if (!started || started.ok === false) {
+      if (cost === 'points') this.points.refund({ id: found.id, name: found.viewer.name }, pointsCost, 'gacha-refund');
       this.#forget(found);
       return fail(started?.reason || 'disabled');
     }
     if (cost === 'free') found.viewer.free.used += 1;
-    else {
+    else if (cost === 'paid') {
       found.viewer.paid.credits -= 1;
       found.viewer.paid.used += 1;
     }
@@ -428,7 +445,7 @@ export class GachaViewers {
       tier: String(event.tier?.id ?? 'none'),
       label: String(event.tier?.label ?? event.tier?.id ?? '？'),
       at: new Date(event.ts || this.now()).toISOString(),
-      cost: trigger.cost === 'paid' ? 'paid' : 'free',
+      cost: trigger.cost === 'paid' ? 'paid' : trigger.cost === 'points' ? 'points' : 'free',
     });
     viewer.history = viewer.history.slice(-HISTORY_SIZE);
     this.store.changed();
