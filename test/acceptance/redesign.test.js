@@ -81,7 +81,12 @@ const changedSinceBaseline = (...paths) => execFileSync('git', ['diff', '--name-
 
 // 作り直しのカードが終わったあとは、新しいウィジェットを足してよい。今あるウィジェットのページと設定の名前が消えていないことだけ確かめる
 test('AC-7: 今あるウィジェットのページと設定の名前を消していない', () => {
-  const removed = execFileSync('git', ['diff', '--name-only', '--diff-filter=D', '--find-renames', BASELINE, '--', 'public/widgets'], { cwd: root, encoding: 'utf8' }).trim();
+  const removedRaw = execFileSync('git', ['diff', '--name-only', '--diff-filter=D', '--find-renames', BASELINE, '--', 'public/widgets'], { cwd: root, encoding: 'utf8' }).trim();
+  // 部品フォルダへ移したページ（<名前>.html → <名前>/index.html）は、同じ住所で開けるので消えた扱いにしない
+  const removed = removedRaw.split('\n').filter(Boolean).filter((f) => {
+    const m = /^public\/widgets\/([\w-]+)\.html$/.exec(f);
+    return !(m && fs.existsSync(`${root}public/widgets/${m[1]}/index.html`));
+  }).join('\n');
   assert.equal(removed, '');
   const before = execFileSync('git', ['show', `${BASELINE}:src/schema.js`], { cwd: root, encoding: 'utf8' });
   const now = read('src/schema.js');

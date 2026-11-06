@@ -83,9 +83,16 @@ async function installSocketRecorder(page) {
   });
 }
 
+// 部品フォルダの index.html は、配信者が使う旧住所（/widgets/<名前>.html）で開く。本番の解決と同じにする
+const pagePath = (file) => {
+  const r = rel(file);
+  const m = /^([\w-]+)\/index\.html$/.exec(r);
+  return m ? `${m[1]}.html` : r;
+};
+
 async function openWidget(page, baseUrl, file, preview) {
   const query = preview ? `?preview=${preview}` : '';
-  await page.goto(`${baseUrl}/widgets/${rel(file)}${query}`, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+  await page.goto(`${baseUrl}/widgets/${pagePath(file)}${query}`, { waitUntil: 'domcontentloaded', timeout: 15_000 });
   await page.waitForFunction(() => window.__twWsUrls?.length > 0, { timeout: 2_000 }).catch(() => {});
   await delay(150);
   const urls = await page.evaluate(() => window.__twWsUrls ?? []);
@@ -150,7 +157,8 @@ test('AC-2 preview の無い URL は今までどおり、ただの /ws でつな
 });
 
 test('AC-3 body.preview と投票の見本は preview=1 のときだけ出し、preview=live では出さない', { timeout: 180_000 }, async () => {
-  const htmlPages = listFiles(widgetsDir).filter((file) => file.endsWith('.html'));
+  // preview.html は部品フォルダの見本用の殻で、ウィジェット本体のページではないので数に入れない
+  const htmlPages = listFiles(widgetsDir).filter((file) => file.endsWith('.html') && path.basename(file) !== 'preview.html');
   await withLocalBrowser(async ({ server, browser }) => {
     const page = await browser.newPage();
     await installSocketRecorder(page);

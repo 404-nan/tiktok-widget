@@ -16,7 +16,16 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 // public/ を配るだけのサーバー(API は無い。必要なものはブラウザ側の route で差し替える)
 async function startStaticServer() {
   const server = http.createServer((req, res) => {
-    const file = path.join(publicDir, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+    let file = path.join(publicDir, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+    // 部品フォルダ化に合わせ、本番サーバーと同じ解決をする（/widgets/<名前>.html → <名前>/index.html、<名前>.js → <名前>/<名前>.js）
+    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
+    if (!fs.existsSync(file)) {
+      const m = /widgets\/([\w-]+)\.(html|js)$/.exec(file);
+      if (m) {
+        const alt = m[2] === 'html' ? path.join(publicDir, 'widgets', m[1], 'index.html') : path.join(publicDir, 'widgets', m[1], `${m[1]}.js`);
+        if (fs.existsSync(alt)) file = alt;
+      }
+    }
     if (!file.startsWith(publicDir) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404).end(); return; }
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream' }).end(fs.readFileSync(file));
   });
