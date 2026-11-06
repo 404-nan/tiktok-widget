@@ -47,6 +47,7 @@ import { Ingest } from './ingest.js';
 import { InfoFeed } from './info-feed.js';
 import { VisitorLog } from './visitors.js';
 import { Points } from './points.js';
+import { Presets } from './presets.js';
 import { PreparationStore } from './preparation.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -168,6 +169,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const dareba = new DarebaEngine({ hub });
   boss.setBus(bus);
   const actionDeps = () => ({ roulette, timer, wins, rush, media: mediaAlerts, sounds: giftSounds, boss, gacha, omikuji, bus });
+  const presets = new Presets(hub, { run: (actions, meta) => runActions(actions, actionDeps(), meta) });
   const vote = new VoteEngine(hub, {
     onResult: ({ id: voteId, actions, result }) => runActions(actions, actionDeps(), { source: 'vote', voteId, result }),
   });
@@ -243,6 +245,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     cardDraw.setConfig(config.cardDraw);
     gachaViewers.setConfig(config.gacha);
     points.setConfig(config.points);
+    presets.setConfig(config.presets);
     slot.setConfig(config.slots);
     relayStop.setConfig(config.relayStop ?? config.slots?.relayStop);
     peka.setConfig(config.peka);
@@ -295,7 +298,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const { readGifts } = bindRoutes(r, {
     id, hub, store, info: () => info(), entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
-    preparation, ingest, eulerUsage, infoFeed, visitors, points, history,
+    preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
@@ -447,6 +450,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       cardDraw.close();
       gachaViewers.close();
       points.close();
+      presets.close();
       slot.close();
       relayStop.close();
       ootori.close();

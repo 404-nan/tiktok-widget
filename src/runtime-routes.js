@@ -25,7 +25,7 @@ export function bindRoutes(r, ctx) {
   const {
     id, hub, store, info, entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
-    preparation, ingest, eulerUsage, infoFeed, visitors, points, history,
+    preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     giftCatalog, demo, applyConfigResult, lastIssues, timerSeconds, performControl,
@@ -267,6 +267,13 @@ export function bindRoutes(r, ctx) {
   });
   r.get('/api/visitors', (_req, res) => res.json(visitors.snapshot()));
   r.get('/api/points', (_req, res) => res.json(points ? points.snapshot() : { enabled: false, users: 0, ranking: [] }));
+  r.get('/api/presets', (_req, res) => res.json(presets ? presets.snapshot() : { enabled: false, active: '', base: 0, presets: [], disabled: [] }));
+  r.post('/api/presets/active', (req, res) => {
+    if (!presets) return res.status(404).json({ error: 'プリセットがありません' });
+    const result = presets.switchTo(req.body?.id ?? '');
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    return res.json(result);
+  });
 
   // テスト送信用のギフト一覧（seen: true は実際の配信で届いたギフト）
   // 名前だけの控えはコインが無いので、分かっている数（diamond_count など）を id で埋める

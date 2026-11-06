@@ -10,6 +10,7 @@ import YAML from 'yaml';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
 import { parseCrop, parseImageStyle } from './cutin-style.js';
 import { checkActions } from './actions.js';
+import { checkPresetRules, checkPresets } from './presets.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const CONFIG_PATH = path.resolve(process.env.TW_CONFIG || path.join(root, 'config.yaml'));
@@ -91,6 +92,10 @@ function checkValue(field, value, where, issues) {
       return checkObsRules(value, where, issues);
     case 'actions':
       return checkActions(value, where, issues);
+    case 'presetRules':
+      return checkPresetRules(value, where, issues);
+    case 'presets':
+      return checkPresets(value, where, issues);
     case 'cutinStyle':
       return checkCutinStyle(value, where, issues);
     case 'crop':

@@ -1007,6 +1007,18 @@ SCHEMA.points = {
   },
 };
 
+// 「出来事 → 動作」の対応を名前付きの束（プリセット）にして配信中に切り替える土台。テンプレート共有の実体にもなる
+SCHEMA.presets = {
+  kind: 'object', title: 'プリセット', desc: '出来事（ギフト・コメント・いいね到達・フォローなど）に動作（ルーレット・タイマー・WIN・ガチャなど既存の actions）を対応づけ、名前付きの束として保存・切替する。基本規則（base）は常時有効で、有効なプリセットは1つだけ。',
+  fields: {
+    enabled: bool(true, 'プリセットを使う'),
+    active: str('', '有効にするプリセットの id（空なら基本規則だけ）'),
+    switchCommand: str('', 'プリセットを切り替えるコメントの頭（空なら無効。例：!プリセット と書くと「!プリセット <id>」のコメントで切り替わる）'),
+    base: { type: 'presetRules', default: [], desc: '常時有効の基本規則の一覧。規則は { on（gift / chat / like / follow / share / member）, gift, keyword, minCoins, every（いいね何件ごと）, cooldownSec（間引きの秒数）, actions（動作の一覧） }' },
+    list: { type: 'presets', default: [], desc: '名前付きプリセットの一覧。{ id, name, rules } の形で、rules は基本規則と同じ書き方' },
+  },
+};
+
 // 画面で見せる「種類の名前」。ウィジェット自身の見出し（title / name）とは別に持つ。
 for (const section of Object.keys(SCHEMA)) {
   if (SCHEMA[section].kind === 'map' && !SCHEMA[section].fields.kindName) {
