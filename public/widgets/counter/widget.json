@@ -1,0 +1,21 @@
+{
+  "id": "counters",
+  "name": "いいね・視聴者数",
+  "desc": "",
+  "size": [
+    560,
+    220
+  ],
+  "page": "counter.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

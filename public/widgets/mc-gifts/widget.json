@@ -1,0 +1,21 @@
+{
+  "id": "mcGifts",
+  "name": "妨害マイクラのギフト表",
+  "desc": "",
+  "size": [
+    560,
+    360
+  ],
+  "page": "mc-gifts.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

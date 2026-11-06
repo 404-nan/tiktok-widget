@@ -1,0 +1,21 @@
+{
+  "id": "goals",
+  "name": "目標バー",
+  "desc": "",
+  "size": [
+    640,
+    180
+  ],
+  "page": "goal.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

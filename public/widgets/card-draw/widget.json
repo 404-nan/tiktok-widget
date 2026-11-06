@@ -1,0 +1,21 @@
+{
+  "id": "cardDraw",
+  "name": "カードめくり",
+  "desc": "",
+  "size": [
+    1080,
+    720
+  ],
+  "page": "card-draw.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

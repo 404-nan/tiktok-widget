@@ -1,0 +1,21 @@
+{
+  "id": "dareba",
+  "name": "ダレ場の小さな事件",
+  "desc": "",
+  "size": [
+    640,
+    240
+  ],
+  "page": "dareba.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

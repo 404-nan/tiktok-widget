@@ -1,0 +1,21 @@
+{
+  "id": "peka",
+  "name": "遅れて光る告知ランプ",
+  "desc": "",
+  "size": [
+    360,
+    180
+  ],
+  "page": "peka.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

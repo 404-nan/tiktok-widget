@@ -1,0 +1,21 @@
+{
+  "id": "imageCutins",
+  "name": "画像付きカットイン",
+  "desc": "",
+  "size": [
+    1080,
+    1920
+  ],
+  "page": "image-cutin.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

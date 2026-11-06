@@ -1,0 +1,21 @@
+{
+  "id": "ootori",
+  "name": "最後の一投とエンドロール",
+  "desc": "",
+  "size": [
+    900,
+    600
+  ],
+  "page": "ootori.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

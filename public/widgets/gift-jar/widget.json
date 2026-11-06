@@ -1,0 +1,21 @@
+{
+  "id": "jars",
+  "name": "ギフト瓶",
+  "desc": "",
+  "size": [
+    500,
+    700
+  ],
+  "page": "gift-jar.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

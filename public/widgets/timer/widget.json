@@ -1,0 +1,21 @@
+{
+  "id": "timers",
+  "name": "延長タイマー",
+  "desc": "",
+  "size": [
+    720,
+    280
+  ],
+  "page": "timer.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

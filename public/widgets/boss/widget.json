@@ -1,0 +1,21 @@
+{
+  "id": "bosses",
+  "name": "ボス討伐",
+  "desc": "",
+  "size": [
+    720,
+    260
+  ],
+  "page": "boss.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

@@ -1,0 +1,21 @@
+{
+  "id": "alerts",
+  "name": "ギフト通知",
+  "desc": "",
+  "size": [
+    760,
+    200
+  ],
+  "page": "gift-alert.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

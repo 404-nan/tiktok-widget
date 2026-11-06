@@ -1,0 +1,21 @@
+{
+  "id": "chats",
+  "name": "コメント欄",
+  "desc": "",
+  "size": [
+    460,
+    640
+  ],
+  "page": "chat.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

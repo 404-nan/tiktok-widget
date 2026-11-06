@@ -1,0 +1,21 @@
+{
+  "id": "rush",
+  "name": "RUSH",
+  "desc": "",
+  "size": [
+    1080,
+    1920
+  ],
+  "page": "rush.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

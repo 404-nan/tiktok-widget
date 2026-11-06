@@ -1,0 +1,21 @@
+{
+  "id": "wins",
+  "name": "WIN数",
+  "desc": "",
+  "size": [
+    600,
+    200
+  ],
+  "page": "wins.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

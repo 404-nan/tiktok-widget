@@ -1,0 +1,21 @@
+{
+  "id": "roulettes",
+  "name": "ルーレット",
+  "desc": "",
+  "size": [
+    600,
+    680
+  ],
+  "page": "roulette.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}
