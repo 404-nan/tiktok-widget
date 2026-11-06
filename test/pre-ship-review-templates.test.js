@@ -7,7 +7,7 @@ import { test } from 'node:test';
 const read = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 
 test('管理画面と配信画面のテンプレート名・構成が同じ', () => {
-  const admin = read('public/admin/admin.js');
+  const admin = read('public/admin/admin.js') + read('public/admin/admin-list.js');
   const stage = read('public/dashboard/stage.js');
   assert.match(admin, /endurance:\s*'耐久・目標配信'/);
   assert.match(stage, /id: 'endurance',[\s\S]*name: '耐久・目標配信'/);

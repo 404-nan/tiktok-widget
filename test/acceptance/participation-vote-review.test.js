@@ -111,7 +111,7 @@ test('レビュー3: 投票 API と performControl は不明な action・設定�
 });
 
 test('レビュー4: 投票のテストボタンは毎回別の参加者を送る', () => {
-  const editor = fs.readFileSync('public/dashboard/editor.js', 'utf8');
+  const editor = fs.readFileSync('public/dashboard/editor.js', 'utf8') + fs.readFileSync('public/dashboard/editor-preview.js', 'utf8');
   assert.match(editor, /テスト参加者.*\+\+|\+\+.*テスト参加者/);
 });
 

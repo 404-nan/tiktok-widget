@@ -32,7 +32,7 @@ test('設定キーを変えずに、画面の言葉をやさしくする', () =>
 test('kind-ui の言葉の辞書と準備画面の入口がある', () => {
   const words = read('docs/words.md');
   const editor = read('public/dashboard/editor.js');
-  const runtime = read('src/runtime.js');
+  const runtime = read('src/runtime.js') + read('src/runtime-routes.js');
   assert.match(words, /使う言葉/);
   assert.match(editor, /配信ソフトに入れる/);
   assert.match(editor, /配信が始まったら自動でつなぐ/);

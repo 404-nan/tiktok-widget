@@ -202,7 +202,7 @@ test('AC-10 かんたん設定に combo、試すボタンに 5連続とリセッ
   assert.match(simple, /ゆっくり 15秒/);
   assert.match(simple, /すぐ上がる/);
   assert.match(simple, /ゆっくり上がる/);
-  const editor = read('public/dashboard/editor.js');
+  const editor = read('public/dashboard/editor.js') + read('public/dashboard/editor-preview.js');
   assert.match(editor, /tab === 'combo'/);
   assert.match(editor, /control\('combo',\s*'test',\s*\{\s*count:\s*5\s*\}\)/);
   assert.match(editor, /5連続を試す/);

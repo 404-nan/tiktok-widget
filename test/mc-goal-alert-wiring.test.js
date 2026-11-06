@@ -17,7 +17,7 @@ test('ゴール接近警報のファイルと日本語の表示がある', () =>
 
 test('設定にゴール座標と警報の説明があり、ランタイムから状態を読める', () => {
   const schema = read('src/schema.js');
-  const runtime = read('src/runtime.js');
+  const runtime = read('src/runtime.js') + read('src/runtime-routes.js');
   assert.match(schema, /goalAlert/);
   assert.match(schema, /ゴールのワールド/);
   assert.match(runtime, /goalAlert/);

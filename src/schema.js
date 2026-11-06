@@ -426,6 +426,8 @@ SCHEMA.puchuns = {
     preset: oneOf(['chance', 'cutin', 'jackpot', 'puchun'], 'puchun', '演出。チャンス / カットイン / 大当たり / プチュン'),
     ratio: oneOf(['full', '1:1', '4:3', '16:9'], 'full', '画面の比率'),
     charImage: str('', '立ち絵の画像（メディアのID。空なら仮の影だけ）', { mediaKind: 'image' }),
+    sound: bool(true, '音を出す'),
+    volume: num(90, '音の大きさ（%）', { min: 0, max: 100 }),
     texts: { type: 'object', default: {}, desc: '演出ごとの字。見本にあるキーをそのまま書く' },
     gifts: list([], 'このギフト名または GiftID なら流す。コイン数より先に判定する'),
     minCoins: num(0, 'この合計コイン以上で流す（0 で無効）', { min: 0 }),
@@ -657,15 +659,20 @@ SCHEMA.gacha = {
 SCHEMA.omikuji = {
   ...SCHEMA.gacha,
   page: 'omikuji',
+  size: () => [640, 500],
   title: 'おみくじ',
   desc:
     'ギフトで引くおみくじ。待機 →（番号を選ぶ）→ 引いている → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
+    'displayMode で表示の型（番号を選ぶじっくり型 / 番号選びなしの短い型）を選べる。' +
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     'きっかけ: gifts のギフト / minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
+    displayMode: oneOf(['long', 'short'], 'long', '表示の型。long は番号を選ぶ従来型、short は番号選びなしで短く出す'),
+    tempo: oneOf(['quick', 'normal', 'slow'], 'normal', '短い型（short）のテンポ。quick は今までの速さ、normal は気持ち遅く、slow はもっと遅く'),
+    resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
     timeoutMode: oneOf(['random', 'streamer'], 'random', '送った人が時間内に選ばなかったとき。random はランダム、streamer は配信者が選ぶ（配信者も押さなければ同じ秒数のあとランダム）'),
@@ -681,7 +688,7 @@ SCHEMA.omikuji = {
         { id: 'kyo', label: '凶', weight: 5, pity: false },
         { id: 'daikyo', label: '大凶', weight: 2, pity: false },
       ],
-      desc: '運勢。id / label / weight（出やすさ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
+      desc: '運勢。id / label / weight（出やすさ。0 にするとその運勢は出ない。全部を 0 にはできない）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
     },
   },
 };

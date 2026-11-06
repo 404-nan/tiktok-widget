@@ -101,3 +101,18 @@ test('置き場所は範囲内の初期値で、重ねない', () => {
     points.push(point);
   }
 });
+
+test('おみくじの運勢は weight 0 を保ち、全部 0 はエラーになる', () => {
+  const ok = cfg.normalize({ omikuji: { tiers: [
+    { id: 'daikichi', label: '大吉', weight: 0 },
+    { id: 'kichi', label: '吉', weight: 1 },
+  ] } });
+  assert.deepEqual(ok.errors, []);
+  assert.equal(ok.config.omikuji.tiers[0].weight, 0);
+  assert.equal(ok.config.omikuji.tiers[1].weight, 1);
+  const bad = cfg.normalize({ omikuji: { tiers: [
+    { id: 'daikichi', label: '大吉', weight: 0 },
+    { id: 'kichi', label: '吉', weight: 0 },
+  ] } });
+  assert.ok(bad.errors.some((e) => e.includes('合計')));
+});

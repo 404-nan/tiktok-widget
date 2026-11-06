@@ -394,7 +394,8 @@ test('画面の文言は、停止でも配信にエラーを出さない', () =>
   const all = fs.readFileSync(new URL('../public/widgets/all.html', import.meta.url), 'utf8');
   const locked = fs.readFileSync(new URL('../public/widgets/locked.html', import.meta.url), 'utf8');
   const admin = fs.readFileSync(new URL('../public/admin/index.html', import.meta.url), 'utf8');
-  const adminJs = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.url), 'utf8');
+  const adminJs = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.url), 'utf8')
+    + fs.readFileSync(new URL('../public/admin/admin-billing.js', import.meta.url), 'utf8');
   const server = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
   assert.match(app, /お支払いの確認が取れていません。LuLにご連絡ください/);
   assert.match(app, /有料化のお知らせ/);

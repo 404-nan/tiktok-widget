@@ -91,6 +91,8 @@ const vendor = (dir) => express.static(path.join(root, 'node_modules', dir), { m
 app.use('/vendor/fonts/zen-kaku-gothic-new', vendor('@fontsource/zen-kaku-gothic-new'));
 app.use('/vendor/fonts/barlow-condensed', vendor('@fontsource/barlow-condensed'));
 app.use('/vendor/fonts/dela-gothic-one', vendor('@fontsource/dela-gothic-one'));
+app.use('/vendor/fonts/shippori-mincho', vendor('@fontsource/shippori-mincho'));
+app.use('/vendor/fonts/yuji-syuku', vendor('@fontsource/yuji-syuku'));
 app.use('/vendor/icons', vendor('lucide-static/icons'));
 
 // --- 管理画面（/admin） ---

@@ -7,7 +7,13 @@ import { execFileSync } from 'node:child_process';
 import { startLocalServer } from '../../scripts/perf/lib/process.mjs';
 
 const root = new URL('../../', import.meta.url).pathname;
-const read = (file) => fs.readFileSync(`${root}${file}`, 'utf8');
+const readRaw = (file) => fs.readFileSync(`${root}${file}`, 'utf8');
+// CSS の @import url("style-*.css") を1段だけ展開して返す(分割後でも分割前でも動く)
+const read = (file) => {
+  const src = readRaw(file);
+  const dir = file.replace(/[^/]*$/, '');
+  return src.replace(/@import\s+url\(["'](style-[^"']+)["']\)\s*;/g, (_, ref) => readRaw(dir + ref));
+};
 const BASELINE = '3c64ac4'; // カードを書いた時点のコミット。ここから「変えない」ものを比べる
 const PLAYWRIGHT = '/home/lul/ruu-work/tw/node_modules/playwright/index.mjs';
 
@@ -97,7 +103,7 @@ test('AC-3: 配信中に見る・配信の記録でダッシュボードの外�
 });
 
 test('AC-4: 見え方の枠に切り替えがあり、配信画面ぜんぶは all.html を preview=1 で映す', () => {
-  const source = ['editor.js', 'app.js', 'stage.js'].map((f) => read(`public/dashboard/${f}`)).join('\n') + read('public/dashboard/index.html');
+  const source = ['editor.js', 'app.js', 'stage.js', 'editor-preview.js'].map((f) => read(`public/dashboard/${f}`)).join('\n') + read('public/dashboard/index.html');
   assert.match(source, /このウィジェットだけ/);
   assert.match(source, /配信画面ぜんぶ/);
   assert.match(source, /widgets\/all\.html/);

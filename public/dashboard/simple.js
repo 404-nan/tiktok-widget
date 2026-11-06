@@ -379,6 +379,7 @@ export const SIMPLE = {
   omikuji: {
     groups: [
       { title: '使う', fields: ['enabled'] },
+      { title: '見た目', fields: ['displayMode', 'resultFont'] },
       { title: 'いつ引く', fields: ['minCoins', 'gifts'] },
       // 送った人が選ばないときは時間切れで進む。配信者の番でも押さなければ同じ秒数のあとランダム
       { title: '棒の番号の選び方', fields: ['pickMode', 'pickSeconds', 'timeoutMode'] },
@@ -457,7 +458,7 @@ export const SIMPLE_LABELS = {
   'mediaAlerts.enabled': 'メディア通知を使う', 'mediaAlerts.rules': '再生のきっかけ',
   'giftSounds.enabled': 'ギフト別サウンドを使う', 'giftSounds.masterVolume': '全体の音量', 'giftSounds.maxSeconds': '1回の最長（秒）', 'giftSounds.maxConcurrent': '同時に鳴らす数', 'giftSounds.rules': 'ルール',
   'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
-  'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
+  'omikuji.enabled': 'おみくじを使う', 'omikuji.displayMode': '表示の型', 'omikuji.resultFont': '運勢の文字', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
   'omikuji.pickMode': '番号の選び方', 'omikuji.pickSeconds': '番号を待つ秒数', 'omikuji.timeoutMode': '時間切れのとき',
   'gacha.freePerReset': '1人の無料回数', 'gacha.resetMode': '無料回数のリセット', 'gacha.freeRequires': '無料回数の条件',
   'gacha.paidRule': '有料回数のたまり方', 'gacha.command': '回すコメント', 'gacha.cooldownSec': '同じ人の間隔',

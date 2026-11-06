@@ -1,0 +1,825 @@
+/* ===== デザインの見直し（配信の「調整卓」） =====
+   主役はプレビュー（配信に映る画面）だけ。ほかは静かにそろえる */
+body { background: var(--page); } /* 飾りの色の傾きをやめる */
+[data-theme=dark] body { background: radial-gradient(120% 80% at 70% -10%, rgba(var(--paper), .045), transparent 60%) fixed, var(--page); }
+
+/* 見出し: 大きく・詰めて、説明は控えめに */
+.view-title h3, #detailHead.view-title h3 { font-size: 24px; letter-spacing: -.03em; line-height: 1.25; }
+.view-title .desc { font-size: 14px; color: var(--text-secondary); max-width: 46em; }
+.sgroup-title { font-size: 14px; font-weight: 700; color: var(--text-primary); opacity: .72; letter-spacing: .02em; }
+
+/* 左のメニュー: 選んでいるところに朱の細い目印（今いる場所） */
+.side-item { position: relative; transition: background-color var(--press), color var(--press); }
+.side-item:hover { color: var(--text-primary); background: var(--hover-wash); }
+.side-item[aria-current=true]::before { content: ""; position: absolute; left: -6px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--attention); }
+@media (max-width: 760px) { .side-item[aria-current=true]::before { left: 14px; right: 14px; top: auto; bottom: 2px; width: auto; height: 2px; } }
+
+/* プレビュー: 配信モニターのように、黒い縁と「配信画面」の札 */
+.preview { border-radius: 18px; background: var(--c-023); box-shadow: 0 0 0 6px var(--c-023), 0 0 0 7px var(--stroke-primary), 0 18px 50px var(--c-024); margin: 7px; }
+.preview::after { content: "配信画面"; position: absolute; left: 12px; right: auto; top: 10px; z-index: 2; padding: 3px 10px 3px 24px; border-radius: var(--r-pill); font-size: 14px; font-weight: 700; color: var(--c-012); background: var(--c-014); pointer-events: none; }
+.preview::before { content: ""; position: absolute; left: 22px; top: 21px; z-index: 3; width: 7px; height: 7px; border-radius: 50%; background: var(--attention); box-shadow: 0 0 0 3px var(--c-025); pointer-events: none; }
+[data-theme=light] .preview { box-shadow: 0 0 0 6px var(--c-023), 0 18px 40px var(--c-026); }
+
+/* まとまりの面: 角の大きさで上下関係をつける（外 24 / まとまり 16 / 部品 12） */
+.sgroup-body { border-radius: 16px; }
+
+/* キーボードで動かしたときの目印をはっきり */
+:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .side-item { transition: none; } }
+
+/* ===== 読みやすさ（docs/DESIGN.md「読みやすさの基準」） =====
+   背景は均一な1色、面は透けない色、文字は 4.5:1 以上 */
+body, [data-theme=dark] body { background: var(--page) !important; }
+/* 文字の大きさ: 本文 16px・行間 1.6。補足でも 14px 未満にしない。入力欄も本文と同じ大きさ */
+input, select, textarea, .btn, .chip, .side-item, .field-label { font-size: max(15px, 1em); }
+.desc, .hint, .sub, p { line-height: 1.6; }
+.desc, .hint { font-size: 14px; }
+.widgets > .panel-bg { display: none; } /* 透けなくしたので、高さの合わない下地を出さない */
+@media (max-width: 520px) { #actions > .chip:first-of-type { grid-column: 1 / -1; } }
+.topbar > .panel-bg { background: var(--page); box-shadow: none; } /* 上の帯は背景と同じ色（下の中身と重なっても段にならない） */
+
+/* ============================================================
+   1ページ目「OBSに入れるURL」（かんたん・PC/スマホ共通）
+   ルール: 余白は 4/8/12/16/24/32/48 の目盛りだけ。
+   中身は1本の列（最大幅を固定）。カードは全部同じ幅・同じ内側余白・同じ間隔。
+   色はアクセント1色。グラデーション・ぼかし・強い影は使わない。
+   ============================================================ */
+:root {
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --col: 840px;          /* 中身の列の幅 */
+  --card-pad-x: var(--s-5);
+  --card-pad-y: var(--s-4);
+  --card-gap: var(--s-5); /* カード同士の間隔＝一番上の余白 */
+  --card-radius: 10px;
+  --surface: #1F1F23;
+  --border: rgba(255, 255, 255, .10);
+  --accent: #FF5A2B;
+  --btn-w: 104px; --btn-h: 40px;
+}
+[data-theme=light] { --surface: #FFFFFF; --border: rgba(0, 0, 0, .10); --accent: #D9411A; }
+
+[data-mode=simple] body, body[data-mode=simple] { background: var(--page); }
+body[data-mode=simple] .side { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface); }
+
+/* 列 */
+body[data-mode=simple] #cards:not([hidden]) {
+  display: grid;
+  gap: var(--card-gap);
+  width: 100%;
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: var(--card-gap) 0 var(--s-7);
+}
+body[data-mode=simple] #cards > * { width: 100%; margin: 0; min-width: 0; }
+
+/* 見出し（カードではない。下の間隔はカード間隔と同じ） */
+body[data-mode=simple] #cards > .view-title { gap: var(--s-2); padding: 0; }
+body[data-mode=simple] #cards > .view-title h3 { font-size: 24px; line-height: 1.3; letter-spacing: -.01em; }
+body[data-mode=simple] #cards > .view-title .desc { font-size: 14px; color: var(--text-secondary); max-width: none; }
+
+/* カード（見本・URL一覧） */
+body[data-mode=simple] #cards > .sample-control,
+body[data-mode=simple] #cards > .sgroup {
+  display: grid;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: none;
+  overflow: hidden;
+}
+body[data-mode=simple] #cards > .sample-control { padding: var(--card-pad-y) var(--card-pad-x); gap: var(--s-2); }
+body[data-mode=simple] #cards > .sample-control > .check {
+  flex-direction: row; justify-content: space-between; align-items: center;
+  min-height: var(--btn-h); padding: 0; font-size: 14px; font-weight: 600;
+}
+body[data-mode=simple] #cards > .sample-control > .check input[type=checkbox]:checked { background: var(--accent); }
+body[data-mode=simple] #cards > .sample-control > .hint { margin: 0; font-size: 14px; color: var(--text-secondary); }
+
+body[data-mode=simple] #cards > .sgroup > .sgroup-title {
+  margin: 0;
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 600; opacity: 1; letter-spacing: 0; color: var(--text-primary);
+}
+body[data-mode=simple] #cards > .sgroup > .sgroup-body { border-radius: 0; background: transparent; box-shadow: none; }
+body[data-mode=simple] #cards .sgroup-body > * + * { box-shadow: none; border-top: 1px solid var(--border); }
+
+/* 行：全部同じ高さ・同じ並び */
+body[data-mode=simple] #cards .url-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) var(--btn-w) var(--btn-w);
+  gap: var(--s-4);
+  height: 72px;
+  padding: 0 var(--card-pad-x);
+}
+body[data-mode=simple] #cards .url-item .srow-title { font-size: 14px; font-weight: 600; }
+body[data-mode=simple] #cards .url-item .srow-sub { font-size: 14px; }
+
+/* ボタン：同じ大きさで横に並べる */
+body[data-mode=simple] #cards .url-item > .chip {
+  width: var(--btn-w); height: var(--btn-h); min-height: 0; padding: 0;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; box-shadow: none; font-size: 14px; font-weight: 500;
+}
+body[data-mode=simple] #cards .url-item > .chip:hover { background: var(--hover-wash); }
+body[data-mode=simple] #cards .url-item > .chip:first-of-type { background: var(--text-primary); color: var(--text-primary-on); border-color: transparent; }
+
+body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; padding: 0; font-size: 14px; color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* PC：サイドバーと列の間も同じ目盛り */
+@media (min-width: 900px) {
+  body[data-mode=simple] .layout { max-width: none; padding: 0 var(--s-6) 0 calc(248px + var(--s-6)); }
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { max-width: var(--col); margin-left: auto !important; margin-right: auto !important; width: 100%; }
+  body[data-mode=simple] .side { gap: var(--s-4); padding: var(--s-5) var(--s-4); }
+  body[data-mode=simple] .side-item[aria-current=true]::before { background: var(--accent); }
+}
+
+/* スマホ：列は画面いっぱい、左右の余白はカード間隔と同じ */
+@media (max-width: 899px) {
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { padding-left: var(--s-4); padding-right: var(--s-4); }
+  body[data-mode=simple] #cards:not([hidden]) { gap: var(--s-4); padding-top: var(--s-4); }
+  body[data-mode=simple] #cards { --card-pad-x: var(--s-4); --btn-w: 72px; }
+  body[data-mode=simple] #cards .url-item { grid-template-columns: minmax(0, 1fr) var(--btn-w) var(--btn-w); gap: var(--s-2); }
+  body[data-mode=simple] #cards .url-item > .icon { display: none; }
+  body[data-mode=simple] #cards .url-item > .chip .icon { display: none; }
+}
+
+/* ============================================================
+   上のカード（プラン・更新のお知らせ・テスト送信・動作確認用の画面）と、開発の札
+   1ページ目と同じ決まり: 下の中身と同じ列・同じ幅・同じ内側余白・同じ間隔。
+   中の項目は箱にせず、線で区切った行にする。
+   ============================================================ */
+.top-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+}
+.live-no-widget { margin: var(--card-gap) 0 0; }
+.live-no-widget h2 { margin: 0; font-size: 20px; }
+.live-no-widget p { margin: 0; line-height: 1.6; }
+/* 上の余白はカードが持つ（カードが1枚も出ていないときは、何も足さない） */
+.top-cards > .notes-panel,
+.top-cards > .plan-panel,
+.top-cards > .dev-panel {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0;
+  min-width: 0;
+  margin: var(--card-gap) 0 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: none;
+  overflow: hidden;
+}
+.top-cards > .notes-panel,
+.top-cards > .plan-panel { display: grid; }
+.plan-body { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+
+/* カットインの切り抜き。余白は 4/8/12/16/24/32/48 だけ。横並びのボタンは同じ大きさ */
+.cutin-crop {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--r-md);
+  background: var(--fill-tertiary);
+}
+.cutin-shell {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, calc(var(--s-7) * 10 * 9 / 16));
+  aspect-ratio: 9 / 16;
+  max-height: calc(var(--s-7) * 10);
+  margin: 0 auto;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.cutin-hatch { flex: 1 1 auto; min-height: var(--s-2); }
+.cutin-viewport {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  overflow: hidden;
+  background: var(--c-027);
+  touch-action: none;
+  cursor: grab;
+}
+.cutin-viewport:active { cursor: grabbing; }
+.cutin-crop-img { position: absolute; max-width: none; user-select: none; -webkit-user-drag: none; }
+.cutin-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  color: var(--c-028);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.cutin-scale-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--s-7);
+}
+.cutin-scale-row span { flex: 0 0 auto; font-size: 14px; }
+.cutin-scale-row input[type="range"] { flex: 1 1 auto; min-width: 0; height: var(--s-6); margin: 0; }
+.cutin-scale-num {
+  flex: 0 0 var(--s-7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.cutin-choice-row { display: flex; gap: var(--s-2); }
+.cutin-choice {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--s-7);
+  margin: 0;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--stroke-primary);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cutin-crop > .cutin-choice { width: 100%; }
+.cutin-choice[aria-pressed="true"] {
+  background: var(--fill-primary);
+  color: var(--text-primary-on);
+  border-color: var(--fill-primary);
+}
+.top-cards input, .top-cards select { border-radius: var(--s-2); }
+
+/* カードの見出しの行 */
+.notes-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border-bottom: 1px solid var(--border);
+}
+.notes-head h2 { margin-right: auto; font-size: 14px; font-weight: 600; line-height: 1.6; }
+.notes-head .hint { font-size: 14px; color: var(--text-secondary); }
+.notes-head .text-btn,
+.dev-panel > .stack > .text-btn { justify-self: start; margin: 0; padding: 0; font-size: 14px; color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* 札（未読の数・開発）: 塗らずに線だけ */
+.badge, .dev-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: var(--s-5);
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--s-1);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dev-badge { border-color: var(--accent); }
+
+/* お知らせ: 1件1行 */
+.notes-list { display: grid; grid-template-columns: minmax(0, 1fr); }
+.note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--card-pad-y) var(--card-pad-x);
+}
+.note + .note { border-top: 1px solid var(--border); }
+.note h3 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.6; }
+.note time { font-size: 14px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.note-body { grid-column: 1 / -1; margin: 0; font-size: 14px; color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-meta { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s-2); margin: 0; font-size: 14px; color: var(--text-secondary); }
+.app-footer { padding: var(--s-4); text-align: center; font-size: 12px; color: var(--text-secondary); }
+
+/* テスト送信: 入力欄は同じ幅、ボタンは同じ大きさで横に並べる */
+.dev-panel > .stack { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); padding: var(--card-pad-y) var(--card-pad-x); }
+.dev-send-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) var(--btn-w);
+  align-items: center;
+  gap: var(--s-2);
+}
+.dev-send-row > * { min-width: 0; }
+.dev-send-row > .count-input { width: 100%; }
+
+/* ボタンの行: 同じ大きさのマス目に並べる。入りきらない分は、同じ大きさのまま次の行に回す
+   （1つ1行に広げて積まない・横にはみ出さない） */
+.btn-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--btn-w));
+  gap: var(--s-2);
+  min-width: 0;
+}
+.btn-row > .btn,
+.btn-row > .chip,
+.dev-send-row > .btn {
+  gap: var(--s-1);
+  width: var(--btn-w);
+  height: var(--btn-h);
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--s-2);
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.btn-row > .btn.primary,
+.dev-send-row > .btn.primary { background: var(--text-primary); color: var(--text-primary-on); border-color: transparent; }
+/* 同じ幅に文字が入りきるよう、テスト送信のボタンは文字だけにする */
+.dev-panel .btn-row .icon, .dev-send-row > .btn .icon { display: none; }
+
+/* ギフト別サウンド: 音量は横に伸び、720px でも文字が切れない */
+.sound-rules,
+.sound-rules .item-row,
+.sound-rules .field,
+.sound-volume { min-width: 0; max-width: 100%; }
+.sound-rules .hint,
+.sound-rules .desc { overflow-wrap: anywhere; }
+.sound-volume {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5em;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+}
+.sound-volume input[type=range] {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--text-primary);
+}
+.sound-volume-value { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* 動作確認用の画面: 1つ1行（枠の中を動かして全体を見る） */
+.dev-preview-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+.dev-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--card-pad-y) var(--card-pad-x);
+}
+.dev-preview + .dev-preview { border-top: 1px solid var(--border); }
+.dev-preview h3 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.6; }
+/* 背景が透けているウィジェットは、白ではなくページの色の上に見せる
+   （color-scheme を合わせないと、ブラウザーが枠の中を白で塗る） */
+.dev-preview-frame { max-height: 320px; overflow: auto; background: var(--page); }
+.dev-preview-frame iframe { display: block; border: 0; background: transparent; color-scheme: normal; }
+
+/* ガチャの視聴者: 余白は同じ目盛り。ボタンは同じ大きさで横に並べ、720px でも文字を切らない */
+.gacha-viewers,
+.gacha-paid,
+.gacha-paid .field,
+.gacha-viewer,
+.gacha-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+.gacha-viewers {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+}
+.gacha-viewers-head,
+.gacha-viewers-tools,
+.gacha-viewer,
+.gacha-viewer-empty {
+  padding: var(--s-3) var(--s-4);
+}
+.gacha-viewers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.gacha-viewers-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.gacha-viewers-head .hint { margin: 0; }
+.gacha-viewers-tools {
+  display: grid;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+.gacha-viewer { display: grid; gap: var(--s-2); }
+.gacha-viewer + .gacha-viewer { border-top: 1px solid var(--border); }
+.gacha-viewer-name,
+.gacha-viewer-meta,
+.gacha-viewers-status {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.gacha-viewer-name { font-size: 16px; font-weight: 600; line-height: 1.6; }
+.gacha-viewer-meta { font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.gacha-viewers-status { padding: 0 var(--s-4) var(--s-3); }
+.gacha-viewers-status:empty { display: none; }
+.gacha-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+.gacha-actions > .btn,
+.gacha-viewers .gacha-reset {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  min-width: 0;
+  padding: 0 var(--s-2);
+  white-space: nowrap;
+}
+.gacha-viewers .gacha-reset { white-space: normal; }
+.gacha-paid { display: grid; gap: var(--s-2); }
+.gacha-paid-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+@media (max-width: 420px) {
+  .gacha-paid-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* PC: 左のサイドバーの分だけ右に寄せて、下の中身と同じ列に置く。
+   いちばん上の余白は、どの画面でもカードの間隔と同じ */
+@media (min-width: 900px) {
+  body[data-mode=simple] .top-cards { padding: 0 var(--s-6) 0 calc(248px + var(--s-6)); }
+  body[data-mode=simple] .widgets { padding-top: var(--card-gap); }
+  body[data-mode=simple] #cards:not([hidden]) { padding-top: 0; }
+}
+
+/* スマホ: 間隔と内側余白を1段せまくする（1ページ目と同じ）。
+   ボタンは少し細くして、390px の画面で1行に3つ並ぶようにする */
+@media (max-width: 899px) {
+  .top-cards { --card-gap: var(--s-4); --card-pad-x: var(--s-4); --btn-w: 96px; }
+}
+/* スマホ: ギフトは1行まるごと、名前と個数は同じ幅で並べる */
+@media (max-width: 600px) {
+  .dev-send-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dev-send-row > .grow { grid-column: 1 / -1; }
+  .dev-send-row > .btn { justify-self: start; }
+}
+/* 配信テンプレートのカードと差分行。既存の dashboard 部品の色を使う。 */
+.template-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.template-card { display: grid; gap: 8px; min-height: 180px; padding: 18px; border: 0; border-radius: var(--r-md); background: var(--fill-tertiary); color: var(--text-primary); text-align: left; box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
+.template-card[aria-pressed=true] { background: var(--accent-fill); box-shadow: var(--bevel); }
+.template-card span, .template-card small { color: var(--text-secondary); line-height: 1.55; }
+.template-preview { margin-top: 20px; }
+.template-preview h4 { margin: 0 4px 8px; font-size: 18px; }
+.template-row { display: grid; gap: 4px; padding: 12px 14px; overflow-wrap: anywhere; }
+.template-row + .template-row { border-top: 1px solid var(--stroke-secondary); }
+.template-row span { color: var(--text-secondary); white-space: pre-wrap; }
+.template-live-check { margin-top: 12px; }
+@media (max-width: 760px) { .template-cards { grid-template-columns: 1fr; } .template-card { min-height: 0; } }
+
+/* kind-ui-3: スマホはメニューを閉じ、本文を画面いっぱいにする。 */
+.mobile-menu-btn, .mobile-menu-backdrop { display: none; }
+@media (max-width: 899px) {
+  body[data-mode=simple] .layout,
+  body[data-mode=simple] .top-cards { padding-left: var(--s-4); padding-right: var(--s-4); }
+  body[data-mode=simple] .widgets,
+  body[data-mode=simple] .widgets:has(#cards:not([hidden])) { min-width: 0; padding-left: 0; padding-right: 0; }
+  body[data-mode=simple] .side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 100;
+    display: flex;
+    width: min(300px, calc(100vw - 48px));
+    max-height: none;
+    margin: 0;
+    padding: 72px var(--s-4) var(--s-4);
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--surface, var(--glass-solid));
+    box-shadow: 18px 0 40px var(--c-029);
+    transform: translateX(-105%);
+    transition: transform .2s ease;
+  }
+  body[data-mode=simple] .side.is-open { transform: translateX(0); }
+  body[data-mode=simple] .side-menu { display: grid; gap: var(--s-2); overflow: visible; }
+  body[data-mode=simple] .side-item { width: 100%; min-height: 44px; }
+  body[data-mode=simple] .side-footer { display: none; }
+  body[data-mode=simple] .topbar { z-index: 40; }
+  body[data-mode=simple] .topbar .nav { display: none; }
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 88px;
+    min-height: 44px;
+  }
+  .mobile-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    border: 0;
+    padding: 0;
+    background: var(--c-030);
+    pointer-events: none;
+  }
+  .mobile-menu-backdrop.is-open { display: block; pointer-events: auto; }
+  body[data-mode=simple] .connection-section { min-width: 0; }
+  body[data-mode=simple] .ingest-panel { min-width: 0; }
+  body[data-mode=simple] .btn,
+  body[data-mode=simple] .chip,
+  body[data-mode=simple] input,
+  body[data-mode=simple] select { min-height: 44px; }
+  body[data-mode=simple] .url-row { min-width: 0; }
+  body[data-mode=simple] .url-row input { min-width: 0; }
+}
+
+/* 設定の細かい入口は閉じたままにし、通常のホームから分離する。 */
+.advanced-connection { display: grid; gap: var(--s-3); }
+.advanced-connection > .ingest-panel { margin: 0; box-shadow: none; }
+.entry-active { color: var(--success); font-size: 14px; font-weight: 600; }
+.home-prep li { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.home-prep li .text-btn { margin-left: auto; }
+.settings-auto-connect { padding: 12px 0; border-top: 1px solid var(--stroke-secondary); }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 120; display: flex; gap: 12px; align-items: center; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); box-shadow: 0 12px 30px var(--c-029); transform: translate(-50%, 160%); transition: transform .2s ease; }
+.toast:not(:empty) { transform: translate(-50%, 0); }
+.toast .text-btn { margin: 0; padding: 0; color: var(--text-primary); text-decoration: underline; }
+@media (min-width: 900px) {
+  body[data-mode=simple] .side-footer { margin-top: auto; }
+  body[data-mode=simple] .side #connectForm .row { display: grid; grid-template-columns: 1fr; }
+  body[data-mode=simple] .side #connectForm .btn { width: 100%; }
+}
+
+/* ホームへ移したお知らせは、準備カードと同じ列にそろえる。 */
+body[data-mode=simple] #cards > .top-cards { width: 100%; padding: 0; }
+
+/* kind-ui: 準備の一覧は「名前 ……… 済み/まだ [ボタン]」の1行 */
+.home-prep li .prep-state { margin-left: auto; font-size: 12px; color: var(--text-secondary); }
+.home-prep li.done .prep-state { color: var(--text-primary); }
+.home-prep li .btn, .home-prep li .hint { flex: none; }
+/* サイドバーの状態の文は切らずに折り返す */
+[data-mode=simple] .side-head .status { white-space: normal; overflow: visible; text-overflow: clip; }
+/* ボタンの文字は折り返さない。入らないときは並びのほうを折り返す */
+.btn, .chip { white-space: nowrap; }
+.test-chips, .row { flex-wrap: wrap; }
+.toast:empty { visibility: hidden; }
+.home-prep .prep-label, .home-prep .prep-state { white-space: nowrap; }
+@media (max-width: 600px) { .home-prep li .hint { display: none; } }
+/* プリセットの選び方は、1本につながったボタン(ひとつながりの枠を縦線で区切る) */
+.sgroup-body .preset-chips, .preset-chips { display: inline-flex !important; flex-wrap: nowrap; gap: 0; width: 100%; padding: 0; border: 1px solid var(--stroke-secondary); border-radius: var(--r-pill); overflow: hidden; background: var(--fill-tertiary); }
+.preset-chips > .preset { flex: 1 1 0; min-height: 44px; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.preset-chips > .preset + .preset { border-left: 1px solid var(--stroke-secondary); }
+.preset-chips > .preset[aria-pressed=true] { background: var(--accent-fill); color: var(--text-primary); }
+.note-link { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--text-primary); text-decoration: underline; }
+
+/* ============================================================
+   ライコネの色(2026-10-25 オーナーが選んだ): ダーク=炭色に黄、ライト=紙に朱
+   色はここで決める。下の部品は変数だけを使う
+   ============================================================ */
+:root {
+  --rk-acc: #E5CF3F; --rk-acc-ink: #181818; --rk-stage: #0F0F0F; --rk-scan: rgba(255, 255, 255, .035);
+  --page: #181818; --surface: #1F1F1F; --glass: #1F1F1F; --glass-solid: #1F1F1F;
+  --text-primary: #F4F4F0; --text-secondary: #CFCFC8; --text-tertiary: #A9A9A2;
+  --fill-primary: #F4F4F0; --text-primary-on: #0C0C0C;
+  --stroke-primary: rgba(244, 244, 240, .16); --stroke-secondary: rgba(244, 244, 240, .08);
+  --border: rgba(244, 244, 240, .10);
+  --attention: var(--rk-acc); --accent: var(--rk-acc);
+}
+[data-theme=light] {
+  --rk-acc: #D93A1F; --rk-acc-ink: #FFFFFF; --rk-stage: #262522; --rk-scan: rgba(255, 255, 255, .035);
+  --page: #F3F1EC; --surface: #FFFFFF; --glass: #FFFFFF; --glass-solid: #FFFFFF;
+  --text-primary: #1C1B19; --text-secondary: #3B3934; --text-tertiary: #5C584F;
+  --fill-primary: #1C1B19; --text-primary-on: #F3F1EC;
+  --stroke-primary: rgba(28, 27, 25, .18); --stroke-secondary: rgba(28, 27, 25, .09);
+  --border: rgba(28, 27, 25, .12);
+}
+/* 主役のボタンと、選んでいるものだけを差し色にする */
+.btn.primary, .preset-chips > .preset[aria-pressed=true], .segmented button[aria-selected=true] { background: var(--rk-acc) !important; color: var(--rk-acc-ink) !important; border-color: var(--rk-acc) !important; }
+
+/* ============================================================
+   PC の並び「放送卓」: 左に細いアイコンの列(84px)、上に帯(60px)
+   ============================================================ */
+@media (min-width: 900px) {
+  [data-mode=simple] .side { width: 84px; padding: 14px 8px; gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  [data-mode=simple] .side-label { display: none; }
+  [data-mode=simple] .side-item { flex-direction: column; justify-content: center; gap: 4px; min-height: 58px; padding: 6px 2px; text-align: center; font-size: 12px; line-height: 1.25; }
+  [data-mode=simple] .side-item span { white-space: normal; }
+  [data-mode=simple] .side-item .icon { --size: 19px; }
+  [data-mode=simple] .side-item[aria-current=true] { background: var(--fill-tertiary); color: var(--text-primary); box-shadow: inset 3px 0 0 var(--rk-acc); }
+  [data-mode=simple] .side-item[aria-current=true] .icon { color: var(--rk-acc); }
+  .rk-logo { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 6px; border-radius: 11px; background: var(--rk-acc); color: var(--rk-acc-ink); font-weight: 700; font-size: 20px; }
+  .rk-top { position: fixed; top: 0; left: 84px; right: 0; z-index: 19; display: flex; align-items: center; gap: 16px; height: 60px; padding: 0 24px; background: var(--page); border-bottom: 1px solid var(--stroke-secondary); }
+  .rk-top .brand { flex: none; display: flex; align-items: center; gap: 12px; }
+  .rk-top .brand-title { font-size: 14px; }
+  .rk-top #connectionSection { flex: 1; display: flex; padding: 0; background: none; box-shadow: none; border-radius: 0; min-width: 0; }
+  .rk-top #connectionSection > .panel-bg, .rk-top #connectionSection h2, .rk-top #connectionSection .hint, .rk-top #connectionSection .field-label, .rk-top #connectionSection .message { display: none; }
+  .rk-top #connectForm { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .rk-top #connectForm .field { flex: 0 1 220px; margin-left: auto; }
+  .rk-top #connectForm .row { flex-wrap: nowrap; }
+  .rk-top #demoBtn { background: var(--rk-acc); color: var(--rk-acc-ink); border-color: var(--rk-acc); font-weight: 700; }
+  .rk-links { display: flex; gap: 8px; flex: none; }
+  body[data-mode=simple] .layout { padding: 0 var(--s-6) 0 calc(84px + var(--s-6)); }
+  body[data-mode=simple] .top-cards { padding: 0 var(--s-6) 0 calc(84px + var(--s-6)); }
+
+  /* ウィジェットの画面: 見え方の枠が上で主役。右にためす・URL、設定は下に2列 */
+  [data-mode=simple] .widget-body { display: grid; grid-template-columns: 1fr; gap: var(--s-5); }
+  [data-mode=simple] .preview-col { order: -1; position: static; display: grid; grid-template-columns: minmax(0, 640px) minmax(260px, 1fr); column-gap: var(--s-5); row-gap: var(--s-3); align-content: start; }
+  [data-mode=simple] .preview-col > .preview { grid-row: 1 / span 8; position: relative; top: auto; }
+  [data-mode=simple] .preview-col > :not(.preview) { grid-column: 2; }
+  [data-mode=simple] .settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-5); align-items: start; }
+}
+@media (min-width: 900px) {
+  [data-mode=simple] .shell-main { padding-top: 64px; }
+  .rk-links a.btn { color: var(--text-primary); text-decoration: none; }
+}
+@media (min-width: 900px) {
+  [data-mode=simple] #actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  [data-mode=simple] #actions .chip { box-shadow: inset 0 0 0 1px var(--stroke-primary); }
+}
+/* 設定のカードは全部同じ面。画面の明るさも1本につながったボタン */
+#settingsBody > section, .settings-view > section, .settings-view > details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius, 10px); padding: var(--s-4) var(--s-5); margin: 0 0 var(--s-4); box-shadow: none; }
+.theme-buttons { display: inline-flex; gap: 0; border: 1px solid var(--stroke-primary); border-radius: var(--r-pill); overflow: hidden; }
+.theme-buttons .btn { border: 0; border-radius: 0; box-shadow: none; background: transparent; min-width: 96px; }
+.theme-buttons .btn + .btn { border-left: 1px solid var(--stroke-primary); }
+.theme-buttons .btn[aria-pressed=true] { background: var(--rk-acc); color: var(--rk-acc-ink); }
+.theme-buttons { justify-self: start; width: auto; }
+
+/* スマホ: 下のタブ(ホーム・ウィジェット・配信中・記録・その他) */
+.rk-tabs { display: none; }
+@media (max-width: 899px) {
+  .rk-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 120; display: flex; padding: 4px 4px calc(6px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--stroke-secondary); }
+  .rk-tab { flex: 1; display: grid; justify-items: center; gap: 2px; min-height: 52px; padding: 6px 0; border: 0; background: none; color: var(--text-tertiary); font-size: 12px; }
+  .rk-tab .icon { --size: 20px; }
+  .rk-tab[aria-current=true] { color: var(--rk-acc); }
+  body.has-tabs { padding-bottom: 72px; }
+  body.has-tabs .mobile-menu-btn { display: none; }
+  body.has-tabs .side { padding-bottom: 80px; }
+}
+.embedded-page { width: 100%; min-height: calc(100vh - 160px); border: 0; border-radius: var(--card-radius, 10px); background: var(--page); }
+.preview-mode { margin-bottom: var(--s-2); }
+@media (min-width: 900px) { [data-mode=simple] .preview-col > .preview-mode { grid-column: 1; grid-row: auto; } [data-mode=simple] .preview-col > .preview { grid-row: 2 / span 8; } }
+.rk-links .btn[aria-current=true] { box-shadow: inset 0 -2px 0 var(--rk-acc); }
+.more-list { display: grid; gap: 8px; }
+.more-item { min-height: 56px; background: var(--surface); border: 1px solid var(--border); font-size: 16px; color: var(--text-primary); }
+
+/* ============================================================
+   放送卓の形(2026-10-25 デザインの直し。AI っぽさを抜く)
+   - 角は小さく(4〜6px)。カプセル形はやめる
+   - 設定は灰色の箱に入れず、細い線で区切る
+   - 差し色(黄/朱)は「主役のボタン」「選んでいるもの」「使用中」だけ
+   - 数字は等幅、URL は機械の文字
+   ============================================================ */
+:root, [data-theme=light] { --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-pill: 6px; --card-radius: 6px; }
+[data-mode=simple] .sgroup-title { margin: 0; padding: 0 0 6px; font-size: 12px; font-weight: 700; color: var(--text-primary); box-shadow: inset 0 -1px 0 var(--stroke-primary); }
+[data-mode=simple] .sgroup-body { background: transparent; box-shadow: none; border-radius: 0; overflow: visible; }
+[data-mode=simple] .sgroup-body > .field, [data-mode=simple] .sgroup-body > .check { padding: 12px 0; }
+[data-mode=simple] .sgroup-body > * + * { box-shadow: inset 0 1px 0 var(--stroke-secondary); }
+[data-mode=simple] .sgroup-body .chip, [data-mode=simple] .sgroup-body .choice { border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--stroke-primary); background: transparent; }
+[data-mode=simple] .sgroup-body .chip[aria-pressed=true], [data-mode=simple] .sgroup-body .choice[aria-pressed=true], [data-mode=simple] .sgroup-body .chip.on { background: var(--text-primary); color: var(--page); box-shadow: none; }
+input[type=number], .num, .kpi-value, .count, time { font-variant-numeric: tabular-nums; }
+#widgetUrl, .url-row input, .rk-top #username { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+/* 使用中は差し色の札(緑にしない) */
+.entry-active, .entry-live { color: var(--rk-acc) !important; font-weight: 700; letter-spacing: .02em; }
+/* 左の列: 文字を折り返し、選んでいるものに差し色の線 */
+@media (min-width: 900px) {
+  [data-mode=simple] .side-item { font-size: 12px; padding: 6px 0; }
+  /* 細い列でも名前を読めるよう、項目の高さを文字に合わせて折り返す。 */
+  [data-mode=simple] .side-item span { white-space: normal; overflow: visible; text-overflow: clip; max-width: 100%; overflow-wrap: anywhere; }
+  [data-mode=simple] .side-item[aria-current=true] { background: transparent; box-shadow: inset 3px 0 0 var(--rk-acc); border-radius: 0; }
+  .rk-top { gap: 12px; }
+  .rk-top .btn, .rk-top .input-wrap { border-radius: var(--r-sm); }
+}
+/* 見え方の枠: 角は小さく、映像の地の色(飾りの縞は入れない) */
+.preview { border-radius: var(--r-sm) !important; background: var(--rk-stage) !important; box-shadow: inset 0 0 0 1px var(--stroke-primary) !important; }
+/* 箱は全部同じ細い枠。影とぼかしは使わない */
+.home-card, #settingsBody > section, .settings-view > section, .settings-view > details, .note, #notesPanel { box-shadow: none !important; }
+[data-mode=simple] .checks .check { border-radius: var(--r-sm) !important; box-shadow: inset 0 0 0 1px var(--stroke-primary) !important; background: transparent !important; }
+[data-mode=simple] .checks .check:has(input:checked) { background: var(--text-primary) !important; color: var(--page) !important; box-shadow: none !important; }
+
+/* 差し色は1画面に少しだけ: 見え方の切り替えとコピーは墨の色にする */
+.preview-mode.preset-chips > .preset[aria-pressed=true] { background: var(--text-primary) !important; color: var(--page) !important; border-color: var(--text-primary) !important; }
+.preview-mode .preset { min-height: 36px !important; font-size: 12px; }
+#copyBtn.btn.primary { background: transparent !important; color: var(--text-primary) !important; border: 1px solid var(--stroke-primary) !important; }
+@media (min-width: 900px) { [data-mode=simple] #actions .chip { font-size: 12px; padding-left: 10px; padding-right: 10px; } }
+
+/* 2026-10-25 半分の画面(960px)の直し */
+.sample-toggle[aria-pressed=true] { background: var(--rk-acc) !important; color: var(--rk-acc-ink) !important; box-shadow: none !important; }
+@media (min-width: 900px) {
+  [data-mode=simple] .preview-col > .preview-mode { align-self: start; }
+  .preview-mode.preset-chips > .preset { min-height: 34px !important; height: 34px; padding: 0 12px !important; }
+  /* 設定は2列で、上から詰めて並べる(片方だけ長いときに下が空かない) */
+  [data-mode=simple] .settings { display: block; columns: 2; column-gap: var(--s-5); }
+  [data-mode=simple] .settings > * { break-inside: avoid; margin-bottom: var(--s-5); }
+  /* 上の帯は幅が狭いと、名前と状態を縮めて、つなぐ欄の幅を守る */
+  .rk-top .brand { min-width: 0; flex: 0 1 auto; }
+  .rk-top .brand-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .rk-top #connectForm .field { flex: 0 0 180px; }
+  .rk-top #connectForm .input-wrap input { min-width: 0; }
+  .rk-links .btn, .rk-top #demoBtn { white-space: nowrap; }
+  /* 細い列のスクロールの棒は見せない(下まで動かせるのは変えない) */
+  [data-mode=simple] .side, [data-mode=simple] .side-menu { scrollbar-width: none; -webkit-mask-image: none; mask-image: none; }
+  [data-mode=simple] .side::-webkit-scrollbar, [data-mode=simple] .side-menu::-webkit-scrollbar { display: none; }
+}
+@media (min-width: 900px) and (max-width: 1199px) {
+  .rk-top .status #statusText, .rk-top .status span:not(.dot) { display: none; }
+  .rk-top { gap: 8px; padding: 0 14px; }
+  .rk-top .brand-title { max-width: 140px; }
+}
+
+/* プリセットの選び方(名前の欄 + ▾ のメニュー) */
+.entry-picker { position: relative; display: flex; align-items: stretch; flex: 1 1 320px; max-width: 520px; border: 1px solid var(--stroke-primary); border-radius: var(--r-sm); background: var(--surface); }
+.entry-name { flex: 1; min-width: 0; padding: 9px 12px; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.entry-name:read-only:focus { outline: none; }
+.entry-picker.is-editing { box-shadow: 0 0 0 2px var(--rk-acc); }
+.entry-picker.is-editing .entry-name { cursor: text; }
+.entry-toggle { display: grid; place-items: center; width: 44px; border: 0; border-left: 1px solid var(--stroke-primary); background: transparent; color: var(--text-primary); }
+.entry-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; display: grid; padding: 4px; border: 1px solid var(--stroke-primary); border-radius: var(--r-sm); background: var(--surface); }
+.entry-menu-item { min-height: 40px; padding: 0 12px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); text-align: left; font-size: 14px; }
+.entry-menu-item:hover { background: var(--fill-tertiary); }
+.entry-menu-item.is-current { font-weight: 700; box-shadow: inset 3px 0 0 var(--rk-acc); }
+.entry-menu-item.danger { color: var(--error); }
+.entry-menu-line { margin: 4px 0; border: 0; border-top: 1px solid var(--stroke-secondary); }
+@media (min-width: 900px) {
+  [data-mode=simple] .preview-col > .preview-left { grid-column: 1; grid-row: 1 / span 20; display: grid; gap: var(--s-2); align-content: start; }
+  [data-mode=simple] .preview-col > :not(.preview-left) { grid-column: 2; }
+}
+.ai-step { display: grid; gap: 8px; padding: 12px 0; box-shadow: inset 0 -1px 0 var(--stroke-secondary); }
+.ai-step h4 { margin: 0; font-size: 14px; }
+.streamer-ai-copy { display: flex; gap: 8px; align-items: center; }
+.streamer-ai-copy input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: 12px; }
+.streamer-ai-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.streamer-ai-form label { display: grid; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+.entry-name:focus { outline: none; }
+.stage-edit-btn { min-height: 36px !important; font-size: 12px; }
+
+/* ============================================================
+   redesign-existing-projects の手順で直した分(2026-10-25)
+   文字: Zen Kaku Gothic New 1つ。太さは 400/500/700 まで。大きさは 12/14/16/18/20/24/30/36 の目盛り
+   色: 暗い面は #181818・#1F1F1F・#272727、差し色は1つで彩度を80%未満
+   動き: 押したら少し縮む、変わるときは重みのある曲線、キーボードの印を必ず出す
+   ============================================================ */
+body { font-weight: 500; }
+h1, h2, h3, h4, .view-title h3, #detailTitle { letter-spacing: -.01em; text-wrap: balance; }
+p, .desc, .hint { text-wrap: pretty; }
+.btn, .chip, .preset, .side-item, .entry-toggle, .entry-menu-item, .rk-tab, .check, .theme-buttons .btn {
+  transition: background-color .24s cubic-bezier(.32, .72, 0, 1), color .24s cubic-bezier(.32, .72, 0, 1), box-shadow .24s cubic-bezier(.32, .72, 0, 1), transform .2s cubic-bezier(.32, .72, 0, 1);
+}
+.btn:active, .chip:active, .preset:active, .side-item:active, .entry-toggle:active, .rk-tab:active { transform: scale(.98); }
+.btn:hover, .chip:hover, .side-item:hover, .entry-toggle:hover { background-color: var(--fill-tertiary); }
+.btn.primary:hover { filter: brightness(1.06); }
+:focus-visible { outline: 2px solid var(--rk-acc); outline-offset: 2px; }
+@media (min-width: 900px) { [data-mode=simple] .side-item span { font-size: 12px; letter-spacing: -.04em; } }
+.help a.btn { color: var(--text-primary); text-decoration: none; }
+
+/* ホーム: 前回の配信と、使っているウィジェット */
+.home-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--s-4); align-items: start; }
+@media (max-width: 899px) { .home-grid { grid-template-columns: 1fr; } }
+.home-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.home-coins { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.home-coins-num { font-size: 36px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.home-coins-unit { font-size: 14px; color: var(--text-secondary); }
+.home-diff { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.home-diff.up { color: var(--rk-acc); }
+.home-diff.down { color: var(--text-tertiary); }
+.home-stats { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+.home-stats dt { color: var(--text-tertiary); }
+.home-stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+.home-used-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.home-used-list li { display: flex; align-items: center; gap: 8px; padding: 8px 0; box-shadow: inset 0 -1px 0 var(--stroke-secondary); }
+.home-used-open { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--text-primary); text-align: left; font-size: 14px; }
+.home-used-name { font-weight: 700; }
+@media (min-width: 900px) { [data-mode=simple] .side-item span { letter-spacing: -.1em; } }
+
+/* スマホ共通の入力高さより、見本のスイッチの形を優先する。 */
+@media (max-width: 899px) {
+  body[data-mode=simple] #cards > .sample-control > .check input[type=checkbox] { min-height: 0; }
+}
+.home-card-head h3 { white-space: nowrap; }
+.home-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn.is-armed { background: var(--rk-acc) !important; color: var(--rk-acc-ink) !important; }
+.home-per-stream { grid-column: 1 / -1; }

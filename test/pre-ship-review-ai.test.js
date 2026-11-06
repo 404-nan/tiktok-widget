@@ -53,7 +53,8 @@ test('配信者トークンの発行は保存を1回だけ行う', () => {
 test('管理画面は提案権限を選べ、一覧でも日本語名を表示する', () => {
   const tokens = new AiTokenStore({ dir: tempDir() });
   assert.throws(() => tokens.issue({ name: '不正な権限', tenants: ['tenant-a'], scopes: ['unknown'] }), /設定を提案する/);
-  const source = fs.readFileSync(path.join(process.cwd(), 'public/admin/admin.js'), 'utf8');
+  const source = fs.readFileSync(path.join(process.cwd(), 'public/admin/admin.js'), 'utf8')
+    + fs.readFileSync(path.join(process.cwd(), 'public/admin/admin-keys.js'), 'utf8');
   assert.match(source, /\['suggest',\s*'設定を提案する'\]/);
   assert.match(source, /AI_SCOPE_LABEL\[scope\]/);
 });

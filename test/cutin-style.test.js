@@ -137,16 +137,21 @@ test('画面のJSは開発者向けのメモを出さず、縞にガラスやグ
   const cropJs = fs.readFileSync(path.join(root, 'public/dashboard/cutin-crop.js'), 'utf8');
   const styleJs = fs.readFileSync(path.join(root, 'public/widgets/lib/cutin-style.js'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'public/dashboard/editor.js'), 'utf8');
+  const editorForms = fs.readFileSync(path.join(root, 'public/dashboard/editor-forms.js'), 'utf8');
   assert.doesNotMatch(cropJs, /console\.|TODO|FIXME|debug|ES5/);
   assert.doesNotMatch(styleJs, /console\.|TODO|FIXME|backdrop-filter|blur\(/);
   assert.match(cropJs, /中央に戻す/);
   assert.match(styleJs, /縞・標準/);
   assert.match(styleJs, /縞・反転/);
   assert.match(styleJs, /縞・枠太/);
-  assert.match(editor, /縞・標準/);
-  assert.match(editor, /'普通'/);
-  assert.match(editor, /'太字'/);
-  const dash = fs.readFileSync(path.join(root, 'public/dashboard/style.css'), 'utf8');
+  // 縞の選択肢は editor-forms.js に分割されている
+  assert.match(editorForms, /縞・標準/);
+  assert.match(editorForms, /'普通'/);
+  assert.match(editorForms, /'太字'/);
+  const dashRaw = fs.readFileSync(path.join(root, 'public/dashboard/style.css'), 'utf8');
+  const dashDir = path.join(root, 'public/dashboard/');
+  // @import url("style-*.css") を1段展開して分割後でも動くようにする
+  const dash = dashRaw.replace(/@import\s+url\(["'](style-[^"']+)["']\)\s*;/g, (_, ref) => fs.readFileSync(path.join(dashDir, ref), 'utf8'));
   const part = dash.slice(dash.indexOf('.cutin-crop'));
   assert.ok(part.length > 100);
   assert.doesNotMatch(part, /linear-gradient|backdrop-filter|blur\(/);

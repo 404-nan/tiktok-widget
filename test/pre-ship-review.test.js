@@ -21,8 +21,8 @@ test('レビュー1: start で新しい段階の境目を結果判定にも使�
 });
 
 test('レビュー2: ダッシュボードの設定タブに応援ゲージがある', () => {
-  const editor = fs.readFileSync('public/dashboard/editor.js', 'utf8');
-  assert.match(editor, /const TABS = \[[^\]]*['"]cheers['"]/);
+  const constants = fs.readFileSync('public/dashboard/editor-constants.js', 'utf8');
+  assert.match(constants, /export const TABS = \[[^\]]*['"]cheers['"]/);
 });
 
 test('レビュー5: 利用停止時に投票のリセット通知を配る', () => {

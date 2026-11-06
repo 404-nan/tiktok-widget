@@ -280,7 +280,7 @@ test('AC-15 「かんたん」: GROUPS・INFO・SIMPLE・SIMPLE_LABELS・SUMMARY
 
 // --- AC-16 ---
 test('AC-16 試すボタン: 両方に「テストギフト」「フォロー」(/api/simulate)', () => {
-  const src = read('public/dashboard/editor.js');
+  const src = read('public/dashboard/editor-preview.js');
   const from = src.indexOf('function fillActions');
   const body = src.slice(from);
   for (const tab of ['tickers', 'supporters']) {
