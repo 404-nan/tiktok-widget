@@ -47,12 +47,26 @@ export function applyLastEvent(state, event, { minCoins = 0 } = {}) {
   return kind;
 }
 
-/** 初期状態（サーバーの控え）から枠を埋める。控えは種類ごとの最後の項目。 */
-export function seedLastState(state, last) {
+/**
+ * 初期状態（サーバーの控え）から枠を埋める。控えは種類ごとの最後の項目。
+ * ギフト枠は実イベント経路（applyLastEvent）と同じく minCoins 未満を入れない。
+ * 控えのギフトが条件を満たさないときは、一覧（items、新しい順）から条件を満たす
+ * 直近のギフトへ遡る。それも無ければ枠は空のまま（未満のギフトで埋めない）。
+ */
+export function seedLastState(state, last, { minCoins = 0, items = null } = {}) {
   if (!last || typeof last !== 'object') return state;
+  const min = Math.max(0, Number(minCoins) || 0);
   for (const kind of LAST_KINDS) {
+    if (kind === 'gift') continue;
     const item = last[kind];
     if (item && item.user) state[kind] = { ...item, gift: item.gift ?? null, coins: lastEventCoins(item) };
+  }
+  const giftItem = last.gift;
+  if (giftItem && giftItem.user && lastEventCoins(giftItem) >= min) {
+    state.gift = { ...giftItem, gift: giftItem.gift ?? null, coins: lastEventCoins(giftItem) };
+  } else if (Array.isArray(items)) {
+    const fallback = items.find((item) => item && item.kind === 'gift' && item.user && lastEventCoins(item) >= min);
+    if (fallback) state.gift = { ...fallback, gift: fallback.gift ?? null, coins: lastEventCoins(fallback) };
   }
   return state;
 }

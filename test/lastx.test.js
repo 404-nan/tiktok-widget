@@ -75,6 +75,30 @@ test('枠の状態：5種が独立に差し替わり、ギフトは minCoins 未
   assert.equal(seeded.follow.user.name, 'はな');
 });
 
+test('種写し（読み込み直し経路）：ギフト枠は minCoins 未満で差し替わらず、items の直近の該当ギフトへ遡る', () => {
+  const giftItem = (user, coins) => ({ kind: 'gift', user: { name: user.name, avatar: null }, coins, gift: { name: 'Rose', nameJa: null, count: 1 } });
+  // 控えの最後のギフトが未満だけなら、枠は空のまま（未満で埋めない）
+  const onlySmall = seedLastState(emptyLastState(), { gift: giftItem(hana, 50) }, { minCoins: 100 });
+  assert.equal(onlySmall.gift, null);
+  // 控えの最後が未満でも、一覧に条件を満たす直近のギフトがあればそちらへ遡る
+  const withItems = seedLastState(emptyLastState(), { gift: giftItem(hana, 50) }, {
+    minCoins: 100,
+    items: [giftItem(hana, 50), giftItem(taro, 300), giftItem(hana, 200)],
+  });
+  assert.equal(withItems.gift.user.name, 'たろう');
+  assert.equal(withItems.gift.coins, 300);
+  // 控えの最後が条件を満たせば、一覧より控えを優先する
+  const qualifying = seedLastState(emptyLastState(), { gift: giftItem(hana, 150) }, {
+    minCoins: 100,
+    items: [giftItem(taro, 300)],
+  });
+  assert.equal(qualifying.gift.user.name, 'はな');
+  // 他の種類は今までどおり控えから埋まる
+  const other = seedLastState(emptyLastState(), { follow: { kind: 'follow', user: { name: 'たろう', avatar: null }, coins: 0 }, gift: giftItem(hana, 10) }, { minCoins: 100 });
+  assert.equal(other.follow.user.name, 'たろう');
+  assert.equal(other.gift, null);
+});
+
 test('枠の入切と並び順：設定どおりに並び、保存・復元で欠けない', () => {
   assert.deepEqual(orderedLastKinds({ lastKinds: ['gift', 'follow'], lastOrder: ['chat', 'gift', 'follow'] }), ['gift', 'follow']);
   assert.deepEqual(orderedLastKinds({ lastKinds: ['like'], lastOrder: ['follow', 'gift'] }), ['like'], '順序に無い有効な枠は後ろに足す');
