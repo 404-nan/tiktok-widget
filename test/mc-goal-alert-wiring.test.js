@@ -8,7 +8,7 @@ const read = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), '
 
 test('ゴール接近警報のファイルと日本語の表示がある', () => {
   const source = read('src/mc-goal-alert.js');
-  const widget = read('public/widgets/goal-alert.html');
+  const widget = read('public/widgets/goal-alert/index.html');
   assert.match(source, /export class GoalAlertEngine/);
   assert.match(widget, /最終防衛ライン/);
   assert.doesNotMatch(widget, /https?:\/\//);

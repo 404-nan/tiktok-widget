@@ -156,7 +156,7 @@ test('画面のJSは開発者向けのメモを出さず、縞にガラスやグ
   assert.ok(part.length > 100);
   assert.doesNotMatch(part, /linear-gradient|backdrop-filter|blur\(/);
   const page = fs.readFileSync(path.join(root, 'public/dashboard/index.html'), 'utf8');
-  const widget = fs.readFileSync(path.join(root, 'public/widgets/image-cutin.html'), 'utf8');
+  const widget = fs.readFileSync(path.join(root, 'public/widgets/image-cutin/index.html'), 'utf8');
   assert.ok(page.indexOf('cutin-style.js') < page.indexOf('cutin-crop.js'));
   assert.ok(page.indexOf('cutin-crop.js') < page.indexOf('app.js'));
   assert.match(widget, /cutin-style\.js/);

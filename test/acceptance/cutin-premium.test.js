@@ -82,8 +82,8 @@ test('AC-6: 公開側の柄はES5・決定的で、外部画像を参照しな�
 });
 
 test('AC-7/AC-8/AC-9: 画面はプレミア結果を読み込み、かんたん設定とES5検査に登録する', () => {
-  assert.match(read('public/widgets/cutin.html'), /cutin-premium\.js/);
-  assert.match(read('public/widgets/image-cutin.html'), /cutin-premium\.js/);
+  assert.match(read('public/widgets/cutin/index.html'), /cutin-premium\.js/);
+  assert.match(read('public/widgets/image-cutin/index.html'), /cutin-premium\.js/);
   const cutin = read('public/widgets/lib/cutin.js');
   assert.match(cutin, /CutinPremium\.resolve/);
   assert.match(cutin, /e\.cutinDraw/);

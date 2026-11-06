@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const page = fs.readFileSync(path.join(root, 'public/widgets/combo.html'), 'utf8');
+const page = fs.readFileSync(path.join(root, 'public/widgets/combo/index.html'), 'utf8');
 const scripts = [...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join('\n');
 
 test('AC-1/7 combo は初回 API と WebSocket を使い、サーバー時刻で同期する', () => {

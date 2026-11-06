@@ -5,7 +5,7 @@ import fs from 'node:fs';
 
 test('Peka はランタイム、API、CLI、MCP、かんたん設定につながっている', () => {
   const runtime = fs.readFileSync(new URL('../src/runtime.js', import.meta.url), 'utf8') + fs.readFileSync(new URL('../src/runtime-control.js', import.meta.url), 'utf8');
-  const widget = fs.readFileSync(new URL('../public/widgets/peka.html', import.meta.url), 'utf8');
+  const widget = fs.readFileSync(new URL('../public/widgets/peka/index.html', import.meta.url), 'utf8');
   const cli = fs.readFileSync(new URL('../bin/tw.js', import.meta.url), 'utf8');
   const mcp = fs.readFileSync(new URL('../mcp/server.js', import.meta.url), 'utf8');
   const simple = fs.readFileSync(new URL('../public/dashboard/simple.js', import.meta.url), 'utf8');

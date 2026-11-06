@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const page = fs.readFileSync(path.join(root, 'public/widgets/combo.html'), 'utf8');
+const page = fs.readFileSync(path.join(root, 'public/widgets/combo/index.html'), 'utf8');
 const script = [...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].at(-1)[1];
 
 function element() {
@@ -46,7 +46,7 @@ async function browser() {
     Date,
   };
   context.window = context;
-  vm.runInNewContext(script, context, { filename: 'public/widgets/combo.html' });
+  vm.runInNewContext(script, context, { filename: 'public/widgets/combo/index.html' });
   await Promise.resolve();
   await Promise.resolve();
   assert.equal(sockets.length, 1);

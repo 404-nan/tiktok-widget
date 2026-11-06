@@ -107,7 +107,7 @@ test('AC-6/8/10: 通知は3秒以内で、Minecraft側は段階色のボスバ�
   mc.goalAlert.acceptDistance({ distance: 20, world: 'world', serverTime: 123456 });
   assert.match(sent.at(-1).commands.join('\n'), /bossbar set tw:goal_alert/);
   assert.match(sent.at(-1).commands.join('\n'), /color red/);
-  assert.match(fs.readFileSync(new URL('../../public/widgets/goal-alert.html', import.meta.url), 'utf8'), /animation: blink 500ms ease-in-out 2/);
+  assert.match(fs.readFileSync(new URL('../../public/widgets/goal-alert/index.html', import.meta.url), 'utf8'), /animation: blink 500ms ease-in-out 2/);
 });
 
 test('AC-7: ゴール到達は一度だけWIN処理へ渡し、防衛成功は直近の妨害があるときだけ', () => {

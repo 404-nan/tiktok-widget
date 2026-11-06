@@ -40,7 +40,7 @@ test('AC-4: 悪口を含まないコメントの読み上げは変わらない',
 // 2巡目
 test('AC-7: /api/config が失敗して chat.html のフォールバック設定で動くときも、「死ね」は読まない', () => {
   // 設定の取得に失敗すると、setupWidget は chat.html に書かれたフォールバックをそのまま使う
-  const html = readFileSync(new URL('../../public/widgets/chat.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../../public/widgets/chat/index.html', import.meta.url), 'utf8');
   const literal = html.match(/setupWidget\('chats',\s*(\{[\s\S]*?\n\s*\})\s*\)/)?.[1];
   assert.ok(literal, 'chat.html に setupWidget("chats", {...}) のフォールバックが見つからない');
   const fallback = new Function(`return (${literal});`)();

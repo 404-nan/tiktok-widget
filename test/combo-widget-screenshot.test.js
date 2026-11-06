@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const page = fs.readFileSync(path.join(root, 'public/widgets/combo.html'), 'utf8');
+const page = fs.readFileSync(path.join(root, 'public/widgets/combo/index.html'), 'utf8');
 
 test('AC-10 画面は不透明な墨の面で、送信者を上、回数を中央、合計を下に置く', () => {
   assert.match(page, /background\s*:\s*#(?:111113|111|0b0b0d)/i);
