@@ -1,0 +1,21 @@
+{
+  "id": "supporters",
+  "name": "最近のサポーター",
+  "desc": "",
+  "size": [
+    420,
+    360
+  ],
+  "page": "supporters.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

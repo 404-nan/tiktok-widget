@@ -1,0 +1,21 @@
+{
+  "id": "cheers",
+  "name": "いいね応援ゲージ",
+  "desc": "",
+  "size": [
+    560,
+    160
+  ],
+  "page": "cheer.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

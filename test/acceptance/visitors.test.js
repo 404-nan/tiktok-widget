@@ -192,8 +192,8 @@ test('設定、member テストイベント、公開ウィジェットの契約�
   assert.equal(SCHEMA.visitors.fields.regularVisits.default, 3);
   assert.equal(makeEvent('member', { user: user('demo_hana', '花子'), visits: 8 }).kind, 'member');
   assert.equal(makeEvent('member', { user: user('demo_hana', '花子'), visits: 8 }).testVisits, 8);
-  assert.match(fs.readFileSync('public/widgets/visitors.js', 'utf8'), /XMLHttpRequest/);
-  assert.match(fs.readFileSync('public/widgets/visitors.js', 'utf8'), /WebSocket/);
-  assert.match(fs.readFileSync('public/widgets/visitors.html', 'utf8'), /clip-path/);
-  assert.doesNotMatch(fs.readFileSync('public/widgets/visitors.js', 'utf8'), /=>|\b(let|const)\b/);
+  assert.match(fs.readFileSync('public/widgets/visitors/visitors.js', 'utf8'), /XMLHttpRequest/);
+  assert.match(fs.readFileSync('public/widgets/visitors/visitors.js', 'utf8'), /WebSocket/);
+  assert.match(fs.readFileSync('public/widgets/visitors/index.html', 'utf8'), /clip-path/);
+  assert.doesNotMatch(fs.readFileSync('public/widgets/visitors/visitors.js', 'utf8'), /=>|\b(let|const)\b/);
 });

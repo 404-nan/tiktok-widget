@@ -1,0 +1,21 @@
+{
+  "id": "swarm",
+  "name": "群予告",
+  "desc": "",
+  "size": [
+    1080,
+    1920
+  ],
+  "page": "swarm.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

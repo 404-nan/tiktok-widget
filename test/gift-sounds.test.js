@@ -215,7 +215,7 @@ test('ウィジェット一覧に無い配信者には出さず、OBS は読む�
   const all = fs.readFileSync(path.join(root, 'public/widgets/all.html'), 'utf8');
   const editor = fs.readFileSync(path.join(root, 'public/dashboard/editor.js'), 'utf8');
   const form = fs.readFileSync(path.join(root, 'public/dashboard/gift-sounds-form.js'), 'utf8');
-  const widget = fs.readFileSync(path.join(root, 'public/widgets/sounds.js'), 'utf8');
+  const widget = fs.readFileSync(path.join(root, 'public/widgets/sounds/sounds.js'), 'utf8');
   assert.match(all, /me\.widgets\?\.includes\(section\)/);
   assert.match(all, /section === 'giftSounds'/);
   assert.match(all, /pageUrl\('sounds'/);

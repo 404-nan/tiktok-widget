@@ -1,0 +1,21 @@
+{
+  "id": "pushButtons",
+  "name": "押しボタン",
+  "desc": "",
+  "size": [
+    640,
+    360
+  ],
+  "page": "push-button.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

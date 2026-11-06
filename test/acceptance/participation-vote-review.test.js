@@ -116,7 +116,7 @@ test('レビュー4: 投票のテストボタンは毎回別の参加者を送�
 });
 
 test('レビュー1・5・6: 公開投票画面に音・溜め・名前表示・再描画の受け入れ条件がある', () => {
-  const widget = fs.readFileSync('public/widgets/vote.js', 'utf8');
+  const widget = fs.readFileSync('public/widgets/vote/vote.js', 'utf8');
   assert.match(widget, /AudioContext|webkitAudioContext/);
   assert.match(widget, /sound/);
   assert.match(widget, /volume/);

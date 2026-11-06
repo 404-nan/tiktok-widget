@@ -1,0 +1,21 @@
+{
+  "id": "visitors",
+  "name": "初見さん・常連さん",
+  "desc": "",
+  "size": [
+    760,
+    160
+  ],
+  "page": "visitors.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

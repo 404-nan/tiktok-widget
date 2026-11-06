@@ -1,0 +1,21 @@
+{
+  "id": "gacha",
+  "name": "ガチャ",
+  "desc": "",
+  "size": [
+    640,
+    360
+  ],
+  "page": "gacha.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

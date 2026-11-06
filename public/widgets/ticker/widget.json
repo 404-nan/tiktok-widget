@@ -1,0 +1,21 @@
+{
+  "id": "tickers",
+  "name": "ニュースティッカー",
+  "desc": "",
+  "size": [
+    1080,
+    72
+  ],
+  "page": "ticker.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

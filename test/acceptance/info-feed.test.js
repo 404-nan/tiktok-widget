@@ -200,7 +200,7 @@ test('AC-14 FEATURES に tickers・supporters があり、premium ではない',
 });
 
 // --- AC-5〜12: 画面のファイル ---
-const WIDGET_FILES = ['public/widgets/ticker.html', 'public/widgets/ticker.js', 'public/widgets/supporters.html', 'public/widgets/supporters.js', 'public/widgets/lib/telop.js'];
+const WIDGET_FILES = ['public/widgets/ticker/index.html', 'public/widgets/ticker/ticker.js', 'public/widgets/supporters/index.html', 'public/widgets/supporters/supporters.js', 'public/widgets/lib/telop.js'];
 
 test('AC-5〜12 ウィジェットのファイルがある', () => {
   for (const f of ['src/info-feed.js', ...WIDGET_FILES]) assert.ok(fs.existsSync(path.join(root, f)), `${f} がない`);
@@ -209,20 +209,20 @@ test('AC-5〜12 ウィジェットのファイルがある', () => {
 test('AC-12 ウィジェットの JS は ES5 で、公開 JS の検査の対象に入っている', () => {
   // 公開 JS の検査は public-js.test.js が public/widgets をまるごと見る(2026-10-23 に一覧の形から変更)
   assert.match(read('test/public-js.test.js'), /'public\/widgets'/);
-  for (const f of ['public/widgets/ticker.js', 'public/widgets/supporters.js', 'public/widgets/lib/telop.js']) {
+  for (const f of ['public/widgets/ticker/ticker.js', 'public/widgets/supporters/supporters.js', 'public/widgets/lib/telop.js']) {
     const code = read(f);
     assert.doesNotMatch(code, /=>|`|\?\.|\?\?|\b(?:let|const|class|import|export)\b/, f);
   }
 });
 
 test('AC-12 外部 CDN なし・フォントは /vendor/fonts/・overlay.css の変数・テーマ・base', () => {
-  for (const f of ['public/widgets/ticker.html', 'public/widgets/supporters.html']) {
+  for (const f of ['public/widgets/ticker/index.html', 'public/widgets/supporters/index.html']) {
     const html = read(f);
     assert.doesNotMatch(html, /https?:\/\//, `${f} に外部 URL`);
     assert.match(html, /lib\/overlay\.css/, f);
     assert.match(html, /\/vendor\/fonts\//, f);
   }
-  for (const f of ['public/widgets/ticker.js', 'public/widgets/supporters.js']) {
+  for (const f of ['public/widgets/ticker/ticker.js', 'public/widgets/supporters/supporters.js']) {
     const js = read(f);
     assert.doesNotMatch(js, /https?:\/\/(?!127\.0\.0\.1|localhost)/, `${f} に外部 URL`);
     assert.match(js, /location\.pathname/, `${f} が location.pathname から base を取っていない`);
@@ -231,7 +231,7 @@ test('AC-12 外部 CDN なし・フォントは /vendor/fonts/・overlay.css の
 });
 
 test('AC-5・8 ticker は /api/sample を読み、WebSocket の sample を受け、?preview=1 を扱う', () => {
-  const js = read('public/widgets/ticker.js');
+  const js = read('public/widgets/ticker/ticker.js');
   assert.match(js, /\/api\/sample/);
   assert.match(js, /preview/);
   assert.match(js, /'sample'|"sample"/);
@@ -240,7 +240,7 @@ test('AC-5・8 ticker は /api/sample を読み、WebSocket の sample を受け
 });
 
 test('AC-9・10 supporters は /api/info-feed を読み、WebSocket の event と reset を扱う', () => {
-  const js = read('public/widgets/supporters.js');
+  const js = read('public/widgets/supporters/supporters.js');
   assert.match(js, /\/api\/info-feed/);
   assert.match(js, /'event'|"event"/);
   assert.match(js, /reset/);

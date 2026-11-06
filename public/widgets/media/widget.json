@@ -1,0 +1,21 @@
+{
+  "id": "mediaAlerts",
+  "name": "メディア通知",
+  "desc": "",
+  "size": [
+    640,
+    360
+  ],
+  "page": "media.html",
+  "events": [],
+  "sample": {
+    "label": "入室",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "member"
+      }
+    }
+  },
+  "sounds": []
+}

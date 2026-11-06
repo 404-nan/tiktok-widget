@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 test('AC-11: 投票ウィジェットは ES5・日本語・CDNなしである', () => {
-  const js = fs.readFileSync(path.join(root, 'public/widgets/vote.js'), 'utf8');
-  const html = fs.readFileSync(path.join(root, 'public/widgets/vote.html'), 'utf8');
+  const js = fs.readFileSync(path.join(root, 'public/widgets/vote/vote.js'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'public/widgets/vote/index.html'), 'utf8');
   assert.doesNotMatch(js, /=>|`|\?\.|\?\?|\b(?:let|const|class|import|export)\b/);
   assert.doesNotMatch(`${js}\n${html}`, /https?:\/\//i);
   assert.match(`${js}\n${html}`, /受付中|しめきり|結果/);

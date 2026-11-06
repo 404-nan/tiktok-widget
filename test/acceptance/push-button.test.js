@@ -86,12 +86,12 @@ test('AC-9〜10: API と control は同じ遷移を使い、FEATURES に出る',
 });
 
 test('AC-11〜12: 公開 JS は ES5・CDN なし、画面と一覧に出る', () => {
-  const widget = fs.readFileSync('public/widgets/push-button.js', 'utf8');
+  const widget = fs.readFileSync('public/widgets/push-button/push-button.js', 'utf8');
   assert.doesNotMatch(widget, /https?:\/\//);
   const require = createRequire(import.meta.url); let acorn = null; try { acorn = require('acorn'); } catch {}
   if (acorn) assert.doesNotThrow(() => acorn.parse(widget, { ecmaVersion: 5, sourceType: 'script' }));
   else assert.doesNotMatch(widget, /=>|`|\?\.|\?\?|\b(?:let|const|class|import|export)\b/);
-  assert.match(fs.readFileSync('public/widgets/push-button.html', 'utf8'), /押せ!|押/);
+  assert.match(fs.readFileSync('public/widgets/push-button/index.html', 'utf8'), /押せ!|押/);
   assert.match(fs.readFileSync('public/dashboard/simple.js', 'utf8'), /pushButtons/);
   assert.match(fs.readFileSync('public/widgets/all.html', 'utf8'), /pushButtons/);
   assert.doesNotThrow(() => new vm.Script(widget));

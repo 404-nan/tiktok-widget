@@ -48,8 +48,8 @@ test('レビュー再現: 設定が実際の stepup/swarm 配信メッセージ�
 });
 
 test('レビュー再現: 待機中の画面を隠し、残り時間をゲージにする実装がある', () => {
-  const html = fs.readFileSync(path.join(root, 'public/widgets/stepup.html'), 'utf8');
-  const script = fs.readFileSync(path.join(root, 'public/widgets/stepup.js'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'public/widgets/stepup/index.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'public/widgets/stepup/stepup.js'), 'utf8');
   assert.match(html, /\.active \.stack/);
   assert.match(script, /endsAt/);
   assert.match(script, /className\s*=\s*[^;]*active/);

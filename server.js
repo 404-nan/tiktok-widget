@@ -435,12 +435,17 @@ app.get('/in', ingestRequest);
 // 部品フォルダの付け替え：/widgets/<id>.html へのアクセスを、部品フォルダ public/widgets/<id>/index.html へ寄せる。
 // 住所（/widgets/<id>.html）は配信者の資産なので変えない。フォルダが無い部品は今までどおり。
 const WIDGET_PAGE_RE = /^\/widgets\/([A-Za-z0-9_-]+)\.html$/;
+const WIDGET_JS_RE = /^\/widgets\/([A-Za-z0-9_-]+)\.js$/;
 const widgetFolderFile = (id) => path.join(PUBLIC, 'widgets', id, 'index.html');
+const widgetFolderJs = (id) => path.join(PUBLIC, 'widgets', id, `${id}.js`);
 function widgetFolderAlias(req, _res, next) {
+  const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
   const m = WIDGET_PAGE_RE.exec(req.path);
   if (m && fs.existsSync(widgetFolderFile(m[1]))) {
-    const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     req.url = `/widgets/${m[1]}/index.html${q}`;
+  } else {
+    const j = WIDGET_JS_RE.exec(req.path);
+    if (j && fs.existsSync(widgetFolderJs(j[1]))) req.url = `/widgets/${j[1]}/${j[1]}.js${q}`;
   }
   next();
 }
@@ -502,7 +507,7 @@ if (local) {
   app.get('/', (_req, res) => res.redirect('/admin/'));
   app.use('/admin', express.static(path.join(PUBLIC, 'admin')));
   app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'))); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
-  app.use('/widgets', (req, res, next) => { const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; req.url = `/${m[1]}/index.html${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets')));
+  app.use('/widgets', (req, res, next) => { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { req.url = `/${m[1]}/index.html${q}`; } else { const j = /^\/([A-Za-z0-9_-]+)\.js$/.exec(req.path); if (j && fs.existsSync(widgetFolderJs(j[1]))) req.url = `/${j[1]}/${j[1]}.js${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets')));
   app.use('/help', express.static(path.join(PUBLIC, 'help'))); // 配信者向け使い方（鍵なしで開ける）
 }
 
