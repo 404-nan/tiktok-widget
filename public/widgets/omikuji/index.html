@@ -14,8 +14,6 @@
 <link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/900.css">
 <style>
   body { display: grid; place-items: start center; padding: 6px; }
-  .idle { display: none; margin: 0; font-weight: 700; color: var(--paper); }
-  body.preview:not(.on) .idle { display: block; }
   .stage {
     display: none; position: relative; width: 360px; height: 460px; transform-origin: 50% 0;
     --ink: #24180F; --shu: #C02A1C; --washi: #EFE6CF; --hinoki: #DCC08E; --hinoki-2: #C9A86F;
@@ -190,7 +188,6 @@
 </style>
 </head>
 <body data-kind="omikuji">
-<p class="idle" id="idle">おみくじ・待機</p>
 <div class="stage" id="stage" data-phase="idle">
   <div class="plate" id="plate">
     <div class="stick"><span class="stick-head" id="stickNum"></span><span class="stick-no" id="stickNo"></span></div>
