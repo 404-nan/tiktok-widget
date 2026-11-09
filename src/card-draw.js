@@ -82,6 +82,7 @@ export class CardDraw {
   }
 
   #begin(trigger) {
+    this.trigger = trigger;
     this.seq += 1;
     const c = this.config;
     this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck: deckOf(Number(c.count) || 8, Number(c.winRate) || 0, this.random), picked: null, win: null, pickEndsAt: null };
@@ -135,7 +136,7 @@ export class CardDraw {
   }
 
   #emit() {
-    this.hub.broadcast({ type: 'cardDraw', phase: this.phase, seq: this.seq, pending: this.pending.length, ...this.#view() });
+    this.hub.broadcast({ type: 'cardDraw', phase: this.phase, seq: this.seq, pending: this.pending.length, ...this.#view(), ...(this.trigger?.test ? { test: true } : {}) });
   }
 }
 

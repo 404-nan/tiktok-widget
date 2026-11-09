@@ -82,7 +82,7 @@ export function bindControl(r, ctx) {
     try {
       if (body.target === 'roulette-action') {
         if (!Array.isArray(body.actions) || !body.actions.length) return res.status(400).json({ error: 'actions を一覧で送ってください' });
-        const results = runActions(body.actions, actionDeps(), { source: 'dev' });
+        const results = runActions(body.actions, actionDeps(), { source: 'dev', trigger: { kind: 'dev', test: true } });
         const bad = results.find((item) => !item.ok);
         if (bad) return res.status(400).json({ error: bad.error, results });
         return res.json({ ok: true, results });
@@ -93,26 +93,26 @@ export function bindControl(r, ctx) {
         if (body.action === 'heal') return res.json({ ok: true, boss: boss.healBy(id, body.amount) });
         return res.status(400).json({ error: 'action は damage か heal です' });
       }
-      if (body.target === 'media') return res.json({ ok: true, media: mediaAlerts.play(body.mediaId, { source: 'dev' }) });
+      if (body.target === 'media') return res.json({ ok: true, media: mediaAlerts.play(body.mediaId, { source: 'dev', test: true }) });
       if (body.target === 'gift-sound') {
         const count = Number(body.count) || 1;
         if (!Number.isInteger(count) || count < 1 || count > 4) return res.status(400).json({ error: 'count は 1 から 4 です' });
         const sounds = [];
-        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(body.mediaId, { volume: body.volume, source: 'dev' }));
+        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(body.mediaId, { volume: body.volume, source: 'dev', test: true }));
         return res.json({ ok: true, sounds, giftSounds: giftSounds.snapshot() });
       }
       if (body.target === 'gacha') {
-        const started = gacha.start({ kind: 'dev', source: 'dev' });
+        const started = gacha.start({ kind: 'dev', source: 'dev', test: true });
         if (!started) return res.status(400).json({ error: 'ガチャはオフです' });
         return res.json({ ok: true, gacha: started });
       }
       if (body.target === 'cardDraw') {
-        const started = cardDraw.start({ kind: 'dev', user: body.user ? { id: `demo_${body.user}`, name: body.user } : null });
+        const started = cardDraw.start({ kind: 'dev', test: true, user: body.user ? { id: `demo_${body.user}`, name: body.user } : null });
         if (!started) return res.status(400).json({ error: 'カードめくりはオフです' });
         return res.json({ ok: true, cardDraw: started });
       }
       if (body.target === 'omikuji') {
-        const started = omikuji.start({ kind: 'dev', source: 'dev', user: body.user ? { id: `demo_${body.user}`, name: body.user } : null });
+        const started = omikuji.start({ kind: 'dev', source: 'dev', test: true, user: body.user ? { id: `demo_${body.user}`, name: body.user } : null });
         if (!started) return res.status(400).json({ error: 'おみくじはオフです' });
         return res.json({ ok: true, omikuji: started });
       }
@@ -123,12 +123,12 @@ export function bindControl(r, ctx) {
         return res.json({ ok: true, gacha: started, viewers: gachaViewers.list() });
       }
       if (body.target === 'slot') {
-        const started = slot.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
+        const started = slot.start({ kind: 'dev', source: 'dev', test: true, user: { name: 'テストさん' }, gift: null });
         if (!started) return res.status(400).json({ error: 'スロットはオフです' });
         return res.json({ ok: true, slot: started });
       }
       if (body.target === 'relay-stop') {
-        const started = relayStop.start({ kind: 'dev', source: 'dev', user: { name: 'テストさん' }, gift: null });
+        const started = relayStop.start({ kind: 'dev', source: 'dev', test: true, user: { name: 'テストさん' }, gift: null });
         if (!started.ok) return res.status(400).json(started);
         return res.json({ ok: true, relayStop: started, visualOnly: true });
       }
@@ -265,7 +265,7 @@ export function bindControl(r, ctx) {
       if (!Number.isInteger(count) || count < 1 || count > 4) return { status: 400, body: { error: 'count は 1 から 4 です' } };
       try {
         const sounds = [];
-        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(data?.mediaId, { volume: data?.volume, source: 'test' }));
+        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(data?.mediaId, { volume: data?.volume, source: 'test', test: true }));
         return { status: 200, body: { ok: true, sounds, giftSounds: giftSounds.snapshot() } };
       } catch (err) {
         return { status: 400, body: { error: err.message } };
