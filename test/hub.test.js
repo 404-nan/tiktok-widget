@@ -113,3 +113,25 @@ test('次の配信（別の room）につないだら、前の配信のフォロ
   hub.setStatus({ mode: 'live', roomId: 'r2' });
   assert.equal(hub.state.follows, 0);
 });
+
+test('プレビュー接続には本番の出来事を流さない（テスト送信と状態同期は届ける）', () => {
+  const hub = new Hub();
+  const preview = fakeClient();
+  preview.role = 'preview';
+  const obs = fakeClient();
+  obs.role = 'obs';
+  hub.addClient(preview);
+  hub.addClient(obs);
+  preview.sent.length = 0;
+  obs.sent.length = 0;
+  // 本番の出来事は OBS にだけ届く
+  hub.publish(makeEvent('gift', { user: 'さくら', giftName: 'Rose', count: 1 }));
+  assert.equal(preview.sent.filter((m) => m.type === 'event').length, 0);
+  assert.equal(obs.sent.filter((m) => m.type === 'event').length, 1);
+  // テスト送信はプレビューにも届く
+  hub.publish({ ...makeEvent('gift', { user: 'さくら', giftName: 'Rose', count: 1 }), test: true });
+  assert.equal(preview.sent.filter((m) => m.type === 'event').length, 1);
+  // 状態の同期はプレビューにも届く
+  hub.setStatus({ mode: 'idle' });
+  assert.ok(preview.sent.some((m) => m.type === 'status'));
+});
