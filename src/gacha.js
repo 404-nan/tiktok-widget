@@ -156,7 +156,7 @@ export class Gacha {
     const giftPicked = this.name === 'omikuji' && gifts.length > 0;
     const byCoins = !giftPicked && min > 0 && (Number(e.totalDiamonds) || 0) >= min;
     if (!byGift && !byCoins) return;
-    this.start({
+    const trigger = {
       kind: 'gift',
       source: 'gift',
       test: Boolean(e.test),
@@ -164,7 +164,11 @@ export class Gacha {
       giftId: e.gift?.id ?? null,
       coins: Number(e.totalDiamonds) || 0,
       user: e.user ? { id: e.user.id, name: e.user.name } : null,
-    });
+    };
+    // おみくじは連打（コンボ）の回数ぶん引く。待ち列に上限はないので、投げた分は全部回す
+    const times = this.name === 'omikuji' ? Math.max(1, Number(e.gift?.count) || 1) : 1;
+    if (times > 1) trigger.coins = Math.floor((Number(e.totalDiamonds) || 0) / times);
+    for (let i = 0; i < times; i++) this.start({ ...trigger });
   }
 
   close() {

@@ -669,7 +669,7 @@ SCHEMA.omikuji = {
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
-    'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
+    'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
