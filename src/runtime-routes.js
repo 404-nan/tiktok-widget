@@ -21,6 +21,10 @@ import { getTemplate, previewTemplate, templateList } from './templates.js';
 
 const sectionOfChange = (change) => String(change.path).split('.')[0];
 
+import { createWidgetVersions } from './widget-versions.js';
+
+let sharedWidgetVersions = null;
+
 export function bindRoutes(r, ctx) {
   const {
     id, hub, store, info, entitled, widgetBase, mediaDirs, root, notes, ai,
@@ -302,6 +306,12 @@ export function bindRoutes(r, ctx) {
   });
 
   // 設定
+  // 部品ごとの版（部分更新の第1段）。画面が自分の版の変化だけを見て読み直すために使う
+  if (!sharedWidgetVersions) sharedWidgetVersions = createWidgetVersions(path.join(root, 'public'));
+  r.get('/api/widget-versions', (req, res) => {
+    const ids = String(req.query.ids || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 40);
+    res.json({ versions: sharedWidgetVersions.versionsOf(ids) });
+  });
   r.get('/api/config', (req, res) => res.json(configPayload(req)));
   r.get('/api/config/reference', (_req, res) => res.type('text/markdown').send(cfg.reference()));
   // フォームを作るための定義（関数は JSON にすると落ちる）

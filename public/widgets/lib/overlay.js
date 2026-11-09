@@ -86,6 +86,13 @@ export async function setupWidget(section, fallback = {}) {
   const id = queryId ?? (names.includes(config?.active?.[section]) ? config.active[section] : names.includes('default') ? 'default' : names[0] ?? 'default');
   window.__twWidgetId = id;
   window.__twWidgetSection = section;
+  // 部分更新: 自分の部品のファイルが変わったら、待機のときだけ読み直す
+  const folderId = location.pathname.match(/\/widgets\/([A-Za-z0-9._-]+?)(?:\.html)?(?:\/|$)/)?.[1];
+  if (folderId) {
+    import('./version-watch.js')
+      .then((m) => m.startVersionWatch(folderId, { isIdle: () => (typeof window.__twIsIdle === 'function' ? Boolean(window.__twIsIdle()) : null) }))
+      .catch(() => {});
+  }
   const entry = config?.[section]?.[id] ?? {};
   reloadOnConfigChange((c) => [c?.theme, c?.active?.[section], c?.[section]?.[id], queryId]);
   configSnapshot = JSON.stringify([config?.theme, config?.active?.[section], config?.[section]?.[id], queryId]);

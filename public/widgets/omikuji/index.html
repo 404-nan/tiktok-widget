@@ -230,5 +230,9 @@
   })();
 </script>
 <script src="gacha.js"></script>
+<script type="module">
+  import { startVersionWatch } from './lib/version-watch.js';
+  startVersionWatch('omikuji', { isIdle: () => !document.body.classList.contains('on') });
+</script>
 </body>
 </html>
