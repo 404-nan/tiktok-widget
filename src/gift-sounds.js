@@ -85,6 +85,7 @@ export class GiftSounds {
       volume: clampRange(meta.volume, 0, 100, 100),
       source: meta.source ?? 'action',
       label: meta.label ?? item.name,
+      test: meta.test === true,
     });
   }
 
@@ -100,6 +101,7 @@ export class GiftSounds {
         volume: clampRange(rule.volume, 0, 100, 100),
         source: e.kind,
         label: labelFor(e),
+        test: e.test === true,
       });
       return;
     }
@@ -146,7 +148,7 @@ export class GiftSounds {
 
   #start(job) {
     this.playing.push(job);
-    const payload = { type: 'giftSound', event: 'play', ...this.#public(job) };
+    const payload = { type: 'giftSound', event: 'play', ...this.#public(job), ...(job.meta?.test ? { test: true } : {}) };
     this.recent.unshift({
       at: Date.now(),
       mediaId: job.item.id,

@@ -199,7 +199,7 @@ export class SlotEngine {
     this.timer = setTimeout(() => this.#finish(), holdUntil);
     if (typeof this.timer.unref === 'function') this.timer.unref();
     // 結果が画面に出るころに知らせる（カットインの大当たり演出用）
-    const shown = { type: 'slotResult', seq: this.seq, result: this.result, payout: { id: this.payout.id, text: this.payout.text } };
+    const shown = { type: 'slotResult', seq: this.seq, result: this.result, payout: { id: this.payout.id, text: this.payout.text }, ...(trigger?.test ? { test: true } : {}) };
     this.resultTimer = setTimeout(() => this.hub.broadcast(shown), resultAt);
     if (typeof this.resultTimer.unref === 'function') this.resultTimer.unref();
     return { ok: true, queued: false, phase: this.phase, seq: this.seq, result: this.result };

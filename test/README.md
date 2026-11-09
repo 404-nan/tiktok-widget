@@ -54,7 +54,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |
 | `effect-log.test.js` | 効果ログの匿名化と配信後レポートのテスト |
 | `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
-| `hub.test.js` | イベント集計と配信のテスト |
+| `hub.test.js` | イベント集計と配信のテスト（プレビューへ本番の演出を流さない確認を含む） |
 | `ingest-keys.test.js` | ingest鍵の保存・作り直し・削除の単体テスト |
 | `media-alerts.test.js` | メディア通知のテスト |
 | `minecraft.test.js` | Minecraft連携のテスト |

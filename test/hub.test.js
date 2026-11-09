@@ -165,3 +165,41 @@ test('プレビュー接続には派生の演出も流さない（テスト由�
   hub.broadcast({ type: 'minecraft', status: {} });
   assert.equal(preview.sent.filter((m) => m.type === 'minecraft').length, 1);
 });
+
+test('プレビュー接続には残りの演出（ダレ場・名前入り妨害・動画と音・リレー停止・スロット結果・来場）も流さない', () => {
+  const hub = new Hub();
+  const preview = fakeClient();
+  preview.role = 'preview';
+  const obs = fakeClient();
+  obs.role = 'obs';
+  hub.addClient(preview);
+  hub.addClient(obs);
+  preview.sent.length = 0;
+  obs.sent.length = 0;
+  // 本番ぶんは OBS にだけ届く
+  const production = [
+    { type: 'dareba', dareba: {} },
+    { type: 'named-sabotage', namedSabotage: {} },
+    { type: 'mediaAlert', event: 'play', item: {} },
+    { type: 'giftSound', event: 'play' },
+    { type: 'relay-stop', event: 'stop' },
+    { type: 'slotResult', seq: 1, result: {} },
+    { type: 'visitor', visitor: { user: { name: 'a' }, visits: 1 } },
+  ];
+  for (const msg of production) hub.broadcast(msg);
+  for (const msg of production) {
+    assert.equal(preview.sent.filter((m) => m.type === msg.type).length, 0, msg.type);
+    assert.equal(obs.sent.filter((m) => m.type === msg.type).length, 1, msg.type);
+  }
+  // テスト由来はプレビューにも届く（送り手ごとの印の付き方で判定できる）
+  hub.broadcast({ type: 'dareba', event: { test: true } });
+  hub.broadcast({ type: 'named-sabotage', event: {}, test: true });
+  hub.broadcast({ type: 'mediaAlert', event: 'play', item: {}, test: true });
+  hub.broadcast({ type: 'giftSound', event: 'play', test: true });
+  hub.broadcast({ type: 'relay-stop', event: 'stop', trigger: { test: true } });
+  hub.broadcast({ type: 'slotResult', seq: 2, result: {}, test: true });
+  hub.broadcast({ type: 'visitor', visitor: { user: { name: 'a' }, visits: 1 }, test: true });
+  for (const type of ['dareba', 'named-sabotage', 'mediaAlert', 'giftSound', 'relay-stop', 'slotResult', 'visitor']) {
+    assert.equal(preview.sent.filter((m) => m.type === type).length, 1, type);
+  }
+});

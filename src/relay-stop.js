@@ -155,7 +155,7 @@ export class RelayStopEngine {
   }
 
   #emit(event) {
-    this.hub.broadcast?.({ type: 'relay-stop', event, ...this.snapshot() });
+    this.hub.broadcast?.({ type: 'relay-stop', event, ...this.snapshot(), ...(this.trigger?.test ? { test: true } : {}) });
   }
 }
 

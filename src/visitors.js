@@ -118,6 +118,7 @@ export class VisitorLog {
   broadcast(user, visits, test) {
     this.hub.broadcast({
       type: 'visitor',
+      ...(test ? { test: true } : {}),
       visitor: { user: { name: user.name, avatar: user.avatar ?? null }, visits, first: visits === 1, ...(test ? { test: true } : {}) },
     });
   }

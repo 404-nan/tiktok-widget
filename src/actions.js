@@ -85,10 +85,10 @@ function runOne(action, deps, meta = {}) {
     }
     case 'media.play':
       if (!deps.media) throw new Error('メディア通知がありません');
-      return deps.media.play(action.mediaId, { source: 'action' });
+      return deps.media.play(action.mediaId, { source: 'action', test: meta.trigger?.test === true });
     case 'sound.play':
       if (!deps.sounds) throw new Error('ギフト別サウンドがありません');
-      return deps.sounds.play(action.mediaId, { volume: action.volume, source: 'action' });
+      return deps.sounds.play(action.mediaId, { volume: action.volume, source: 'action', test: meta.trigger?.test === true });
     case 'boss.damage':
       if (!deps.boss) throw new Error('ボスがありません');
       return deps.boss.apply(id, 'damage', action.amount);

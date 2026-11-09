@@ -142,7 +142,7 @@ export class MediaAlerts {
       if (!ruleMatches(rule, e)) continue;
       const item = this.items.find((entry) => entry.id === rule.mediaId);
       if (!item) continue;
-      const meta = { source: e.kind };
+      const meta = { source: e.kind, test: e.test === true };
       if (e.kind === 'gift') meta.giftLabel = giftDisplayName(e.gift);
       this.#enqueue(item, meta);
     }
@@ -150,8 +150,9 @@ export class MediaAlerts {
 
   ack(token) {
     if (!this.playing || this.playing.token !== token) return false;
+    const wasTest = this.playing?.meta?.test === true;
     this.playing = null;
-    this.hub.broadcast({ type: 'mediaAlert', event: 'done', token });
+    this.hub.broadcast({ type: 'mediaAlert', event: 'done', token, ...(wasTest ? { test: true } : {}) });
     this.#pump();
     return true;
   }
@@ -180,6 +181,7 @@ export class MediaAlerts {
     const payload = {
       type: 'mediaAlert',
       event: 'play',
+      ...(job.meta?.test ? { test: true } : {}),
       token: job.token,
       item: this.#public(job.item, { holdMs: job.holdMs, giftLabel: job.meta?.giftLabel ?? null }),
     };

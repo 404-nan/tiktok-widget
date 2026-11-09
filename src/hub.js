@@ -28,7 +28,8 @@ const EFFECT_TYPES = new Set([
   'event', 'roulette', 'rouletteResult', 'omikuji', 'gacha', 'puchun',
   'boss', 'cheer', 'combo', 'ootori', 'peka', 'push', 'rush', 'slot',
   'cardDraw', 'goalAlert', 'stepup', 'swarm', 'throne', 'timer', 'vote',
-  'wins', 'winsCombo',
+  'wins', 'winsCombo', 'dareba', 'named-sabotage', 'mediaAlert',
+  'giftSound', 'relay-stop', 'slotResult', 'visitor',
 ]);
 
 // その知らせがテスト由来かどうか（送り手が付けた印を見る）
