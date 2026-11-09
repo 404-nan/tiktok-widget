@@ -657,7 +657,7 @@ SCHEMA.gacha = {
   },
 };
 
-// おみくじ: ガチャと同じ仕組みで、運勢を引く。pity は使わない
+// おみくじ: ガチャと同じ仕組みで、運勢を引く。天井（pity）も使う
 SCHEMA.omikuji = {
   ...SCHEMA.gacha,
   page: 'omikuji',
@@ -668,6 +668,7 @@ SCHEMA.omikuji = {
     '出し方は displayMode で選べる（短い型が標準。長い型は番号を選んでから引く）。' +
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
+    '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
     'きっかけ: gifts のギフト / minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
@@ -675,6 +676,7 @@ SCHEMA.omikuji = {
     displayMode: oneOf(['short', 'long'], 'short', '出し方。short は番号選びなしで、ギフトですぐ振って結果を出す（ふつうはこちら）。long は番号を選んでから引く長い型'),
     tempo: oneOf(['quick', 'slow'], 'quick', '短い型の速さ。クイック（速い）が基本。スローはゆっくり見せたいとき'),
     minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）', { min: 0 }),
+    pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは配信全体で、大吉が出たら 0 に戻る', { min: 0, max: 999 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
@@ -683,7 +685,7 @@ SCHEMA.omikuji = {
     tiers: {
       type: 'gachaTiers',
       default: [
-        { id: 'daikichi', label: '大吉', weight: 10, pity: false },
+        { id: 'daikichi', label: '大吉', weight: 10, pity: true },
         { id: 'chukichi', label: '中吉', weight: 20, pity: false },
         { id: 'shokichi', label: '小吉', weight: 25, pity: false },
         { id: 'kichi', label: '吉', weight: 25, pity: false },
@@ -691,12 +693,12 @@ SCHEMA.omikuji = {
         { id: 'kyo', label: '凶', weight: 5, pity: false },
         { id: 'daikyo', label: '大凶', weight: 2, pity: false },
       ],
-      desc: '運勢。id / label / weight（出やすさ。0 にするとその運勢は出ない。全部を 0 にはできない）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
+      desc: '運勢。id / label / weight（出やすさ。0 にするとその運勢は出ない。全部を 0 にはできない）/ pity（true なら天井の対象。1つだけ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
     },
   },
 };
-// pity と、視聴者ごとの無料回・有料回（ガチャだけの仕組み）はおみくじでは使わない
-for (const key of ['pity', 'freePerReset', 'resetMode', 'freeRequires', 'paidRule', 'command', 'cooldownSec']) delete SCHEMA.omikuji.fields[key];
+// 視聴者ごとの無料回・有料回（ガチャだけの仕組み）はおみくじでは使わない
+for (const key of ['freePerReset', 'resetMode', 'freeRequires', 'paidRule', 'command', 'cooldownSec']) delete SCHEMA.omikuji.fields[key];
 SCHEMA.peka = {
   kind: 'object',
   page: 'peka',
