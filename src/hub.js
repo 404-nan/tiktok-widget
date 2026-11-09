@@ -26,6 +26,9 @@ export function emptyState() {
 export class Hub extends EventEmitter {
   constructor() {
     super();
+    // 購読は組み立て時に固定で付く（出来事19件・テスト出来事13件・リセット11件が設計上の数）。
+    // 既定の上限10では設計どおりでも警告が出るため、余裕を持たせて32にする。無制限にはしない（本物の漏れに気づけるように）。
+    this.setMaxListeners(32);
     this.gifters = new Map();
     this.likers = new Map();
     this.clients = new Set();
