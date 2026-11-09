@@ -128,6 +128,10 @@
       setText('stickNum', String(data.stick));
     }
     showPick(data);
+    if (kind === 'omikuji') {
+      var who = data.trigger && data.trigger.user;
+      setText('drawWho', phase !== 'idle' && who && who.name ? who.name + ' さんのおみくじ' : '');
+    }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));
     stageEl.style.setProperty('--reveal', seconds(d.revealMs));
