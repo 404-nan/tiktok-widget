@@ -955,6 +955,43 @@ SCHEMA.supporters = {
 };
 
 // カードめくり。当たり・ハズレのカードを見せて混ぜ、ギフトを送った人がコメントで番号を選ぶとめくれる
+// 読み上げ。コメント・ギフト・フォロー・入室を、端末の日本語の声で読み上げる。
+SCHEMA.tts = {
+  kind: 'map', page: 'tts', title: '読み上げ', desc: 'コメントやギフトを声で読み上げる。声は配信ソフトのブラウザに入っている日本語の声を使う。URL は /widgets/tts.html?id=<名前>', size: () => [420, 120],
+  fields: {
+    chatOn: bool(true, 'コメントを読み上げる'),
+    chatVoiceType: oneOf(['normal', 'high', 'low', 'fast', 'slow', 'random'], 'normal', 'コメントの声の型。random は読むたびに型が変わる'),
+    chatVoiceName: str('', 'コメントの声の名前（端末に入っている声の名前。空なら日本語の声を自動で使う）'),
+    chatRate: num(1.1, 'コメントの速さ（1 がふつう）', { min: 0.5, max: 2 }),
+    chatPitch: num(1, 'コメントの声の高さ（1 がふつう）', { min: 0, max: 2 }),
+    chatVolume: num(1, 'コメントの音量（0〜1）', { min: 0, max: 1 }),
+    chatScope: oneOf(['all', 'follower', 'gifter'], 'all', '読む相手。all は全員、follower はフォローした人だけ、gifter はギフトを送った人だけ'),
+    chatMode: oneOf(['all', 'cmd'], 'all', '読み方。all は全部、cmd は「!」で始まるコメントだけ'),
+    chatName: bool(true, '名前も読む'),
+    chatTemplate: str('{name}さん、{text}', 'コメントの読み方の型（{name}＝名前、{text}＝本文）'),
+    giftOn: bool(true, 'ギフトを読み上げる'),
+    giftVoiceType: oneOf(['normal', 'high', 'low', 'fast', 'slow', 'random'], 'high', 'ギフトの声の型。random は読むたびに型が変わる'),
+    giftVoiceName: str('', 'ギフトの声の名前（端末に入っている声の名前。空なら日本語の声を自動で使う）'),
+    giftRate: num(1.1, 'ギフトの速さ（1 がふつう）', { min: 0.5, max: 2 }),
+    giftPitch: num(1.2, 'ギフトの声の高さ（1 がふつう）', { min: 0, max: 2 }),
+    giftVolume: num(1, 'ギフトの音量（0〜1）', { min: 0, max: 1 }),
+    giftMinCoins: num(0, 'このコイン未満のギフトは読まない', { min: 0 }),
+    giftTemplate: str('{name}さん、{gift}ありがとう！', 'ギフトの読み方の型（{name}＝名前、{gift}＝ギフト名）'),
+    followOn: bool(true, 'フォローを読み上げる'),
+    followTemplate: str('{name}さん、フォローありがとう！', 'フォローの読み方の型'),
+    joinOn: bool(false, '入室を読み上げる'),
+    joinTemplate: str('{name}さん、いらっしゃい', '入室の読み方の型'),
+    unlockOn: bool(false, '読み上げ権の解錠を使う（ギフトを送った人だけが、しばらくコメントを読んでもらえる）'),
+    unlockMinutes: num(30, '解錠が続く時間（分）', { min: 1, max: 240 }),
+    ngWords: list([], 'この言葉を含むコメントは読まない（NGワード）'),
+    skipBadWords: bool(true, 'よくある悪口は読まない'),
+    cooldownSec: num(10, '同じ人のコメントを続けて読まない間隔（秒）', { min: 0, max: 120 }),
+    maxChars: num(60, '読み上げる最大の文字数（超えたら切る）', { min: 10, max: 200 }),
+    maxQueue: num(5, '待ち行列の上限（超えた分は読まない）', { min: 1, max: 20 }),
+    showText: bool(true, '読んでいる文を画面に出す'),
+  },
+};
+
 SCHEMA.cardDraw = {
   kind: 'object', page: 'card-draw', title: 'カードめくり', desc: '当たり・ハズレのカードを表で見せる → 裏返して混ぜる → 番号つきで並べる → ギフトを送った人がコメントで番号を言うと、そのカードがめくれて結果が出る。結果はめくる瞬間に winRate の確率で決める(最初に見せる当たりの枚数も winRate に合わせる)。pickSeconds までに番号が来なければ自動でめくる。待ちに上限はない(投げた分は全部めくる)。URL は /widgets/card-draw.html', size: () => [1080, 720],
   fields: {

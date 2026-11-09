@@ -26,6 +26,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | Minecraft ゴール接近警報 | - | できた（50m・20m・5mの段階警報、1m以内の到達判定、ボスバー作成、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`src/minecraft.js`、`public/widgets/goal-alert.html` |
 | 名前入りMinecraft妨害 | - | できた（安全なコマンド生成、状態保存、再起動時の片付け、カットイン配線） | `src/minecraft-name.js`、`src/minecraft.js` |
 | ウィジェット表示 | TikTok LIVE のギフト・コメント・集計を画面に出す | できた | `public/widgets/` |
+| 読み上げ | コメント・ギフト・フォロー・入室を、端末の日本語の声で読み上げる独立ウィジェット。声の型（読むたびに変わる random 含む）と声の名前、読む範囲、ギフトでの解錠、間隔・最大文字数・待ち行列の上限を設定できる。テスト送信は読まない | できた | `public/widgets/tts/`、`public/widgets/lib/tts.js` |
 | 開発用ウィジェット撮影 | テナントの一覧から選んだウィジェットへテスト送信し、待って画像を返す | できた（既存のPuppeteer環境が必要） | `src/ai-screenshot.js`, `src/ai-mcp.js` |
 | 配信者自身のAI接続 | 自分のテナント限定のトークンを10件まで発行し、読み取り・設定提案・開発テスト送信を行う。期限状態を表示し、値は発行直後だけ表示 | できた | `src/ai-tokens.js`, `src/ai-api.js`, `public/dashboard/ai-streamer.js` |
 | 本番撮影 | 本番配信中の画面を撮影する | まだ（安全のため作らない） | - |
@@ -119,6 +120,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | ギフト別サウンドの待ち | 10件 | 古いものから鳴らさずに飛ばす | `src/gift-sounds.js`、`public/widgets/sounds/sounds.js` |
 | コンボ画面の順番待ち | 20件 | 古いものから出さずに飛ばす | `public/widgets/combo/index.html` |
 | 初見さん・常連さんの待ち | 設定の `maxQueue`（既定5人） | 古い人から出さずに飛ばす | `public/widgets/visitors/visitors.js` |
+| 読み上げの待ち行列 | 設定の `maxQueue`（既定5件） | 新しく来た読み上げを飛ばす | `public/widgets/lib/tts.js` |
 | WIN数の「1つ戻す」 | 50回まで | それより前には戻せない | `src/wins.js` |
 | 順番待ちの仕組み `createQueue` | 既定は上限なし。`max` を渡した画面だけ上の表の数 | 古いものから飛ばす | `public/widgets/lib/overlay.js` |
 | ボス討伐から次のボスまでのダメージ | - | 数字だけ出し、次のボスには持ち越さない | `src/boss.js` |

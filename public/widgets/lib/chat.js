@@ -19,7 +19,7 @@ const TTS_BAD_WORDS = [
 ].map(foldKana);
 // 悪口を中に含むふつうの言葉。先に消してから悪口を探す(「シネマ」「ばかり」を読まなくならないように)
 const TTS_SAFE_WORDS = ['シネマ', 'ばかり', 'ばっかり', 'ばかでかい', 'ゴミ箱', 'ゴミ拾い', 'ゴミ出し'].map(foldKana);
-const hasBadWord = (text) => {
+export const hasBadWord = (text) => {
   let folded = foldKana(text);
   for (const word of TTS_SAFE_WORDS) folded = folded.split(word).join(' ');
   return TTS_BAD_WORDS.some((word) => folded.includes(word));

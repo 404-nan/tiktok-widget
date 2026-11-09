@@ -1,0 +1,93 @@
+<!-- 読み上げ。出来事を受けて、端末の日本語の声で読み上げる OBS 用ページ。見た目は素（読んでいる文だけ）。 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>読み上げ</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<style>
+body { padding: 10px; }
+#now { font-size: 20px; font-weight: 700; color: var(--on-surface); min-height: 1.4em; }
+#status { font-size: 12px; color: var(--on-surface-dim); margin-top: 4px; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<div id="now"></div>
+<div id="status"></div>
+<script type="module">
+import { setupWidget, connect } from './lib/overlay.js';
+import { createTtsState, decideTts } from './lib/tts.js';
+
+var p = await setupWidget('tts', {
+  chatOn: true, chatVoiceType: 'normal', chatVoiceName: '', chatRate: 1.1, chatPitch: 1, chatVolume: 1,
+  chatScope: 'all', chatMode: 'all', chatName: true, chatTemplate: '{name}さん、{text}',
+  giftOn: true, giftVoiceType: 'high', giftVoiceName: '', giftRate: 1.1, giftPitch: 1.2, giftVolume: 1,
+  giftMinCoins: 0, giftTemplate: '{name}さん、{gift}ありがとう！',
+  followOn: true, followTemplate: '{name}さん、フォローありがとう！',
+  joinOn: false, joinTemplate: '{name}さん、いらっしゃい',
+  unlockOn: false, unlockMinutes: 30,
+  ngWords: [], skipBadWords: true, cooldownSec: 10, maxChars: 60, maxQueue: 5, showText: true,
+});
+
+var state = createTtsState();
+var queue = [];
+var speaking = false;
+var nowEl = document.getElementById('now');
+var statusEl = document.getElementById('status');
+window.__ttsDebug = { last: null, spoken: [] };
+
+function pickVoice(channel) {
+  try {
+    var vs = speechSynthesis.getVoices();
+    var wanted = channel === 'gift' ? p.giftVoiceName : p.chatVoiceName;
+    if (wanted) { var named = vs.find(function (v) { return v.name === wanted; }); if (named) return named; }
+    return vs.find(function (v) { return (v.lang || '').toLowerCase().startsWith('ja'); }) || null;
+  } catch (e) { return null; }
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = function () {};
+
+function speakNext() {
+  if (speaking) return;
+  var item = queue.shift();
+  state.waiting = queue.length;
+  if (!item) { if (p.showText) nowEl.textContent = ''; return; }
+  if (!('speechSynthesis' in window)) { statusEl.textContent = 'この端末では音声合成が使えません'; return; }
+  speaking = true;
+  if (p.showText) nowEl.textContent = item.text;
+  try {
+    var u = new SpeechSynthesisUtterance(item.text);
+    try { var v = pickVoice(item.channel); if (v) u.voice = v; } catch (e) { /* 声の割り当てに失敗しても読み上げは続ける */ }
+    u.lang = 'ja-JP';
+    u.rate = item.voice.rate; u.pitch = item.voice.pitch; u.volume = item.voice.volume;
+    u.onend = u.onerror = function () { speaking = false; window.__ttsDebug.spoken.push(item.text); speakNext(); };
+    speechSynthesis.speak(u);
+  } catch (e) {
+    // 発声の呼び出し自体が失敗しても、待ち行列を止めない
+    speaking = false;
+    speakNext();
+  }
+}
+
+connect({
+  event: function (ev) {
+    var r = decideTts(ev, p, state);
+    window.__ttsDebug.last = r;
+    if (r.speak) {
+      queue.push(r.speak);
+      state.waiting = queue.length;
+      speakNext();
+    } else if (r.skip) {
+      statusEl.textContent = '読まなかった: ' + r.skip;
+    }
+  },
+  reset: function () {
+    queue = [];
+    state.waiting = 0;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    speaking = false;
+    nowEl.textContent = '';
+  },
+});
+</script>
+</body>
+</html>

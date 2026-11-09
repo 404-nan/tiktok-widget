@@ -1,0 +1,22 @@
+{
+  "id": "tts",
+  "name": "読み上げ",
+  "desc": "",
+  "size": [
+    420,
+    120
+  ],
+  "page": "tts.html",
+  "events": [],
+  "sample": {
+    "label": "コメント",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "chat",
+        "text": "こんばんは"
+      }
+    }
+  },
+  "sounds": []
+}

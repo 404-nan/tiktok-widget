@@ -24,6 +24,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `slot.html` / `slot.js` | スロット演出を表示する |
 | `sounds.html` / `sounds.js` | ギフトなどの効果音を再生する |
 | `timer.html` | 残り時間を表示する |
+| `tts.html` / `tts/` | コメント・ギフト・フォロー・入室を、端末に入っている日本語の声で読み上げる（判断は `lib/tts.js`） |
 | `wins.html` / `wins-fx.html` | WIN数と全画面演出を表示する |
 | `dareba.html` | サーバーから受けたダレ場の事件を画面端に表示する |
 | `peka.html` | サーバーが決めた時刻に告知ランプを光らせる |
