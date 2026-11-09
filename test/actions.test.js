@@ -1,6 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkActions, parseAction, runActions } from '../src/actions.js';
+
+test('動作のガチャ・おみくじ開始は、テストのきっかけのときだけ trigger に test が付く', () => {
+  const seen = [];
+  const deps = {
+    gacha: { start: (trigger) => { seen.push(trigger); return { ok: true }; } },
+    omikuji: { start: (trigger) => { seen.push(trigger); return { ok: true }; } },
+  };
+  runActions([{ type: 'gacha.start' }, { type: 'omikuji.start' }], deps, {});
+  assert.equal('test' in seen[0], false, '本番のきっかけでは test の項目自体が付かない');
+  assert.equal('test' in seen[1], false, '本番のきっかけでは test の項目自体が付かない');
+  seen.length = 0;
+  runActions([{ type: 'gacha.start' }, { type: 'omikuji.start' }], deps, { trigger: { kind: 'gift', test: true } });
+  assert.equal(seen[0].test, true);
+  assert.equal(seen[1].test, true);
+});
 import { normalize } from '../src/config.js';
 
 test('動作の検証: 種類・秒・枚数・メディア・ダメージ', () => {

@@ -192,7 +192,14 @@ export class BossEngine {
    * action: damage（value のダメージ。省くと 100）/ defeat（今すぐ討伐）/ heal（HP を満タンに戻す）/
    *         next（次のボスへ）/ set（HP を value にする）/ reset（1体目からやり直す）
    */
-  apply(id, action, value) {
+  apply(id, action, value, opts = {}) {
+    const prevTest = this._testFlag === true;
+    this._testFlag = opts?.test === true;
+    try { return this.#apply(id, action, value); }
+    finally { this._testFlag = prevTest; }
+  }
+
+  #apply(id, action, value) {
     if (!BOSS_ACTIONS.includes(action)) throw new Error(`action は ${BOSS_ACTIONS.join(' / ')} のどれかです`);
     if (id && !this.cfgOf(id)) throw new Error(`bosses に「${id}」がありません（${this.ids().join(' / ')}）`);
     const n = value == null || value === '' ? null : Number(value);
@@ -263,7 +270,14 @@ export class BossEngine {
    * 一部だけ回復する（動作の boss.heal と開発用のテスト）。
    * 固定HPは amount だけ戻す。順位差は相手のコインを amount 足す（差が広がる）。
    */
-  healBy(id, amount) {
+  healBy(id, amount, opts = {}) {
+    const prevTest = this._testFlag === true;
+    this._testFlag = opts?.test === true;
+    try { return this.#healBy(id, amount); }
+    finally { this._testFlag = prevTest; }
+  }
+
+  #healBy(id, amount) {
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) throw new Error('amount に 1 以上の数を入れてください');
     if (id && !this.cfgOf(id)) throw new Error(`bosses に「${id}」がありません（${this.ids().join(' / ')}）`);
@@ -477,6 +491,8 @@ export class BossEngine {
 
   #broadcast(id, prev, event) {
     const boss = this.get(id);
+    // 開発用・テストの操作中は、知らせの出来事にも test の印を付ける（プレビューへ届けるため）
+    if (this._testFlag === true && event && typeof event === 'object') event.test = true;
     this.hub.broadcast({ type: 'boss', id, boss, prev, event });
     this.hub.emit('boss', id, boss, event);
     if (!this.bus || !event) return;

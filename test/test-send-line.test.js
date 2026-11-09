@@ -258,8 +258,9 @@ test('既存の視聴者記録と抽選の状態はテストで変わらず、�
     assert.equal(busyOmi.status, 400, '進行中のテスト開始は断られる');
     assert.match((await busyOmi.json()).error ?? '', /進行中/);
     const omiAfter = await waitIdle(port, '/api/omikuji');
-    assert.equal(omiAfter.seq, omiBefore.seq + 1, '進むのは本物のおみくじだけ');
-    assert.equal(omiAfter.pityCount, omiBefore.pityCount + 1, '天井回数は本物の分だけ進む');
+    assert.equal(omiAfter.seq, omiBefore.seq + 1, '開発用の開始でも抽選は1回回る');
+    // 開発用の開始もテスト扱い（2026-11-10 の整合）：画面では回るが、天井回数は進まない
+    assert.equal(omiAfter.pityCount, omiBefore.pityCount, '開発用の開始で天井回数は進まない');
   } finally {
     await close(server, runtime);
   }
@@ -317,19 +318,14 @@ test('テスト進行中に本物が来たら、テストは打ち切られて�
     const testStart = await postJson(port, '/api/control', { target: 'omikuji', action: 'start', data: { user: 'テスト視聴者' } });
     assert.equal(testStart.status, 200);
     const testSeq = (await testStart.json()).omikuji.seq;
-    process.env.TW_ENV = 'dev';
-    process.env.PORT = '3940';
-    try {
-      const realStart = await postJson(port, '/api/dev/trigger', { target: 'omikuji', user: '本物' });
-      assert.equal(realStart.status, 200);
-    } finally {
-      delete process.env.TW_ENV;
-      delete process.env.PORT;
-    }
+    // 本物の開始は本物のギフトで入れる。開発用の開始（/api/dev/trigger）もテスト扱いに
+    // なったため（2026-11-10、プレビューで発火させない直しの整合）、割り込みの役は担わない
+    runtime.hub.publish({ kind: 'gift', gift: { name: 'Rose', id: 'rose' }, totalDiamonds: 1, user: { id: 'real-omi', name: '本物' } });
+    await sleep(100);
     const during = await getJson(port, '/api/omikuji');
     assert.equal(during.seq, testSeq + 1, '本物の開始がテストを打ち切って始まる');
     assert.equal(during.pending, 0, '本物はテストの後ろに並ばない');
-    assert.equal(during.trigger?.kind, 'dev', '進行中なのは本物の抽選');
+    assert.equal(during.trigger?.kind, 'gift', '進行中なのは本物の抽選');
     const omiAfter = await waitIdle(port, '/api/omikuji');
     assert.equal(omiAfter.pityCount, omiBefore.pityCount + 1, '天井回数は本物の分だけ進む');
 

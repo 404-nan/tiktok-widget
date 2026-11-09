@@ -91,19 +91,19 @@ function runOne(action, deps, meta = {}) {
       return deps.sounds.play(action.mediaId, { volume: action.volume, source: 'action', test: meta.trigger?.test === true });
     case 'boss.damage':
       if (!deps.boss) throw new Error('ボスがありません');
-      return deps.boss.apply(id, 'damage', action.amount);
+      return deps.boss.apply(id, 'damage', action.amount, { test: meta.trigger?.test === true });
     case 'boss.heal':
       if (!deps.boss) throw new Error('ボスがありません');
-      return deps.boss.healBy(id, action.amount);
+      return deps.boss.healBy(id, action.amount, { test: meta.trigger?.test === true });
     case 'gacha.start': {
       if (!deps.gacha) throw new Error('ガチャがありません');
-      const started = deps.gacha.start({ kind: 'action', source: 'action', test: meta.trigger?.test === true });
+      const started = deps.gacha.start({ kind: 'action', source: 'action', ...(meta.trigger?.test === true ? { test: true } : {}) });
       if (!started) throw new Error('ガチャはオフです');
       return started;
     }
     case 'omikuji.start': {
       if (!deps.omikuji) throw new Error('おみくじがありません');
-      const started = deps.omikuji.start({ kind: 'action', source: 'action', test: meta.trigger?.test === true });
+      const started = deps.omikuji.start({ kind: 'action', source: 'action', ...(meta.trigger?.test === true ? { test: true } : {}) });
       if (!started) throw new Error('おみくじはオフです');
       return started;
     }

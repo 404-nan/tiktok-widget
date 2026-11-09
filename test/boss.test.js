@@ -21,6 +21,21 @@ function setup(config = { default: boss() }, file) {
   return { hub, engine, sent, file };
 }
 const gift = (name, count = 1, coins = 1, user = 'たろう') => ({ kind: 'gift', user: { id: `u_${user}`, name: user }, gift: { name, id: '1', count }, totalDiamonds: coins * count });
+
+test('開発用の操作（test つき）は知らせの出来事に test が付き、通常の操作には付かない', () => {
+  const { engine, sent } = setup();
+  engine.apply('default', 'damage', 120, { test: true });
+  const dmg = sent.filter((m) => m.type === 'boss').at(-1);
+  assert.equal(dmg?.event?.test, true, '開発用ダメージの知らせに test が付く');
+  sent.length = 0;
+  engine.apply('default', 'damage', 120);
+  const prod = sent.filter((m) => m.type === 'boss').at(-1);
+  assert.equal(prod?.event?.test, undefined, '通常の操作の知らせに test は付かない');
+  sent.length = 0;
+  engine.healBy('default', 50, { test: true });
+  const heal = sent.filter((m) => m.type === 'boss').at(-1);
+  assert.equal(heal?.event?.test, true, '開発用回復の知らせに test が付く');
+});
 const like = (count) => ({ kind: 'like', user: { id: 'u2', name: 'みお' }, count });
 
 test('最大 HP は倒すたびに hpScale 倍、名前は nextNames を順に使う', () => {

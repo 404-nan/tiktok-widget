@@ -89,8 +89,8 @@ export function bindControl(r, ctx) {
       }
       if (body.target === 'boss') {
         const id = body.id || null;
-        if (body.action === 'damage') return res.json({ ok: true, boss: boss.apply(id, 'damage', body.amount) });
-        if (body.action === 'heal') return res.json({ ok: true, boss: boss.healBy(id, body.amount) });
+        if (body.action === 'damage') return res.json({ ok: true, boss: boss.apply(id, 'damage', body.amount, { test: true }) });
+        if (body.action === 'heal') return res.json({ ok: true, boss: boss.healBy(id, body.amount, { test: true }) });
         return res.status(400).json({ error: 'action は damage か heal です' });
       }
       if (body.target === 'media') return res.json({ ok: true, media: mediaAlerts.play(body.mediaId, { source: 'dev', test: true }) });
@@ -358,7 +358,7 @@ export function bindControl(r, ctx) {
     if (target === 'boss') {
       try {
         const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
-        return { status: 200, body: { ok: true, boss: boss.apply(wid, String(action), data?.value) } };
+        return { status: 200, body: { ok: true, boss: boss.apply(wid, String(action), data?.value, { test: true }) } };
       } catch (err) {
         return { status: 400, body: { error: err.message } };
       }
