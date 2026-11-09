@@ -7,7 +7,7 @@ import { defaultsFor } from '../src/schema.js';
 function setup(over = {}, random = () => 0) {
   const sent = [];
   const omikuji = new Gacha({ broadcast: (m) => sent.push(m) }, { name: 'omikuji', random });
-  omikuji.setConfig({ ...defaultsFor('omikuji'), minCoins: 10, rollMs: 1000, revealMs: 500, doneMs: 200, ...over });
+  omikuji.setConfig({ ...defaultsFor('omikuji'), displayMode: 'long', minCoins: 10, rollMs: 1000, revealMs: 500, doneMs: 200, ...over });
   return { omikuji, sent };
 }
 const gift = (id, name) => ({ kind: 'gift', totalDiamonds: 10, gift: { id: '1', name: 'Rose' }, user: { id, name } });

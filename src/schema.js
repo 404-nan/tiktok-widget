@@ -665,17 +665,18 @@ SCHEMA.omikuji = {
   title: 'おみくじ',
   desc:
     'ギフトで引くおみくじ。待機 →（番号を選ぶ）→ 引いている → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
-    'displayMode で表示の型（番号を選ぶじっくり型 / 番号選びなしの短い型）を選べる。' +
+    '出し方は displayMode で選べる（短い型が標準。長い型は番号を選んでから引く）。' +
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     'きっかけ: gifts のギフト / minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
-    displayMode: oneOf(['long', 'short'], 'long', '表示の型。long は番号を選ぶ従来型、short は番号選びなしで短く出す'),
-    tempo: oneOf(['quick', 'normal', 'slow'], 'normal', '短い型（short）のテンポ。quick は今までの速さ、normal は気持ち遅く、slow はもっと遅く'),
+    displayMode: oneOf(['short', 'long'], 'short', '出し方。short は番号選びなしで、ギフトですぐ振って結果を出す（ふつうはこちら）。long は番号を選んでから引く長い型'),
+    tempo: oneOf(['quick', 'normal', 'slow'], 'normal', '短い型の速さ。quick は速い、normal は普通、slow はゆっくり'),
+    minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）', { min: 0 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
-    pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
+    pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
     timeoutMode: oneOf(['random', 'streamer'], 'random', '送った人が時間内に選ばなかったとき。random はランダム、streamer は配信者が選ぶ（配信者も押さなければ同じ秒数のあとランダム）'),
     rollMs: num(2500, '引いているミリ秒', { min: 0, max: 60000 }),

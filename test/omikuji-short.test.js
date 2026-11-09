@@ -18,8 +18,8 @@ const gift = () => ({
   user: { id: 'u1', name: 'ゆず' },
 });
 
-test('おみくじの表示初期値は長い型・シンプルで、ガチャには項目がない', () => {
-  assert.equal(defaultsFor('omikuji').displayMode, 'long');
+test('おみくじの表示初期値は短い型・シンプルで、ガチャには項目がない', () => {
+  assert.equal(defaultsFor('omikuji').displayMode, 'short');
   assert.equal(defaultsFor('omikuji').resultFont, 'simple');
   assert.equal(defaultsFor('omikuji').tempo, 'normal');
   assert.equal('displayMode' in defaultsFor('gacha'), false);
@@ -80,7 +80,7 @@ test('大吉のときだけ、結果の表示が1.5倍長く続く', (t) => {
 
 test('表示設定が長い型なら従来どおり番号待ちになる', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const { omikuji } = setup();
+  const { omikuji } = setup({ displayMode: 'long' });
   omikuji.onEvent(gift());
   assert.equal(omikuji.phase, 'pick');
   omikuji.close();
