@@ -23,6 +23,7 @@ import { createAiControl } from './src/ai-api.js';
 import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 import { healthz } from './src/healthz.js';
+import { collectWidgetUsage } from './src/widget-usage.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -132,6 +133,7 @@ function tenantView(req, t) {
     },
   };
 }
+admin.get('/widget-usage', (_req, res) => res.json(collectWidgetUsage({ local, tenants })));
 admin.get('/tenants', (req, res) => {
   res.json({
     tenants: tenants.list().map((t) => tenantView(req, t)),

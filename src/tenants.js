@@ -487,6 +487,10 @@ export class Tenants {
     return count;
   }
 
+  liveRuntimes() {
+    return [...this.runtimes.values()].filter((runtime) => runtime.isLive());
+  }
+
   async close(id) {
     const rt = this.runtimes.get(id);
     if (!rt) return;
