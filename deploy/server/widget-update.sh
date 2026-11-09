@@ -23,8 +23,15 @@ git rev-parse --verify "$REF^{commit}" >/dev/null 2>&1 || fail "コミット $RE
 [ -d "public/widgets/$WIDGET" ] || fail "部品 $WIDGET のフォルダが本番の木にない"
 git cat-file -e "$REF:public/widgets/$WIDGET/widget.json" 2>/dev/null || fail "コミット $REF に部品 $WIDGET がない"
 
-# 本番の木の、その部品の場所に未保存の変更があったら触らない
-[ -z "$(git status --porcelain -- "public/widgets/$WIDGET")" ] || fail "本番の木の $WIDGET に未保存の変更がある"
+# 本番の木の、その部品の場所に未保存の変更があったら触らない。
+# 未保存の新規ファイル（_baseline 等）は、取り込む版に同じ置き場所が無い限り触られないので妨げない
+DIRTY="$(git status --porcelain -- "public/widgets/$WIDGET" | grep -v '^?? ' || true)"
+[ -z "$DIRTY" ] || fail "本番の木の $WIDGET に未保存の変更がある"
+for UNTRACKED in $(git status --porcelain -- "public/widgets/$WIDGET" | sed -n 's/^?? //p'); do
+  if git cat-file -e "$REF:$UNTRACKED" 2>/dev/null; then
+    fail "本番の木の $UNTRACKED が未保存で、取り込む版にもある"
+  fi
+done
 
 # 1. 使用中チェック
 TOKEN_FILE="data/admin-token.txt"
