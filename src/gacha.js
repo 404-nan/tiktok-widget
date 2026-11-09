@@ -2,6 +2,8 @@
 // おみくじは回す前に「番号を選ぶ」段階（pick）を入れられる。送った人のコメント / 配信者のボタン / 時間切れでランダム。運勢は番号と関係なく重みで決める。
 // 画面は /widgets/gacha.html・/widgets/omikuji.html。各段階の長さはイベントに載せる。
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { defaultsFor } from './schema.js';
 import { giftDisplayName, giftMatches } from './gifts.js';
 import { pickNumber } from './card-draw.js';
@@ -35,15 +37,16 @@ export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.rand
 }
 
 export class Gacha {
-  constructor(hub, { bus = null, random = null, name = 'gacha' } = {}) {
+  constructor(hub, { bus = null, random = null, name = 'gacha', storeFile = null } = {}) {
     this.name = name;
     this.hub = hub;
     this.bus = bus;
     this.random = typeof random === 'function' ? random : Math.random;
+    this.storeFile = storeFile ? String(storeFile) : null;
     this.config = defaultsFor(name);
     this.phase = 'idle';
     this.seq = 0;
-    this.pityCount = 0;
+    this.pityCount = this.#loadPity();
     this.pending = [];
     this.tier = null;
     this.forced = false;
@@ -52,6 +55,31 @@ export class Gacha {
     this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }（endsAt はサーバーの時計）
     this.durations = durationsOf(this.config, this.name);
     this.timers = new Set();
+  }
+
+  /** 天井の数えの読み込み。保存先が無い・壊れているときは 0 から */
+  #loadPity() {
+    if (!this.storeFile) return 0;
+    try {
+      const saved = JSON.parse(fs.readFileSync(this.storeFile, 'utf8'));
+      const n = Number(saved?.pityCount);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** 天井の数えの保存。お金まわり（ポイント）と同じ格：仮ファイルへ書いてから入れ替える */
+  #savePity() {
+    if (!this.storeFile) return;
+    try {
+      fs.mkdirSync(path.dirname(this.storeFile), { recursive: true });
+      const temp = `${this.storeFile}.tmp`;
+      fs.writeFileSync(temp, `${JSON.stringify({ version: 1, pityCount: this.pityCount })}\n`, { mode: 0o600 });
+      fs.renameSync(temp, this.storeFile);
+    } catch {
+      // 保存に失敗しても抽選自体は止めない
+    }
   }
 
   setBus(bus) {
@@ -221,7 +249,10 @@ export class Gacha {
     this.phase = 'rolling';
     const rolled = rollTier(this.config.tiers, this.pityCount, Number(this.config.pity) || 0, this.random);
     // テストの抽選では天井回数を進めない（本物の当たりやすさを変えないため）
-    if (this.trigger?.test !== true && this.trigger?.kind !== 'test') this.pityCount = rolled.pityCount;
+    if (this.trigger?.test !== true && this.trigger?.kind !== 'test') {
+      this.pityCount = rolled.pityCount;
+      this.#savePity();
+    }
     this.tier = rolled.tier;
     this.forced = rolled.forced;
     if (first) this.#emit('start');

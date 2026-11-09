@@ -155,8 +155,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
-  const gacha = new Gacha(hub, { bus });
-  const omikuji = new Gacha(hub, { bus, name: 'omikuji' });
+  const gacha = new Gacha(hub, { bus, storeFile: path.join(dataDir, 'gacha-pity.json') });
+  const omikuji = new Gacha(hub, { bus, name: 'omikuji', storeFile: path.join(dataDir, 'omikuji-pity.json') });
   const cardDraw = new CardDraw(hub);
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
   const points = new Points(hub, { file: path.join(dataDir, 'points.json'), omikuji });
