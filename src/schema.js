@@ -673,7 +673,7 @@ SCHEMA.omikuji = {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
     displayMode: oneOf(['short', 'long'], 'short', '出し方。short は番号選びなしで、ギフトですぐ振って結果を出す（ふつうはこちら）。long は番号を選んでから引く長い型'),
-    tempo: oneOf(['quick', 'normal', 'slow'], 'normal', '短い型の速さ。quick は速い、normal は普通、slow はゆっくり'),
+    tempo: oneOf(['quick', 'slow'], 'quick', '短い型の速さ。クイック（速い）が基本。スローはゆっくり見せたいとき'),
     minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）', { min: 0 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),

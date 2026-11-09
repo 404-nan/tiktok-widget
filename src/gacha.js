@@ -282,7 +282,7 @@ const SHORT_TEMPOS = {
   slow: { rollMs: 700, revealMs: 2700, doneMs: 800 },
 };
 function durationsOf(cfg, name) {
-  if (name === 'omikuji' && cfg?.displayMode === 'short') return { ...(SHORT_TEMPOS[cfg?.tempo] || SHORT_TEMPOS.normal) };
+  if (name === 'omikuji' && cfg?.displayMode === 'short') return { ...(SHORT_TEMPOS[cfg?.tempo] || SHORT_TEMPOS.quick) };
   const n = (v, fallback) => {
     const x = Number(v);
     return Number.isFinite(x) && x >= 0 ? x : fallback;

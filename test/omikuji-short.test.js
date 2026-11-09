@@ -21,7 +21,7 @@ const gift = () => ({
 test('おみくじの表示初期値は短い型・シンプルで、ガチャには項目がない', () => {
   assert.equal(defaultsFor('omikuji').displayMode, 'short');
   assert.equal(defaultsFor('omikuji').resultFont, 'simple');
-  assert.equal(defaultsFor('omikuji').tempo, 'normal');
+  assert.equal(defaultsFor('omikuji').tempo, 'quick');
   assert.equal('displayMode' in defaultsFor('gacha'), false);
   assert.equal('tempo' in defaultsFor('gacha'), false);
 });
@@ -35,18 +35,18 @@ test('短い型は番号選びなしで固定時間を使い、payload に表示
 
   omikuji.onEvent(gift());
   assert.equal(omikuji.phase, 'rolling');
-  // 既定のテンポ normal は、少し遅くした長さ
-  assert.deepEqual(omikuji.durations, { rollMs: 520, revealMs: 2150, doneMs: 620 });
+  // 既定のテンポ quick の長さ
+  assert.deepEqual(omikuji.durations, { rollMs: 400, revealMs: 1700, doneMs: 500 });
   assert.equal(omikuji.snapshot().displayMode, 'short');
   assert.equal(omikuji.snapshot().resultFont, 'brush');
   assert.equal(sent.at(-1).displayMode, 'short');
   assert.equal(sent.at(-1).resultFont, 'brush');
 
-  t.mock.timers.tick(520);
+  t.mock.timers.tick(400);
   assert.equal(omikuji.phase, 'reveal');
-  t.mock.timers.tick(2150);
+  t.mock.timers.tick(1700);
   assert.equal(omikuji.phase, 'done');
-  t.mock.timers.tick(620);
+  t.mock.timers.tick(500);
   assert.equal(omikuji.phase, 'idle');
   omikuji.close();
 });
