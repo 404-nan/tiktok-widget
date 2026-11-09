@@ -16,7 +16,7 @@
   if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
   var phases = (kind === 'omikuji'
-    ? { idle: '待機', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', done: '終了' }
+    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', done: '終了' }
     : { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' });
 
   function seconds(n) {
@@ -108,7 +108,7 @@
   function show(data) {
     if (!data) return;
     var phase = data.phase || 'idle';
-    phaseEl.textContent = phases[phase] || phase;
+    phaseEl.textContent = phases[phase] ?? phase;
     var tier = data.tier;
     if ((phase === 'reveal' || phase === 'done') && tier) resultEl.textContent = tier.label || tier.id || '';
     else if (phase === 'idle' || phase === 'rolling') resultEl.textContent = '';
