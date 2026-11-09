@@ -186,12 +186,12 @@ export class RouletteEngine {
     this.active = r.id;
 
     const spin = { seq: ++this.seq, id: r.id, name: r.name || r.id, style: r.style ?? 'prize', index, label: item.label, win: item.win === true, ...fx, spinMs, trigger: slim(trigger), at: now, revealAt: reveal };
-    this.hub.broadcast({ type: 'roulette', spin });
+    this.hub.broadcast({ type: 'roulette', spin, test: trigger?.test === true });
 
     // 当たりが画面に出るころに結果を知らせる（Minecraft・履歴・モニター）
     const timer = setTimeout(() => {
       this.timers.delete(timer);
-      this.hub.broadcast({ type: 'rouletteResult', spin });
+      this.hub.broadcast({ type: 'rouletteResult', spin, test: trigger?.test === true });
       if (!dry) this.hub.emit('roulette', { roulette: r, item, trigger, spin });
     }, reveal - now);
     this.timers.add(timer);

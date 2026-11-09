@@ -23,6 +23,24 @@ export function emptyState() {
   };
 }
 
+// 演出を起こす知らせの種類。プレビューへは本番ぶんを流さない対象
+const EFFECT_TYPES = new Set([
+  'event', 'roulette', 'rouletteResult', 'omikuji', 'gacha', 'puchun',
+  'boss', 'cheer', 'combo', 'ootori', 'peka', 'push', 'rush', 'slot',
+  'cardDraw', 'goalAlert', 'stepup', 'swarm', 'throne', 'timer', 'vote',
+  'wins', 'winsCombo',
+]);
+
+// その知らせがテスト由来かどうか（送り手が付けた印を見る）
+function isTestMessage(msg) {
+  return (
+    msg?.test === true ||
+    msg?.event?.test === true ||
+    msg?.trigger?.test === true ||
+    msg?.spin?.trigger?.test === true
+  );
+}
+
 export class Hub extends EventEmitter {
   constructor() {
     super();
@@ -155,10 +173,11 @@ export class Hub extends EventEmitter {
       : null;
     for (const ws of this.clients) {
       if (ws.readyState !== 1) continue;
-      // プレビュー（ダッシュボードの中の見本）には、本番の出来事を流さない。
+      // プレビュー（ダッシュボードの中の見本）には、本番の演出を流さない。
       // 見ているだけの場所で発火させないため（2026-11-10 本人の指示）。
-      // テスト送信は従来どおり届ける。状態や設定の同期も届ける。
-      if (ws.role === 'preview' && msg.type === 'event' && !msg.event?.test) continue;
+      // 出来事そのものだけでなく、出来事から派生した演出の知らせも止める。
+      // テスト由来の物と、状態や設定の同期は従来どおり届ける。
+      if (ws.role === 'preview' && EFFECT_TYPES.has(msg.type) && !isTestMessage(msg)) continue;
       if (typeof ws.allowMessage === 'function' && !ws.allowMessage(msg)) continue;
       if (ws.compact && msg.type === 'event') {
         ws.send(compactText);

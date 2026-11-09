@@ -538,6 +538,8 @@ server.on('upgrade', (req, socket, head) => {
   } else if (pathname === '/ws') {
     rt = local;
     if (!rt) rejectionReason = 'bad-path';
+    // 単独モードでも、ダッシュボードの中の見本は preview として分ける
+    else if (requestUrl.searchParams.get('preview') === '1') role = 'preview';
   } else {
     rejectionReason = 'bad-path';
   }

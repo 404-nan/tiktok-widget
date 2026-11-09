@@ -192,7 +192,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   hub.on('event', (e) => {
     if (entitled('puchuns')) {
-      for (const play of puchunPlays(hub.config, e)) hub.broadcast({ type: 'puchun', play });
+      for (const play of puchunPlays(hub.config, e)) hub.broadcast({ type: 'puchun', play, test: e.test === true });
     }
     dareba.record(e);
     throne.onEvent(e);

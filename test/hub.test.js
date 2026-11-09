@@ -135,3 +135,33 @@ test('プレビュー接続には本番の出来事を流さない（テスト�
   hub.setStatus({ mode: 'idle' });
   assert.ok(preview.sent.some((m) => m.type === 'status'));
 });
+
+test('プレビュー接続には派生の演出も流さない（テスト由来と状態同期は届ける）', () => {
+  const hub = new Hub();
+  const preview = fakeClient();
+  preview.role = 'preview';
+  const obs = fakeClient();
+  obs.role = 'obs';
+  hub.addClient(preview);
+  hub.addClient(obs);
+  preview.sent.length = 0;
+  obs.sent.length = 0;
+  // 本番の出来事から派生した知らせはプレビューへ行かない
+  hub.broadcast({ type: 'roulette', spin: { trigger: { kind: 'gift' } } });
+  hub.broadcast({ type: 'puchun', play: {} });
+  hub.broadcast({ type: 'omikuji', trigger: { kind: 'gift' }, event: 'reveal' });
+  assert.equal(preview.sent.filter((m) => m.type === 'roulette').length, 0);
+  assert.equal(preview.sent.filter((m) => m.type === 'puchun').length, 0);
+  assert.equal(preview.sent.filter((m) => m.type === 'omikuji').length, 0);
+  assert.equal(obs.sent.filter((m) => m.type === 'roulette').length, 1);
+  // テスト由来はプレビューにも届く
+  hub.broadcast({ type: 'roulette', spin: { trigger: { kind: 'gift' } }, test: true });
+  hub.broadcast({ type: 'omikuji', trigger: { kind: 'gift', test: true }, event: 'reveal' });
+  hub.broadcast({ type: 'boss', event: { kind: 'gift', test: true } });
+  assert.equal(preview.sent.filter((m) => m.type === 'roulette').length, 1);
+  assert.equal(preview.sent.filter((m) => m.type === 'omikuji').length, 1);
+  assert.equal(preview.sent.filter((m) => m.type === 'boss').length, 1);
+  // 状態の知らせはプレビューにも届く
+  hub.broadcast({ type: 'minecraft', status: {} });
+  assert.equal(preview.sent.filter((m) => m.type === 'minecraft').length, 1);
+});
