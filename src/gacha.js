@@ -152,7 +152,9 @@ export class Gacha {
     const gifts = Array.isArray(this.config.gifts) ? this.config.gifts : [];
     const min = Number(this.config.minCoins) || 0;
     const byGift = gifts.length > 0 && giftMatches(e.gift, gifts);
-    const byCoins = min > 0 && (Number(e.totalDiamonds) || 0) >= min;
+    // おみくじは、ギフトを指定したらそのギフトだけ引く（コインの条件と同時に使わない）
+    const giftPicked = this.name === 'omikuji' && gifts.length > 0;
+    const byCoins = !giftPicked && min > 0 && (Number(e.totalDiamonds) || 0) >= min;
     if (!byGift && !byCoins) return;
     this.start({
       kind: 'gift',

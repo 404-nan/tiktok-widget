@@ -669,13 +669,14 @@ SCHEMA.omikuji = {
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
-    'きっかけ: gifts のギフト / minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
+    'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
     displayMode: oneOf(['short', 'long'], 'short', '出し方。short は番号選びなしで、ギフトですぐ振って結果を出す（ふつうはこちら）。long は番号を選んでから引く長い型'),
     tempo: oneOf(['quick', 'slow'], 'quick', '短い型の速さ。クイック（速い）が基本。スローはゆっくり見せたいとき'),
-    minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）', { min: 0 }),
+    gifts: list([], '引くギフト（ID または名前）。設定すると、そのギフトでだけ引く（コインの条件より優先）。空なら minCoins の条件で引く'),
+    minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）。gifts を設定しているときは、この条件は使わない', { min: 0 }),
     pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは配信全体で、大吉が出たら 0 に戻る', { min: 0, max: 999 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
