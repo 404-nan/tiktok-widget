@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # 部品だけの更新（配信中でも、使われていない部品だけ）。
-# 使い方: deploy/server/widget-update.sh <部品ID> <取り込むコミット>
+# 使い方: deploy/server/widget-update.sh <部品ID> <取り込むコミット> [--live-ok]
+# --live-ok は「使用中の部品に、見た目だけの変更を配信中のまま入れる」形。
+# フォルダ内の差分が .html / .css だけのときだけ進む。プレビュー確認と
+# 配信画面に重ねた絵の確認を済ませた側が、付けてよい（台帳に mode=live-ok と prev が残る）。
 #
 # 順序：
 #   1. 本番で配信中の人がその部品を使っていないか、管理用の入口で確かめる（使っていたら止まる）
@@ -10,8 +13,10 @@
 #   5. 台帳（~/.local/state/tiktok-widget/widget-updates.log）に1行残す
 set -euo pipefail
 
-WIDGET="${1:?使い方: widget-update.sh <部品ID> <コミット>}"
-REF="${2:?使い方: widget-update.sh <部品ID> <コミット>}"
+WIDGET="${1:?使い方: widget-update.sh <部品ID> <コミット> [--live-ok]}"
+REF="${2:?使い方: widget-update.sh <部品ID> <コミット> [--live-ok]}"
+LIVE_OK=0
+[ "${3:-}" = "--live-ok" ] && LIVE_OK=1
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 STATE_DIR="$HOME/.local/state/tiktok-widget"
@@ -40,7 +45,16 @@ USAGE="$(curl -s -m 10 -H "x-admin-token: $(cat "$TOKEN_FILE")" "http://127.0.0.
   || fail "使用状況の入口に届かない"
 printf '%s' "$USAGE" | grep -q '"live"' || fail "使用状況を確認できない（入口がまだ本番に入っていないか、合言葉が違う）"
 IN_USE="$(printf '%s' "$USAGE" | WIDGET="$WIDGET" node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log((j.inUse||[]).includes(process.env.WIDGET)?'yes':'no')}catch{console.log('bad')}})")"
-[ "$IN_USE" = "no" ] || fail "配信中の人が $WIDGET を使っている間は触らない"
+if [ "$IN_USE" != "no" ] && [ "$LIVE_OK" != "1" ]; then
+  fail "配信中の人が $WIDGET を使っている間は触らない"
+fi
+if [ "$LIVE_OK" = "1" ]; then
+  CHANGED="$(git diff --name-only HEAD "$REF" -- "public/widgets/$WIDGET")"
+  [ -n "$CHANGED" ] || fail "取り込む差分がない"
+  if printf '%s\n' "$CHANGED" | grep -qvE '\.(html|css)$'; then
+    fail "見た目だけの変更ではない（.html / .css 以外が混ざっている）。配信が終わってから出す"
+  fi
+fi
 
 # 2. 対象テスト（取り込む側の作業場で回す。本番の木では回さない）
 TMP="$(mktemp -d)"
@@ -62,6 +76,7 @@ while IFS= read -r libref; do
 done < <(grep -rhoE "lib/[A-Za-z0-9._-]+\.(js|css)" "$TMP/wt/public/widgets/$WIDGET" --include='*.html' --include='*.js' --include='*.css' | sort -u)
 
 # 4. 取り込み（その部品のフォルダだけ）
+PREVHEAD="$(git rev-parse --short HEAD)"
 git checkout "$REF" -- "public/widgets/$WIDGET"
 EXTRA="$(git status --porcelain | grep -v '^??' | grep -v "public/widgets/$WIDGET/" || true)"
 if [ -n "$EXTRA" ]; then
@@ -69,9 +84,14 @@ if [ -n "$EXTRA" ]; then
   fail "部品の外にも変更が出たので戻した"
 fi
 git add -- "public/widgets/$WIDGET"
-git commit -q -m "部品だけ更新: $WIDGET（$REF から、配信中の部分更新）" -- "public/widgets/$WIDGET" \
+MSG="部品だけ更新: $WIDGET（$REF から、配信中の部分更新）"
+[ "$LIVE_OK" = "1" ] && MSG="部品だけ更新: $WIDGET（$REF から、使用中のまま見た目だけ）"
+git commit -q -m "$MSG" -- "public/widgets/$WIDGET" \
   || fail "保存できなかった（差分がないのかもしれない）"
 NEWHEAD="$(git rev-parse --short HEAD)"
 mkdir -p "$STATE_DIR"
-echo "$(date -Iseconds) widget=$WIDGET ref=$REF head=$NEWHEAD" >> "$STATE_DIR/widget-updates.log"
+MODE=""
+[ "$LIVE_OK" = "1" ] && MODE=" mode=live-ok"
+echo "$(date -Iseconds) widget=$WIDGET ref=$REF head=$NEWHEAD prev=$PREVHEAD$MODE" >> "$STATE_DIR/widget-updates.log"
 echo "取り込みました: $WIDGET（保存 $NEWHEAD）。開いている画面は待機のときに自分で読み直します。サーバーは再起動していません。"
+[ "$LIVE_OK" = "1" ] && echo "戻すとき: widget-update.sh $WIDGET $PREVHEAD --live-ok（台帳の prev と同じ）"
