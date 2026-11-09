@@ -81,6 +81,7 @@ export class VoteEngine {
     state.phase = 'open';
     state.endsAt = seconds > 0 ? Date.now() + seconds * 1000 : null;
     state.result = null;
+    state.realTotal = 0;
     state.voters = new Set();
     state.recent = [];
     state.resultActionsDone = false;
@@ -118,7 +119,7 @@ export class VoteEngine {
     if (!state.resultActionsDone) {
       state.resultActionsDone = true;
       try {
-        this.onResult?.({ id, result: publicResult(state.result), actions: clone(state.config.resultActions ?? []) });
+        this.onResult?.({ id, result: publicResult(state.result), actions: (state.realTotal || 0) > 0 ? clone(state.config.resultActions ?? []) : [] });
       } catch (error) {
         // 動作の失敗で投票結果まで失わない。
         this.hub.emit('voteActionError', { id, error });
@@ -212,6 +213,7 @@ export class VoteEngine {
     state.voters.add(key);
     state.counts[option - 1] += 1;
     state.total += 1;
+    if (!event.test) state.realTotal = (state.realTotal || 0) + 1;
     const name = String(event.user?.name ?? '').trim();
     if (name) {
       state.recent.unshift(name);

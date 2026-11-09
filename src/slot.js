@@ -127,6 +127,19 @@ export class SlotEngine {
     if (this.config.enabled === false) return null;
     const next = trigger && typeof trigger === 'object' ? trigger : { kind: 'action' };
     if (this.phase !== 'idle') {
+      // 進行中がテストの回転なら、本物を後ろに並ばせず、テストを打ち切って本物を先に通す
+      if (next.test !== true && this.trigger?.test === true) {
+        clearTimeout(this.timer);
+        clearTimeout(this.resultTimer);
+        this.timer = null;
+        this.resultTimer = null;
+        this.phase = 'idle';
+        this.result = null;
+        this.payout = null;
+        this.trigger = null;
+        this.#emit('done');
+        return this.#begin(next);
+      }
       // 待ちに上限はつけない。投げた分は全部回す
       this.pending.push(next);
       return { ok: true, queued: true, pending: this.pending.length, phase: this.phase, seq: this.seq };
@@ -143,6 +156,7 @@ export class SlotEngine {
     return this.start({
       kind: 'gift',
       source: 'gift',
+      test: Boolean(event.test),
       gift: event.gift || null,
       giftLabel: giftDisplayName(event.gift),
       coins: eventCoinTotal(event),

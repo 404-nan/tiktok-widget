@@ -110,7 +110,7 @@ export class Minecraft {
   }
 
   onEvent(e) {
-    if (!this.config?.enabled) return;
+    if (e?.test || !this.config?.enabled) return;
     const profile = this.config.superstreamProfile;
     this.#triggerNamedSabotage(e);
     // 届いたギフトをそのままマイクラ側の演出に渡す（そのギフト ID に設定された演出が動く）

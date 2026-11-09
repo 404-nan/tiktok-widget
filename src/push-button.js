@@ -32,7 +32,7 @@ export class PushButtonEngine {
     this.#clear(state);
     state.phase = 'open'; state.label = String(entry.label ?? '押せ!'); state.seconds = seconds;
     state.steps = (entry.steps ?? [3, 10, 30, 100]).slice();
-    state.endsAt = Date.now() + seconds * 1000; state.pushes = 0; state.byComments = 0; state.byLikes = 0; state.likes = 0;
+    state.endsAt = Date.now() + seconds * 1000; state.pushes = 0; state.byComments = 0; state.byLikes = 0; state.likes = 0; state.realByComments = 0; state.realLikes = 0;
     state.recent = []; state.commenters = new Set(); state.result = null; state.config = { ...entry, seconds };
     state.timer = setTimeout(() => this.finish(id), seconds * 1000); state.timer.unref?.();
     this.#broadcast(id, 'start'); return this.#public(state);
@@ -47,7 +47,7 @@ export class PushButtonEngine {
     state.result = this.#makeResult(state);
     if (state.result.tier > 0 && !state.actionDone) {
       state.actionDone = true;
-      try { this.onResult?.({ id, actions: clone(state.config[`${state.result.tierName}Actions`] ?? []), result: clone(state.result) }); } catch (error) { this.hub.emit('pushActionError', { id, error }); }
+      try { this.onResult?.({ id, actions: ((state.realByComments || 0) + ((Number(state.config.likesPerPush) || 0) > 0 ? Math.floor((state.realLikes || 0) / (Number(state.config.likesPerPush) || 1)) : 0)) > 0 ? clone(state.config[`${state.result.tierName}Actions`] ?? []) : [], result: clone(state.result) }); } catch (error) { this.hub.emit('pushActionError', { id, error }); }
     }
     this.#broadcast(id, 'result'); return clone(state.result);
   }
@@ -75,10 +75,13 @@ export class PushButtonEngine {
       if (String(event.text ?? '').trim() !== keyword) return;
       const key = String(event.user?.id ?? event.user?.name ?? '').trim(); if (!key || state.commenters.has(key)) return;
       state.commenters.add(key); state.byComments += 1; state.pushes += 1;
+      if (!event.test) state.realByComments = (state.realByComments || 0) + 1;
       const name = String(event.user?.name ?? '').trim(); if (name) state.recent = [name].concat(state.recent).slice(0, RECENT_NAMES);
     } else if (event.kind === 'like') {
       const perPush = Number(state.config.likesPerPush) || 0; if (!perPush) return;
-      state.likes += Math.max(0, Number(event.count) || 0);
+      const likeCount = Math.max(0, Number(event.count) || 0);
+      state.likes += likeCount;
+      if (!event.test) state.realLikes = (state.realLikes || 0) + likeCount;
       state.byLikes = Math.floor(state.likes / perPush);
       state.pushes = state.byComments + state.byLikes;
     } else return;

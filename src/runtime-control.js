@@ -216,9 +216,12 @@ export function bindControl(r, ctx) {
     res.json({ ok: true });
   });
 
-  // テスト送信。開発環境以外は拒否する（画面の API と AI 用 API で同じ）
+  // テスト送信。開発環境では今までどおり開け、本番では所有者だけに開ける。
+  // 配信画面用の鍵（obs）には開けない：配信画面の URL は人に渡る性質で秘匿性が弱く、
+  // 開けると配信中に他人がテスト表示を出せる。役割が付いていない呼び出し（1人用の画面）は
+  // /api/me と同じく所有者として扱う。AI 用 API は ai-api.js 側で開発環境だけに絞ったまま変えない。
   function simulateEvent(body, req) {
-    if (!isDevEnv(req)) return { status: 403, body: { error: 'テスト送信は開発環境でだけ使えます' } };
+    if (!isDevEnv(req) && (req?.role ?? 'owner') !== 'owner') return { status: 403, body: { error: 'テスト送信は配信者本人の画面でだけ使えます' } };
     const event = makeEvent(body?.kind, body ?? {});
     if (!event) return { status: 400, body: { error: '不明なイベント種類です' } };
     // 実際のTikTok経路を再現したい受け入れテストだけ、明示的に印を付ける。
@@ -241,6 +244,32 @@ export function bindControl(r, ctx) {
     if (target === 'omikuji' && action === 'pick') {
       const chosen = omikuji.choose(data?.n);
       return chosen.ok ? { status: 200, body: { ok: true, omikuji: omikuji.snapshot() } } : { status: 409, body: { error: chosen.error } };
+    }
+    // おみくじのテスト開始（編集画面の「試す」用。開発用口から移した本番の線）
+    if (target === 'omikuji' && action === 'start') {
+      const started = omikuji.start({ kind: 'test', source: 'test', test: true, user: data?.user ? { id: `demo_${data.user}`, name: String(data.user) } : null });
+      if (!started) return { status: 400, body: { error: 'おみくじはオフです' } };
+      if (started.ok === false) return { status: 400, body: { error: started.error || '今は試せません' } };
+      return { status: 200, body: { ok: true, omikuji: started } };
+    }
+    // ガチャ視聴者のテスト回し（記録に残らない一時状態で無料・有料を試す。開発用口から移した本番の線）
+    if (target === 'gacha-viewer' && action === 'spin') {
+      const name = String(data?.name || 'テスト視聴者').trim() || 'テスト視聴者';
+      const started = gachaViewers.testSpin({ id: `test_${name}`, name }, data?.paid === true);
+      if (!started.ok) return { status: 400, body: { ...started, error: started.error || '回せませんでした' } };
+      return { status: 200, body: { ok: true, gacha: started, viewers: gachaViewers.list() } };
+    }
+    // ギフト音の試聴（配信画面側で鳴らして確認する。開発用口から移した本番の線）
+    if (target === 'gift-sound' && action === 'play') {
+      const count = Number(data?.count ?? 1);
+      if (!Number.isInteger(count) || count < 1 || count > 4) return { status: 400, body: { error: 'count は 1 から 4 です' } };
+      try {
+        const sounds = [];
+        for (let i = 0; i < count; i++) sounds.push(giftSounds.play(data?.mediaId, { volume: data?.volume, source: 'test' }));
+        return { status: 200, body: { ok: true, sounds, giftSounds: giftSounds.snapshot() } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
     }
     if (target === 'peka') {
       if (action !== 'bonusResolved' && action !== 'resolve') return { status: 400, body: { error: 'Peka は bonusResolved で解決してください' } };

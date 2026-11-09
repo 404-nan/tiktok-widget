@@ -141,7 +141,7 @@ export class RouletteEngine {
     const opts = options || {};
     this.random = typeof opts.random === 'function' ? opts.random : Math.random;
     this.isRushActive = typeof opts.isRushActive === 'function' ? opts.isRushActive : () => false;
-    hub.on('event', (e) => this.onEvent(e));
+    hub.on('event', (e) => this.onEvent(e, e?.test ? { dry: true } : {}));
     hub.on('testEvent', (e) => this.onEvent(e, { dry: true }));
     hub.on('reset', () => this.clear());
   }

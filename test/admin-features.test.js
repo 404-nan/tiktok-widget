@@ -60,7 +60,7 @@ test('API キーは伏せ字だけ返し、保存ファイルは 0600', () => {
   }
 });
 
-test('テスト送信 API は開発環境以外で 403、開発環境では Hub に流れる', async () => {
+test('テスト送信 API は本番でも所有者（役割なし）に流れ、開発環境でも Hub に流れる', async () => {
   const dir = tmp('tw-simulate-');
   const runtime = createRuntime({ id: 'test', store: createStore(path.join(dir, 'config.yaml')), dataDir: dir, mediaDirs: [dir] });
   const app = express();
@@ -74,7 +74,7 @@ test('テスト送信 API は開発環境以外で 403、開発環境では Hub 
   const beforePort = process.env.PORT;
   try {
     delete process.env.TW_ENV;
-    assert.equal((await send()).status, 403);
+    assert.equal((await send()).status, 200);
     process.env.TW_ENV = 'dev';
     process.env.PORT = '3940';
     assert.equal((await send()).status, 200);

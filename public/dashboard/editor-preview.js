@@ -184,7 +184,7 @@ export function buildPreview(ctx) {
     const payload = getPayload();
     const e = isObj(tab) ? {} : payload.config[tab]?.[id] ?? {};
     // おみくじは仮の名前の人が送った形で始め、番号待ちから見せる（名前がないと番号待ちを飛ばすため）
-    if (tab === 'omikuji') return api('/api/dev/trigger', { target: 'omikuji', user: 'テスト視聴者' });
+    if (tab === 'omikuji') return api('/api/control', { target: 'omikuji', action: 'start', data: { user: 'テスト視聴者' } });
     // 出す条件がギフト以外だけのときは、ギフトを流しても出ない。先に出来事の条件を見る
     if (e.events?.length && !e.events.includes('gift')) return api('/api/simulate', { kind: e.events[0] });
     if (e.gifts?.length) return api('/api/simulate', { kind: 'gift', giftName: e.gifts[0], diamonds: 10 });

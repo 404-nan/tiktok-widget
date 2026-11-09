@@ -165,17 +165,15 @@ export function giftSoundRulesView({ rules, gifts, dev, api, onChange, setMessag
         btn('試聴', () => playLocal(rule.mediaId, masterVolume(), rule.volume, setMessage)),
         btn('削除', () => { rows.splice(index, 1); draw(); commit(0); }),
       ];
-      if (dev) {
-        buttons.push(btn('鳴らす', async () => {
-          if (!rule.mediaId) return setMessage('音声を選んでください', true);
-          try {
-            await api('/api/dev/trigger', { target: 'gift-sound', mediaId: rule.mediaId, volume: Number(rule.volume), count: 1 });
-            setMessage('鳴らしました');
-          } catch (err) {
-            setMessage(err.message, true);
-          }
-        }));
-      }
+      buttons.push(btn('鳴らす', async () => {
+        if (!rule.mediaId) return setMessage('音声を選んでください', true);
+        try {
+          await api('/api/control', { target: 'gift-sound', action: 'play', data: { mediaId: rule.mediaId, volume: Number(rule.volume), count: 1 } });
+          setMessage('鳴らしました');
+        } catch (err) {
+          setMessage(err.message, true);
+        }
+      }));
       row.append(giftsField, coins, events, media, volume, rowOf(buttons));
       return row;
     }));
@@ -194,7 +192,7 @@ export function giftSoundRulesView({ rules, gifts, dev, api, onChange, setMessag
   return wrap;
 }
 
-/** 最近鳴った音と、開発用の4連続。音量の全体はスキーマの欄に出す */
+/** 最近鳴った音と、試聴用の4連続。音量の全体はスキーマの欄に出す */
 export function giftSoundStatusView({ dev, api, setMessage, rules }) {
   const wrap = document.createElement('div');
   wrap.className = 'field wide sound-rules';
@@ -243,7 +241,7 @@ export function giftSoundStatusView({ dev, api, setMessage, rules }) {
   });
   stop.observe(document.body, { childList: true, subtree: true });
 
-  if (dev) {
+  {
     const hint = document.createElement('p');
     hint.className = 'hint';
     hint.textContent = 'テスト送信です。同じ音を4回鳴らして、同時に3つまでの上限を確認します。';
@@ -260,7 +258,7 @@ export function giftSoundStatusView({ dev, api, setMessage, rules }) {
       }
       if (!mediaId) return setMessage('音声を選んでください', true);
       try {
-        const data = await api('/api/dev/trigger', { target: 'gift-sound', mediaId, volume: rule?.volume ?? 100, count: 4 });
+        const data = await api('/api/control', { target: 'gift-sound', action: 'play', data: { mediaId, volume: rule?.volume ?? 100, count: 4 } });
         paint(data.giftSounds);
         setMessage('4回送りました');
       } catch (err) {

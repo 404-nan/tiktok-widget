@@ -38,6 +38,7 @@ export class RushEngine {
 
   onEvent(e) {
     const c = this.config;
+    if (e?.test) return;
     if (!c?.enabled || e.kind !== 'gift') return;
     if (this.state.active) {
       this.state.total += e.totalDiamonds;

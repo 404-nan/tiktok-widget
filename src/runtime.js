@@ -179,9 +179,17 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const push = new PushButtonEngine(hub, {
     onResult: ({ id: pushId, actions, result }) => runActions(actions, actionDeps(), { source: 'push', pushId, result }),
   });
-  bus.on('gacha.reveal', ({ tier, trigger }) => runActions(tier?.actions, actionDeps(), { source: 'gacha', tierId: tier?.id, trigger }));
+  bus.on('gacha.reveal', ({ tier, trigger }) => {
+    // テスト・開発の開始では、設定済みの動作（WIN数・タイマー・ボス等）を実行しない
+    if (trigger?.test === true || trigger?.kind === 'test' || trigger?.kind === 'dev') return;
+    runActions(tier?.actions, actionDeps(), { source: 'gacha', tierId: tier?.id, trigger });
+  });
   bindRouletteActions(hub, bus, actionDeps);
-  bus.on('slot.result', ({ result, payout, trigger }) => runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger }));
+  bus.on('slot.result', ({ result, payout, trigger }) => {
+    // テストで回したスロットでは、払い出しに設定した動作（WIN数など）を実行しない
+    if (trigger?.test === true || trigger?.kind === 'test' || trigger?.kind === 'dev') return;
+    runActions(payout?.actions, actionDeps(), { source: 'slot', slotId: result?.id, trigger });
+  });
   hub.on('event', (e) => {
     if (entitled('puchuns')) {
       for (const play of puchunPlays(hub.config, e)) hub.broadcast({ type: 'puchun', play });

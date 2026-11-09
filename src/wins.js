@@ -84,7 +84,7 @@ export class WinsEngine {
 
   /** ギフトのルール: 上から順に最初に合ったもので増減する */
   onGift(e) {
-    if (e.kind !== 'gift') return;
+    if (e.test || e.kind !== 'gift') return;
     let changed = false;
     for (const [id, c] of Object.entries(this.config)) {
       const rule = (c.rules ?? []).find((r) => ruleMatches(r, e));

@@ -44,6 +44,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `public-js.test.js` | 公開ウィジェットとダッシュボードの JavaScript が Chromium 103 で動く書き方か(ES2022 まで、新しすぎる関数と外部 CDN なし) |
 | `widget-tenant-paths.test.js` | overlay.js を使わない公開ウィジェットが、配信者ごとの URL の下の API と WebSocket を使うか |
 | `gacha-viewers.test.js` | ガチャの視聴者ごとの無料回・有料回、リセット、コメントで回す |
+| `test-send-line.test.js` | テスト送信の線引き（本番で所有者だけ・配信画面用の鍵は不可）と、テストが本番の記録・数を変えないこと |
 | `gacha-room.test.js` | 無料回は配信の roomId が変わったときだけ戻る |
 | `events.test.js` | イベントバスのテスト |
 | `gacha.test.js` | ガチャのテスト |

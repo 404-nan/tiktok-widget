@@ -59,6 +59,7 @@ export class CheerEngine {
     const state = this.#requireState(id);
     if (state.full && !state.loop) return this.#publicState(state);
     state.value = state.goal;
+    if (!(state.realValue > 0)) state.realValue = state.goal;
     return this.#complete(id, state);
   }
 
@@ -82,7 +83,7 @@ export class CheerEngine {
   #state(id, entry) {
     let state = this.states.get(id);
     if (!state) {
-      state = { id, title: String(entry.title ?? 'みんなで応援'), baseGoal: number(entry.goal, 500), growth: number(entry.growth, 1.5), loop: entry.loop !== false, value: 0, goal: 0, round: 0, full: false, actions: [], tallyTimer: null };
+      state = { id, title: String(entry.title ?? 'みんなで応援'), baseGoal: number(entry.goal, 500), growth: number(entry.growth, 1.5), loop: entry.loop !== false, value: 0, goal: 0, round: 0, full: false, actions: [], tallyTimer: null, realValue: 0 };
       state.goal = this.#goal(state);
       this.states.set(id, state);
     }
@@ -102,11 +103,13 @@ export class CheerEngine {
     if (!this.enabled || event?.kind !== 'like') return;
     const count = number(event.count, 0);
     for (const [id, state] of this.states) {
-      if (count > 0 && !(state.full && !state.loop)) this.#add(id, state, count);
+      if (count > 0 && !(state.full && !state.loop)) this.#add(id, state, count, event.test === true);
     }
   }
 
-  #add(id, state, count) {
+  #add(id, state, count, fromTest = false) {
+    // テストのいいねも準備中の見え方として数える。ただし本物の寄与が無い満タンでは動作を実行しない
+    if (!fromTest) state.realValue = Math.max(0, (state.realValue || 0) + count);
     state.value = Math.max(0, state.value + count);
     if (state.value >= state.goal) return this.#complete(id, state);
     this.#scheduleTally(id, state);
@@ -116,13 +119,15 @@ export class CheerEngine {
   #complete(id, state) {
     const completedRound = state.round;
     const overflow = Math.max(0, state.value - state.goal);
+    const fireActions = (state.realValue || 0) > 0;
+    state.realValue = 0;
     state.round += 1;
     state.goal = this.#goal(state);
     state.full = true;
     state.value = state.loop ? overflow : state.goal;
     if (state.loop) state.full = false;
     this.#broadcast(id, 'full', { round: completedRound });
-    try { this.onFull?.({ id, actions: copy(state.actions), round: completedRound, cheer: this.#publicState(state) }); } catch { /* 動作の失敗でゲージを壊さない */ }
+    try { this.onFull?.({ id, actions: fireActions ? copy(state.actions) : [], round: completedRound, cheer: this.#publicState(state) }); } catch { /* 動作の失敗でゲージを壊さない */ }
     return this.#publicState(state);
   }
 

@@ -160,6 +160,7 @@ export class BossEngine {
 
   /** ギフト（といいね）でダメージ。設定にあるボス全部に当たる */
   onEvent(e) {
+    if (e.test) return;
     if (e.kind !== 'gift' && e.kind !== 'like') return;
     for (const [id, cfg] of Object.entries(this.config)) {
       if (cfg?.mode === 'rank-gap') {

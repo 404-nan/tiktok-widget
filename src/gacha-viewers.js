@@ -16,6 +16,7 @@ const DENY = {
   follow: 'フォローすると無料で回せます',
   disabled: 'ガチャはオフです',
   user: '視聴者が分かりません',
+  busy: '本物の抽選が進行中です。終わってから試してください',
   '端数': 'コインが1回に足りません',
 };
 
@@ -367,6 +368,41 @@ export class GachaViewers {
     return this.spin(user, { source: 'dev', dev: true, prefer: 'free' });
   }
 
+  /** テスト用に1回だけ回す。本物の保存先には触れず、結果の記録も残さない。 */
+  testSpin(user, paid = false) {
+    const id = this.#id(user);
+    if (!id) return fail('user');
+    if (this.config.enabled === false || !this.gacha) return fail('disabled');
+    const viewer = emptyViewer(user?.name);
+    const cost = paid ? 'paid' : 'free';
+    if (paid) viewer.paid.credits = 1;
+    else if (this.#freeLimit() < 1) return fail('no-credits');
+    const started = this.gacha.start({
+      kind: 'viewer',
+      source: 'test',
+      cost,
+      test: true,
+      user: { id, name: viewer.name },
+    });
+    if (!started || started.ok === false) return fail(started?.reason || 'disabled');
+    if (cost === 'free') viewer.free.used += 1;
+    else {
+      viewer.paid.credits -= 1;
+      viewer.paid.used += 1;
+    }
+    return {
+      ...started,
+      cost,
+      viewer: {
+        userId: id,
+        name: viewer.name,
+        free: { used: viewer.free.used, remaining: Math.max(0, this.#freeLimit() - viewer.free.used), resetAt: viewer.free.resetAt },
+        paid: { credits: viewer.paid.credits, used: viewer.paid.used },
+        history: [],
+      },
+    };
+  }
+
   adjust(userId, amount, type = 'paid') {
     const n = Number(amount);
     if (!Number.isInteger(n) || n === 0) throw new Error('回数は 0 以外の整数にしてください');
@@ -438,6 +474,7 @@ export class GachaViewers {
   #result(event) {
     const trigger = event?.trigger;
     if (trigger?.kind !== 'viewer') return;
+    if (trigger?.test === true) return;
     const id = this.#id(trigger.user);
     if (!id) return;
     const viewer = this.store.get(id, trigger.user.name);

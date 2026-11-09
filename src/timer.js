@@ -133,6 +133,7 @@ export class TimerEngine {
 
   /** ギフト・フォロー・シェア・いいねで延ばす（走っている間と、設定によっては一時停止中も） */
   onEvent(e) {
+    if (e?.test) return;
     let changed = false;
     for (const [id, c] of Object.entries(this.config)) {
       const s = this.#state(id);

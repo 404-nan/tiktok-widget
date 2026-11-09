@@ -1,4 +1,4 @@
-// ガチャの視聴者一覧。回数の足し戻しと、開発中だけの試し回し。
+// ガチャの視聴者一覧。回数の足し戻しと、記録に残らない試し回し。
 
 function button(text, onClick) {
   const el = document.createElement('button');
@@ -16,7 +16,7 @@ function actionRow(labels, onClick) {
   return row;
 }
 
-/** 視聴者ごとの残回数。dev のときだけ架空の視聴者で無料と有料を試せる */
+/** 視聴者ごとの残回数。架空の視聴者で無料と有料を試せる */
 export function gachaViewersView({ api, setMessage, dev }) {
   const wrap = document.createElement('section');
   wrap.className = 'gacha-viewers';
@@ -49,24 +49,22 @@ export function gachaViewersView({ api, setMessage, dev }) {
   reset.classList.add('gacha-reset');
   tools.append(reset);
 
-  if (dev) {
-    const devNote = document.createElement('p');
-    devNote.className = 'hint';
-    devNote.textContent = '開発中だけ使えます。架空の視聴者で、無料と有料を別々に回せます。';
-    const devRow = document.createElement('div');
-    devRow.className = 'gacha-actions';
-    const spinDev = async (paid) => {
-      try {
-        const data = await api('/api/dev/trigger', { target: 'gacha-viewer', name: 'テスト視聴者', paid });
-        paint({ viewers: data.viewers, total: data.viewers?.length });
-        setMessage(paid ? '有料で回しました' : '無料で回しました');
-      } catch (err) {
-        setMessage(err.message, true);
-      }
-    };
-    devRow.append(button('無料で回す', () => spinDev(false)), button('有料で回す', () => spinDev(true)));
-    tools.append(devNote, devRow);
-  }
+  const testNote = document.createElement('p');
+  testNote.className = 'hint';
+  testNote.textContent = 'テスト用の架空の視聴者で、無料と有料を別々に回せます。';
+  const testRow = document.createElement('div');
+  testRow.className = 'gacha-actions';
+  const spinTest = async (paid) => {
+    try {
+      const data = await api('/api/control', { target: 'gacha-viewer', action: 'spin', data: { name: 'テスト視聴者', paid } });
+      paint({ viewers: data.viewers, total: data.viewers?.length });
+      setMessage(paid ? '有料で回しました' : '無料で回しました');
+    } catch (err) {
+      setMessage(err.message, true);
+    }
+  };
+  testRow.append(button('無料で回す', () => spinTest(false)), button('有料で回す', () => spinTest(true)));
+  tools.append(testNote, testRow);
 
   const list = document.createElement('div');
   list.className = 'gacha-viewer-list';

@@ -104,11 +104,33 @@ export class Gacha {
     return { ok: true, stick };
   }
 
+  /** テストの抽選を打ち切る。タイマーを全部止め、画面を空に戻す */
+  #abortTest() {
+    for (const timer of this.timers) clearTimeout(timer);
+    this.timers.clear();
+    this.phase = 'idle';
+    this.trigger = null;
+    this.tier = null;
+    this.forced = false;
+    this.stick = null;
+    this.pick = null;
+    this.#emit('idle');
+  }
+
   /** オフのときは null。回しているときは待ち列に入れる */
   start(trigger = {}) {
     if (this.config.enabled === false) return null;
     const next = trigger && typeof trigger === 'object' ? trigger : { kind: 'action' };
     if (this.phase !== 'idle') {
+      // テストの開始は、本物の抽選が進行中なら待ち列に入れず断る（順番を変えないため）
+      if (next.test === true || next.kind === 'test') {
+        return { ok: false, reason: 'busy', error: '本物の抽選が進行中です。終わってから試してください' };
+      }
+      // 進行中がテストの抽選なら、本物を後ろに並ばせず、テストを打ち切って本物を先に通す
+      if (this.trigger?.test === true || this.trigger?.kind === 'test') {
+        this.#abortTest();
+        return this.#begin(next);
+      }
       // 待ちに上限はつけない。投げた分は全部回す
       this.pending.push(next);
       return { ok: true, queued: true, pending: this.pending.length, phase: this.phase, seq: this.seq };
@@ -135,6 +157,7 @@ export class Gacha {
     this.start({
       kind: 'gift',
       source: 'gift',
+      test: Boolean(e.test),
       giftLabel: giftDisplayName(e.gift),
       giftId: e.gift?.id ?? null,
       coins: Number(e.totalDiamonds) || 0,
@@ -191,7 +214,8 @@ export class Gacha {
     this.pick = null;
     this.phase = 'rolling';
     const rolled = rollTier(this.config.tiers, this.pityCount, Number(this.config.pity) || 0, this.random);
-    this.pityCount = rolled.pityCount;
+    // テストの抽選では天井回数を進めない（本物の当たりやすさを変えないため）
+    if (this.trigger?.test !== true && this.trigger?.kind !== 'test') this.pityCount = rolled.pityCount;
     this.tier = rolled.tier;
     this.forced = rolled.forced;
     if (first) this.#emit('start');
