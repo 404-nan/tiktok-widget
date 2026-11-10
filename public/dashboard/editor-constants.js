@@ -94,7 +94,7 @@ export const PUCHUN_TEXT_FIELDS = {
 };
 // フォームの上に出す、よく使う設定
 export const BASIC = {
-  alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
+  alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'style', 'position', 'align', 'rules'],
   chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
   roulettes: ['name', 'style', 'slotLook', 'gifts', 'minCoins', 'events', 'rushOdds', 'sameSize', 'chance', 'labelDirection', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],
