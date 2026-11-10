@@ -120,12 +120,14 @@ async function openHome(state) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await page.clock.install();
   await page.routeWebSocket(/\/ws(\?|$)/, () => {});
+  // 元の返事は最初に1回だけ実サーバーから取る。以後の読み取りはその写しへ差し替えだけを入れて返す
+  // （毎回の読み取りで実サーバーへ取りに行くと、全体実行の負荷の中で接続が切れてテストが落ちるため）
+  const baseBody = await (await fetch(`${server.baseUrl}/api/status`)).json();
   await page.route('**/api/status', async (route) => {
-    const res = await route.fetch();
-    const body = await res.json();
+    const body = structuredClone(baseBody);
     body.status = { ...body.status, mode: state.mode, startedAt: state.startedAt };
     body.widgetConnected = state.widgetConnected;
-    await route.fulfill({ response: res, json: body });
+    await route.fulfill({ json: body });
   });
   await page.goto(`${server.baseUrl}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.getByText('ホーム', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
@@ -140,7 +142,7 @@ async function openHome(state) {
   const banner = () => page.locator('*', { has: page.getByText(TITLE), hasText: '閉じる' }).last();
   const shown = async () => (await page.getByText(TITLE).count()) > 0 && (await page.getByText(TITLE).first().isVisible());
   const start = (patch) => { Object.assign(state, { startedAt: Date.now(), ...patch }); };
-  const close = async () => { await server.stop?.(); await browser.close(); };
+  const close = async () => { await browser.close(); await server.stop?.(); };
   return { page, advance, banner, shown, start, close };
 }
 
