@@ -136,10 +136,24 @@
     document.body.className = 'pos-center align-center fill';
   });
 
-  const queue = createQueue(show, { max: 30 });
+  // この画面を開いてからフォローした人（人の軸 followed の材料。開き直すと範囲は切れる）
+  const followedIds = new Set();
+  const userKey = (u) => u?.id || u?.name || null;
+  const isBig = (e) => {
+    const r = ruleFor(e);
+    return Boolean(r.big ?? (e.totalDiamonds ?? 0) >= p.bigCoins);
+  };
+  const queue = createQueue(show, {
+    max: 30,
+    priority: (e) => (p.queuePriority === 'big' && e.kind === 'gift' && isBig(e) ? 1 : 0),
+  });
 
   connect({
     event(e) {
+      if (e.kind === 'follow') {
+        const k = userKey(e.user);
+        if (k) followedIds.add(k);
+      }
       if (!kinds.has(e.kind)) return;
       if (e.kind === 'gift') {
         if (e.totalDiamonds < p.minCoins) return;
@@ -165,6 +179,9 @@
       if (r.gifts && !giftNamed(e.gift, r.gifts)) continue;
       if (r.users && !list(r.users).includes(e.user?.id)) continue;
       if (r.minCoins && (e.totalDiamonds ?? 0) < r.minCoins) continue;
+      if (r.firstGift && e.giftCountBefore !== 0) continue;
+      if (r.giftedBefore && !(e.giftCountBefore > 0)) continue;
+      if (r.followed && !followedIds.has(userKey(e.user))) continue;
       return r;
     }
     return {};

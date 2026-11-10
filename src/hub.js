@@ -104,6 +104,12 @@ export class Hub extends EventEmitter {
       // 共有入口の補助機能が壊れても、集計と画面配信は続ける。
       console.warn(`[hub] prepare の処理に失敗しました: ${error?.message ?? error}`);
     }
+    // 通知の人の軸の材料: このギフトより前に同じ人が投げた回数とコインを刻む（読むだけ。数は変えない）
+    if (e.kind === 'gift') {
+      const before = this.gifters.get(e.user?.id || e.user?.name || '?');
+      e.giftCountBefore = before?.gifts ?? 0;
+      e.giftCoinsBefore = before?.diamonds ?? 0;
+    }
     // テスト送信（test: true）は、本番の数を汚さない:
     // - 配信中（TikTok につないでいる間）は画面に出すだけ。集計・ランキングは変えず、
     //   ほかの仕組み（WIN数・タイマー・ボス・ルーレット・Minecraft・記録）にも渡さない

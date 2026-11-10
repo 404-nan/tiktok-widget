@@ -507,8 +507,10 @@ export function chime(kind = 'gift', volume = 0.3) {
   }
 }
 
-/** 順番に1件ずつ処理するキュー（アラートやルーレット用） */
-export function createQueue(run, { max = Infinity } = {}) {
+/** 順番に1件ずつ処理するキュー（アラートやルーレット用）
+ * priority（任意）: 待ち列の中だけ並び替える付け方（大きい数ほど先）。表示中の物には割り込まない。
+ * 上限で捨てるのは、優先が一番低い物（同じなら一番古い物）。priority を渡さなければ今までどおり。 */
+export function createQueue(run, { max = Infinity, priority = null } = {}) {
   const items = [];
   let busy = false;
   const next = async () => {
@@ -521,10 +523,28 @@ export function createQueue(run, { max = Infinity } = {}) {
       next();
     }
   };
+  const prio = (item) => (priority ? Number(priority(item)) || 0 : 0);
   return {
     push(item) {
-      if (items.length >= max) items.shift();
-      items.push(item);
+      if (items.length >= max) {
+        let drop = 0;
+        if (priority) {
+          let lowest = Infinity;
+          for (let i = 0; i < items.length; i += 1) {
+            const v = prio(items[i]);
+            if (v < lowest) { lowest = v; drop = i; }
+          }
+        }
+        items.splice(drop, 1);
+      }
+      if (priority) {
+        const mine = prio(item);
+        let at = items.length;
+        while (at > 0 && prio(items[at - 1]) < mine) at -= 1;
+        items.splice(at, 0, item);
+      } else {
+        items.push(item);
+      }
       next();
     },
     clear() {
