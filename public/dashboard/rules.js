@@ -129,7 +129,7 @@ export function rulesEditor({ type, value = [], gifts = [], onChange }) {
   const kind = KINDS[type];
   let rows = value.map((r) => structuredClone(r));
   const list = el('div', { className: 'rule-list' });
-  const complete = (r) => r.gifts?.length > 0 || r.minCoins != null || r.users?.length > 0;
+  const complete = (r) => r.gifts?.length > 0 || r.minCoins != null || r.users?.length > 0 || r.firstGift || r.giftedBefore || r.followed;
   const commit = (delay = 0) => onChange(rows.filter(complete).map((r) => structuredClone(r)), delay);
 
   const rowFor = (r, i) => {

@@ -28,11 +28,12 @@ export const ENUM_LABELS = {
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
   chance: 'チャンス予告', cutin: 'キャラのカットイン', jackpot: '大当たり', puchun: 'プチュン', full: '全画面',
   'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない',
+  'queuePriority.off': '入った順（今までどおり）', 'queuePriority.big': '大きいギフトを先に',
 };
 // 項目の短い名前（説明は下に小さく出す）
 export const LABELS = {
   mode: 'モード', accent: '差し色（朱）', gold: '金', ink: '墨', paper: '白', scale: '拡大率',
-  events: '反応するイベント', gifts: 'ギフト名（カンマ区切り）', minCoins: '最低コイン', bigCoins: '金色にするコイン',
+  events: '反応するイベント', gifts: 'ギフト名（カンマ区切り）', minCoins: '最低コイン', bigCoins: '金色にするコイン', queuePriority: '通知の順番',
   maxCoins: '上限コイン', duration: '秒数', position: '縦の位置', align: '横の位置', sound: '効果音', volume: '音量',
   followText: 'フォローの文', shareText: 'シェアの文', rules: '条件ごとの上書き',
   shape: '入れ物の形', title: 'タイトル', label: '合計コインのラベル', maxItems: '最大個数', perGift: '連打1回の最大数',
@@ -94,7 +95,7 @@ export const PUCHUN_TEXT_FIELDS = {
 };
 // フォームの上に出す、よく使う設定
 export const BASIC = {
-  alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'position', 'align', 'rules'],
+  alerts: ['events', 'gifts', 'minCoins', 'bigCoins', 'style', 'queuePriority', 'position', 'align', 'rules'],
   chats: ['style', 'maxItems', 'lifetime', 'fontSize', 'avatars', 'highlight', 'hideWords', 'hideUsers', 'hideCommands', 'tts', 'ttsGiftersOnly'],
   roulettes: ['name', 'style', 'slotLook', 'gifts', 'minCoins', 'events', 'rushOdds', 'sameSize', 'chance', 'labelDirection', 'items'],
   jars: ['shape', 'title', 'gifts', 'minCoins', 'liquid', 'liquidColor'],

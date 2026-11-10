@@ -49,9 +49,11 @@ export const SCHEMA = {
       gifts: list([], 'このギフト名（または ID）だけ通知する。空なら全部'),
       minCoins: num(1, 'この合計コイン未満のギフトは通知しない', { min: 0 }),
       bigCoins: num(100, 'この合計コイン以上は金色の演出にする', { min: 0 }),
+      queuePriority: oneOf(['off', 'big'], 'off', '通知の順番。off は入った順。big は金色の対象のギフトを待ち列の先に出す（表示中の物には割り込まない）'),
       duration: num(4.5, '1件の表示秒数', { min: 1, max: 30 }),
       position: oneOf(['top', 'center', 'bottom'], 'top', '縦の位置'),
       align: oneOf(['left', 'center', 'right'], 'left', '横の位置'),
+      style: str('standard', '通知の型（型の定義はウィジェット側の styles.json にデータで持ち、番号で選ぶ。未知の番号は標準の型で出す）'),
       sound: bool(true, '効果音を鳴らす'),
       volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
       followText: str('フォローしてくれました', 'フォローのときの文'),
@@ -61,7 +63,7 @@ export const SCHEMA = {
         default: [],
         desc:
           '条件ごとに見た目を上書きする。上から順に最初に合ったものを使う。' +
-          '条件: gifts（ギフト名の一覧）/ users（ユーザー ID の一覧）/ minCoins。' +
+          '条件: gifts（ギフト名の一覧）/ users（ユーザー ID の一覧）/ minCoins / firstGift（この配信で初回）/ giftedBefore（この配信で既に投げた人）/ followed（この配信でフォローした人）。' +
           '上書き: color（帯と面の色）/ big（金色の演出）/ duration / sound / text（2行目の文）',
       },
     },

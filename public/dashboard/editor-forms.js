@@ -264,6 +264,27 @@ export function buildForms(ctx) {
       for (const [rid, r] of names) control.append(new Option(r.name ? `${r.name}（${rid}）` : rid, rid, false, rid === value));
       if (value && !names.some(([rid]) => rid === value)) control.append(new Option(`${value}（見つかりません）`, value, false, true));
       control.addEventListener('change', () => save(key, control.value));
+    } else if (tab === 'alerts' && key === 'style') {
+      // 通知の型: 定義ファイル（styles.json）から選ぶ。値は定義の番号、表示は定義の名前。
+      // 定義が読めなければ、今の値をそのまま書けるテキスト入力へ倒す
+      control = document.createElement('select');
+      const current = value ?? field.default ?? 'standard';
+      control.append(new Option(current, current, false, true));
+      control.addEventListener('change', () => save(key, control.value));
+      fetch(`${BASE}/widgets/gift-alert/styles.json`)
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error('styles'))))
+        .then((defs) => {
+          if (!Array.isArray(defs) || !defs.length) throw new Error('styles');
+          control.replaceChildren();
+          for (const def of defs) control.append(new Option(def.name ?? def.id, def.id, false, def.id === current));
+          if (!defs.some((def) => def.id === current)) control.append(new Option(`${current}（見つかりません）`, current, false, true));
+        })
+        .catch(() => {
+          const input = document.createElement('input');
+          input.value = current;
+          input.addEventListener('input', () => save(key, input.value.trim(), 500));
+          control.replaceWith(input);
+        });
     } else if (field.mediaKind) {
       // 入れたメディアの名前から選ぶ（保存するのは mediaId）
       control = document.createElement('select');

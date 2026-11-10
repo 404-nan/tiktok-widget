@@ -247,7 +247,7 @@ function checkItems(value, where, issues) {
   });
 }
 
-const RULE_MATCH = ['gifts', 'users', 'minCoins'];
+const RULE_MATCH = ['gifts', 'users', 'minCoins', 'firstGift', 'giftedBefore', 'followed'];
 const RULE_SET = ['color', 'big', 'duration', 'sound', 'text'];
 function checkRules(value, where, issues) {
   if (value == null) return [];
@@ -266,12 +266,15 @@ function checkRules(value, where, issues) {
       if (raw[key] != null) rule[key] = checkValue({ type: 'list', default: [] }, raw[key], `${at}.${key}`, issues);
     }
     if (raw.minCoins != null) rule.minCoins = checkValue({ type: 'number', default: 0, min: 0 }, raw.minCoins, `${at}.minCoins`, issues);
+    for (const key of ['firstGift', 'giftedBefore', 'followed']) {
+      if (raw[key] != null) rule[key] = checkValue({ type: 'boolean', default: false }, raw[key], `${at}.${key}`, issues);
+    }
     if (raw.color != null) rule.color = checkValue({ type: 'color', default: 'accent' }, raw.color, `${at}.color`, issues);
     if (raw.big != null) rule.big = checkValue({ type: 'boolean', default: false }, raw.big, `${at}.big`, issues);
     if (raw.sound != null) rule.sound = checkValue({ type: 'boolean', default: true }, raw.sound, `${at}.sound`, issues);
     if (raw.duration != null) rule.duration = checkValue({ type: 'number', default: 4.5, min: 1, max: 30 }, raw.duration, `${at}.duration`, issues);
     if (raw.text != null) rule.text = String(raw.text);
-    if (!RULE_MATCH.some((k) => k in rule)) issues.warnings.push(`${at}: 条件（gifts / users / minCoins）がないので全部に当てはまります`);
+    if (!RULE_MATCH.some((k) => k in rule)) issues.warnings.push(`${at}: 条件（gifts / users / minCoins / firstGift / giftedBefore / followed）がないので全部に当てはまります`);
     for (const key of Object.keys(raw)) {
       if (![...RULE_MATCH, ...RULE_SET].includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
     }
