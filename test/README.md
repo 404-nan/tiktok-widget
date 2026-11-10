@@ -56,6 +56,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
 | `hub.test.js` | イベント集計と配信のテスト |
 | `alert-style.test.js` | 通知の型（style）の後方互換・保持・定義データの検証 |
+| `alert-step3.test.js` | 通知の人の軸の材料（hub の刻み・テスト発火でも状態を変えない）と条件キーの保持、順番待ちの優先（従来互換・並び替え・上限で捨てる対象） |
 | `alert-style-step2.test.js` | 通知の型の保存の往復と、テンプレート適用差分への乗り |
 | `ingest-keys.test.js` | ingest鍵の保存・作り直し・削除の単体テスト |
 | `media-alerts.test.js` | メディア通知のテスト |
