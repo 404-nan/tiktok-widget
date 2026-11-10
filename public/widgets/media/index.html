@@ -7,8 +7,6 @@
 <link rel="stylesheet" href="lib/overlay.css">
 <style>
   body { display: grid; place-items: center; padding: 16px; }
-  .idle { display: none; margin: 0; font-weight: 900; color: var(--paper); }
-  body.preview:not(.on) .idle { display: block; }
   .card {
     display: none;
     width: min(92vw, 600px);
@@ -38,7 +36,6 @@
 </style>
 </head>
 <body>
-<p class="idle" id="idle">メディア通知・待機</p>
 <div class="card" id="card">
   <p class="kicker" id="status">待機</p>
   <p class="who" id="label"></p>
