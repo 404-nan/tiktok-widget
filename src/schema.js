@@ -52,6 +52,7 @@ export const SCHEMA = {
       duration: num(4.5, '1件の表示秒数', { min: 1, max: 30 }),
       position: oneOf(['top', 'center', 'bottom'], 'top', '縦の位置'),
       align: oneOf(['left', 'center', 'right'], 'left', '横の位置'),
+      style: str('standard', '通知の型（型の定義はウィジェット側の styles.json にデータで持ち、番号で選ぶ。未知の番号は標準の型で出す）'),
       sound: bool(true, '効果音を鳴らす'),
       volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
       followText: str('フォローしてくれました', 'フォローのときの文'),

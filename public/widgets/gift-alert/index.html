@@ -88,6 +88,18 @@
   }
   .lt.big.in .lt-main::after { transform: translateX(100%); transition: transform 1.1s var(--ease-out) .7s; }
 
+  /* 型: フェードで出入りする（構造の確認用。帯や文字の拭き取りはしない） */
+  .lt.motion-fade { opacity: 0; }
+  .lt.motion-fade.in { opacity: 1; transition: opacity .3s ease; }
+  .lt.motion-fade.out { opacity: 0; transition: opacity .3s ease; clip-path: none; }
+  .lt.motion-fade .lt-bar { transform: none; }
+  .lt.motion-fade .lt-badge, .lt.motion-fade .lt-main { clip-path: none; }
+  .lt.motion-fade .line > * { transform: none; }
+  .lt.motion-fade .gift-visual { transform: none; opacity: 1; }
+
+  /* 型: 高額ギフトで面を金ではなくアクセント色にする */
+  .lt.big-accent .lt-badge { background: var(--signal); }
+
   /* フォロー・シェア */
   .lt[data-kind=follow] .lt-badge, .lt[data-kind=share] .lt-badge { background: var(--signal); color: var(--paper); }
   .lt[data-kind=follow] .gift-visual .icon, .lt[data-kind=share] .gift-visual .icon { --size: 40px; }
@@ -97,12 +109,22 @@
 <div id="stage"></div>
 <script type="module">
   import { setupWidget, list, connect, isFor, giftNode, giftNamed, giftLabel, avatarNode, icon, fmt, chime, createQueue, sleep, resolveColor, setSampleRenderer } from './lib/overlay.js';
+  import { resolveAlertStyle, STANDARD_STYLE } from './lib/alert-style.js';
 
   // 設定は config.yaml の alerts.<id>（?id= がなければ default）。URL パラメータでも上書きできる
   const p = await setupWidget('alerts', {
     events: ['gift', 'follow'], gifts: [], minCoins: 1, bigCoins: 100, duration: 4.5, position: 'top', align: 'left',
-    sound: true, volume: 0.3, followText: 'フォローしてくれました', shareText: '配信をシェアしてくれました', rules: [],
+    sound: true, volume: 0.3, followText: 'フォローしてくれました', shareText: '配信をシェアしてくれました', rules: [], style: 'standard',
   });
+  // 型の定義（データ）を読む。読めなければ標準の型だけで動く
+  let styleDefs = [STANDARD_STYLE];
+  try {
+    const res = await fetch(new URL('gift-alert/styles.json', location.href));
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length) styleDefs = data;
+    }
+  } catch { /* 定義が読めないときは標準の型で出す */ }
   let kinds = new Set(list(p.events));
   // 出す場所は選ばせない。いつも同じ位置で画面いっぱいに出し、大きさと場所は配信ソフトの側で合わせてもらう
   document.body.classList.add('pos-center', 'align-center', 'fill');
@@ -149,8 +171,10 @@
   }
 
   function build(e, rule) {
+    const st = resolveAlertStyle(styleDefs, p.style);
     const lt = el('div', 'lt');
     lt.dataset.kind = e.kind;
+    lt.classList.add(`motion-${st.motion}`);
     if (rule.color) lt.style.setProperty('--signal', resolveColor(rule.color));
 
     const badge = el('div', 'lt-badge');
@@ -158,31 +182,37 @@
     const text = el('div', 'lt-text');
 
     const nameRow = el('div', 'name');
-    nameRow.append(avatarNode(e.user, 30), el('span', null, e.user.name));
+    if (st.avatar.show) nameRow.append(avatarNode(e.user, st.avatar.size));
+    nameRow.append(el('span', null, e.user.name));
     const descRow = el('div', 'desc');
 
     if (e.kind === 'gift') {
-      badge.append(giftNode(e.gift, 68));
+      badge.append(giftNode(e.gift, st.badge.imageSize));
       descRow.append(el('span', null, rule.text || giftLabel(e.gift)));
       const count = el('span', 'count num', `×${e.gift.count}`);
       descRow.append(count);
-      if (rule.big ?? e.totalDiamonds >= p.bigCoins) lt.classList.add('big');
+      if (rule.big ?? e.totalDiamonds >= p.bigCoins) lt.classList.add(st.bigBadge === 'accent' ? 'big-accent' : 'big');
     } else {
       const visual = el('span', 'gift-visual');
-      visual.style.setProperty('--size', '68px');
+      visual.style.setProperty('--size', `${st.badge.imageSize}px`);
       visual.append(icon(e.kind === 'follow' ? 'user-plus' : 'repeat-2'));
       badge.append(visual);
       descRow.textContent = rule.text || (e.kind === 'follow' ? p.followText : p.shareText);
     }
 
-    const l1 = el('div', 'line');
-    l1.append(nameRow);
-    const l2 = el('div', 'line');
-    l2.append(descRow);
-    text.append(l1, l2);
+    if (st.text.name) {
+      const l1 = el('div', 'line');
+      l1.append(nameRow);
+      text.append(l1);
+    }
+    if (st.text.desc) {
+      const l2 = el('div', 'line');
+      l2.append(descRow);
+      text.append(l2);
+    }
     main.append(text);
 
-    if (e.kind === 'gift') {
+    if (e.kind === 'gift' && st.text.coins) {
       const coins = el('div', 'lt-coins');
       const value = el('div', 'value num');
       value.append(icon('coins'), el('span', null, fmt(e.totalDiamonds)));
@@ -190,7 +220,9 @@
       main.append(coins);
     }
 
-    lt.append(el('div', 'lt-bar'), badge, main);
+    if (st.band) lt.append(el('div', 'lt-bar'));
+    if (st.badge.show) lt.append(badge);
+    lt.append(main);
     return lt;
   }
 
