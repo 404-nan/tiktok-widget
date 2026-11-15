@@ -137,8 +137,10 @@
     renderTen(data);
     if (kind === 'omikuji') {
       var who = data.trigger && data.trigger.user;
-      setText('slipName', phase !== 'idle' && who && who.name ? who.name : '');
-      setText('drawWho', phase !== 'idle' && who && who.name ? who.name + (data.results ? ' さんの10連' : ' さんのおみくじ') : '');
+      var drawerName = phase !== 'idle' && who && who.name ? who.name : '';
+      setText('slipName', drawerName);
+      setText('stickName', data.displayMode === 'short' ? '' : drawerName);
+      setText('drawWho', data.results && drawerName ? drawerName + ' さんの10連' : '');
     }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));
