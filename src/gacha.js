@@ -17,9 +17,12 @@ export const STICKS = 10;
  * pityCount は天井対象を引いたら 0 に戻る。
  */
 export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.random) {
-  const list = (Array.isArray(tiers) ? tiers : []).filter((tier) => Number(tier?.weight) > 0);
+  const all = Array.isArray(tiers) ? tiers : [];
+  const list = all.filter((tier) => Number(tier?.weight) > 0);
   if (!list.length) return { tier: { id: 'none', label: '？', weight: 1, pity: false }, pityCount, forced: false };
-  const pityTier = list.find((tier) => tier.pity === true);
+  // 天井の対象は重み 0 でも見つける（重み 0 は「通常は出ないが天井では出る」という置き方をするため。
+  // 通常の抽選には重み 0 を含めないので、ふだん出ることはない）
+  const pityTier = all.find((tier) => tier.pity === true);
   const count = Math.max(0, Number(pityCount) || 0);
   const every = Math.max(0, Number(pityEvery) || 0);
   if (every > 0 && pityTier && count >= every) return { tier: pityTier, pityCount: 0, forced: true };
@@ -51,6 +54,7 @@ export class Gacha {
     this.tier = null;
     this.forced = false;
     this.trigger = null;
+    this.tenResults = null; // 10連の間だけ [{ tier, stick, forced }]（おみくじのみ）
     this.stick = null; // 選ばれた棒の番号
     this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }（endsAt はサーバーの時計）
     this.durations = durationsOf(this.config, this.name);
@@ -103,6 +107,7 @@ export class Gacha {
       enabled: this.config.enabled !== false,
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
+      results: this.phase === 'ten' || (this.phase === 'done' && this.tenResults) ? this.tenResults : null,
       trigger: this.trigger,
       pick: this.#pickView(),
       stick: this.stick,
@@ -140,6 +145,7 @@ export class Gacha {
     this.trigger = null;
     this.tier = null;
     this.forced = false;
+    this.tenResults = null;
     this.stick = null;
     this.pick = null;
     this.#emit('idle');
@@ -183,7 +189,6 @@ export class Gacha {
     // おみくじは、ギフトを指定したらそのギフトだけ引く（コインの条件と同時に使わない）
     const giftPicked = this.name === 'omikuji' && gifts.length > 0;
     const byCoins = !giftPicked && min > 0 && (Number(e.totalDiamonds) || 0) >= min;
-    if (!byGift && !byCoins) return;
     const trigger = {
       kind: 'gift',
       source: 'gift',
@@ -193,9 +198,27 @@ export class Gacha {
       coins: Number(e.totalDiamonds) || 0,
       user: e.user ? { id: e.user.id, name: e.user.name } : null,
     };
+    // おみくじの10連: 専用ギフトは通常の関門（gifts / minCoins）より先に判定する。
+    // 通常ギフトを指定している設定でも、10連ギフトが届いたら10連にする（通常の引き方より優先）
+    if (this.name === 'omikuji') {
+      const tenGifts = Array.isArray(this.config.tenGifts) ? this.config.tenGifts : [];
+      if (tenGifts.length > 0 && giftMatches(e.gift, tenGifts)) {
+        this.start({ ...trigger, kind: 'ten' });
+        return;
+      }
+    }
+    if (!byGift && !byCoins) return;
     // おみくじは連打（コンボ）の回数ぶん引く。待ち列に上限はないので、投げた分は全部回す
     const times = this.name === 'omikuji' ? Math.max(1, Number(e.gift?.count) || 1) : 1;
     if (times > 1) trigger.coins = Math.floor((Number(e.totalDiamonds) || 0) / times);
+    // 10連まとめが有効なら、10回ぶんを1つのまとめ引きにして、余りは通常の引き方で回す
+    if (this.name === 'omikuji' && this.config.tenBatch === true && times >= 10) {
+      const batches = Math.floor(times / 10);
+      const rest = times - batches * 10;
+      for (let i = 0; i < batches; i++) this.start({ ...trigger, kind: 'ten' });
+      for (let i = 0; i < rest; i++) this.start({ ...trigger });
+      return;
+    }
     for (let i = 0; i < times; i++) this.start({ ...trigger });
   }
 
@@ -208,6 +231,10 @@ export class Gacha {
     this.seq += 1;
     this.trigger = trigger;
     this.durations = durationsOf(this.config, this.name);
+    if (this.name === 'omikuji' && trigger?.kind === 'ten') {
+      this.#beginTen();
+      return { ok: true, queued: false, phase: this.phase, seq: this.seq, durations: { ...this.durations } };
+    }
     if (this.name === 'omikuji' && this.config.displayMode === 'short') {
       this.#roll(this.#randomStick(), true);
       return { ok: true, queued: false, phase: this.phase, seq: this.seq, durations: { ...this.durations } };
@@ -218,6 +245,57 @@ export class Gacha {
     else if (mode === 'streamer' || (mode === 'viewer' && this.config.timeoutMode === 'streamer')) this.#waitPick('streamer');
     else this.#roll(this.#randomStick(), true);
     return { ok: true, queued: false, phase: this.phase, seq: this.seq, durations: { ...this.durations } };
+  }
+
+  /**
+   * 10連: 10回ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数えは10回ぶん進める。
+   * 保証（tenAssure）: 天井の対象が1つも出なかったら、最後の1つを天井の対象にする。
+   * ただし天井の対象の重みが 0 のときは行わない（重み 0 は「天井でのみ出す」という配信者の置き方を守るため）。
+   * テストの10連では天井の数えを進めない（通常の抽選と同じ線引き）。
+   */
+  #beginTen() {
+    this.close();
+    const tiers = this.config.tiers;
+    const pityEvery = Number(this.config.pity) || 0;
+    const isTest = this.trigger?.test === true || this.trigger?.kind === 'test';
+    let pityCount = this.pityCount;
+    const results = [];
+    for (let i = 0; i < 10; i++) {
+      const rolled = rollTier(tiers, pityCount, pityEvery, this.random);
+      pityCount = rolled.pityCount;
+      results.push({ tier: rolled.tier, stick: this.#randomStick(), forced: rolled.forced });
+    }
+    if (this.config.tenAssure !== false && !results.some((r) => r.tier?.pity === true)) {
+      const pityTier = (Array.isArray(tiers) ? tiers : []).find((t) => t?.pity === true && Number(t?.weight) > 0);
+      if (pityTier) {
+        results[results.length - 1] = { tier: pityTier, stick: this.#randomStick(), forced: true };
+        pityCount = 0;
+      }
+    }
+    if (!isTest) {
+      this.pityCount = pityCount;
+      this.#savePity();
+    }
+    this.phase = 'ten';
+    this.tenResults = results;
+    this.tier = null;
+    this.forced = false;
+    this.durations = { rollMs: 0, revealMs: TEN_REVEAL_MS, doneMs: durationsOf(this.config, this.name).doneMs };
+    this.#emit('ten');
+    this.#arm(TEN_REVEAL_MS, () => {
+      if (this.phase !== 'ten') return;
+      this.phase = 'done';
+      this.#emit('done');
+      this.#arm(this.durations.doneMs, () => {
+        if (this.phase !== 'done') return;
+        this.phase = 'idle';
+        this.tenResults = null;
+        this.trigger = null;
+        this.#emit('idle');
+        const next = this.pending.shift();
+        if (next) this.#begin(next);
+      });
+    });
   }
 
   /**
@@ -293,6 +371,7 @@ export class Gacha {
       pending: this.pending.length,
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
+      results: name === 'ten' || (name === 'done' && this.tenResults) ? this.tenResults : null,
       pick: this.#pickView(),
       stick: this.stick,
       ...this.#displayOptions(),
@@ -312,6 +391,9 @@ export class Gacha {
     this.timers.add(timer);
   }
 }
+
+/** 10連を見せる長さ。画面側は1枚ずつずらして出す（10枚 × 約0.45秒 + 余韻） */
+const TEN_REVEAL_MS = 6000;
 
 const SHORT_TEMPOS = {
   quick: { rollMs: 400, revealMs: 1700, doneMs: 500 },

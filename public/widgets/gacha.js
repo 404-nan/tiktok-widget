@@ -16,7 +16,7 @@
   if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
   var phases = (kind === 'omikuji'
-    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', done: '終了' }
+    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', ten: '10連', done: '終了' }
     : { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' });
 
   function seconds(n) {
@@ -105,6 +105,30 @@
     countdown = setInterval(tick, 250);
   }
 
+  // 10連: 結果の札を小さい和紙で並べる（おみくじの画面にだけ #ten がある）。1枚ずつ時間差で出す
+  function renderTen(data) {
+    var box = document.getElementById('ten');
+    if (!box) return;
+    var results = (data.phase === 'ten' || data.phase === 'done') ? data.results : null;
+    if (!results || !results.length) {
+      box.textContent = '';
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    box.textContent = '';
+    results.forEach(function (r, i) {
+      var cell = document.createElement('div');
+      cell.className = 'ten-slip';
+      cell.setAttribute('data-tier', toneOf(r && r.tier));
+      cell.style.animationDelay = (i * 0.45) + 's';
+      var label = document.createElement('span');
+      label.textContent = (r && r.tier && (r.tier.label || r.tier.id)) || '';
+      cell.appendChild(label);
+      box.appendChild(cell);
+    });
+  }
+
   function show(data) {
     if (!data) return;
     var phase = data.phase || 'idle';
@@ -128,9 +152,10 @@
       setText('stickNum', String(data.stick));
     }
     showPick(data);
+    renderTen(data);
     if (kind === 'omikuji') {
       var who = data.trigger && data.trigger.user;
-      setText('drawWho', phase !== 'idle' && who && who.name ? who.name + ' さんのおみくじ' : '');
+      setText('drawWho', phase !== 'idle' && who && who.name ? who.name + (data.results ? ' さんの10連' : ' さんのおみくじ') : '');
     }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));

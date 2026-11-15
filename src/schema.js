@@ -671,7 +671,8 @@ SCHEMA.omikuji = {
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
-    'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。URL は /widgets/omikuji.html',
+    'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
+    '10連（10回ぶんをまとめて引いて一気に出す）は tenBatch（連打が10回以上のとき）か tenGifts（専用ギフト）で使う。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
@@ -680,6 +681,9 @@ SCHEMA.omikuji = {
     gifts: list([], '引くギフト（ID または名前）。設定すると、そのギフトでだけ引く（コインの条件より優先）。空なら minCoins の条件で引く'),
     minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）。gifts を設定しているときは、この条件は使わない', { min: 0 }),
     pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは配信全体で、大吉が出たら 0 に戻る', { min: 0, max: 999 }),
+    tenBatch: bool(false, '10連まとめ。連打（コンボ）が10回以上なら、10回ぶんを1つのまとめ引き（10連）にして一気に出す。余りは通常の引き方で引く'),
+    tenGifts: list([], '10連ギフト（ID または名前）。このギフトが届いたら、1回のギフトで10回ぶんをまとめて引く（通常の引き方より優先）'),
+    tenAssure: bool(true, '10連の保証。10連で天井の対象が1つも出なかったら、最後の1つを天井の対象にする。天井の対象の重みが 0 のときは行わない（重み 0 は天井でのみ出す置き方のため）'),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
@@ -696,7 +700,7 @@ SCHEMA.omikuji = {
         { id: 'kyo', label: '凶', weight: 5, pity: false },
         { id: 'daikyo', label: '大凶', weight: 2, pity: false },
       ],
-      desc: '運勢。id / label / weight（出やすさ。0 にするとその運勢は出ない。全部を 0 にはできない）/ pity（true なら天井の対象。1つだけ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
+      desc: '運勢。id / label / weight（出やすさ。0 にすると通常の抽選では出ない。天井の対象は 0 でも、天井に届けば出る。全部を 0 にはできない）/ pity（true なら天井の対象。1つだけ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
     },
   },
 };

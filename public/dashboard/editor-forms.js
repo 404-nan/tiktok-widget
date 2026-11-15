@@ -213,6 +213,7 @@ export function buildForms(ctx) {
 
     const wrap = labelFor(key, field);
     let control;
+    let winRateHint = null;
     if (field.type === 'enum') {
       control = document.createElement('select');
       for (const v of field.values) control.append(new Option(ENUM_LABELS[`${key}.${v}`] ?? ENUM_LABELS[v] ?? v, v, false, v === value));
@@ -353,6 +354,17 @@ export function buildForms(ctx) {
         const n = Number(input.value);
         if (input.value !== '' && Number.isFinite(n)) save(key, n, 500);
       });
+      // カードめくりの当たりの確率は小数（0〜1）で書く決まりだが、そのままだと分かりにくいので横に % の目安を出す（0%・100% もそのまま出す）
+      if (key === 'winRate') {
+        winRateHint = document.createElement('span');
+        winRateHint.className = 'hint';
+        const paintWinRate = () => {
+          const n = Number(input.value);
+          winRateHint.textContent = input.value !== '' && Number.isFinite(n) ? `＝ 当たり ${Math.round(n * 100)}%` : '';
+        };
+        input.addEventListener('input', paintWinRate);
+        paintWinRate();
+      }
     }
     // かんたんでは、数字の後ろに単位を付ける
     if (control && ctx.simple() && field.type === 'number' && UNITS[key]) {
@@ -363,6 +375,7 @@ export function buildForms(ctx) {
       control = unit;
     }
     if (control) wrap.append(control);
+    if (winRateHint) wrap.append(winRateHint);
     if (wrap.hint) wrap.append(wrap.hint);
     return wrap;
   }

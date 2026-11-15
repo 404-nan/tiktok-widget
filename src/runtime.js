@@ -28,6 +28,7 @@ import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { CardDraw } from './card-draw.js';
+import { DrawResults } from './draw-results.js';
 import { Gacha } from './gacha.js';
 import { GachaViewers } from './gacha-viewers.js';
 import { SlotEngine } from './slot.js';
@@ -157,7 +158,29 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
   const gacha = new Gacha(hub, { bus, storeFile: path.join(dataDir, 'gacha-pity.json') });
   const omikuji = new Gacha(hub, { bus, name: 'omikuji', storeFile: path.join(dataDir, 'omikuji-pity.json') });
-  const cardDraw = new CardDraw(hub);
+  // 抽選の結果の記録（管理画面で「誰が・何に当たったか」を見るため）。テストの結果は記録しない
+  const drawResults = new DrawResults(path.join(dataDir, 'draw-results.jsonl'));
+  const recordDraw = (kind) => ({ tier, trigger, results, forced }) => {
+    if (trigger?.test === true || trigger?.kind === 'test' || trigger?.kind === 'dev') return;
+    const user = trigger?.user?.name ?? null;
+    const gift = trigger?.giftLabel ?? null;
+    if (Array.isArray(results)) {
+      for (const r of results) {
+        drawResults.add({ kind, user, result: r.tier?.label ?? '', win: r.tier?.pity === true, forced: Boolean(r.forced), gift });
+      }
+      return;
+    }
+    if (tier) drawResults.add({ kind, user, result: tier.label ?? '', win: tier.pity === true, forced: Boolean(forced), gift });
+  };
+  bus.on('omikuji.reveal', recordDraw('omikuji'));
+  bus.on('omikuji.ten', recordDraw('omikuji'));
+  bus.on('gacha.reveal', recordDraw('gacha'));
+  const cardDraw = new CardDraw(hub, {
+    onResult: ({ user, win, label, giftLabel, test }) => {
+      if (test) return;
+      drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null });
+    },
+  });
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
   const points = new Points(hub, { file: path.join(dataDir, 'points.json'), omikuji });
   gachaViewers.setPoints(points);
@@ -309,7 +332,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
-    giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
+    drawResults, giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
     performControl: (...args) => _control.performControl(...args),
   });
   _control = bindControl(r, {

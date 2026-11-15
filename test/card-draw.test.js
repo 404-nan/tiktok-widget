@@ -34,6 +34,6 @@ test('ギフトで始まり、本人が番号を言うとめくれる。ほか�
   const last = sent.at(-1);
   assert.equal(last.round.picked, 2);
   assert.deepEqual(last.round.result, { win: true, label: '当たり' }); // random 0.1 < 0.5
-  assert.equal(last.round.faces, null); // 混ぜたあとは並びを渡さない
+  assert.ok(Array.isArray(last.round.faces)); // 結果の段階では並びを渡す（外れたとき、どこに当たりがあったか見せるため。配っている間は渡さない）
   draw.close();
 });

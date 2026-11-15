@@ -32,7 +32,7 @@ export function bindRoutes(r, ctx) {
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
-    giftCatalog, demo, applyConfigResult, lastIssues, timerSeconds, performControl,
+    drawResults, giftCatalog, demo, applyConfigResult, lastIssues, timerSeconds, performControl,
   } = ctx;
 
   const origin = (req) => `${req.protocol}://${req.host}`;
@@ -137,6 +137,11 @@ export function bindRoutes(r, ctx) {
   });
 
   // 配信の記録
+  // 抽選の結果（誰が・何に当たったか）。kind = omikuji / gacha / cardDraw
+  r.get('/api/draw-results', (req, res) => {
+    const kind = typeof req.query?.kind === 'string' ? req.query.kind : '';
+    res.json({ results: drawResults ? drawResults.list(kind || undefined, 50) : [] });
+  });
   r.get('/api/history', (_req, res) => res.json(history.list()));
   r.get('/api/history/:id', (req, res) => {
     const s = history.get(req.params.id);

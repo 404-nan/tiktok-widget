@@ -184,6 +184,15 @@
   @keyframes drop { 0% { transform: translateY(var(--sag, 0)) rotate(0) scale(1.12); } 25% { transform: translateY(calc(var(--sag, 0) - 8px)) rotate(0) scale(1.12); } 100% { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(0) scale(.5); opacity: 0; } }
   @keyframes tremble { 0%, 100% { margin-left: -102px; } 50% { margin-left: -99px; } }
   @keyframes fadeout { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
+  /* 10連: 小さい和紙の札を5列×2段で、1枚ずつ時間差で出す */
+  .ten { position: absolute; inset: 64px 10px auto; z-index: 5; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .ten[hidden] { display: none; }
+  .ten-slip { background-color: var(--washi); color: var(--ink); border: 1px solid rgba(36, 24, 15, .25); border-radius: 3px; min-height: 92px; display: grid; place-items: center; padding: 6px 2px; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); opacity: 0; animation: tenpop .45s var(--ease-out, ease-out) both; }
+  .ten-slip span { writing-mode: vertical-rl; font-family: "Dela Gothic One", var(--font); font-size: 19px; line-height: 1.1; }
+  .ten-slip[data-tier="daikichi"] { background-color: #F6C445; box-shadow: 0 6px 14px rgba(0, 0, 0, .3), 0 0 22px rgba(255, 196, 0, .55); }
+  .ten-slip[data-tier="daikyo"] { background-color: #4A4238; color: var(--washi); }
+  .ten-slip[data-tier="kyo"] { background-color: #B9B0A0; }
+  @keyframes tenpop { 0% { opacity: 0; transform: translateY(14px) scale(.8) rotate(-3deg); } 100% { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .stage * { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
 </style>
 </head>
@@ -209,6 +218,7 @@
       <p class="pick-tag washi"><span class="pick-who" id="pickWho"></span><span class="pick-how" id="pickHow"></span></p>
       <p class="pick-left" id="pickLeft"></p>
     </div>
+    <div class="ten" id="ten" hidden></div>
     <p class="kicker" id="phase"></p>
     <p class="time" id="time"></p>
   </div>

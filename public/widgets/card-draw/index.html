@@ -34,6 +34,7 @@ body.on .stage { display: block; }
 .stage[data-phase="pick"] .no, .stage[data-phase="reveal"] .no, .stage[data-phase="done"] .no { opacity: 1; transform: none; }
 .card.chosen { z-index: 5; }
 .stage[data-phase="reveal"] .card:not(.chosen), .stage[data-phase="done"] .card:not(.chosen) { opacity: .25; }
+.stage[data-phase="reveal"] .card.answer, .stage[data-phase="done"] .card.answer { opacity: .92; }
 .result { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%) scale(.6); opacity: 0; padding: 10px 34px; border-radius: var(--r); font-family: "Dela Gothic One", var(--font); font-size: 56px; color: var(--paper); background: var(--ink); box-shadow: var(--lift); transition: transform .35s cubic-bezier(.2, 1.4, .4, 1), opacity .3s; }
 .result.win { background: var(--gold); color: var(--ink); }
 .result.show { transform: translateX(-50%); opacity: 1; }
@@ -150,6 +151,14 @@ function show(msg) {
     chosen.card.style.top = `${(570 - 184) / 2 - 20}px`;
     chosen.card.style.transform = 'scale(1.5)';
     setTimeout(() => chosen.card.classList.remove('down'), 600);
+    // 外れたときは、残りのカードも1枚ずつめくって、当たりがどこにあったかを見せる
+    if (!round.result.win && round.faces) {
+      setFaces(round);
+      cards.forEach(({ card }, i) => {
+        if (i === round.picked - 1) return;
+        setTimeout(() => { card.classList.add('answer'); card.classList.remove('down'); }, 1100 + i * 160);
+      });
+    }
     setTimeout(() => { resultEl.textContent = round.result.win ? `${round.result.label}！` : `${round.result.label}…`; resultEl.className = `result show${round.result.win ? ' win' : ''}`; }, 1300);
   }
 }

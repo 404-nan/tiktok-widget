@@ -10,6 +10,7 @@ import { shouldRenderDetails } from './editor-layout.js';
 import { createStage } from './stage.js';
 import { giftSoundStatusView } from './gift-sounds-form.js';
 import { gachaViewersView } from './gacha-viewers-form.js';
+import { drawResultsView } from './draw-results-form.js';
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 import { createTemplatesView } from './templates.js';
 import { TABS, BASIC } from './editor-constants.js';
@@ -1152,6 +1153,8 @@ export function createEditor({ api, setMessage }) {
       }));
     }
     if (tab === 'gacha') form.append(gachaViewersView({ api, setMessage, dev: devMode }));
+    // 抽選の結果（誰が・何に当たったか）は、その部品の画面に出す
+    if (tab === 'omikuji' || tab === 'cardDraw' || tab === 'gacha') form.append(drawResultsView({ api, kind: tab }));
     renderActions();
     updateUrl(true);
   }

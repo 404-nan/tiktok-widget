@@ -466,6 +466,63 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s-2);
 }
+
+/* 抽選の結果（誰が・何に当たったか）: 視聴者の一覧と同じ作り。数字の箱は作らず、罫線と余白で分ける */
+.draw-results {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+}
+.draw-results-head,
+.draw-results-tools,
+.draw-results-row,
+.draw-results-empty {
+  padding: var(--s-3) var(--s-4);
+}
+.draw-results-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+.draw-results-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.draw-results-head .hint { margin: 0; }
+.draw-results-tools { border-bottom: 1px solid var(--border); }
+.draw-results-tools .btn { height: 40px; min-height: 40px; padding: 0 var(--s-3); }
+.draw-results-list { display: grid; }
+.draw-results-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+}
+.draw-results-row + .draw-results-row { border-top: 1px solid var(--border); }
+.draw-results-time { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+.draw-results-user { font-size: 16px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.draw-results-result { font-size: 16px; line-height: 1.6; }
+.draw-results-result.is-win { color: var(--rk-acc, #f5d90a); font-weight: 700; }
+.draw-results-tag {
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+}
+.draw-results-gift { font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.draw-results-empty { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+.draw-results-status { margin: 0; padding: 0 var(--s-4) var(--s-3); font-size: 14px; line-height: 1.6; }
+.draw-results-status:empty { display: none; }
 @media (max-width: 420px) {
   .gacha-paid-grid { grid-template-columns: minmax(0, 1fr); }
 }

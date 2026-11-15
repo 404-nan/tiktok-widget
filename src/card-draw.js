@@ -28,9 +28,11 @@ export function pickNumber(text, count) {
 }
 
 export class CardDraw {
-  constructor(hub, { random = Math.random } = {}) {
+  constructor(hub, { random = Math.random, onResult = null } = {}) {
     this.hub = hub;
     this.random = random;
+    // 結果の記録口（管理画面の「最近の結果」用）。{ user, win, label, giftLabel, test } を渡す
+    this.onResult = typeof onResult === 'function' ? onResult : null;
     this.config = defaultsFor('cardDraw');
     this.phase = 'idle';
     this.seq = 0;
@@ -73,7 +75,7 @@ export class CardDraw {
     const byGift = gifts.length > 0 && giftMatches(e.gift, gifts);
     const byCoins = min > 0 && (Number(e.totalDiamonds) || 0) >= min;
     if (!byGift && !byCoins) return;
-    this.start({ kind: 'gift', giftLabel: giftDisplayName(e.gift), coins: Number(e.totalDiamonds) || 0, user: e.user ? { id: e.user.id, name: e.user.name } : null });
+    this.start({ kind: 'gift', test: Boolean(e.test), giftLabel: giftDisplayName(e.gift), coins: Number(e.totalDiamonds) || 0, user: e.user ? { id: e.user.id, name: e.user.name } : null });
   }
 
   close() {
@@ -98,6 +100,28 @@ export class CardDraw {
     this.close();
     this.round.picked = n;
     this.round.win = this.random() < (Number(this.config.winRate) || 0);
+    // 結果が決まったら、カードの並びを結果に合わせる（外れたとき、どこに当たりがあったかを見せるため）。
+    // 並びは最初から両方（当たり・ハズレ）を含むので、選んだ位置と入れ替えるだけで合わせられる。
+    // 確率 0（当たり無し）と確率 1（全部当たり）は、並びと結果が最初から一致している。
+    const deck = this.round.deck;
+    if (deck[n - 1] !== this.round.win) {
+      const other = deck.findIndex((face, i) => i !== n - 1 && face === this.round.win);
+      if (other >= 0) [deck[n - 1], deck[other]] = [deck[other], deck[n - 1]];
+    }
+    if (this.onResult) {
+      const c = this.config;
+      try {
+        this.onResult({
+          user: this.round.user?.name ?? null,
+          win: this.round.win,
+          label: this.round.win ? c.winLabel : c.loseLabel,
+          giftLabel: this.round.giftLabel,
+          test: Boolean(this.trigger?.test) || this.trigger?.kind === 'test' || this.trigger?.kind === 'dev',
+        });
+      } catch {
+        // 記録に失敗しても抽選自体は止めない
+      }
+    }
     this.#go('reveal', this.config.revealMs, () => this.#go('done', this.config.doneMs, () => {
       this.phase = 'idle';
       this.round = null;
@@ -122,8 +146,9 @@ export class CardDraw {
     return {
       round: {
         count: r.deck.length,
-        // 表で見せるのは最初だけ。混ぜたあとは並びを渡さない(どこが当たりか分からないように)
-        faces: this.phase === 'show' ? r.deck : null,
+        // 表で見せるのは最初と、結果が出たあと（外れたとき、どこに当たりがあったかを見せる）だけ。
+        // 混ぜて配ったあとは並びを渡さない(どこが当たりか分からないように)
+        faces: this.phase === 'show' || this.phase === 'reveal' || this.phase === 'done' ? r.deck : null,
         picked: r.picked,
         result: this.phase === 'reveal' || this.phase === 'done' ? { win: r.win, label: r.win ? c.winLabel : c.loseLabel } : null,
         user: r.user,
