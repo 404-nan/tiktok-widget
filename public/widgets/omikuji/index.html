@@ -42,9 +42,58 @@
   .stage[data-tier="daikichi"][data-phase="reveal"] .glory::before, .stage[data-tier="daikichi"][data-phase="done"] .glory::before { animation: spin-slow 16s linear infinite; }
   .stage[data-tier="daikichi"][data-phase="reveal"] .glory::after, .stage[data-tier="daikichi"][data-phase="done"] .glory::after { animation: dust-fall 2.6s linear infinite; }
   .stage[data-tier="daikichi"] .slip { box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 44px rgba(255, 196, 0, .38); }
-  .stage[data-tier="daikichi"] .result { text-shadow: 0 0 24px rgba(255, 196, 0, .5), 0 2px 0 rgba(120, 80, 0, .30); }
+  .stage[data-tier="daikichi"] .result { filter: drop-shadow(0 0 18px rgba(255, 196, 0, .45)) drop-shadow(0 2px 0 rgba(120, 80, 0, .25)); }
   .stage[data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .6s 1.25s var(--ease-out) both; }
   .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .5s var(--ease-out) both; }
+
+  /* 大吉の確定演出（作り込み）: 間 → 破裂 → 確定 → 余韻 → 収束。
+     --fx-delay は破裂のタイミング（短い型は速く、長い型は紙が開いてから） */
+  .stage { --fx-delay: 1.2s; }
+  .stage[data-display="short"] { --fx-delay: .5s; }
+  .glory { z-index: 0; }
+  .slip { z-index: 2; }
+  .pick { z-index: 5; }
+  /* 周りが少し沈んで、紙だけが浮く */
+  .fx-dim { position: absolute; inset: -30px; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .6s ease;
+    background: radial-gradient(ellipse 62% 54% at 50% 47%, transparent 46%, rgba(24, 12, 0, .44) 100%); }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .fx-dim { animation: dim-in .55s ease-out both; }
+  .stage[data-tier="daikichi"][data-phase="done"] .fx-dim { opacity: .5; }
+  /* 後光の破裂（広がって、収まる） */
+  .stage[data-tier="daikichi"][data-phase="reveal"] .glory { animation: glory-flare 1.5s ease-out both; }
+  .stage[data-tier="daikichi"][data-phase="done"] .glory { animation: glory-calm 3.2s ease-in-out infinite alternate; }
+  /* 衝撃の輪（破裂と、字が決まった瞬間の2回） */
+  .fx-front { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .ring { position: absolute; left: 50%; top: 216px; width: 250px; height: 250px; margin-left: -125px; margin-top: -125px;
+    border-radius: 50%; border: 3px solid rgba(255, 206, 66, .9); opacity: 0;
+    box-shadow: 0 0 26px rgba(255, 196, 0, .35), inset 0 0 26px rgba(255, 196, 0, .28); }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .ring.r1 { animation: ring-out 1.15s var(--fx-delay) ease-out both; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .ring.r2 { animation: ring-out 1.5s calc(var(--fx-delay) + .5s) ease-out both; }
+  /* 金の粉の破裂（粒は下のスクリプトが作る。--a 向き / --d 距離 / --s 大きさ / --dl 遅れ） */
+  .sparks span { position: absolute; left: 50%; top: 216px; width: var(--s, 7px); height: var(--s, 7px); margin-left: calc(var(--s, 7px) / -2); margin-top: calc(var(--s, 7px) / -2);
+    border-radius: 50% 50% 50% 6px; opacity: 0;
+    background: radial-gradient(circle, #fff3b0 0 30%, #ffc824 62%, rgba(255, 180, 0, 0) 100%); }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .sparks span { animation: spark-fly 1.3s calc(var(--fx-delay) + var(--dl, 0s)) cubic-bezier(.17, .67, .35, 1) both; }
+  /* 字のきらめき（金の流れ） */
+  .stage[data-tier="daikichi"] .result {
+    background-image: linear-gradient(100deg, #8a6408 22%, #caa00f 40%, #ffedb0 50%, #caa00f 60%, #8a6408 78%);
+    background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .result, .stage[data-tier="daikichi"][data-phase="done"] .result { animation: sheen 2.8s linear infinite; }
+  .stage[data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .6s 1.25s var(--ease-out) both, sheen 2.8s linear infinite; }
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .55s var(--fx-delay) var(--ease-out) both, sheen 2.8s linear infinite; }
+  /* 短い型は、破裂に合わせて紙と判も少し遅らせる（間を作る） */
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .slip { animation: unfold .45s .28s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .seal { animation: stamp-big .38s calc(var(--fx-delay) + .5s) ease-out both; }
+  .stage[data-phase="reveal"][data-tier="daikichi"] .seal { animation: stamp-big .38s 1.75s ease-out both; }
+  /* 終わりの段階：光が静かに脈打ってから、消える */
+  .stage[data-tier="daikichi"][data-phase="done"] .slip { animation: daikichi-done var(--done, 3.5s) linear both; }
+  @keyframes dim-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes glory-flare { 0% { transform: scale(.72); filter: brightness(1.7); } 55% { transform: scale(1.1); filter: brightness(1.25); } 100% { transform: scale(1); filter: brightness(1); } }
+  @keyframes glory-calm { from { transform: scale(1); } to { transform: scale(1.045); } }
+  @keyframes ring-out { 0% { transform: scale(.22); opacity: 0; } 12% { opacity: .95; } 100% { transform: scale(2.25); opacity: 0; } }
+  @keyframes spark-fly { 0% { transform: rotate(var(--a, 0deg)) translateY(0) scale(1); opacity: 0; } 10% { opacity: 1; } 72% { opacity: 1; } 100% { transform: rotate(var(--a, 0deg)) translateY(calc(var(--d, 150px) * -1)) scale(.35) rotate(50deg); opacity: 0; } }
+  @keyframes sheen { from { background-position: 115% 0; } to { background-position: -115% 0; } }
+  @keyframes stamp-big { 0% { transform: rotate(-8deg) scale(2.1); opacity: 0; } 62% { transform: rotate(-8deg) scale(.94); opacity: .95; } 100% { transform: rotate(-8deg) scale(1); opacity: .92; } }
+  @keyframes daikichi-done { 0% { opacity: 1; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 44px rgba(255, 196, 0, .38); } 30% { opacity: 1; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 74px rgba(255, 196, 0, .62); } 62% { opacity: 1; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 40px rgba(255, 196, 0, .34); } 100% { opacity: 0; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 30px rgba(255, 196, 0, .25); } }
 
   /* 和紙のすき目(小さな SVG のノイズを1枚だけ敷く。動かさない) */
   .washi {
@@ -236,6 +285,7 @@
     <div class="stick"><span class="stick-head"></span><span class="stick-name" id="stickName"></span></div>
     <div class="tube" id="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label washi">おみくじ</div></div>
     <div class="glory" aria-hidden="true"></div>
+    <div class="fx-dim" aria-hidden="true"></div>
     <p class="draw-who washi" id="drawWho"></p>
     <div class="slip washi">
       <span class="slip-head">おみくじ</span>
@@ -243,6 +293,7 @@
       <span class="slip-name" id="slipName"></span>
       <span class="seal">開運<br>守護</span>
     </div>
+    <div class="fx-front" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="sparks"></span></div>
     <div class="pick" id="pick">
       <svg class="rope" viewBox="0 0 360 100" aria-hidden="true">
         <path class="r1" d="M4 2 Q180 16 356 2"/><path class="r2" d="M4 2 Q180 16 356 2"/>
@@ -273,6 +324,20 @@
     addEventListener('resize', fit);
     new MutationObserver(fit).observe(document.getElementById('stage'), { attributes: true, attributeFilter: ['data-ten'] });
     fit();
+    // 大吉の破裂の粒（種を固定して、いつ見ても同じ破裂にする）
+    const sparks = document.querySelector('.sparks');
+    if (sparks) {
+      let seed = 7;
+      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      for (let i = 0; i < 26; i++) {
+        const s = document.createElement('span');
+        s.style.setProperty('--a', Math.round(rnd() * 360) + 'deg');
+        s.style.setProperty('--d', Math.round(90 + rnd() * 190) + 'px');
+        s.style.setProperty('--s', (5 + rnd() * 7).toFixed(1) + 'px');
+        s.style.setProperty('--dl', (rnd() * 0.35).toFixed(2) + 's');
+        sparks.appendChild(s);
+      }
+    }
   })();
 </script>
 <script src="gacha.js"></script>
