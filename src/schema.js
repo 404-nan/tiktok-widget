@@ -1002,10 +1002,10 @@ SCHEMA.tts = {
 };
 
 SCHEMA.cardDraw = {
-  kind: 'object', page: 'card-draw', title: 'カードめくり', desc: '当たり・ハズレのカードを表で見せる → 裏返して混ぜる → 番号つきで並べる → ギフトを送った人がコメントで番号を言うと、そのカードがめくれて結果が出る。結果はめくる瞬間に winRate の確率で決める(最初に見せる当たりの枚数も winRate に合わせる)。pickSeconds までに番号が来なければ自動でめくる。待ちに上限はない(投げた分は全部めくる)。URL は /widgets/card-draw.html', size: () => [1080, 720],
+  kind: 'object', page: 'card-draw', title: 'カードめくり', desc: '当たり・ハズレのカードを表で見せる → 裏返して混ぜる → 番号つきで並べる → ギフトを送った人がコメントで番号を言うと、そのカードがめくれて結果が出る。結果はめくる瞬間に winRate の確率だけで決める。最初に見せる当たりの枚数は winRate に合わせるが、showJackpot を使うと確率が 0 でも大当たりを1枚だけ並びに出せる(並びに出ていても、確率が 0 なら当たらない)。pickSeconds までに番号が来なければ自動でめくる。待ちに上限はない(投げた分は全部めくる)。URL は /widgets/card-draw.html', size: () => [1080, 720],
   fields: {
     enabled: bool(true, 'カードめくりを使う'), minCoins: num(100, 'この合計コイン以上のギフトでめくる（0 で金額ではめくらない）', { min: 0 }), gifts: list([], 'このギフトID（または名前）でめくる'),
-    count: num(8, 'カードの枚数', { min: 3, max: 16 }), winRate: num(0.2, '当たりになる確率（0〜1）', { min: 0, max: 1 }), winLabel: str('当たり', '当たりのカードの文字'), loseLabel: str('ハズレ', 'ハズレのカードの文字'),
+    count: num(8, 'カードの枚数', { min: 3, max: 16 }), winRate: num(0.2, '当たりになる確率（0〜1）', { min: 0, max: 1 }), showJackpot: bool(false, '大当たりのカードを並びに出す（当たるかどうかは確率だけで決まる。確率が0のときは並びに出ていても当たらない）'), winLabel: str('当たり', '当たりのカードの文字'), loseLabel: str('ハズレ', 'ハズレのカードの文字'),
     pickSeconds: num(30, '番号を待つ秒数（来なければ自動でめくる）', { min: 5, max: 300 }), showMs: num(2500, '表で見せるミリ秒', { min: 500, max: 20000 }), shuffleMs: num(3000, '混ぜるミリ秒', { min: 500, max: 20000 }), revealMs: num(4000, '結果を見せるミリ秒', { min: 1000, max: 30000 }), doneMs: num(1200, '消えるまでのミリ秒', { min: 0, max: 10000 }),
   },
 };

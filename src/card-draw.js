@@ -1,15 +1,18 @@
 // カードめくり: 当たり・ハズレのカードを表で見せる → 裏返して混ぜる → 番号をつけて配る →
 // ギフトを送った人がコメントで番号を言う(言わなければ時間切れで自動) → そのカードがめくれて結果。
-// 結果は選んだ位置ではなく、めくる瞬間に winRate の確率で決める。最初に見せる当たりの枚数も winRate に合わせる。
+// 結果は選んだ位置ではなく、めくる瞬間に winRate の確率だけで決める。
+// 並びに出るかどうかは別に設定できる(showJackpot)。確率が 0 のときは、並びに大当たりが出ていても当たらない。
 import { defaultsFor } from './schema.js';
 import { giftDisplayName, giftMatches } from './gifts.js';
 
 const PHASES = ['show', 'shuffle', 'pick', 'reveal', 'done'];
 
-/** 見せるカードの並び(当たりの枚数は count × winRate を四捨五入。確率が 0 より大きければ最低1枚) */
-export function deckOf(count, winRate, random = Math.random) {
+/** 見せるカードの並び(当たりの枚数は count × winRate を四捨五入。確率が 0 より大きければ最低1枚。
+ * showJackpot のときは、確率が 0 でも大当たりを1枚だけ並びに出す(当たるかどうかは確率だけで決まる) */
+export function deckOf(count, winRate, random = Math.random, showJackpot = false) {
   const n = Math.max(2, Math.round(count));
-  const wins = winRate > 0 ? Math.min(n - 1, Math.max(1, Math.round(n * winRate))) : 0;
+  let wins = winRate > 0 ? Math.min(n - 1, Math.max(1, Math.round(n * winRate))) : 0;
+  if (showJackpot && wins === 0) wins = 1;
   const deck = Array.from({ length: n }, (_, i) => i < wins);
   for (let i = n - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -87,7 +90,7 @@ export class CardDraw {
     this.trigger = trigger;
     this.seq += 1;
     const c = this.config;
-    this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck: deckOf(Number(c.count) || 8, Number(c.winRate) || 0, this.random), picked: null, win: null, pickEndsAt: null, startedAt: Date.now() };
+    this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck: deckOf(Number(c.count) || 8, Number(c.winRate) || 0, this.random, c.showJackpot === true), picked: null, win: null, pickEndsAt: null, startedAt: Date.now() };
     this.#go('show', c.showMs, () => this.#go('shuffle', c.shuffleMs, () => {
       this.round.pickEndsAt = Date.now() + (Number(c.pickSeconds) || 30) * 1000;
       // 時間までに番号が来なければ、ランダムな番号でめくる
