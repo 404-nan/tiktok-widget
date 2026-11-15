@@ -34,14 +34,6 @@
     return 'common';
   }
 
-  var KANJI = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-  function kanji(n) {
-    var s = '';
-    if (n >= 10) s += (n >= 20 ? KANJI[Math.floor(n / 10)] : '') + '十';
-    if (n % 10) s += KANJI[n % 10];
-    return s;
-  }
-
   function setText(id, text) {
     var el = document.getElementById(id);
     if (el) el.textContent = text;
@@ -141,20 +133,11 @@
     stageEl.setAttribute('data-phase', phase);
     if (data.displayMode) stageEl.setAttribute('data-display', data.displayMode);
     if (data.resultFont) stageEl.setAttribute('data-font', data.resultFont);
-    var shortDisplay = kind === 'omikuji' && data.displayMode === 'short';
-    if (shortDisplay) {
-      setText('stickNo', '');
-      setText('slipNo', '');
-      setText('stickNum', '');
-    } else if (data.stick) {
-      setText('stickNo', '第' + kanji(data.stick) + '番');
-      setText('slipNo', '第' + kanji(data.stick) + '番');
-      setText('stickNum', String(data.stick));
-    }
     showPick(data);
     renderTen(data);
     if (kind === 'omikuji') {
       var who = data.trigger && data.trigger.user;
+      setText('slipName', phase !== 'idle' && who && who.name ? who.name : '');
       setText('drawWho', phase !== 'idle' && who && who.name ? who.name + (data.results ? ' さんの10連' : ' さんのおみくじ') : '');
     }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
