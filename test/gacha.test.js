@@ -43,6 +43,48 @@ test('重み 0 の運勢は、どう引いても選ばれない', () => {
   assert.equal(rollTier(tiers, 0, 0, () => 0.999).tier.id, 'one');
 });
 
+test('重み 0 の天井の対象は、天井に届いても出ない（保証は発動しない）', () => {
+  const tiers = [
+    { id: 'daikichi', label: '大吉', weight: 0, pity: true },
+    { id: 'kichi', label: '吉', weight: 10, pity: false },
+  ];
+  assert.equal(rollTier(tiers, 0, 3, () => 0).tier.id, 'kichi');
+  assert.equal(rollTier(tiers, 2, 3, () => 0).tier.id, 'kichi');
+  const atPity = rollTier(tiers, 3, 3, () => 0);
+  assert.equal(atPity.tier.id, 'kichi');
+  assert.equal(atPity.forced, false);
+  assert.equal(atPity.pityCount, 4);
+});
+
+test('重みが 1 以上ある天井の対象は、今までどおり天井で出る', () => {
+  const tiers = [
+    { id: 'daikichi', label: '大吉', weight: 1, pity: true },
+    { id: 'kichi', label: '吉', weight: 10, pity: false },
+  ];
+  const forced = rollTier(tiers, 3, 3, () => 0);
+  assert.equal(forced.tier.id, 'daikichi');
+  assert.equal(forced.forced, true);
+  assert.equal(forced.pityCount, 0);
+});
+
+test('実際の設定の形（大吉だけ重み 0 で天井の対象）でも、天井で大吉は出ない', () => {
+  const tiers = [
+    { id: 'chukichi', label: '中吉', weight: 100, pity: false },
+    { id: 'shokichi', label: '小吉', weight: 300, pity: false },
+    { id: 'kichi', label: '吉', weight: 500, pity: false },
+    { id: 'suekichi', label: '末吉', weight: 198, pity: false },
+    { id: 'kyo', label: '凶', weight: 50, pity: false },
+    { id: 'daikyo', label: '大凶', weight: 30, pity: false },
+    { id: 'tier8', label: '100pay', weight: 8, pity: false },
+    { id: 'daikichi', label: '大吉', weight: 0, pity: true },
+  ];
+  for (const r of [0, 0.25, 0.5, 0.75, 0.999]) {
+    const rolled = rollTier(tiers, 900, 900, () => r);
+    assert.notEqual(rolled.tier.id, 'daikichi');
+    assert.equal(rolled.forced, false);
+  }
+});
+
 test('待機→回転→結果→終了。長さをイベントに載せる', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const { gacha, sent, bus } = setup();

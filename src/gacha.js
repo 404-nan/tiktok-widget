@@ -20,9 +20,9 @@ export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.rand
   const all = Array.isArray(tiers) ? tiers : [];
   const list = all.filter((tier) => Number(tier?.weight) > 0);
   if (!list.length) return { tier: { id: 'none', label: '？', weight: 1, pity: false }, pityCount, forced: false };
-  // 天井の対象は重み 0 でも見つける（重み 0 は「通常は出ないが天井では出る」という置き方をするため。
-  // 通常の抽選には重み 0 を含めないので、ふだん出ることはない）
-  const pityTier = all.find((tier) => tier.pity === true);
+  // 重み 0 は「出ない」という指定なので、天井でも出さない。天井の対象は重みが 1 以上ある対象だけに限る。
+  // 対象の重みが 0 のときは天井は発動せず、通常の抽選になる（数えはそのまま増える）。
+  const pityTier = all.find((tier) => tier?.pity === true && Number(tier?.weight) > 0);
   const count = Math.max(0, Number(pityCount) || 0);
   const every = Math.max(0, Number(pityEvery) || 0);
   if (every > 0 && pityTier && count >= every) return { tier: pityTier, pityCount: 0, forced: true };

@@ -699,7 +699,7 @@ SCHEMA.omikuji = {
         { id: 'kyo', label: '凶', weight: 5, pity: false },
         { id: 'daikyo', label: '大凶', weight: 2, pity: false },
       ],
-      desc: '運勢。id / label / weight（出やすさ。0 にすると通常の抽選では出ない。天井の対象は 0 でも、天井に届けば出る。全部を 0 にはできない）/ pity（true なら天井の対象。1つだけ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
+      desc: '運勢。id / label / weight（出やすさ。0 にするとその運勢は出ない（天井でも出ない。天井の対象を 0 にすると、天井は発動しない）。全部を 0 にはできない）/ pity（true なら天井の対象。1つだけ）。id は daikichi / chukichi / shokichi / kichi / suekichi / kyo / daikyo なら色が付く(大吉は金、凶は灰、大凶は墨で紙が震える)',
     },
   },
 };
