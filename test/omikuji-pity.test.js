@@ -136,3 +136,16 @@ test('再接続の失敗（error）では、天井の数えは戻らない', () 
   assert.equal(omikuji.pityCount, 0, '配信の終了（ended）で戻る');
   omikuji.close();
 });
+
+test('単発の抽選でも、大吉の確率が 0 なら天井に届いても大吉は出ない', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const tiers = defaultsFor('omikuji').tiers.map((tier) => (tier.id === 'daikichi' ? { ...tier, weight: 0 } : tier));
+  const { omikuji } = setup({ pity: 2, tiers }, () => 0.999);
+  for (let i = 0; i < 3; i++) {
+    const seen = drawAndSee(t, omikuji);
+    assert.notEqual(seen.tier, 'daikichi');
+    assert.equal(seen.forced, false);
+  }
+  assert.equal(omikuji.snapshot().pityCount, 3, '保証は発動せず、数えは増え続ける');
+  omikuji.close();
+});

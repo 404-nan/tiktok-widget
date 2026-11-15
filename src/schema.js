@@ -627,7 +627,7 @@ SCHEMA.gacha = {
   desc:
     '高額ギフトなどで回すガチャ。待機 → 回転 → 結果 → 終了 の順に進み、各段階の長さ（ミリ秒）を画面へ渡す。' +
     'きっかけ: gifts のギフト / minCoins 以上のギフト / ルーレットなどの gacha.start。' +
-    '無料回は視聴者ごとに管理し、有料回は対象ギフトで回数をためてコメントで使う。pity が 1 以上のとき、pity 対象のレアリティがそれ回出なければ次は確定。景品は演出・特典のみで換金できない。URL は /widgets/gacha.html',
+    '無料回は視聴者ごとに管理し、有料回は対象ギフトで回数をためてコメントで使う。pity が 1 以上のとき、pity 対象のレアリティがそれ回出なければ次は確定（ただし weight を 0 にした対象は、天井でも出ない）。景品は演出・特典のみで換金できない。URL は /widgets/gacha.html',
   fields: {
     enabled: bool(true, 'ガチャを使う'),
     minCoins: num(0, 'この合計コイン以上のギフトで回す（0 で金額では回さない）', { min: 0 }),
@@ -646,7 +646,7 @@ SCHEMA.gacha = {
     rollMs: num(3000, '回転しているミリ秒', { min: 0, max: 60000 }),
     revealMs: num(2500, '結果を出しているミリ秒', { min: 0, max: 60000 }),
     doneMs: num(1200, '終了表示のミリ秒', { min: 0, max: 60000 }),
-    pity: num(0, 'この回数、当たり（pity: true のレアリティ）が出なかったら次は確定（0 で無効）', { min: 0, max: 999 }),
+    pity: num(0, 'この回数、当たり（pity: true のレアリティ）が出なかったら次は確定（0 で無効）。weight を 0 にした対象は天井でも出ない', { min: 0, max: 999 }),
     tiers: {
       type: 'gachaTiers',
       default: [
@@ -654,7 +654,7 @@ SCHEMA.gacha = {
         { id: 'rare', label: 'レア', weight: 25, pity: false, actions: [] },
         { id: 'legend', label: '激アツ', weight: 5, pity: true, actions: [] },
       ],
-      desc: 'レアリティ。id / label / weight（当たりやすさ）/ pity（true なら天井の対象。1つだけ）/ actions（当選時の既存の動作。カットイン用の再生もここ）',
+      desc: 'レアリティ。id / label / weight（当たりやすさ。0 にするとその対象は出ない（天井でも出ない））/ pity（true なら天井の対象。1つだけ）/ actions（当選時の既存の動作。カットイン用の再生もここ）',
     },
   },
 };
@@ -680,7 +680,7 @@ SCHEMA.omikuji = {
     tempo: oneOf(['quick', 'slow'], 'quick', '短い型の速さ。クイック（速い）が基本。スローはゆっくり見せたいとき'),
     gifts: list([], '引くギフト（ID または名前）。設定すると、そのギフトでだけ引く（コインの条件より優先）。空なら minCoins の条件で引く'),
     minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）。gifts を設定しているときは、この条件は使わない', { min: 0 }),
-    pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。大吉が出たらその場で 0 に戻る', { min: 0, max: 999 }),
+    pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。大吉が出たらその場で 0 に戻る。ただし大吉の確率（weight）を 0 にしていると、天井でも大吉は出ない（天井は発動しない）', { min: 0, max: 999 }),
     tenBatch: bool(false, '10連まとめ。連打（コンボ）が10回以上なら、10回ぶんを1つのまとめ引き（10連）にして一気に出す。余りは通常の引き方で引く'),
     tenGifts: list([], '10連ギフト（ID または名前）。このギフトが届いたら、1回のギフトで10回ぶんをまとめて引く（通常の引き方より優先）'),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
