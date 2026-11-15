@@ -68,6 +68,7 @@
   .tube-hole { position: absolute; left: 50%; top: 4px; z-index: 1; width: 22px; height: 7px; margin-left: -11px; border-radius: 50%; background: #0E0905; }
   .tube-label {
     position: absolute; left: 50%; top: 50px; width: 44px; margin-left: -22px; padding: 12px 0 10px;
+    display: grid; place-items: center;
     color: var(--ink); font-size: 23px; line-height: 1.12; text-align: center; writing-mode: vertical-rl; letter-spacing: .08em;
     transform: rotate(-1.5deg);
     clip-path: polygon(2% 1%, 30% 0, 62% 2%, 98% 0, 100% 34%, 97% 70%, 100% 99%, 64% 100%, 30% 98%, 0 100%, 2% 66%, 0 30%);
@@ -200,11 +201,11 @@
 <div class="stage" id="stage" data-phase="idle">
   <div class="plate" id="plate">
     <div class="stick"><span class="stick-head" id="stickNum"></span><span class="stick-no" id="stickNo"></span></div>
-    <div class="tube" id="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label washi">御神籤</div></div>
+    <div class="tube" id="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label washi">おみくじ</div></div>
     <div class="glory" aria-hidden="true"></div>
     <p class="draw-who washi" id="drawWho"></p>
     <div class="slip washi">
-      <span class="slip-head">御神籤</span>
+      <span class="slip-head">おみくじ</span>
       <p class="result" id="result"></p>
       <span class="slip-foot" id="slipNo"></span>
       <span class="seal">開運<br>守護</span>
