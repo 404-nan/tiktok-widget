@@ -38,7 +38,8 @@ function sources() {
       const full = path.join(root, rel);
       if (fs.statSync(full).isDirectory()) { walk(rel); continue; }
       const text = fs.readFileSync(full, 'utf8');
-      if (name.endsWith('.js')) out.push({ file: rel, code: text, module: /^\s*(?:import|export)\s/m.test(text) });
+      // 最小化したモジュール（omikuji/three/ の three など）は、行の頭でなく末尾の export{…} だけで分かる
+      if (name.endsWith('.js')) out.push({ file: rel, code: text, module: /^\s*(?:import|export)\s/m.test(text) || /\bexport\s*\{[^}]*\};?\s*$/.test(text) });
       if (name.endsWith('.html')) {
         for (const m of text.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
           if (/\ssrc=/.test(m[1] ?? '') || !m[2].trim()) continue;

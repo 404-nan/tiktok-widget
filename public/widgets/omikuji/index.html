@@ -84,6 +84,10 @@
   .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .slip { animation: unfold .45s .28s var(--ease-out) both; }
   .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .seal { animation: stamp-big .38s calc(var(--fx-delay) + .5s) ease-out both; }
   .stage[data-phase="reveal"][data-tier="daikichi"] .seal { animation: stamp-big .38s 1.75s ease-out both; }
+  /* Three.js で描けるとき（omikuji/daikichi-fx.js が板を足して .fx-3d を付ける）は、後光・輪・粉をこの板に任せ、CSS の同じ役の飾りは消す。
+     描けないとき（WebGL なし・three が読めない・動きを減らす設定）は、上の CSS の後光・輪・粉がそのまま出る。板は大吉が終わると外される */
+  .fx-3d-canvas { position: absolute; left: -120px; top: -84px; width: 600px; height: 600px; z-index: 3; pointer-events: none; }
+  .stage.fx-3d .glory, .stage.fx-3d .fx-front { display: none; }
   /* 終わりの段階：光が静かに脈打ってから、消える */
   .stage[data-tier="daikichi"][data-phase="done"] .slip { animation: daikichi-done var(--done, 3.5s) linear both; }
   @keyframes dim-in { from { opacity: 0; } to { opacity: 1; } }
@@ -343,7 +347,9 @@
 <script src="gacha.js"></script>
 <script type="module">
   import { startVersionWatch } from './lib/version-watch.js';
+  import { startDaikichiFx } from './omikuji/daikichi-fx.js';
   startVersionWatch('omikuji', { isIdle: () => !document.body.classList.contains('on') });
+  startDaikichiFx(document.getElementById('stage'));
 </script>
 </body>
 </html>
