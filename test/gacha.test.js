@@ -56,6 +56,25 @@ test('重み 0 の天井の対象は、天井に届いても出ない（保証�
   assert.equal(atPity.pityCount, 4);
 });
 
+test('10連の途中で天井の数えが届いても、重み 0 の対象は出ない（10連の回し方で確認）', () => {
+  // 10連は、数えをつないで rollTier を10回回す作り。本番の10連も同じ回し方なので、
+  // この性質が効けば、途中で天井に届いても重み 0 の大吉は出ない。
+  const tiers = [
+    { id: 'daikichi', label: '大吉', weight: 0, pity: true },
+    { id: 'kichi', label: '吉', weight: 10, pity: false },
+  ];
+  let pityCount = 0;
+  const seen = [];
+  for (let i = 0; i < 10; i++) {
+    const rolled = rollTier(tiers, pityCount, 3, () => 0);
+    pityCount = rolled.pityCount;
+    seen.push(rolled);
+  }
+  assert.ok(seen.every((r) => r.tier.id !== 'daikichi'), '重み 0 の大吉は10回の中に出ない');
+  assert.ok(seen.every((r) => r.forced === false), '天井の強制は一度も発動しない');
+  assert.equal(pityCount, 10, '数えは10回ぶん増え続ける');
+});
+
 test('重みが 1 以上ある天井の対象は、今までどおり天井で出る', () => {
   const tiers = [
     { id: 'daikichi', label: '大吉', weight: 1, pity: true },
