@@ -2,6 +2,10 @@
 // 数えるのは配信全体（引いた人ごとではない）。大吉が出たら 0 に戻る。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { Gacha } from '../src/gacha.js';
 import { defaultsFor } from '../src/schema.js';
 
@@ -82,5 +86,37 @@ test('連投：回している間のギフトは待ち列に入り、全部回�
   for (let i = 0; i < 40 && (omikuji.phase !== 'idle' || omikuji.seq < 3); i++) t.mock.timers.tick(500);
   assert.equal(omikuji.phase, 'idle');
   assert.equal(omikuji.seq, 3);
+  omikuji.close();
+});
+
+test('配信が完全に終わると、天井の数えは0に戻る（接続し直しの間は戻らない）', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pity-reset-'));
+  const file = path.join(dir, 'omikuji-pity.json');
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  const omikuji = new Gacha(hub, { name: 'omikuji', random: () => 0.5, storeFile: file });
+  omikuji.pityCount = 5;
+
+  hub.emit('status', { mode: 'idle' });
+  assert.equal(omikuji.pityCount, 5, '配信が始まっていない状態では戻らない');
+  hub.emit('status', { mode: 'live' });
+  hub.emit('status', { mode: 'connecting' });
+  hub.emit('status', { mode: 'live' });
+  assert.equal(omikuji.pityCount, 5, '接続し直しの間は戻らない');
+  hub.emit('status', { mode: 'idle' });
+  assert.equal(omikuji.pityCount, 0, '配信が終わると0に戻る');
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).pityCount, 0, '保存先も0になる');
+  omikuji.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('配信が終わったあとの次の配信は、数えが一から始まる', () => {
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  const omikuji = new Gacha(hub, { name: 'omikuji', random: () => 0.5 });
+  omikuji.pityCount = 3;
+  hub.emit('status', { mode: 'live' });
+  hub.emit('status', { mode: 'demo' });
+  assert.equal(omikuji.pityCount, 0, 'live から demo へ移った時点でも、live は終わったので戻る');
   omikuji.close();
 });

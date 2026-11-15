@@ -680,7 +680,7 @@ SCHEMA.omikuji = {
     tempo: oneOf(['quick', 'slow'], 'quick', '短い型の速さ。クイック（速い）が基本。スローはゆっくり見せたいとき'),
     gifts: list([], '引くギフト（ID または名前）。設定すると、そのギフトでだけ引く（コインの条件より優先）。空なら minCoins の条件で引く'),
     minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）。gifts を設定しているときは、この条件は使わない', { min: 0 }),
-    pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは配信全体で、大吉が出たら 0 に戻る', { min: 0, max: 999 }),
+    pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。大吉が出たらその場で 0 に戻る', { min: 0, max: 999 }),
     tenBatch: bool(false, '10連まとめ。連打（コンボ）が10回以上なら、10回ぶんを1つのまとめ引き（10連）にして一気に出す。余りは通常の引き方で引く'),
     tenGifts: list([], '10連ギフト（ID または名前）。このギフトが届いたら、1回のギフトで10回ぶんをまとめて引く（通常の引き方より優先）'),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),

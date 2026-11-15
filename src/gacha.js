@@ -59,6 +59,22 @@ export class Gacha {
     this.pick = null; // 番号を選んでいる間だけ { by: 'viewer' | 'streamer', count, endsAt }（endsAt はサーバーの時計）
     this.durations = durationsOf(this.config, this.name);
     this.timers = new Set();
+    // 天井の数えは1回の配信の中だけ。配信が完全に終わったら0に戻す
+    this.liveActive = false;
+    if (this.hub && typeof this.hub.on === 'function') this.hub.on('status', (status) => this.#onStreamStatus(status));
+  }
+
+  /** 配信の状態の知らせ。live が終わったときだけ数えを戻す（接続し直しの間は戻さない） */
+  #onStreamStatus(status) {
+    const mode = status?.mode;
+    if (mode === 'live') { this.liveActive = true; return; }
+    if (mode === 'connecting') return;
+    if (!this.liveActive) return;
+    this.liveActive = false;
+    if (this.pityCount !== 0) {
+      this.pityCount = 0;
+      this.#savePity();
+    }
   }
 
   /** 天井の数えの読み込み。保存先が無い・壊れているときは 0 から */
