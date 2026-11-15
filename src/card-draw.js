@@ -1,24 +1,38 @@
 // カードめくり: 当たり・ハズレのカードを表で見せる → 裏返して混ぜる → 番号をつけて配る →
 // ギフトを送った人がコメントで番号を言う(言わなければ時間切れで自動) → そのカードがめくれて結果。
-// 結果は選んだ位置ではなく、めくる瞬間に winRate の確率だけで決める。
-// 並びに出るかどうかは別に設定できる(showJackpot)。確率が 0 のときは、並びに大当たりが出ていても当たらない。
+// 結果は裏の設定だけで決める。裏は2通り：めくる瞬間に winRate の確率で決めるか、
+// 実際に当たるカードの枚数（winCount）を決めて、選んだカードが当たりかどうかで決めるか。
+// 表に見せる当たりの枚数は裏とは別に設定できる(showJackpot と showWinCount)。
+// 確率が 0 のときは、並びに大当たりが出ていても当たらない。
 import { defaultsFor } from './schema.js';
 import { giftDisplayName, giftMatches } from './gifts.js';
 
 const PHASES = ['show', 'shuffle', 'pick', 'reveal', 'done'];
 
-/** 見せるカードの並び(当たりの枚数は count × winRate を四捨五入。確率が 0 より大きければ最低1枚。
- * showJackpot のときは、確率が 0 でも大当たりを1枚だけ並びに出す(当たるかどうかは確率だけで決まる) */
-export function deckOf(count, winRate, random = Math.random, showJackpot = false) {
+/** 見せるカードの並び。ふだんの当たりの枚数は count × winRate を四捨五入（確率が 0 より大きければ最低1枚）。
+ * showJackpot のときは確率とは切り離し、showWinCount 枚を並びに出す（当たるかどうかは裏の設定だけで決まる） */
+export function deckOf(count, winRate, random = Math.random, showJackpot = false, showWinCount = 1) {
   const n = Math.max(2, Math.round(count));
   let wins = winRate > 0 ? Math.min(n - 1, Math.max(1, Math.round(n * winRate))) : 0;
-  if (showJackpot && wins === 0) wins = 1;
+  if (showJackpot) wins = Math.min(n, Math.max(0, Math.round(Number(showWinCount) || 0)));
   const deck = Array.from({ length: n }, (_, i) => i < wins);
   for (let i = n - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
+}
+
+/** 実際に当たるカードの並び（winCount 枚だけ true）。選んだ位置が true なら当たり */
+export function realsOf(count, winCount, random = Math.random) {
+  const n = Math.max(2, Math.round(count));
+  const w = Math.min(n, Math.max(0, Math.round(Number(winCount) || 0)));
+  const arr = Array.from({ length: n }, (_, i) => i < w);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 /** コメントから 1〜count の番号を拾う(全角の数字も読む)。なければ null */
@@ -90,7 +104,16 @@ export class CardDraw {
     this.trigger = trigger;
     this.seq += 1;
     const c = this.config;
-    this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck: deckOf(Number(c.count) || 8, Number(c.winRate) || 0, this.random, c.showJackpot === true), picked: null, win: null, pickEndsAt: null, startedAt: Date.now() };
+    const count = Number(c.count) || 8;
+    const wc = Number(c.winCount);
+    // 裏の決め方：winCount が 0 以上なら「実際に当たるカードの枚数」で決め、-1（未設定）なら確率で決める
+    const byCount = Number.isFinite(wc) && wc >= 0;
+    const reals = byCount ? realsOf(count, wc, this.random) : null;
+    // 表の並び：枚数で決める回で「並びに出す」が切れているときは、実際に当たるカードそのままを見せる
+    const deck = byCount && c.showJackpot !== true
+      ? [...reals]
+      : deckOf(count, Number(c.winRate) || 0, this.random, c.showJackpot === true, c.showWinCount);
+    this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck, reals, picked: null, win: null, pickEndsAt: null, startedAt: Date.now() };
     this.#go('show', c.showMs, () => this.#go('shuffle', c.shuffleMs, () => {
       this.round.pickEndsAt = Date.now() + (Number(c.pickSeconds) || 30) * 1000;
       // 時間までに番号が来なければ、ランダムな番号でめくる
@@ -102,12 +125,12 @@ export class CardDraw {
     if (this.phase !== 'pick') return;
     this.close();
     this.round.picked = n;
-    this.round.win = this.random() < (Number(this.config.winRate) || 0);
+    this.round.win = this.round.reals ? this.round.reals[n - 1] === true : this.random() < (Number(this.config.winRate) || 0);
     // 結果が決まったら、カードの並びを結果に合わせる（外れたとき、どこに当たりがあったかを見せるため）。
     // 並びは最初から両方（当たり・ハズレ）を含むので、選んだ位置と入れ替えるだけで合わせられる。
     // 確率 0（当たり無し）と確率 1（全部当たり）は、並びと結果が最初から一致している。
     const deck = this.round.deck;
-    if (deck[n - 1] !== this.round.win) {
+    if (!this.round.reals && deck[n - 1] !== this.round.win) {
       const other = deck.findIndex((face, i) => i !== n - 1 && face === this.round.win);
       if (other >= 0) [deck[n - 1], deck[other]] = [deck[other], deck[n - 1]];
     }

@@ -1,7 +1,8 @@
-// カードめくり: 見せる当たりの枚数は確率に合わせる(確率0でも大当たりを並びに出す設定は別)。番号はギフトを送った本人のコメントだけで決まる。結果は確率だけで決まる。
+// カードめくり: 見せる当たりの枚数は確率に合わせる(確率とは別に並びに出す設定もある)。番号はギフトを送った本人のコメントだけで決まる。結果は裏の設定（確率、または実際に当たるカードの枚数）だけで決まる。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CardDraw, deckOf, pickNumber } from '../src/card-draw.js';
+import { CardDraw, deckOf, pickNumber, realsOf } from '../src/card-draw.js';
+import { defaultsFor } from '../src/schema.js';
 
 test('見せる当たりの枚数は 枚数×確率(最低1枚、全部当たりにはしない)', () => {
   assert.equal(deckOf(8, 0.2, () => 0.5).filter(Boolean).length, 2);
@@ -95,10 +96,12 @@ test('本物のラウンド中はテストの開始を断り、テスト中は�
   draw2.close();
 });
 
-test('確率 0 でも、設定すれば大当たりを1枚だけ並びに出せる。当たりの枚数が確率で決まるときは設定の影響を受けない', () => {
-  assert.equal(deckOf(6, 0, () => 0.5).filter(Boolean).length, 0);
-  assert.equal(deckOf(6, 0, () => 0.5, true).filter(Boolean).length, 1);
-  assert.equal(deckOf(8, 0.2, () => 0.5, true).filter(Boolean).length, 2);
+test('大当たりを並びに出すときは、確率とは別に、枚数を設定で決められる', () => {
+  assert.equal(deckOf(6, 0, () => 0.5).filter(Boolean).length, 0, '設定が無ければ今までどおり確率で決まる');
+  assert.equal(deckOf(6, 0, () => 0.5, true).filter(Boolean).length, 1, '既定は1枚');
+  assert.equal(deckOf(8, 0.2, () => 0.5, true).filter(Boolean).length, 1, '確率が高くても、並びに出す枚数は設定どおり');
+  assert.equal(deckOf(8, 0.2, () => 0.5, true, 3).filter(Boolean).length, 3, '枚数を変えられる');
+  assert.equal(deckOf(8, 0.2, () => 0.5, true, 0).filter(Boolean).length, 0, '0枚にもできる');
   assert.equal(deckOf(3, 0, () => 0.5, true).filter(Boolean).length, 1);
 });
 
@@ -117,5 +120,66 @@ test('確率 0 で大当たりが並びに出ていても、そのカードを�
   const last = sent.at(-1);
   assert.equal(last.round.picked, jackpot);
   assert.deepEqual(last.round.result, { win: false, label: '大凶' }, '大当たりのカードを選んでも、確率 0 なら当たらない');
+  draw.close();
+});
+
+test('実際に当たるカードの並びは、設定した枚数だけ当たりになる', () => {
+  assert.equal(realsOf(8, 3, () => 0.5).filter(Boolean).length, 3);
+  assert.equal(realsOf(8, 0, () => 0.5).filter(Boolean).length, 0);
+  assert.equal(realsOf(4, 99, () => 0.5).filter(Boolean).length, 4, '枚数の上限はカードの枚数まで');
+});
+
+test('裏の設定の既定は、確率で決める形（枚数は -1）で、並びに出す枚数は1', () => {
+  const d = defaultsFor('cardDraw');
+  assert.equal(d.winCount, -1);
+  assert.equal(d.showWinCount, 1);
+  assert.equal(d.showJackpot, false);
+});
+
+async function driveToPick(draw) {
+  draw.onEvent({ kind: 'gift', totalDiamonds: 10, gift: { id: '1', name: 'Corgi' }, user: { id: 'u1', name: 'ゆず' } });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(draw.phase, 'pick');
+}
+
+test('実際に当たる枚数が 0 のときは、確率が 1 でも当たらない', async () => {
+  const sent = [];
+  const draw = new CardDraw({ broadcast: (m) => sent.push(m) }, { random: () => 0.1 });
+  draw.setConfig({ minCoins: 10, winRate: 1, winCount: 0, count: 8, winLabel: '大吉', loseLabel: '大凶', showMs: 0, shuffleMs: 0, pickSeconds: 60, revealMs: 10000, doneMs: 0 });
+  await driveToPick(draw);
+  draw.onEvent({ kind: 'chat', text: '1番', user: { id: 'u1', name: 'ゆず' } });
+  assert.deepEqual(sent.at(-1).round.result, { win: false, label: '大凶' });
+  draw.close();
+});
+
+test('実際に当たる枚数が全部のときは、確率が 0 でも当たる', async () => {
+  const sent = [];
+  const draw = new CardDraw({ broadcast: (m) => sent.push(m) }, { random: () => 0.1 });
+  draw.setConfig({ minCoins: 10, winRate: 0, winCount: 8, count: 8, winLabel: '大吉', loseLabel: '大凶', showMs: 0, shuffleMs: 0, pickSeconds: 60, revealMs: 10000, doneMs: 0 });
+  await driveToPick(draw);
+  draw.onEvent({ kind: 'chat', text: '5番', user: { id: 'u1', name: 'ゆず' } });
+  assert.deepEqual(sent.at(-1).round.result, { win: true, label: '大吉' });
+  draw.close();
+});
+
+test('実際に当たる枚数で決める回は、選んだ位置で当たりが決まる', async () => {
+  const sent = [];
+  // random が 0 だと、並び替えの結果は [ハズレ, ハズレ, ハズレ, 当たり]（4枚・当たり1枚）
+  const draw = new CardDraw({ broadcast: (m) => sent.push(m) }, { random: () => 0 });
+  draw.setConfig({ minCoins: 10, winRate: 0, winCount: 1, count: 4, winLabel: '大吉', loseLabel: '大凶', showMs: 0, shuffleMs: 0, pickSeconds: 60, revealMs: 10000, doneMs: 0 });
+  await driveToPick(draw);
+  assert.deepEqual(draw.round.deck, [false, false, false, true], '並びに出すが切れているときは、実際に当たるカードそのままを見せる');
+  draw.onEvent({ kind: 'chat', text: '4番', user: { id: 'u1', name: 'ゆず' } });
+  assert.deepEqual(sent.at(-1).round.result, { win: true, label: '大吉' }, '当たりの位置を選ぶと当たる');
+  draw.close();
+});
+
+test('並びに出す枚数と、実際に当たる枚数は、別々に決められる', async () => {
+  const sent = [];
+  const draw = new CardDraw({ broadcast: (m) => sent.push(m) }, { random: () => 0 });
+  draw.setConfig({ minCoins: 10, winRate: 0, winCount: 1, showJackpot: true, showWinCount: 3, count: 8, winLabel: '大吉', loseLabel: '大凶', showMs: 0, shuffleMs: 0, pickSeconds: 60, revealMs: 10000, doneMs: 0 });
+  await driveToPick(draw);
+  assert.equal(draw.round.deck.filter(Boolean).length, 3, '表には3枚出る');
+  assert.equal(draw.round.reals.filter(Boolean).length, 1, '実際に当たるのは1枚だけ');
   draw.close();
 });
