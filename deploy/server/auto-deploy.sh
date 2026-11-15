@@ -14,6 +14,23 @@ head=$(git rev-parse HEAD)
 # 誰かが途中まで書き換えている間は出さない（本番はこのフォルダのファイルをそのまま動かす）
 git diff --quiet HEAD -- || { echo "未コミットの変更があるので待ちます"; exit 0; }
 
+# バージョンとお知らせが無いリリースは出さない（docs/VERSIONING.md の「リリースの手順」）
+deployed_ref=$(cat "$STATE_DIR/deployed" 2>/dev/null || true)
+cur_ver=$(node -p "require('./package.json').version" 2>/dev/null || true)
+prev_ver=""
+if [ -n "$deployed_ref" ]; then
+  prev_ver=$(git show "$deployed_ref:package.json" 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).version)}catch{}})" || true)
+fi
+if [ -z "$cur_ver" ] || [ "$cur_ver" = "$prev_ver" ]; then
+  echo "製品バージョンが前回の反映から上がっていないので待ちます（いま ${cur_ver:-不明}／反映済み ${prev_ver:-不明}）。手順は docs/VERSIONING.md"
+  exit 0
+fi
+ann_ver=$(node -e "try{const a=require('./src/announcements.json'); console.log(a[0]?.version ?? '')}catch{console.log('')}" 2>/dev/null || true)
+if [ "$ann_ver" != "$cur_ver" ]; then
+  echo "お知らせ（src/announcements.json）の先頭がバージョン $cur_ver になっていないので待ちます（先頭は ${ann_ver:-なし}）"
+  exit 0
+fi
+
 # 配信中なら待つ。サーバーが落ちていて答えないときは、そのまま反映する
 health=$(curl -fsS -m 5 "$HEALTHZ" 2>/dev/null || true)
 live=$(printf '%s' "$health" | grep -o '"live":[0-9]*' | cut -d: -f2)
