@@ -120,3 +120,19 @@ test('配信が終わったあとの次の配信は、数えが一から始ま�
   assert.equal(omikuji.pityCount, 0, 'live から demo へ移った時点でも、live は終わったので戻る');
   omikuji.close();
 });
+
+test('再接続の失敗（error）では、天井の数えは戻らない', () => {
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  const omikuji = new Gacha(hub, { name: 'omikuji', random: () => 0.5 });
+  omikuji.pityCount = 4;
+  hub.emit('status', { mode: 'live' });
+  hub.emit('status', { mode: 'connecting' });
+  hub.emit('status', { mode: 'error' });
+  hub.emit('status', { mode: 'connecting' });
+  assert.equal(omikuji.pityCount, 4, '接続の揺れの途中では戻らない');
+  hub.emit('status', { mode: 'live' });
+  hub.emit('status', { mode: 'ended' });
+  assert.equal(omikuji.pityCount, 0, '配信の終了（ended）で戻る');
+  omikuji.close();
+});

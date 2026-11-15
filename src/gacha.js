@@ -64,11 +64,12 @@ export class Gacha {
     if (this.hub && typeof this.hub.on === 'function') this.hub.on('status', (status) => this.#onStreamStatus(status));
   }
 
-  /** 配信の状態の知らせ。live が終わったときだけ数えを戻す（接続し直しの間は戻さない） */
+  /** 配信の状態の知らせ。配信が本当に終わったときだけ数えを戻す。
+   * 接続し直しの途中（connecting）と、再接続の失敗（error）は配信の終了ではないので戻さない */
   #onStreamStatus(status) {
     const mode = status?.mode;
     if (mode === 'live') { this.liveActive = true; return; }
-    if (mode === 'connecting') return;
+    if (mode !== 'ended' && mode !== 'idle' && mode !== 'demo') return;
     if (!this.liveActive) return;
     this.liveActive = false;
     if (this.pityCount !== 0) {
