@@ -44,7 +44,7 @@ test('最新のお知らせは、いまの製品バージョンと同じ数字�
 test('「使う」ボタンの不具合修正のお知らせが入っている', () => {
   const fix = listAnnouncements().find((entry) => entry.type === 'fix' && entry.title.includes('使う'));
   assert.ok(fix, '修正のお知らせがある');
-  assert.equal(fix.version, PRODUCT_VERSION);
+  assert.equal(fix.version, '1.0.1', 'その修正を出した版のお知らせとして残っている');
 });
 
 test('壊れたエントリは落とし、正しいものだけが新しい順に返る', () => {
