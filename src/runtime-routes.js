@@ -142,6 +142,30 @@ export function bindRoutes(r, ctx) {
     const kind = typeof req.query?.kind === 'string' ? req.query.kind : '';
     res.json({ results: drawResults ? drawResults.list(kind || undefined, 50) : [] });
   });
+  // 配信ごとの1件ごとの記録。kind は gift / follow / share / roulette / draw（抽選）/ omikuji / gacha / cardDraw、空なら全部
+  r.get('/api/session-records', (req, res) => {
+    const id = typeof req.query?.id === 'string' ? req.query.id : '';
+    if (!id) return res.status(400).json({ error: 'id が必要です' });
+    const kind = typeof req.query?.kind === 'string' ? req.query.kind : '';
+    const offset = Math.max(0, Math.floor(Number(req.query?.offset)) || 0);
+    const limit = Math.min(500, Math.max(1, Math.floor(Number(req.query?.limit)) || 50));
+    const DRAW_KINDS = ['omikuji', 'gacha', 'cardDraw'];
+    // 種類が詳細側だけ・抽選側だけに決まる読みは、ページをそのまま渡して全件を抱えない
+    if (kind === 'gift' || kind === 'follow' || kind === 'share' || kind === 'roulette') {
+      return res.json(history.details.read(id, { kind, offset, limit }));
+    }
+    if (kind === 'draw' || DRAW_KINDS.includes(kind)) {
+      const draws = drawResults ? drawResults.readFile({ kind: DRAW_KINDS.includes(kind) ? kind : '', session: id }) : [];
+      draws.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
+      return res.json({ total: draws.length, items: draws.slice(offset, offset + limit).map((d) => ({ ...d, kind: 'draw', drawKind: d.kind })) });
+    }
+    let items = history.details.read(id, { offset: 0, limit: 1_000_000_000 }).items;
+    if (drawResults) {
+      items = items.concat(drawResults.readFile({ session: id }).map((d) => ({ ...d, kind: 'draw', drawKind: d.kind })));
+    }
+    items.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
+    res.json({ total: items.length, items: items.slice(offset, offset + limit) });
+  });
   r.get('/api/history', (_req, res) => res.json(history.list()));
   r.get('/api/history/:id', (req, res) => {
     const s = history.get(req.params.id);

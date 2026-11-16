@@ -117,3 +117,70 @@ test('add した行に ts（数値）が付いている', () => {
   assert.equal(typeof list[0].ts, 'number');
   assert.ok(list[0].ts >= before && list[0].ts <= after);
 });
+
+test('ファイルには全件残る（keep を超えても切り捨てない）', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'results.jsonl');
+  const dr = new DrawResults(file, { keep: 3 });
+  for (let i = 1; i <= 10; i++) dr.add({ kind: 'a', user: `u${i}`, result: `r${i}` });
+  const lines = fs.readFileSync(file, 'utf8').trim().split('\n');
+  assert.equal(lines.length, 10, 'ファイルの行数は追加した件数と一致する');
+  assert.equal(JSON.parse(lines[0]).user, 'u1', '一番古い記録も残っている');
+  assert.equal(JSON.parse(lines[9]).user, 'u10');
+  // 表示（list）は今まで通り直近分だけ
+  assert.deepEqual(dr.list().map((e) => e.user), ['u10', 'u9', 'u8']);
+  // 読み戻しても直近分が返り、ファイルはそのまま全件残る
+  const dr2 = new DrawResults(file, { keep: 3 });
+  assert.deepEqual(dr2.list().map((e) => e.user), ['u10', 'u9', 'u8']);
+  assert.equal(fs.readFileSync(file, 'utf8').trim().split('\n').length, 10, '読み戻しでファイルは減らない');
+});
+
+test('大きなファイルから読み戻しても直近分が返る（末尾だけ読む）', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'results.jsonl');
+  const rows = [];
+  for (let i = 1; i <= 8000; i++) rows.push(JSON.stringify({ ts: i, kind: 'a', user: `u${i}`, result: `r${i}` }));
+  fs.writeFileSync(file, rows.join('\n') + '\n');
+  const dr = new DrawResults(file, { keep: 5 });
+  assert.deepEqual(dr.list().map((e) => e.user), ['u8000', 'u7999', 'u7998', 'u7997', 'u7996']);
+});
+
+test('末尾が途中で切れた行で終わるファイルへ追記しても、新しい記録が読み戻せる', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'results.jsonl');
+  const good = JSON.stringify({ ts: 1, kind: 'a', user: 'u1', result: 'r1' });
+  fs.writeFileSync(file, good + '\n' + '{"ts":2,"kind":"a","user":"u2","resu'); // 改行なしの途中行で終わる
+  const dr = new DrawResults(file, { keep: 10 });
+  dr.add({ kind: 'a', user: 'u3', result: 'r3' });
+  const dr2 = new DrawResults(file, { keep: 10 });
+  assert.deepEqual(dr2.list().map((e) => e.user), ['u3', 'u1'], '途中行は飛ばされ、新しい記録は残る');
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  assert.equal(JSON.parse(lines[2]).user, 'u3', '新しい記録は独立した行になっている');
+});
+
+test('大きなファイルで日本語の行が末尾読みの境目に来ても、直近分が正しく読み戻せる', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'results.jsonl');
+  const rows = [];
+  for (let i = 1; i <= 8000; i++) rows.push(JSON.stringify({ ts: i, kind: 'a', user: `視聴者${i}あいうえお`, result: '大吉' }));
+  fs.writeFileSync(file, rows.join('\n') + '\n');
+  const dr = new DrawResults(file, { keep: 5 });
+  assert.deepEqual(
+    dr.list().map((e) => e.user),
+    ['視聴者8000あいうえお', '視聴者7999あいうえお', '視聴者7998あいうえお', '視聴者7997あいうえお', '視聴者7996あいうえお']
+  );
+});
+
+test('readFile は配信（session）で絞って全件を古い順に返す', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'results.jsonl');
+  const dr = new DrawResults(file, { keep: 2 });
+  dr.add({ kind: 'omikuji', user: 'a', result: '大吉', session: 's1' });
+  dr.add({ kind: 'gacha', user: 'b', result: '吉', session: 's1' });
+  dr.add({ kind: 'omikuji', user: 'c', result: '凶', session: 's2' });
+  dr.add({ kind: 'omikuji', user: 'd', result: '吉' });
+  assert.deepEqual(dr.readFile({ session: 's1' }).map((e) => e.user), ['a', 'b'], 'メモリの保持件数を超えてもファイルから全件返る');
+  assert.deepEqual(dr.readFile({ session: 's1', kind: 'omikuji' }).map((e) => e.user), ['a']);
+  assert.equal(dr.readFile({}).length, 4);
+  assert.equal(dr.readFile({ session: 's9' }).length, 0);
+});

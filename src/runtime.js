@@ -166,19 +166,19 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     const gift = trigger?.giftLabel ?? null;
     if (Array.isArray(results)) {
       for (const r of results) {
-        drawResults.add({ kind, user, result: r.tier?.label ?? '', win: r.tier?.pity === true, forced: Boolean(r.forced), gift });
+        drawResults.add({ kind, user, result: r.tier?.label ?? '', win: r.tier?.pity === true, forced: Boolean(r.forced), gift, session: history.sessionIdAt(trigger?.ts ?? null) });
       }
       return;
     }
-    if (tier) drawResults.add({ kind, user, result: tier.label ?? '', win: tier.pity === true, forced: Boolean(forced), gift });
+    if (tier) drawResults.add({ kind, user, result: tier.label ?? '', win: tier.pity === true, forced: Boolean(forced), gift, session: history.sessionIdAt(trigger?.ts ?? null) });
   };
   bus.on('omikuji.reveal', recordDraw('omikuji'));
   bus.on('omikuji.ten', recordDraw('omikuji'));
   bus.on('gacha.reveal', recordDraw('gacha'));
   const cardDraw = new CardDraw(hub, {
-    onResult: ({ user, win, label, giftLabel, test }) => {
+    onResult: ({ user, win, label, giftLabel, test, at }) => {
       if (test) return;
-      drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null });
+      drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null, session: history.sessionIdAt(at ?? null) });
     },
   });
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });

@@ -192,6 +192,7 @@ export class Gacha {
     const trigger = {
       kind: 'gift',
       source: 'gift',
+      ts: e.ts ?? null,
       test: Boolean(e.test),
       giftLabel: giftDisplayName(e.gift),
       giftId: e.gift?.id ?? null,
@@ -249,8 +250,6 @@ export class Gacha {
 
   /**
    * 10連: 10回ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数えは10回ぶん進める。
-   * 保証（tenAssure）: 天井の対象が1つも出なかったら、最後の1つを天井の対象にする。
-   * ただし天井の対象の重みが 0 のときは行わない（重み 0 は「天井でのみ出す」という配信者の置き方を守るため）。
    * テストの10連では天井の数えを進めない（通常の抽選と同じ線引き）。
    */
   #beginTen() {
@@ -264,13 +263,6 @@ export class Gacha {
       const rolled = rollTier(tiers, pityCount, pityEvery, this.random);
       pityCount = rolled.pityCount;
       results.push({ tier: rolled.tier, stick: this.#randomStick(), forced: rolled.forced });
-    }
-    if (this.config.tenAssure !== false && !results.some((r) => r.tier?.pity === true)) {
-      const pityTier = (Array.isArray(tiers) ? tiers : []).find((t) => t?.pity === true && Number(t?.weight) > 0);
-      if (pityTier) {
-        results[results.length - 1] = { tier: pityTier, stick: this.#randomStick(), forced: true };
-        pityCount = 0;
-      }
     }
     if (!isTest) {
       this.pityCount = pityCount;

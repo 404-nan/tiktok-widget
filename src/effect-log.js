@@ -1,10 +1,9 @@
-// 配信中のギフトとサーバー側の演出を匿名で記録し、配信後の簡単な比較を作る。
+// 配信中のギフト・フォロー・シェアとサーバー側の演出を匿名で記録し、配信後の簡単な比較を作る。記録は消さずに全部残す。
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { eventCoinTotal } from './gifts.js';
 
-const DAY = 24 * 60 * 60 * 1000;
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 
 export function actorDigest(secret, actor) {
@@ -37,11 +36,10 @@ export function makeEffectReport(events, { startedAt, endedAt }) {
 }
 
 export class EffectLog {
-  constructor(dir, { secret = crypto.randomBytes(32).toString('hex'), now = Date.now, retentionDays = 90 } = {}) {
+  constructor(dir, { secret = crypto.randomBytes(32).toString('hex'), now = Date.now } = {}) {
     this.dir = dir;
     this.secret = secret;
     this.now = now;
-    this.retentionDays = retentionDays;
     this.queue = [];
     this.session = null;
     this.timer = setInterval(() => this.flush(), 1000);
@@ -63,6 +61,12 @@ export class EffectLog {
     this.queue.push({ ts: event.ts ?? this.now(), kind: 'gift', giftId: gift.id ?? null, giftName: gift.name ?? null, coins: eventCoinTotal(event), actor: actorKey, ordinal, test: Boolean(event.test) });
   }
 
+  audience(event) {
+    if (!this.session || (event.kind !== 'follow' && event.kind !== 'share')) return;
+    const actor = event.user?.id || event.user?.name || '?';
+    this.queue.push({ ts: event.ts ?? this.now(), kind: event.kind, actor: actorDigest(this.secret, actor), test: Boolean(event.test) });
+  }
+
   effect(type, values = {}, { test = false, ts = this.now() } = {}) {
     if (!this.session) return;
     this.queue.push({ ts, kind: 'effect', type, ...values, test: Boolean(test) });
@@ -72,8 +76,9 @@ export class EffectLog {
     if (!this.session || !this.queue.length) return;
     const session = this.session;
     const file = path.join(this.dir, `${session.id}.events.jsonl`);
-    const lines = this.queue.splice(0).map((event) => JSON.stringify(event)).join('\n') + '\n';
-    try { fs.mkdirSync(this.dir, { recursive: true }); fs.appendFileSync(file, lines); } catch (error) { console.warn(`[effect-log] 記録を書けませんでした: ${error.message}`); }
+    const count = this.queue.length;
+    const lines = this.queue.map((event) => JSON.stringify(event)).join('\n') + '\n';
+    try { fs.mkdirSync(this.dir, { recursive: true }); fs.appendFileSync(file, lines); this.queue.splice(0, count); } catch (error) { console.warn(`[effect-log] 記録を書けませんでした: ${error.message}`); }
   }
 
   end(endedAt = this.now()) {
@@ -88,17 +93,6 @@ export class EffectLog {
       try { fs.writeFileSync(path.join(this.dir, `${session.id}.report.json`), JSON.stringify(makeEffectReport(events, session))); } catch (error) { console.warn(`[effect-log] 報告を書けませんでした: ${error.message}`); }
     }
     this.session = null;
-    this.prune(endedAt);
-  }
-
-  prune(at = this.now()) {
-    const cutoff = at - this.retentionDays * DAY;
-    try {
-      for (const name of fs.readdirSync(this.dir)) {
-        const full = path.join(this.dir, name);
-        if (fs.statSync(full).mtimeMs < cutoff && (name.endsWith('.events.jsonl') || name.endsWith('.report.json'))) fs.unlinkSync(full);
-      }
-    } catch {}
   }
 
   close() { clearInterval(this.timer); this.end(); }

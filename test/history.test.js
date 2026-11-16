@@ -6,6 +6,7 @@ import path from 'node:path';
 import { Hub } from '../src/hub.js';
 import { History } from '../src/history.js';
 import { makeEvent } from '../src/demo.js';
+import { actorDigest } from '../src/effect-log.js';
 
 test('接続から切断までを1回の配信として保存する', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
@@ -64,4 +65,145 @@ test('視聴者数は分ごとに上がり下がりする', () => {
   hub.publish({ kind: 'viewers', viewers: 80, ts: t0 + 61_000 });
   hub.publish({ kind: 'like', user: { id: 'a' }, count: 1, total: 0, ts: t0 + 125_000 });
   assert.deepEqual(history.current.timeline.map((m) => m.viewers), [120, 80, 80]);
+});
+
+test('配信中のフォローとシェアが、効果ログの記録に匿名で残る', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  const history = new History(hub, dir, { effectSecret: 'secret' });
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1 });
+  hub.publish({ kind: 'follow', user: { id: 'u3', name: 'C' } });
+  hub.publish({ kind: 'share', user: { id: 'u4', name: 'D' } });
+  const sessionId = history.current.id;
+  hub.setStatus({ mode: 'idle' });
+
+  const text = fs.readFileSync(path.join(dir, 'effects', `${sessionId}.events.jsonl`), 'utf8');
+  const lines = text.trim().split('\n').map((line) => JSON.parse(line));
+  assert.deepEqual(lines.map((e) => e.kind), ['gift', 'follow', 'share']);
+  assert.equal(lines[1].actor, actorDigest('secret', 'u3'));
+  assert.equal(lines[2].actor, actorDigest('secret', 'u4'));
+  assert.doesNotMatch(text, /"u3"|"u4"|"C"|"D"/);
+});
+
+test('ギフト・フォロー・ルーレットが、1件ごとの記録に名前つきで残る', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  const history = new History(hub, dir);
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 2, diamonds: 5 }, totalDiamonds: 10 });
+  hub.publish({ kind: 'follow', user: { id: 'u3', name: 'C' } });
+  hub.emit('roulette', { roulette: { id: 'main', name: '罰ゲーム' }, item: { label: '歌う' }, trigger: { user: { id: 'u1', name: 'A' } } });
+  const sessionId = history.current.id;
+  hub.setStatus({ mode: 'idle' });
+
+  const text = fs.readFileSync(path.join(dir, 'details', `${sessionId}.jsonl`), 'utf8');
+  const lines = text.trim().split('\n').map((line) => JSON.parse(line));
+  assert.deepEqual(lines.map((e) => e.kind), ['gift', 'follow', 'roulette']);
+  assert.equal(lines[0].user.name, 'A');
+  assert.equal(lines[0].gift.name, 'Rose');
+  assert.equal(lines[0].count, 2);
+  assert.equal(lines[0].coins, 10);
+  assert.equal(lines[1].user.name, 'C');
+  assert.equal(lines[2].result, '歌う');
+  assert.equal(lines[2].user.name, 'A');
+  const viaRead = history.details.read(sessionId, { kind: 'gift' });
+  assert.equal(viaRead.total, 1);
+  clearInterval(history.details.timer);
+});
+
+test('配信が終わった後に届いたルーレットの結果は、回し始めた配信の記録に入る', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  const history = new History(hub, dir);
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  const startedAt = history.current.startedAt;
+  const sessionId = history.current.id;
+  hub.setStatus({ mode: 'idle' });
+  // 配信が終わってから結果が届く（回し始めた時刻は配信の中）
+  hub.emit('roulette', { roulette: { id: 'main', name: '罰ゲーム' }, item: { label: '歌う' }, trigger: { user: { id: 'u1', name: 'A' } }, spin: { at: startedAt } });
+  const lines = fs.readFileSync(path.join(dir, 'details', `${sessionId}.jsonl`), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].kind, 'roulette');
+  assert.equal(lines[0].result, '歌う');
+  clearInterval(history.details.timer);
+});
+
+test('テストのルーレットは、1件ごとの記録に残らない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  const history = new History(hub, dir);
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.emit('roulette', { roulette: { id: 'main', name: '罰ゲーム' }, item: { label: '歌う' }, trigger: { test: true, user: { id: 'u1', name: 'A' } }, spin: { at: Date.now() } });
+  const sessionId = history.current.id;
+  hub.setStatus({ mode: 'idle' });
+  assert.equal(history.details.read(sessionId, { kind: 'roulette' }).total, 0);
+  clearInterval(history.details.timer);
+});
+
+test('遅れて届いたルーレットは、集計も前の配信に入り、次の配信に混ざらない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  let t = 1_700_000_000_000;
+  const history = new History(hub, dir, { now: () => t });
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1 });
+  const aId = history.current.id;
+  const aStartedAt = history.current.startedAt;
+  hub.setStatus({ mode: 'idle' });
+
+  t += 120_000;
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  const bId = history.current.id;
+  assert.notEqual(bId, aId);
+  hub.emit('roulette', { roulette: { id: 'main', name: '罰ゲーム' }, item: { label: '歌う' }, trigger: { user: { id: 'u1', name: 'A' } }, spin: { at: aStartedAt } });
+
+  const a = history.get(aId);
+  assert.equal(a.roulettes[0].results[0].count, 1, '前の配信の集計に入る');
+  assert.equal(history.current.roulettes.size, 0, '今の配信の集計には混ざらない');
+  hub.setStatus({ mode: 'idle' });
+  clearInterval(history.details.timer);
+});
+
+test('配信を2回切り替えた後に届いた結果も、元の配信に入る', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  let t = 1_700_000_000_000;
+  const history = new History(hub, dir, { now: () => t });
+  clearInterval(history.timer);
+  const giftFromA = { kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1 };
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.publish(giftFromA);
+  const aId = history.current.id;
+  const aStartedAt = history.current.startedAt;
+  hub.setStatus({ mode: 'idle' });
+
+  t += 120_000;
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.publish(giftFromA);
+  hub.setStatus({ mode: 'idle' });
+
+  t += 120_000;
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  hub.emit('roulette', { roulette: { id: 'main', name: '罰ゲーム' }, item: { label: '歌う' }, trigger: { user: { id: 'u1', name: 'A' } }, spin: { at: aStartedAt } });
+
+  const a = history.get(aId);
+  assert.equal(a.roulettes[0].results[0].count, 1, '集計が元の配信に入る');
+  assert.equal(a.roulettes[0].spins, 1, 'ルーレットごとの回した回数も増える');
+  assert.equal(history.current.roulettes.size, 0, '今の配信には混ざらない');
+  const details = history.details.read(aId, { kind: 'roulette' });
+  assert.equal(details.total, 1, '1件ごとの記録も元の配信に入る');
+  hub.setStatus({ mode: 'idle' });
+  clearInterval(history.details.timer);
 });

@@ -97,13 +97,13 @@ function runOne(action, deps, meta = {}) {
       return deps.boss.healBy(id, action.amount, { test: meta.trigger?.test === true });
     case 'gacha.start': {
       if (!deps.gacha) throw new Error('ガチャがありません');
-      const started = deps.gacha.start({ kind: 'action', source: 'action', ...(meta.trigger?.test === true ? { test: true } : {}) });
+      const started = deps.gacha.start({ kind: 'action', source: 'action', ts: meta.trigger?.ts ?? meta.spin?.at ?? null, ...(meta.trigger?.test === true ? { test: true } : {}) });
       if (!started) throw new Error('ガチャはオフです');
       return started;
     }
     case 'omikuji.start': {
       if (!deps.omikuji) throw new Error('おみくじがありません');
-      const started = deps.omikuji.start({ kind: 'action', source: 'action', ...(meta.trigger?.test === true ? { test: true } : {}) });
+      const started = deps.omikuji.start({ kind: 'action', source: 'action', ts: meta.trigger?.ts ?? meta.spin?.at ?? null, ...(meta.trigger?.test === true ? { test: true } : {}) });
       if (!started) throw new Error('おみくじはオフです');
       return started;
     }
@@ -147,6 +147,6 @@ export function bindRouletteActions(hub, bus, getDeps) {
       trigger: payload?.trigger ?? null,
       spin: payload?.spin ?? null,
     });
-    return runActions(actions, getDeps(), { source: 'roulette', rouletteId: payload?.roulette?.id ?? null, trigger: payload?.trigger ?? null });
+    return runActions(actions, getDeps(), { source: 'roulette', rouletteId: payload?.roulette?.id ?? null, trigger: payload?.trigger ?? null, spin: payload?.spin ?? null });
   });
 }

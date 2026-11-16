@@ -1,6 +1,6 @@
 // 2026-11-15 の直し:
 // - 天井の対象の重みが 0 でも、天井に届けばその運勢が出る（重み 0 は「通常は出ない、天井でのみ出す」）
-// - おみくじ10連（専用ギフト／連打のまとめ／大吉の保証と、重み 0 のときの例外）
+// - おみくじ10連（専用ギフト／連打のまとめ。保証は付けない）
 // - カードめくり: 結果の段階では並びを渡し、外れたら当たりの場所が分かる。結果は記録口へ渡る
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,18 +89,19 @@ test('連打12回は、10連まとめ1つと通常2回になる', (t) => {
   omikuji.close();
 });
 
-test('10連の保証: 天井の対象が出なければ、最後の1つが天井の対象になる', (t) => {
+test('10連に保証はない: 天井の対象が出なくても、最後の1つは通常の抽選のまま', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const { omikuji } = setupOmikuji({ tenGifts: ['TenRose'] }, () => 0.999);
   omikuji.onEvent(rose({ gift: { id: '2', name: 'TenRose' } }));
   const results = omikuji.snapshot().results;
-  assert.equal(results.at(-1).tier.id, 'daikichi');
-  assert.equal(results.at(-1).forced, true);
-  assert.equal(omikuji.snapshot().pityCount, 0);
+  assert.equal(results.length, 10);
+  assert.ok(results.every((r) => r.forced === false), '強制で差し替えられる結果はない');
+  assert.notEqual(results.at(-1).tier.id, 'daikichi');
+  assert.equal(omikuji.snapshot().pityCount, 10, '数えは10回ぶん進み、保証で 0 には戻らない');
   omikuji.close();
 });
 
-test('10連の保証の例外: 天井の対象の重みが 0 なら、保証では出さない', (t) => {
+test('10連でも、重み 0 の大吉は出ない', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const tiers = [
     { id: 'daikichi', label: '大吉', weight: 0, pity: true },

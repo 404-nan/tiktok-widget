@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 import { isDevEnv } from './env.js';
 import { EffectLog } from './effect-log.js';
+import { SessionDetails } from './session-details.js';
 
 /** 1時間あたりのコイン。時間が 0 以下、またはコインが数でないときは 0（NaN や Infinity にしない） */
 export function coinsPerHour(coins, durationMs) {
@@ -196,7 +197,10 @@ export class History {
     this.id = options.id ?? 'local';
     this.now = options.now ?? (() => Date.now());
     this.effectLog = options.effectLog ?? new EffectLog(path.join(dir, 'effects'), { now: this.now, secret: options.effectSecret });
+    this.details = options.details ?? new SessionDetails(path.join(dir, 'details'));
     this.current = null;
+    this.lastSession = null;
+    this.olderSession = null;
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
     hub.on('clientChange', ({ role, connected }) => {
@@ -207,18 +211,39 @@ export class History {
       if (isDevEnv() && e.test && !this.current) {
         this.current = new Session({ username: null, demo: true });
         this.effectLog.start(this.current.id, this.current.startedAt);
+        this.details.start(this.current.id);
       }
       // 本番の配信中に押したテスト送信は記録しない
       if (this.current && (this.current.demo || !String(e.user?.id ?? '').startsWith('demo_'))) this.current.record(e);
       // テスト送信は既存の履歴と同じく本番の効果ログにも残さない。
-      if (this.current && !e.test) this.effectLog.gift(e);
+      if (this.current && !e.test) { this.effectLog.gift(e); this.effectLog.audience(e); }
+      // 1件ごとの記録（集計とは別に、誰が・いつ・何を、を全部残す）。テスト送信とデモの利用者は残さない
+      if (this.current && !e.test && (this.current.demo || !String(e.user?.id ?? '').startsWith('demo_'))) {
+        const user = e.user ? { id: e.user.id ?? null, name: e.user.name ?? null, avatar: e.user.avatar ?? null } : null;
+        if (e.kind === 'gift') {
+          const gift = e.gift ?? {};
+          this.details.record({ ts: e.ts ?? this.now(), kind: 'gift', user, gift: { id: gift.id ?? null, name: gift.name ?? null, nameJa: gift.nameJa ?? null }, count: finiteCount(gift.count), coins: eventCoinTotal(e) });
+        } else if (e.kind === 'follow' || e.kind === 'share') {
+          this.details.record({ ts: e.ts ?? this.now(), kind: e.kind, user });
+        }
+      }
     });
     hub.on('roulette', (r) => {
       if (isDevEnv() && r?.trigger?.test && !this.current) {
         this.current = new Session({ username: null, demo: true });
         this.effectLog.start(this.current.id, this.current.startedAt);
+        this.details.start(this.current.id);
       }
-      this.current?.recordRoulette(r);
+      // ルーレットの結果は遅れて届くので、集計も1件ごとの記録も、回し始めた時刻が属する配信へ付ける
+      const spinAt = Number(r?.spin?.at) || this.now();
+      const targetId = this.sessionIdAt(spinAt);
+      if (targetId && this.current?.id === targetId) this.current.recordRoulette(r);
+      else if (targetId && this.lastSession?.id === targetId) { this.lastSession.recordRoulette(r); this.#writeSession(this.lastSession); }
+      else if (targetId) this.#bumpOlderRoulette(targetId, r);
+      if (!r?.trigger?.test && targetId) {
+        const u = r?.trigger?.user;
+        this.details.recordTo(targetId, { ts: spinAt, kind: 'roulette', roulette: { id: r?.roulette?.id ?? null, name: r?.roulette?.name ?? null }, result: r?.item?.label ?? null, user: u ? { id: u.id ?? null, name: u.name ?? null } : null });
+      }
     });
     hub.on('minecraft', (log) => {
       if (!this.current || log.source === 'test') return;
@@ -239,19 +264,59 @@ export class History {
         const widgetConnected = this.id !== 'local' && !demo && this.hub.hasClient('obs');
         this.current = new Session({ username, demo, trackWidget: this.id !== 'local' && !demo, widgetConnected, now: this.now });
         this.effectLog.start(this.current.id, this.current.startedAt);
+        this.details.start(this.current.id);
       }
     } else if (status.mode !== 'connecting') {
       this.end();
     }
   }
 
+  /** 時刻が属する配信の id。今の配信か、終わった直前の配信だけを引く（結果の遅れは秒単位のため） */
+  sessionIdAt(ts) {
+    const t = Number(ts);
+    if (!Number.isFinite(t)) return this.current?.id ?? null;
+    if (this.current && t >= this.current.startedAt) return this.current.id;
+    const last = this.lastSession;
+    if (last && t >= last.startedAt && t <= last.endedAt) return last.id;
+    const older = this.olderSession;
+    if (older && t >= older.startedAt && t <= older.endedAt) return older.id;
+    // 直前の配信が終わった後で今の配信が始まる前の隙間は、終わった配信の範囲には入らない（走査しない）
+    if (last && t > last.endedAt && (!this.current || t < this.current.startedAt)) return null;
+    // 配信を何度も切り替えた後の遅れは、保存済みの配信の範囲から引く
+    for (const s of this.list()) {
+      if (s.endedAt && t >= s.startedAt && t <= s.endedAt) {
+        this.olderSession = { id: s.id, startedAt: s.startedAt, endedAt: s.endedAt };
+        return s.id;
+      }
+    }
+    return null;
+  }
+
+  /** 終わった配信のファイルのルーレット集計に、遅れて届いた結果を足す */
+  #bumpOlderRoulette(id, r) {
+    const file = path.join(this.dir, `${path.basename(String(id))}.json`);
+    let data;
+    try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return; }
+    const rid = r?.roulette?.id ?? 'main';
+    const label = r?.item?.label ?? '';
+    data.roulettes = Array.isArray(data.roulettes) ? data.roulettes : [];
+    let entry = data.roulettes.find((x) => x.id === rid);
+    if (!entry) { entry = { id: rid, name: r?.roulette?.name ?? rid, spins: 0, results: [] }; data.roulettes.push(entry); }
+    entry.spins = (Number(entry.spins) || 0) + 1;
+    const hit = entry.results.find((x) => x.label === label);
+    if (hit) hit.count += 1; else entry.results.push({ label, count: 1 });
+    this.writeFile(file, JSON.stringify(data));
+  }
+
   end() {
     if (!this.current) return;
     this.current.endedAt = this.now();
+    this.lastSession = this.current;
     this.current.setWidgetConnection(false, this.current.endedAt);
     this.current.dirty = true;
     this.save();
     this.effectLog.end(this.current.endedAt);
+    this.details.end();
     this.current = null;
   }
 
@@ -261,6 +326,10 @@ export class History {
     s.dirty = false;
     // 何も起きなかった配信は残さない
     if (!s.timeline.length) return;
+    this.#writeSession(s);
+  }
+
+  #writeSession(s) {
     this.writeFile(path.join(this.dir, `${s.id}.json`), JSON.stringify(s));
   }
 

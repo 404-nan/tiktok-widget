@@ -87,7 +87,7 @@ export class CardDraw {
     this.trigger = trigger;
     this.seq += 1;
     const c = this.config;
-    this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck: deckOf(Number(c.count) || 8, Number(c.winRate) || 0, this.random), picked: null, win: null, pickEndsAt: null };
+    this.round = { user: trigger.user ?? null, giftLabel: trigger.giftLabel ?? null, deck: deckOf(Number(c.count) || 8, Number(c.winRate) || 0, this.random), picked: null, win: null, pickEndsAt: null, startedAt: Date.now() };
     this.#go('show', c.showMs, () => this.#go('shuffle', c.shuffleMs, () => {
       this.round.pickEndsAt = Date.now() + (Number(c.pickSeconds) || 30) * 1000;
       // 時間までに番号が来なければ、ランダムな番号でめくる
@@ -117,6 +117,7 @@ export class CardDraw {
           label: this.round.win ? c.winLabel : c.loseLabel,
           giftLabel: this.round.giftLabel,
           test: Boolean(this.trigger?.test) || this.trigger?.kind === 'test' || this.trigger?.kind === 'dev',
+          at: this.round.startedAt,
         });
       } catch {
         // 記録に失敗しても抽選自体は止めない
