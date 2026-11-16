@@ -35,7 +35,7 @@ function drawOnce(t, omikuji, ev) {
   return seen;
 }
 
-test('重み 0 の大吉でも、天井に届けば確定で出る', (t) => {
+test('重み 0 の大吉は、天井に届いても出ない（天井は発動せず、数えは増え続ける）', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const tiers = [
     { id: 'daikichi', label: '大吉', weight: 0, pity: true },
@@ -45,9 +45,9 @@ test('重み 0 の大吉でも、天井に届けば確定で出る', (t) => {
   assert.equal(drawOnce(t, omikuji, rose()).tier, 'kichi');
   assert.equal(drawOnce(t, omikuji, rose()).tier, 'kichi');
   const third = drawOnce(t, omikuji, rose());
-  assert.equal(third.tier, 'daikichi');
-  assert.equal(third.forced, true);
-  assert.equal(omikuji.snapshot().pityCount, 0);
+  assert.equal(third.tier, 'kichi');
+  assert.equal(third.forced, false);
+  assert.equal(omikuji.snapshot().pityCount, 3);
   omikuji.close();
 });
 
