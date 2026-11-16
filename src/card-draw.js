@@ -66,10 +66,29 @@ export class CardDraw {
     return { phase: this.phase, seq: this.seq, pending: this.pending.length, enabled: this.config.enabled !== false, ...this.#view() };
   }
 
-  /** オフのときは null。めくっている間は待ち列に入れる(待ちに上限はつけない。投げた分は全部めくる) */
+  /** テストのラウンドを打ち切る。タイマーを全部止め、画面を空に戻す */
+  #abortTest() {
+    this.close();
+    this.phase = 'idle';
+    this.round = null;
+    // 待機に戻る知らせにもテストの印を付ける（見本の画面がテストの表示で止まらないように）
+    this.#emit();
+    this.trigger = null;
+  }
+
+  /** オフのときは null。めくっている間は待ち列に入れる(待ちに上限はつけない。投げた分は全部めくる)。
+   * テストの開始は、本物のラウンドが進行中なら待ち列に入れず断る。進行中がテストなら、本物が割り込む */
   start(trigger = {}) {
     if (this.config.enabled === false) return null;
     if (this.phase !== 'idle') {
+      if (trigger?.test === true) {
+        return { ok: false, reason: 'busy', error: 'いま別のカードめくりが進行中です。終わってから試してください' };
+      }
+      if (this.trigger?.test === true) {
+        this.#abortTest();
+        this.#begin(trigger);
+        return { ok: true, queued: false, seq: this.seq };
+      }
       this.pending.push(trigger);
       return { ok: true, queued: true, pending: this.pending.length };
     }
