@@ -34,7 +34,7 @@ test('指定したギフトなら、コインが少なくても引く', () => {
 });
 
 test('ギフトが空のおみくじは、今までどおりコインの条件で引く', () => {
-  const omikuji = setup('omikuji', { displayMode: 'short', gifts: [], minCoins: 10 });
+  const omikuji = setup('omikuji', { displayMode: 'short', gifts: [], minCoins: 10, tenBatch: false });
   omikuji.onEvent(giftEvent('Rose', '5655', 1));
   assert.equal(omikuji.seq, 0);
   omikuji.onEvent(giftEvent('Rose', '5655', 10));
@@ -58,7 +58,7 @@ const comboEvent = (name, id, count, perGift) => ({
 
 test('おみくじは連打（コンボ）の回数ぶん続けて引く', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const omikuji = setup('omikuji', { displayMode: 'short', gifts: [], minCoins: 10 });
+  const omikuji = setup('omikuji', { displayMode: 'short', gifts: [], minCoins: 10, tenBatch: false });
   omikuji.onEvent(comboEvent('Rose', '5655', 10, 1)); // バラ10連打＝10コインで条件を満たす
   assert.equal(omikuji.seq, 1);
   assert.equal(omikuji.snapshot().pending, 9);
