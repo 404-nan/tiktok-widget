@@ -269,6 +269,42 @@ export class Gacha {
    * 10連: 10回ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数えは10回ぶん進める。
    * テストの10連では天井の数えを進めない（通常の抽選と同じ線引き）。
    */
+  /** 待ち列の次を始める。同じ視聴者の分が10回ぶんたまっていたら、10連にまとめる */
+  #drain() {
+    const ten = this.#takeTenBatch();
+    if (ten) {
+      this.#begin(ten);
+      return;
+    }
+    const next = this.pending.shift();
+    if (next) this.#begin(next);
+  }
+
+  /**
+   * 10連まとめ（tenBatch）が有効で、待ち列の先頭の視聴者と同じ人の分が10回ぶん以上たまっていたら、
+   * その10回ぶんを取り出して1つの10連にする。テストの分はまとめない。10連そのもの（kind: 'ten'）は対象外。
+   */
+  #takeTenBatch() {
+    if (this.name !== 'omikuji' || this.config.tenBatch !== true) return null;
+    if (this.pending.length < 10) return null;
+    const first = this.pending[0];
+    if (!first || first.kind === 'ten' || first.test === true || first.kind === 'test') return null;
+    // 視聴者が分からない分は、誰の分ともまとめない（同じキーに寄せると別々の分が1人分に化けるため）
+    const keyOf = (t) => (t?.user?.id ? `id:${t.user.id}` : t?.user?.name ? `name:${t.user.name}` : null);
+    const key = keyOf(first);
+    if (key === null) return null;
+    const mine = [];
+    const rest = [];
+    for (const t of this.pending) {
+      const same = t && t.kind !== 'ten' && t.test !== true && t.kind !== 'test' && keyOf(t) === key;
+      if (same && mine.length < 10) mine.push(t);
+      else rest.push(t);
+    }
+    if (mine.length < 10) return null;
+    this.pending = rest;
+    return { ...first, kind: 'ten' };
+  }
+
   #beginTen() {
     this.close();
     const tiers = this.config.tiers;
@@ -301,8 +337,7 @@ export class Gacha {
         this.tenResults = null;
         this.trigger = null;
         this.#emit('idle');
-        const next = this.pending.shift();
-        if (next) this.#begin(next);
+        this.#drain();
       });
     });
   }
@@ -362,8 +397,7 @@ export class Gacha {
           this.trigger = null;
           this.stick = null;
           this.#emit('idle');
-          const next = this.pending.shift();
-          if (next) this.#begin(next);
+          this.#drain();
         });
       });
     });

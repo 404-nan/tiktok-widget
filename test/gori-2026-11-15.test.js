@@ -164,3 +164,80 @@ test('カードめくり: テスト送信のギフトは、結果にテスト印
   assert.equal(results[0].test, true);
   draw.close();
 });
+
+function tickUntil(t, omikuji, phase, max = 30) {
+  for (let i = 0; i < max && omikuji.phase !== phase; i++) t.mock.timers.tick(500);
+  return omikuji.phase;
+}
+
+test('待ちに同じ視聴者の分が10回ぶんたまったら、自動で10連になる', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setupOmikuji({ tenBatch: true }, () => 0.999);
+  omikuji.onEvent(rose());
+  assert.notEqual(omikuji.phase, 'idle');
+  for (let i = 0; i < 10; i++) omikuji.onEvent(rose());
+  assert.equal(omikuji.snapshot().pending, 10);
+  assert.equal(tickUntil(t, omikuji, 'ten'), 'ten');
+  assert.equal(omikuji.snapshot().results.length, 10);
+  omikuji.close();
+});
+
+test('待ちが9回ぶんでは、10連にならず単発で続く', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setupOmikuji({ tenBatch: true }, () => 0.999);
+  omikuji.onEvent(rose());
+  for (let i = 0; i < 9; i++) omikuji.onEvent(rose());
+  const seen = new Set();
+  for (let i = 0; i < 12; i++) { t.mock.timers.tick(500); seen.add(omikuji.phase); }
+  assert.ok(!seen.has('ten'), '10連にはならない');
+  assert.ok(seen.has('reveal'), '単発が続けて始まる');
+  omikuji.close();
+});
+
+test('違う視聴者の分が混ざっていても、1人で10回ぶんたまらなければ10連にならない', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setupOmikuji({ tenBatch: true }, () => 0.999);
+  omikuji.onEvent(rose());
+  for (let i = 0; i < 5; i++) omikuji.onEvent(rose());
+  for (let i = 0; i < 5; i++) omikuji.onEvent(rose({ user: { id: 'u2', name: 'たろう' } }));
+  const seen = new Set();
+  for (let i = 0; i < 12; i++) { t.mock.timers.tick(500); seen.add(omikuji.phase); }
+  assert.ok(!seen.has('ten'));
+  omikuji.close();
+});
+
+test('10連まとめがオフなら、待ちが10回ぶんたまっても単発のまま', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setupOmikuji({ tenBatch: false }, () => 0.999);
+  omikuji.onEvent(rose());
+  for (let i = 0; i < 10; i++) omikuji.onEvent(rose());
+  const seen = new Set();
+  for (let i = 0; i < 12; i++) { t.mock.timers.tick(500); seen.add(omikuji.phase); }
+  assert.ok(!seen.has('ten'));
+  omikuji.close();
+});
+
+test('視聴者が分からない分は、10回ぶんたまっても10連にまとめない', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setupOmikuji({ tenBatch: true }, () => 0.999);
+  omikuji.onEvent(rose());
+  for (let i = 0; i < 10; i++) omikuji.start({ kind: 'action' });
+  assert.equal(omikuji.snapshot().pending, 10);
+  const seen = new Set();
+  for (let i = 0; i < 12; i++) { t.mock.timers.tick(500); seen.add(omikuji.phase); }
+  assert.ok(!seen.has('ten'), '誰の分でもない抽選は、まとめない');
+  omikuji.close();
+});
+
+test('別の視聴者を挟んでも、同じ視聴者の10回ぶんがそろえば10連になり、残りの順番は保たれる', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setupOmikuji({ tenBatch: true }, () => 0.999);
+  omikuji.onEvent(rose());
+  for (let i = 0; i < 5; i++) omikuji.onEvent(rose());
+  for (let i = 0; i < 5; i++) omikuji.onEvent(rose({ user: { id: 'u2', name: 'たろう' } }));
+  for (let i = 0; i < 5; i++) omikuji.onEvent(rose());
+  assert.equal(tickUntil(t, omikuji, 'ten'), 'ten');
+  assert.equal(omikuji.snapshot().results.length, 10);
+  assert.equal(omikuji.snapshot().pending, 5, '残るのは、挟んだ視聴者の5回ぶんだけ');
+  omikuji.close();
+});
