@@ -97,7 +97,8 @@
     countdown = setInterval(tick, 250);
   }
 
-  // 10連: 結果の札を小さい和紙で並べる（おみくじの画面にだけ #ten がある）。1枚ずつ時間差で出す
+  // 10連: 結果の札を並べる（おみくじの画面にだけ #ten がある）。札は1枚ずつ裏から表へ返る（試作v3の見た目。
+  // 舞台側の [data-ten="flip"] の決まりと対）。大吉の札だけ、返る動きと金の光を長くして見せる
   function renderTen(data) {
     var box = document.getElementById('ten');
     if (!box) return;
@@ -105,20 +106,55 @@
     if (!results || !results.length) {
       box.textContent = '';
       box.hidden = true;
+      stageEl.removeAttribute('data-ten');
       return;
     }
+    stageEl.setAttribute('data-ten', 'flip');
     box.hidden = false;
     box.textContent = '';
+    var who = data.trigger && data.trigger.user;
+    var drawerName = who && who.name ? who.name : '';
     results.forEach(function (r, i) {
       var cell = document.createElement('div');
       cell.className = 'ten-slip';
       cell.setAttribute('data-tier', toneOf(r && r.tier));
-      cell.style.animationDelay = (i * 0.45) + 's';
-      var label = document.createElement('span');
-      label.textContent = (r && r.tier && (r.tier.label || r.tier.id)) || '';
-      cell.appendChild(label);
+      var label = (r && r.tier && (r.tier.label || r.tier.id)) || '';
+      cell.appendChild(flipCard(label, drawerName, i));
       box.appendChild(cell);
     });
+  }
+
+  // 裏（おみくじの字）から表（小さい紙の意匠）へ返る札を作る。表の足には引いた人の名前を出す
+  function flipCard(label, drawerName, i) {
+    var flip = document.createElement('div');
+    flip.className = 'flip';
+    flip.style.animationDelay = (0.05 + i * 0.45) + 's';
+    var back = document.createElement('div');
+    back.className = 'face back';
+    var backText = document.createElement('span');
+    backText.textContent = 'おみくじ';
+    back.appendChild(backText);
+    var front = document.createElement('div');
+    front.className = 'face front';
+    var head = document.createElement('span');
+    head.className = 'm-head';
+    head.textContent = 'おみくじ';
+    var result = document.createElement('span');
+    result.className = 'm-result len' + Math.min(6, label.length);
+    result.textContent = label;
+    var foot = document.createElement('span');
+    foot.className = 'm-foot';
+    foot.textContent = drawerName;
+    var seal = document.createElement('span');
+    seal.className = 'm-seal';
+    seal.innerHTML = '開運<br>守護';
+    front.appendChild(head);
+    front.appendChild(result);
+    front.appendChild(foot);
+    front.appendChild(seal);
+    flip.appendChild(back);
+    flip.appendChild(front);
+    return flip;
   }
 
   function show(data) {
