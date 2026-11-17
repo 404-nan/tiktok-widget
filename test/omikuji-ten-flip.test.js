@@ -1,6 +1,6 @@
 // おみくじ10連の「札が1枚ずつ裏から表へ返る表示」の合格条件：
 // 10連はいつもこの表示（裏＝おみくじの字、表＝見出し・運勢・名前・朱印）で、1枚ずつ時間差で返る。
-// 終われば印は消える。
+// 大吉の札だけ、舞台側の決まりで返る動きと金の光が長くなる。終われば印は消える。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -123,9 +123,12 @@ test('大吉の札は data-tier が大吉で、表の運勢も大吉', () => {
   assert.equal(cells[0].getAttribute('data-tier'), 'kichi');
 });
 
-test('舞台側の決まり：横4:縦3と回転の動きが omikuji の画面にある', () => {
+test('舞台側の決まり：横4:縦3と回転の動き、大吉だけ長く見せる決まりが omikuji の画面にある', () => {
   const html = read('public/widgets/omikuji/index.html');
   assert.match(html, /\.stage\[data-ten="flip"\] \{ width: 480px; height: 360px; \}/);
   assert.match(html, /@keyframes tenflip/);
   assert.match(html, /\.stage\[data-ten="flip"\] \.ten \{ inset: 54px 10px 10px;/);
+  // 大吉の札だけ：返る動きが通常（.55s）より長く、金の光の明滅が付く
+  assert.match(html, /\.stage\[data-ten="flip"\] \.ten-slip\[data-tier="daikichi"\] \.flip \{ animation-duration: 1\.15s; \}/);
+  assert.match(html, /@keyframes tenglow/);
 });

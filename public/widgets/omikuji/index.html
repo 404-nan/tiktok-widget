@@ -197,7 +197,8 @@
   .ten-slip[data-tier="kyo"] { background-color: #B9B0A0; }
   @keyframes tenpop { 0% { opacity: 0; transform: translateY(14px) scale(.8) rotate(-3deg); } 100% { opacity: 1; transform: none; } }
   /* 10連の表示（gacha.js が data-ten="flip" を付ける）: 舞台を横4:縦3にして、裏返しの札が1枚ずつ回転して表に返る。
-     表の意匠は正規の札そのまま（見出し・二重枠・運勢色の字・名前・朱印）。試作v3の見た目をそのまま移した */
+     表の意匠は正規の札そのまま（見出し・二重枠・運勢色の字・名前・朱印）。試作v3の見た目をそのまま移した。
+     大吉の札だけ、返る動きを長くし、金の光を残して長く見せる（第2段） */
   .stage[data-ten="flip"] { width: 480px; height: 360px; }
   .stage[data-ten="flip"] .tube, .stage[data-ten="flip"] .slip, .stage[data-ten="flip"] .pick { display: none; }
   .stage[data-ten="flip"] .ten { inset: 54px 10px 10px; grid-auto-rows: 1fr; }
@@ -208,6 +209,10 @@
   .stage[data-ten="flip"] .ten-slip[data-tier="daikyo"] { --tone: #24180F; }
   .ten-slip .flip { position: absolute; inset: 0; transform-style: preserve-3d; animation: tenflip .55s cubic-bezier(.2, .7, .3, 1.2) both; }
   @keyframes tenflip { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(180deg); } }
+  /* 大吉の札だけ長く見せる：返る動きは通常の2倍ほど、金の光は表示の間ずっと明滅する */
+  .stage[data-ten="flip"] .ten-slip[data-tier="daikichi"] .flip { animation-duration: 1.15s; }
+  .stage[data-ten="flip"] .ten-slip[data-tier="daikichi"] .face.front { animation: tenglow 1.6s ease-in-out infinite alternate; }
+  @keyframes tenglow { from { box-shadow: 0 8px 18px rgba(0, 0, 0, .34), 0 0 14px rgba(255, 196, 0, .35); } to { box-shadow: 0 8px 18px rgba(0, 0, 0, .34), 0 0 34px rgba(255, 196, 0, .75); } }
   .ten-slip .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 2px; overflow: hidden; background-color: var(--washi); box-shadow: 0 8px 18px rgba(0, 0, 0, .34); }
   .ten-slip .face::before { content: ""; position: absolute; inset: 4px; border: 3px solid var(--tone); outline: 1px solid var(--ink); outline-offset: 2px; pointer-events: none; }
   .ten-slip[data-tier="daikichi"] .face.front { box-shadow: 0 8px 18px rgba(0, 0, 0, .34), 0 0 24px rgba(255, 196, 0, .5); }
