@@ -16,8 +16,14 @@ export const STICKS = 10;
  * レアリティを1つ引く。pityEvery 回以上、天井対象以外が続いたら次は天井。
  * pityCount は天井対象を引いたら 0 に戻る。
  */
-export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.random) {
+export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.random, { daikichiWeightPct = 0 } = {}) {
   const all = Array.isArray(tiers) ? tiers : [];
+  const luckPct = Number.isFinite(Number(daikichiWeightPct)) ? Number(daikichiWeightPct) : 0;
+  const weightOf = (tier) => {
+    const weight = Number(tier?.weight);
+    if (tier?.id !== 'daikichi' || weight <= 0 || luckPct <= 0) return weight;
+    return weight * (1 + luckPct / 100);
+  };
   const list = all.filter((tier) => Number(tier?.weight) > 0);
   if (!list.length) return { tier: { id: 'none', label: '？', weight: 1, pity: false }, pityCount, forced: false };
   // 重み 0 は「出ない」という指定なので、天井でも出さない。天井の対象は重みが 1 以上ある対象だけに限る。
@@ -26,17 +32,23 @@ export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.rand
   const count = Math.max(0, Number(pityCount) || 0);
   const every = Math.max(0, Number(pityEvery) || 0);
   if (every > 0 && pityTier && count >= every) return { tier: pityTier, pityCount: 0, forced: true };
-  const total = list.reduce((sum, tier) => sum + Number(tier.weight), 0);
+  const total = list.reduce((sum, tier) => sum + weightOf(tier), 0);
   let cursor = Number(random()) * total;
   let picked = list[list.length - 1];
   for (const tier of list) {
-    cursor -= Number(tier.weight);
+    cursor -= weightOf(tier);
     if (cursor < 0) {
       picked = tier;
       break;
     }
   }
   return { tier: picked, pityCount: picked.pity === true ? 0 : count + 1, forced: false };
+}
+
+function luckCoinsFor(hub, user) {
+  const key = user?.id || user?.name;
+  if (!key || !(hub?.gifters instanceof Map)) return 0;
+  return Math.max(0, Number(hub.gifters.get(key)?.diamonds) || 0);
 }
 
 export class Gacha {
@@ -401,7 +413,7 @@ export class Gacha {
     if (pityTier && ((globalEvery > 0 && pityCount >= globalEvery) || (personalEvery > 0 && userCount != null && userCount >= personalEvery))) {
       return { tier: pityTier, forced: true, pityCount: 0, userCount: userCount == null ? null : 0 };
     }
-    const rolled = rollTier(tiers, pityCount, 0, this.random);
+    const rolled = rollTier(tiers, pityCount, 0, this.random, this.#luckOptions(this.trigger));
     return {
       tier: rolled.tier,
       forced: false,
@@ -450,6 +462,18 @@ export class Gacha {
         });
       });
     });
+  }
+
+  #luckOptions(trigger) {
+    if (this.name !== 'omikuji' || this.config.luckBoost !== true) return { daikichiWeightPct: 0 };
+    const unit = Number(this.config.luckUnitCoins);
+    const stepPct = Number(this.config.luckStepPct);
+    const maxSteps = Math.max(0, Math.floor(Number(this.config.luckMaxSteps)) || 0);
+    if (!Number.isFinite(unit) || unit <= 0 || !Number.isFinite(stepPct) || stepPct <= 0 || maxSteps <= 0) {
+      return { daikichiWeightPct: 0 };
+    }
+    const steps = Math.min(maxSteps, Math.floor(luckCoinsFor(this.hub, trigger?.user) / unit));
+    return { daikichiWeightPct: steps * stepPct };
   }
 
   #emit(name) {
