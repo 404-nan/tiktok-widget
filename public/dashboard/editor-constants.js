@@ -1,5 +1,5 @@
 // editor.js の定数。タブ一覧・表示名・フォームの構成など。
-export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
+export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'commentSlide', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 export const ENUM_LABELS = {
@@ -84,6 +84,7 @@ export const LABELS = {
   shareSeconds: 'シェアで延びる秒数', likeEvery: 'いいね何回ごとに延ばすか（0 で延ばさない）', likeSeconds: 'いいねで延びる秒数',
   pausedExtend: '一時停止中もギフトで延びる', 'timers.hint': '案内文（空なら自動）', showHint: '案内文と延長の合計を出す',
   'timers.avatars': '延ばした人のアイコン', warnMinutes: '時計を朱にする残り（分）', dangerMinutes: '赤く脈打つ残り（分）', endText: '0 になったときの文字',
+  'commentSlide.trigger1': 'きっかけの言葉1', 'commentSlide.text1': '出す言葉1', 'commentSlide.trigger2': 'きっかけの言葉2', 'commentSlide.text2': '出す言葉2', 'commentSlide.trigger3': 'きっかけの言葉3', 'commentSlide.text3': '出す言葉3', 'commentSlide.trigger4': 'きっかけの言葉4', 'commentSlide.text4': '出す言葉4', 'commentSlide.trigger5': 'きっかけの言葉5', 'commentSlide.text5': '出す言葉5', 'commentSlide.seconds': '出す秒数', 'commentSlide.color': '帯の色',
 };
 
 // puchun.html の presets.js と同じ順・キーで、ダッシュボードに字の欄を出す。
@@ -117,6 +118,7 @@ export const BASIC = {
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
   cheers: ['title', 'goal', 'growth', 'loop', 'fullText', 'fullActions', 'sound', 'volume', 'color', 'fullColor'],
   pushButtons: ['label', 'seconds', 'keyword', 'likesPerPush', 'steps', 'blueActions', 'greenActions', 'redActions', 'goldActions', 'missText', 'sound', 'volume', 'color'],
+  commentSlide: ['trigger1', 'text1', 'trigger2', 'text2', 'trigger3', 'text3', 'trigger4', 'text4', 'trigger5', 'text5', 'seconds', 'color'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 // WIN数の演出の段階の境目（src/wins.js の LOSS_PRESETS と同じ）

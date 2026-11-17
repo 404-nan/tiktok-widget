@@ -36,6 +36,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
+| `comment-slide.test.js` | コメントスライド(きっかけの含む判定・上から最初の1つだけ・待ち行列の上限3と捨てる・カタログへの登録)のテスト |
 | `coins-nan.test.js` | コイン値の異常系テスト |
 | `config.test.js` / `keep-settings.test.js` | 設定読み書きと保持のテスト |
 | `bundle.test.js` | リンクまとめの設定の検証と、一覧への URL 追加のテスト |

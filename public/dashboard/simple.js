@@ -9,7 +9,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
-  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats']],
+  ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'commentSlide']],
   ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts', 'cardDraw']],
   ['豪華な演出', ['obs', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
@@ -40,6 +40,7 @@ export const INFO = {
   supporters: { icon: 'users', desc: '最近フォローやギフトをくれた人を表示する' },
   cardDraw: { icon: 'layers', desc: 'カードを混ぜて並べ、ギフトを送った人が番号をコメントするとめくれる' },
   superchats: { icon: 'badge-dollar-sign', desc: 'たくさんギフトを送った人のコメントだけを、1件ずつ大きく出す(スパチャ風)' },
+  commentSlide: { icon: 'megaphone', desc: '決めたコメントが来たら、決めた言葉を画面の横から流す' },
   mcGifts: { icon: 'pickaxe', desc: '妨害マイクラで、どのギフトを送ると何が起きるかを出す' },
   visitors: { icon: 'door-open', desc: '初見さんや何度も来ている人を迎える' },
   jars: { icon: 'flask-conical', desc: '届いたギフトが瓶に落ちて、たまっていく' },
@@ -116,6 +117,12 @@ export const SIMPLE = {
     groups: [
       { title: '出すもの', fields: ['events', 'limit', 'minCoins'] },
       { title: '見た目', fields: ['avatars', 'lifetime', 'color'] },
+    ],
+  },
+  commentSlide: {
+    groups: [
+      { title: 'きっかけと言葉', fields: ['trigger1', 'text1', 'trigger2', 'text2', 'trigger3', 'text3', 'trigger4', 'text4', 'trigger5', 'text5'] },
+      { title: '見た目', fields: ['seconds', 'color'] },
     ],
   },
   alerts: {
@@ -443,6 +450,7 @@ export const SIMPLE_LABELS = {
   'tickers.label': '札の文字', 'tickers.messages': '流す文', 'tickers.showGifts': '最近のギフトを流す', 'tickers.giftCount': 'ギフトの件数', 'tickers.showGoals': '目標を流す', 'tickers.goals': '流す目標', 'tickers.speed': '流れる速さ', 'tickers.color': '札の色',
   'supporters.events': '出すイベント', 'supporters.limit': '出す人数', 'supporters.minCoins': '何コインから', 'supporters.avatars': 'アイコンを出す', 'supporters.lifetime': '消すまでの秒数', 'supporters.color': '新しいカードの印',
   'superchats.minCoins': '何コイン以上送った人のコメントを出す？', 'superchats.seconds': '1件を出す秒数', 'superchats.avatars': 'アイコンを出す',
+  'commentSlide.trigger1': 'きっかけの言葉 1（コメントに含まれていたら）', 'commentSlide.text1': '出す言葉 1', 'commentSlide.trigger2': 'きっかけの言葉 2', 'commentSlide.text2': '出す言葉 2', 'commentSlide.trigger3': 'きっかけの言葉 3', 'commentSlide.text3': '出す言葉 3', 'commentSlide.trigger4': 'きっかけの言葉 4', 'commentSlide.text4': '出す言葉 4', 'commentSlide.trigger5': 'きっかけの言葉 5', 'commentSlide.text5': '出す言葉 5', 'commentSlide.seconds': '出す秒数', 'commentSlide.color': '帯の色',
   'mcGifts.title': '見出し', 'mcGifts.rows': '一度に出す行', 'mcGifts.interval': 'めくる秒数', 'mcGifts.color': '見出しの印の色',
   'visitors.showFirst': '初見さんを迎える', 'visitors.showReturning': 'おかえりの人を迎える', 'visitors.showRegular': '常連さんを迎える', 'visitors.regularVisits': '何回目から常連さん', 'visitors.firstText': '初見さんの文', 'visitors.returningText': 'おかえりの文', 'visitors.regularText': '常連さんの文', 'visitors.duration': '出す秒数', 'visitors.avatars': 'アイコンを出す', 'visitors.keepDays': '記録を残す日数',
   'alerts.events': 'どんなときに出す？', 'alerts.gifts': 'どのギフトで出す？', 'alerts.minCoins': '何コイン以上で出す？', 'alerts.position': '出す場所', 'alerts.align': '出す場所',
@@ -505,6 +513,7 @@ const SUMMARY = {
   obs: (e) => (e.enabled === false ? '使わない設定' : `${e.source || 'カメラ未指定'}を${e.reduce ? '弱めに' : '動かす'}・ルール ${e.rules?.length ?? 0}件`),
   tickers: (e) => `${e.messages?.length ?? 0} 個のお知らせ・${e.showGifts ? 'ギフトあり' : 'ギフトなし'}`,
   supporters: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・')}を${e.limit} 人`,
+  commentSlide: (e) => `${[1, 2, 3, 4, 5].filter((i) => String(e[`trigger${i}`] ?? '').trim()).length} 組のきっかけ・${e.seconds} 秒`,
   visitors: (e) => `${e.regularVisits} 回目から常連さん・${e.keepDays} 日記録`,
   alerts: (e) => `${(e.events ?? []).map((v) => EVENT[v] ?? v).join('・') || 'なし'}で出す`,
   chats: (e) => `${e.style === 'bubble' ? '吹き出し' : 'テロップ'}${e.tts ? '・読み上げあり' : ''}`,
