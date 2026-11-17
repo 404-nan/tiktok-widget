@@ -104,3 +104,47 @@ test('luckBoost は天井の数え・発動を変えない', () => {
   assert.equal(normal.pityCount, 1);
   assert.equal(normal.forced, false);
 });
+
+test('滞在の区切りでも段が上がる（第2段）', () => {
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  hub.gifters = new Map();
+  const omikuji = setup(hub, { luckUnitCoins: 100000, luckStayUnits: 6 });
+  omikuji.setStaySource({ stayUnitsFor: (user) => (user?.id === 'u1' ? 12 : 0) });
+  omikuji.start({ kind: 'gift', user: { id: 'u1', name: '一郎' } });
+  assert.equal(omikuji.tier.id, 'daikichi', '滞在12区切り＝2段で大吉に届く');
+  omikuji.close();
+
+  const short = setup(hub, { luckUnitCoins: 100000, luckStayUnits: 6 });
+  short.setStaySource({ stayUnitsFor: () => 5 });
+  short.start({ kind: 'gift', user: { id: 'u2', name: '二郎' } });
+  assert.equal(short.tier.id, 'kichi', '滞在5区切りでは1段に届かない');
+  short.close();
+});
+
+test('投げた量と滞在の段は合算され、上限で止まる', () => {
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  hub.gifters = new Map([['u1', { diamonds: 999 }]]);
+  const omikuji = setup(hub, { luckStayUnits: 6 }, () => 0.13);
+  omikuji.setStaySource({ stayUnitsFor: () => 12 });
+  omikuji.start({ kind: 'gift', user: { id: 'u1', name: '一郎' } });
+  assert.equal(omikuji.tier.id, 'kichi', '投げ9段＋滞在2段でも上限3段で止まる');
+  omikuji.close();
+});
+
+test('luckStayUnits が 0 なら滞在では上がらず、材料が無くても壊れない', () => {
+  const hub = new EventEmitter();
+  hub.broadcast = () => {};
+  hub.gifters = new Map();
+  const off = setup(hub, { luckUnitCoins: 100000, luckStayUnits: 0 });
+  off.setStaySource({ stayUnitsFor: () => 60 });
+  off.start({ kind: 'gift', user: { id: 'u1', name: '一郎' } });
+  assert.equal(off.tier.id, 'kichi');
+  off.close();
+
+  const none = setup(hub, { luckUnitCoins: 100000, luckStayUnits: 6 });
+  none.start({ kind: 'gift', user: { id: 'u1', name: '一郎' } });
+  assert.equal(none.tier.id, 'kichi', '滞在の材料が渡されていなくても今までどおり');
+  none.close();
+});

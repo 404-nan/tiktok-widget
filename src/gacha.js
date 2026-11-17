@@ -55,6 +55,7 @@ export class Gacha {
   constructor(hub, { bus = null, random = null, name = 'gacha', storeFile = null } = {}) {
     this.name = name;
     this.hub = hub;
+    this.staySource = null; // 滞在の材料（確率アップ第2段）。runtime が setStaySource で渡す
     this.bus = bus;
     this.random = typeof random === 'function' ? random : Math.random;
     this.storeFile = storeFile ? String(storeFile) : null;
@@ -464,16 +465,27 @@ export class Gacha {
     });
   }
 
+  /** 滞在の材料を渡す（runtime が組み立ての後に呼ぶ。gachaViewers.setPoints と同じ形）。 */
+  setStaySource(source) {
+    this.staySource = source ?? null;
+  }
+
   #luckOptions(trigger) {
     if (this.name !== 'omikuji' || this.config.luckBoost !== true) return { daikichiWeightPct: 0 };
-    const unit = Number(this.config.luckUnitCoins);
     const stepPct = Number(this.config.luckStepPct);
     const maxSteps = Math.max(0, Math.floor(Number(this.config.luckMaxSteps)) || 0);
-    if (!Number.isFinite(unit) || unit <= 0 || !Number.isFinite(stepPct) || stepPct <= 0 || maxSteps <= 0) {
-      return { daikichiWeightPct: 0 };
+    if (!Number.isFinite(stepPct) || stepPct <= 0 || maxSteps <= 0) return { daikichiWeightPct: 0 };
+    let steps = 0;
+    const unit = Number(this.config.luckUnitCoins);
+    if (Number.isFinite(unit) && unit > 0) {
+      steps += Math.floor(luckCoinsFor(this.hub, trigger?.user) / unit);
     }
-    const steps = Math.min(maxSteps, Math.floor(luckCoinsFor(this.hub, trigger?.user) / unit));
-    return { daikichiWeightPct: steps * stepPct };
+    const stayUnits = Math.max(0, Math.floor(Number(this.config.luckStayUnits)) || 0);
+    if (stayUnits > 0 && this.staySource) {
+      const stayed = Number(this.staySource.stayUnitsFor?.(trigger?.user)) || 0;
+      if (stayed > 0) steps += Math.floor(stayed / stayUnits);
+    }
+    return { daikichiWeightPct: Math.min(maxSteps, steps) * stepPct };
   }
 
   #emit(name) {

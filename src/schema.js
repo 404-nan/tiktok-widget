@@ -684,7 +684,7 @@ SCHEMA.omikuji = {
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
-    'luckBoost を有効にすると、この配信で投げたコインが luckUnitCoins に届くごとに大吉の重みだけが元の値から luckStepPct%ずつ上がる（luckMaxSteps まで）。視聴者ごとに別々に計算し、天井の数え・発動は変わらない。' +
+    'luckBoost を有効にすると、この配信で投げたコインが luckUnitCoins に届くごとに大吉の重みだけが元の値から luckStepPct%ずつ上がる。滞在の区切りを luckStayUnits の個数ためた分も段に数え、投げた量と滞在の段は合わせて luckMaxSteps まで。視聴者ごとに別々に計算し、天井の数え・発動は変わらない。' +
     'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
     '10連（10回ぶんをまとめて引いて一気に出す）は tenBatch（連打が10回以上のとき／同じ視聴者の分が待ちに10回ぶんたまったとき）か tenGifts（専用ギフト）で使う。URL は /widgets/omikuji.html',
   fields: {
@@ -700,6 +700,7 @@ SCHEMA.omikuji = {
     luckUnitCoins: num(1000, 'この配信で投げた合計コインが届くごとに上がる段の単位', { min: 1 }),
     luckStepPct: num(1, '1段で大吉の元の重みに足す割合（％）', { min: 0 }),
     luckMaxSteps: num(10, '大吉の重みを上げる段の上限', { min: 0, max: 999 }),
+    luckStayUnits: num(6, '滞在の区切り（ポイントの「滞在の区切り」、既定5分）をこの個数ためるごとに1段上がる。既定6で約30分の滞在ごとに1段。0 にすると滞在では上がらない', { min: 0, max: 999 }),
     tenBatch: bool(true, '10連まとめ。連打（コンボ）が10回以上なら、10回ぶんを1つのまとめ引き（10連）にして一気に出す。余りは通常の引き方で引く。また、抽選が続いて同じ視聴者の分が待ちに10回ぶんたまったときも、自動で10連にする。変えたいときはここでオフに切り替えられます。設定しない場合も、同じ視聴者の分が10回ぶん貯まると、自動で10連になります。'),
     tenGifts: list([], '10連ギフト（ID または名前）。このギフトが届いたら、1回のギフトで10回ぶんをまとめて引く（通常の引き方より優先）'),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),

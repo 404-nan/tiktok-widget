@@ -305,6 +305,14 @@ export class Points {
     if (this.dirty) this.#scheduleSave();
   }
 
+  /** 滞在の区切りを何個終えたか（確率アップ第2段の材料）。今も滞在中の人だけを数え、記録は作らない。 */
+  stayUnitsFor(user) {
+    const found = this.#peek(keyOf(user));
+    if (!found?.staySince) return 0;
+    if (this.now() - found.stayLastSeen > 2 * 60_000) return 0;
+    return Math.max(0, int(found.stayUnits));
+  }
+
   // --- 保存と履歴 ---
 
   #load() {
