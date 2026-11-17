@@ -383,8 +383,8 @@ export class Gacha {
       if (this.phase !== 'rolling') return;
       this.phase = 'reveal';
       this.#emit('reveal');
-      // 大吉だけ、結果の余韻を長く取る（見せ場）
-      const revealMs = this.tier?.id === 'daikichi' ? Math.round(this.durations.revealMs * 1.5) : this.durations.revealMs;
+      // 大吉だけ、結果の余韻を見せ場の長さで取る（ふつうの結果は短く、テンポを速く保つ）
+      const revealMs = this.tier?.id === 'daikichi' ? (this.durations.daikichiRevealMs ?? Math.round(this.durations.revealMs * 1.5)) : this.durations.revealMs;
       this.#arm(revealMs, () => {
         if (this.phase !== 'reveal') return;
         this.phase = 'done';
@@ -439,9 +439,9 @@ export class Gacha {
 const TEN_REVEAL_MS = 6000;
 
 const SHORT_TEMPOS = {
-  quick: { rollMs: 400, revealMs: 1700, doneMs: 500 },
-  normal: { rollMs: 520, revealMs: 2150, doneMs: 620 },
-  slow: { rollMs: 700, revealMs: 2700, doneMs: 800 },
+  quick: { rollMs: 300, revealMs: 800, doneMs: 300, daikichiRevealMs: 2550 },
+  normal: { rollMs: 400, revealMs: 1100, doneMs: 400, daikichiRevealMs: 3225 },
+  slow: { rollMs: 550, revealMs: 1500, doneMs: 500, daikichiRevealMs: 4050 },
 };
 function durationsOf(cfg, name) {
   if (name === 'omikuji' && cfg?.displayMode === 'short') return { ...(SHORT_TEMPOS[cfg?.tempo] || SHORT_TEMPOS.quick) };

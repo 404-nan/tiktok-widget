@@ -36,17 +36,17 @@ test('短い型は番号選びなしで固定時間を使い、payload に表示
   omikuji.onEvent(gift());
   assert.equal(omikuji.phase, 'rolling');
   // 既定のテンポ quick の長さ
-  assert.deepEqual(omikuji.durations, { rollMs: 400, revealMs: 1700, doneMs: 500 });
+  assert.deepEqual(omikuji.durations, { rollMs: 300, revealMs: 800, doneMs: 300, daikichiRevealMs: 2550 });
   assert.equal(omikuji.snapshot().displayMode, 'short');
   assert.equal(omikuji.snapshot().resultFont, 'brush');
   assert.equal(sent.at(-1).displayMode, 'short');
   assert.equal(sent.at(-1).resultFont, 'brush');
 
-  t.mock.timers.tick(400);
+  t.mock.timers.tick(300);
   assert.equal(omikuji.phase, 'reveal');
-  t.mock.timers.tick(1700);
+  t.mock.timers.tick(800);
   assert.equal(omikuji.phase, 'done');
-  t.mock.timers.tick(500);
+  t.mock.timers.tick(300);
   assert.equal(omikuji.phase, 'idle');
   omikuji.close();
 });
@@ -55,20 +55,20 @@ test('短い型のテンポは quick が今までの速さ、slow はもっと�
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const quick = setup({ displayMode: 'short', tempo: 'quick', tiers: noDaikichi() });
   quick.omikuji.onEvent(gift());
-  assert.deepEqual(quick.omikuji.durations, { rollMs: 400, revealMs: 1700, doneMs: 500 });
+  assert.deepEqual(quick.omikuji.durations, { rollMs: 300, revealMs: 800, doneMs: 300, daikichiRevealMs: 2550 });
   quick.omikuji.close();
   const slow = setup({ displayMode: 'short', tempo: 'slow', tiers: noDaikichi() });
   slow.omikuji.onEvent(gift());
-  assert.deepEqual(slow.omikuji.durations, { rollMs: 700, revealMs: 2700, doneMs: 800 });
+  assert.deepEqual(slow.omikuji.durations, { rollMs: 550, revealMs: 1500, doneMs: 500, daikichiRevealMs: 4050 });
   slow.omikuji.close();
 });
 
-test('大吉のときだけ、結果の表示が1.5倍長く続く', (t) => {
+test('大吉のときだけ、結果の表示が見せ場の長さ（2550）続く', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const onlyDaikichi = defaultsFor('omikuji').tiers.map((tier) => ({ ...tier, weight: tier.id === 'daikichi' ? 1 : 0 }));
   const { omikuji } = setup({ displayMode: 'short', tempo: 'quick', tiers: onlyDaikichi });
   omikuji.onEvent(gift());
-  t.mock.timers.tick(400);
+  t.mock.timers.tick(300);
   assert.equal(omikuji.phase, 'reveal');
   assert.equal(omikuji.tier.id, 'daikichi');
   t.mock.timers.tick(1700);

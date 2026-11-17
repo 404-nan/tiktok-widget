@@ -27,11 +27,11 @@ const gift = () => ({
 // 模擬時計は段階ごとに進める（まとめて進めると途中で張った待ちがずれる）。
 function drawAndSee(t, omikuji) {
   omikuji.onEvent(gift());
-  t.mock.timers.tick(400);
+  t.mock.timers.tick(300);
   assert.equal(omikuji.phase, 'reveal');
   const seen = { tier: omikuji.tier?.id, forced: omikuji.forced };
-  t.mock.timers.tick(2550); // 大吉の結果表示は1.5倍（1700→2550）。ふつうは1700で done へ進み、残りは空走り
-  t.mock.timers.tick(500);
+  t.mock.timers.tick(2550); // 大吉の結果表示は見せ場の長さ2550。ふつうは800で done へ進み、残りは空走り
+  t.mock.timers.tick(300);
   t.mock.timers.tick(100);
   assert.equal(omikuji.phase, 'idle');
   return seen;
