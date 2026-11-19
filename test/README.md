@@ -38,6 +38,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `chat.test.js` | コメント処理のテスト |
 | `coins-nan.test.js` | コイン値の異常系テスト |
 | `config.test.js` / `keep-settings.test.js` | 設定読み書きと保持のテスト |
+| `card-wheel-config.test.js` | カードホイールの設定（deck の検証・背景の4通り・初期値22枚）のテスト |
 | `cutin-style.test.js` | カットイン設定のテスト |
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
 | `env.test.js` | 環境判定のテスト |
