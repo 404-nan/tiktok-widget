@@ -55,3 +55,9 @@ test('まとめページは、まとめの選択だけを出す形になって�
   // 単体ウィジェットの表（おみくじ・ガチャ・カードめくり）を持つ
   for (const key of ['omikuji', 'gacha', 'cardDraw']) assert.ok(html.includes(`'${key}'`) || html.includes(`${key}:`), key);
 });
+
+test('widgets が一覧でないときはエラーになり、空で通る', () => {
+  const { config, errors } = normalize({ bundles: { list: [{ id: 'a', name: 'x', widgets: 'alerts' }] } });
+  assert.deepEqual(config.bundles.list[0].widgets, []);
+  assert.ok(errors.some((e) => e.includes('widgets は一覧')));
+});

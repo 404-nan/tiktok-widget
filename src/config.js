@@ -189,11 +189,12 @@ function checkBundleList(field, value, where, issues) {
     const name = typeof item.name === 'string' ? item.name.trim() : '';
     if (!name) issues.errors.push(`${at}: 名前を書いてください`);
     if ([...name].length > 40) issues.errors.push(`${at}: 名前は40字までにしてください`);
+    if (item.widgets != null && !Array.isArray(item.widgets)) issues.errors.push(`${at}: widgets は一覧（[]）で書いてください`);
     const rawWidgets = Array.isArray(item.widgets) ? item.widgets : [];
     const bad = rawWidgets.filter((w) => !eligible.includes(w));
     if (bad.length) issues.errors.push(`${at}: まとめに入れられないもの ${bad.join(', ')}`);
     const widgets = [...new Set(rawWidgets.filter((w) => eligible.includes(w)))].slice(0, 40);
-    out.push({ id, name: name.slice(0, 40) || 'まとめ', widgets });
+    out.push({ id, name: [...name].slice(0, 40).join('') || 'まとめ', widgets });
   }
   return out;
 }
