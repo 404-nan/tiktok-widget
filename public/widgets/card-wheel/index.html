@@ -33,6 +33,7 @@
     }
     body.bg-image .bg-backdrop { display: block; }
     body.bg-chroma #starfield, body.bg-transparent #starfield { display: none; }
+    body.bg-chroma .center-aura, body.bg-chroma .astrolabe-halo { display: none; }
 
     #starfield { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
@@ -143,28 +144,28 @@
 import { setupWidget, list, connect, giftNamed, createQueue } from './lib/overlay.js';
 
 const FALLBACK_DECK = [
-  { numeral: '0', title: 'THE FOOL', subtitle: '愚者', text: '恐れを手放し、新しい扉を開くとき。', image: 'card-00.webp', weight: 1 },
-  { numeral: 'I', title: 'THE MAGICIAN', subtitle: '魔術師', text: '創造の力はあなたの手にあります。', image: 'card-01.webp', weight: 1 },
-  { numeral: 'II', title: 'THE HIGH PRIESTESS', subtitle: '女教皇', text: '直感の声に耳を澄ませて。', image: 'card-02.webp', weight: 1 },
-  { numeral: 'III', title: 'THE EMPRESS', subtitle: '女帝', text: '豊かさと愛が満ちる予感。', image: 'card-03.webp', weight: 1 },
-  { numeral: 'IV', title: 'THE EMPEROR', subtitle: '皇帝', text: '意志を貫き、基盤を築く。', image: 'card-04.webp', weight: 1 },
-  { numeral: 'V', title: 'THE HIEROPHANT', subtitle: '教皇', text: '伝統と学びが助けとなります。', image: 'card-05.webp', weight: 1 },
-  { numeral: 'VI', title: 'THE LOVERS', subtitle: '恋人', text: '調和のとれた選択を。', image: 'card-06.webp', weight: 1 },
-  { numeral: 'VII', title: 'THE CHARIOT', subtitle: '戦車', text: '勝利へ向かって邁進するとき。', image: 'card-07.webp', weight: 1 },
-  { numeral: 'VIII', title: 'STRENGTH', subtitle: '力', text: '優しさこそが真の強さです。', image: 'card-08.webp', weight: 1 },
-  { numeral: 'IX', title: 'THE HERMIT', subtitle: '隠者', text: '内省の中に答えがあります。', image: 'card-09.webp', weight: 1 },
-  { numeral: 'X', title: 'WHEEL OF FORTUNE', subtitle: '運命の輪', text: '幸運の転換期が訪れます。', image: 'card-10.webp', weight: 1 },
-  { numeral: 'XI', title: 'JUSTICE', subtitle: '正義', text: '公正な判断が下されるでしょう。', image: 'card-11.webp', weight: 1 },
-  { numeral: 'XII', title: 'THE HANGED MAN', subtitle: '吊るされた男', text: '視点を変えれば光が見えます。', image: 'card-12.webp', weight: 1 },
-  { numeral: 'XIII', title: 'DEATH', subtitle: '死神', text: '終わりは新たな始まり。', image: 'card-13.webp', weight: 1 },
-  { numeral: 'XIV', title: 'TEMPERANCE', subtitle: '節制', text: '絶妙なバランスが成功の鍵。', image: 'card-14.webp', weight: 1 },
-  { numeral: 'XV', title: 'THE DEVIL', subtitle: '悪魔', text: '囚われから抜け出す勇気を。', image: 'card-15.webp', weight: 1 },
-  { numeral: 'XVI', title: 'THE TOWER', subtitle: '塔', text: '劇的な変化が真実を暴く。', image: 'card-16.webp', weight: 1 },
-  { numeral: 'XVII', title: 'THE STAR', subtitle: '星', text: '希望の光があなたを導きます。', image: 'card-17.webp', weight: 1 },
-  { numeral: 'XVIII', title: 'THE MOON', subtitle: '月', text: '迷いも想像力の糧になります。', image: 'card-18.webp', weight: 1 },
-  { numeral: 'XIX', title: 'THE SUN', subtitle: '太陽', text: '明るい祝福と成功が届きます。', image: 'card-19.webp', weight: 1 },
-  { numeral: 'XX', title: 'JUDGEMENT', subtitle: '審判', text: '覚醒と再生の時を迎えました。', image: 'card-21.webp', weight: 1 },
-  { numeral: 'XXI', title: 'THE WORLD', subtitle: '世界', text: '完全なる調和と完成の瞬間。', image: 'card-21.webp', weight: 1 }
+  { numeral: '0', title: 'THE FOOL', subtitle: '愚者', text: '恐れを手放し、新しい扉を開くとき。', image: 'card-00-fool.webp', weight: 1 },
+  { numeral: 'I', title: 'THE MAGICIAN', subtitle: '魔術師', text: '創造の力はあなたの手にあります。', image: 'card-01-magician.webp', weight: 1 },
+  { numeral: 'II', title: 'THE HIGH PRIESTESS', subtitle: '女教皇', text: '直感の声に耳を澄ませて。', image: 'card-02-high-priestess.webp', weight: 1 },
+  { numeral: 'III', title: 'THE EMPRESS', subtitle: '女帝', text: '豊かさと愛が満ちる予感。', image: 'card-03-empress.webp', weight: 1 },
+  { numeral: 'IV', title: 'THE EMPEROR', subtitle: '皇帝', text: '意志を貫き、基盤を築く。', image: 'card-04-emperor.webp', weight: 1 },
+  { numeral: 'V', title: 'THE HIEROPHANT', subtitle: '教皇', text: '伝統と学びが助けとなります。', image: 'card-05-hierophant.webp', weight: 1 },
+  { numeral: 'VI', title: 'THE LOVERS', subtitle: '恋人', text: '調和のとれた選択を。', image: 'card-06-lovers.webp', weight: 1 },
+  { numeral: 'VII', title: 'THE CHARIOT', subtitle: '戦車', text: '勝利へ向かって邁進するとき。', image: 'card-07-chariot.webp', weight: 1 },
+  { numeral: 'VIII', title: 'STRENGTH', subtitle: '力', text: '優しさこそが真の強さです。', image: 'card-08-strength.webp', weight: 1 },
+  { numeral: 'IX', title: 'THE HERMIT', subtitle: '隠者', text: '内省の中に答えがあります。', image: 'card-09-hermit.webp', weight: 1 },
+  { numeral: 'X', title: 'WHEEL OF FORTUNE', subtitle: '運命の輪', text: '幸運の転換期が訪れます。', image: 'card-10-wheel.webp', weight: 1 },
+  { numeral: 'XI', title: 'JUSTICE', subtitle: '正義', text: '公正な判断が下されるでしょう。', image: 'card-11-justice.webp', weight: 1 },
+  { numeral: 'XII', title: 'THE HANGED MAN', subtitle: '吊るされた男', text: '視点を変えれば光が見えます。', image: 'card-12-hanged-man.webp', weight: 1 },
+  { numeral: 'XIII', title: 'DEATH', subtitle: '死神', text: '終わりは新たな始まり。', image: 'card-13-death.webp', weight: 1 },
+  { numeral: 'XIV', title: 'TEMPERANCE', subtitle: '節制', text: '絶妙なバランスが成功の鍵。', image: 'card-14-temperance.webp', weight: 1 },
+  { numeral: 'XV', title: 'THE DEVIL', subtitle: '悪魔', text: '囚われから抜け出す勇気を。', image: 'card-15-devil.webp', weight: 1 },
+  { numeral: 'XVI', title: 'THE TOWER', subtitle: '塔', text: '劇的な変化が真実を暴く。', image: 'card-16-tower.webp', weight: 1 },
+  { numeral: 'XVII', title: 'THE STAR', subtitle: '星', text: '希望の光があなたを導きます。', image: 'card-17-star.webp', weight: 1 },
+  { numeral: 'XVIII', title: 'THE MOON', subtitle: '月', text: '迷いも想像力の糧になります。', image: 'card-18-moon.webp', weight: 1 },
+  { numeral: 'XIX', title: 'THE SUN', subtitle: '太陽', text: '明るい祝福と成功が届きます。', image: 'card-19-sun.webp', weight: 1 },
+  { numeral: 'XX', title: 'JUDGEMENT', subtitle: '審判', text: '覚醒と再生の時を迎えました。', image: 'card-20-judgement.webp', weight: 1 },
+  { numeral: 'XXI', title: 'THE WORLD', subtitle: '世界', text: '完全なる調和と完成の瞬間。', image: 'card-21-world.webp', weight: 1 }
 ];
 
 const p = await setupWidget('cardWheel', {
@@ -183,15 +184,19 @@ const asset = (src, def) => {
   return (s.includes('/') || s.startsWith('http')) ? s : `card-wheel/assets/${s}`;
 };
 
-const deck = p.deck.length ? p.deck : FALLBACK_DECK;
-const cardBack = asset(p.cardBackImage, 'card-back.webp');
-const bgImg = asset(p.backgroundImage, 'bg-celestial.webp');
+let liveDeck = p.deck.length ? p.deck : FALLBACK_DECK;
+let liveBack = asset(p.cardBackImage, 'card-back.webp');
+let liveBg = asset(p.backgroundImage, 'bg-celestial.webp');
 
-// Apply Background
-document.body.className = `bg-${p.background}`;
-if (p.background === 'chroma') document.body.style.setProperty('--chroma-color', p.chromaColor);
-if (p.background === 'solid') document.body.style.setProperty('--solid-color', p.solidColor);
-if (p.background === 'image') document.getElementById('bgBackdrop').style.backgroundImage = `url(${bgImg})`;
+// 背景の適用（クラスは足し引きで変える。is-preview などを消さない）
+const applyBackground = () => {
+  document.body.classList.remove('bg-transparent', 'bg-chroma', 'bg-solid', 'bg-image');
+  document.body.classList.add(`bg-${p.background}`);
+  if (p.background === 'chroma') document.body.style.setProperty('--chroma-color', p.chromaColor);
+  if (p.background === 'solid') document.body.style.setProperty('--solid-color', p.solidColor);
+  if (p.background === 'image') document.getElementById('bgBackdrop').style.backgroundImage = `url(${liveBg})`;
+};
+applyBackground();
 
 // Audio Engine
 class AudioEngine {
@@ -219,20 +224,26 @@ const pawl = document.getElementById('pawlSvg');
 let busy = false;
 window.__twIsIdle = () => !busy;
 
-// Initialize Wheel
-const slotCount = Math.max(deck.length, 12);
+// ホイールの組み立て（deck や裏面が変わったら作り直す）
+let slotCount = 0;
 const slots = [];
-for (let i = 0; i < slotCount; i++) {
-  const c = deck[i % deck.length];
-  const el = document.createElement('div');
-  el.className = 'wheel-slot';
-  el.innerHTML = `<div class="card-3d">
-    <div class="card-face back"><img src="${cardBack}"></div>
-    <div class="card-face front"><img src="${asset(c.image, 'card-00.webp')}"><div class="holo-layer holo-beam"></div></div>
+const buildWheel = () => {
+  viewport.innerHTML = '';
+  slots.length = 0;
+  slotCount = Math.max(liveDeck.length, 12);
+  for (let i = 0; i < slotCount; i++) {
+    const c = liveDeck[i % liveDeck.length];
+    const el = document.createElement('div');
+    el.className = 'wheel-slot';
+    el.innerHTML = `<div class="card-3d">
+    <div class="card-face back"><img src="${liveBack}"></div>
+    <div class="card-face front"><img src="${asset(c.image, 'card-00-fool.webp')}"><div class="holo-layer holo-beam"></div></div>
   </div>`;
-  viewport.appendChild(el);
-  slots.push({ el, card3d: el.querySelector('.card-3d'), holo: el.querySelector('.holo-beam') });
-}
+    viewport.appendChild(el);
+    slots.push({ el, card3d: el.querySelector('.card-3d'), holo: el.querySelector('.holo-beam') });
+  }
+};
+buildWheel();
 
 let wheelPos = 0;
 let lastTickIdx = 0;
@@ -268,11 +279,11 @@ const updateWheel = (now) => {
 requestAnimationFrame(updateWheel);
 
 const pickIndex = () => {
-  const weights = deck.map(c => Number(c.weight || 0));
+  const weights = liveDeck.map(c => Number(c.weight || 0));
   const total = weights.reduce((a, b) => a + b, 0);
-  if (total <= 0) return Math.floor(Math.random() * deck.length);
+  if (total <= 0) return Math.floor(Math.random() * liveDeck.length);
   let r = Math.random() * total;
-  for (let i = 0; i < deck.length; i++) {
+  for (let i = 0; i < liveDeck.length; i++) {
     if (r < weights[i]) return i;
     r -= weights[i];
   }
@@ -283,7 +294,7 @@ async function run(e) {
   busy = true;
   audio.unlock();
   const targetIdx = pickIndex();
-  const card = deck[targetIdx];
+  const card = liveDeck[targetIdx];
   const spinTime = reducedMotion ? 1 : p.spinSeconds * 1000;
   const showTime = p.showSeconds * 1000;
 
@@ -349,7 +360,25 @@ async function run(e) {
   stage.classList.remove('is-revealed');
   await new Promise(res => setTimeout(res, 600));
   busy = false;
+  if (pendingRebuild) { pendingRebuild = false; applyDeck(); }
 }
+
+let pendingRebuild = false;
+const applyDeck = () => {
+  liveDeck = p.deck.length ? p.deck : FALLBACK_DECK;
+  liveBack = asset(p.cardBackImage, 'card-back.webp');
+  liveBg = asset(p.backgroundImage, 'bg-celestial.webp');
+  buildWheel();
+};
+
+// 設定が変わったら開いている画面へ即反映する（背景と音はすぐ、deck は待機中に差し替え）
+window.addEventListener('tw-config-change', (e) => {
+  const next = e.detail?.config?.cardWheel?.[window.__twWidgetId];
+  if (!next) return;
+  Object.assign(p, next);
+  applyBackground();
+  if (!busy) applyDeck(); else pendingRebuild = true;
+});
 
 const queue = createQueue(run, { max: 30 });
 connect({
@@ -365,6 +394,12 @@ connect({
 
 if (isPreview) {
   document.getElementById('spinBtn').onclick = () => queue.push({ kind: 'preview', user: { name: 'プレビュー' } });
+  // ドラッグでホイールを動かす（プレビューだけの操作）
+  let dragX = null; let dragPos = 0;
+  viewport.addEventListener('pointerdown', (ev) => { if (busy) return; dragX = ev.clientX; dragPos = wheelPos; viewport.setPointerCapture(ev.pointerId); });
+  viewport.addEventListener('pointermove', (ev) => { if (dragX == null) return; wheelPos = dragPos + (ev.clientX - dragX) / 45; });
+  viewport.addEventListener('pointerup', () => { dragX = null; });
+  viewport.addEventListener('pointercancel', () => { dragX = null; });
 }
 
 // Starfield Logic
