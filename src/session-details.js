@@ -61,31 +61,48 @@ export class SessionDetails {
     this.end();
   }
 
-  /** 配信1件分の記録を新しい順に返す。kind で絞り、offset と limit でページ単位に取る */
+  /** 配信1件分の記録を新しい順に返す。kind で絞り、offset と limit でページ単位に取る。
+   * ファイルは追記順（古い順）で、欲しいのは新しい方からなので、行を後ろから見て、
+   * 種類の合う行だけを読み解く（種類の違う行は文字列の段階で落とす） */
   read(id, { kind = '', offset = 0, limit = 50 } = {}) {
     const safeId = path.basename(String(id ?? ''));
-    let items = [];
-    try {
-      const text = fs.readFileSync(path.join(this.dir, `${safeId}.jsonl`), 'utf8');
-      for (const line of text.split('\n')) {
-        if (!line.trim()) continue;
-        try {
-          const item = JSON.parse(line);
-          if (item && typeof item === 'object') items.push(item);
-        } catch {
-          // 壊れた行は飛ばす
-        }
-      }
-    } catch {
-      // ファイルが無い配信は空で返す
-    }
-    // 今の配信は、まだ書き出していない分も含める
-    if (this.sessionId === safeId && this.queue.length) items = items.concat(this.queue);
-    if (kind) items = items.filter((item) => item.kind === kind);
-    items.reverse();
-    const total = items.length;
     const off = Math.max(0, Math.floor(Number(offset)) || 0);
     const n = Math.max(1, Math.floor(Number(limit)) || 50);
-    return { total, items: items.slice(off, off + n) };
+    // まだ書き出していない分が一番新しい。新しい順に並べる
+    const queued = (this.sessionId === safeId ? this.queue : [])
+      .filter((item) => !kind || item.kind === kind)
+      .reverse();
+    let total = queued.length;
+    const page = [];
+    // 欲しいページは、新しい順の off から n 件。キューの分で足りなければファイル側から続ける
+    let skip = off;
+    for (const item of queued) {
+      if (skip > 0) { skip--; continue; }
+      if (page.length < n) page.push(item);
+    }
+    let lines = [];
+    try {
+      lines = fs.readFileSync(path.join(this.dir, `${safeId}.jsonl`), 'utf8').split('\n');
+    } catch {
+      // ファイルが無い配信は、キューの分だけ
+    }
+    const kindMark = kind ? `"kind":${JSON.stringify(kind)}` : '';
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      if (kindMark && !line.includes(kindMark)) continue;
+      let item;
+      try {
+        item = JSON.parse(line);
+      } catch {
+        // 壊れた行は飛ばす
+        continue;
+      }
+      if (!item || typeof item !== 'object' || (kind && item.kind !== kind)) continue;
+      total++;
+      if (skip > 0) { skip--; continue; }
+      if (page.length < n) page.push(item);
+    }
+    return { total, items: page };
   }
 }

@@ -82,14 +82,20 @@ export class DrawResults {
     return item;
   }
 
-  /** ファイルから全件を読む（古い順）。配信単位の全件表示など、直近分でない読み出し用 */
+  /** ファイルから全件を読む（古い順）。配信単位の全件表示など、直近分でない読み出し用。
+   * ファイルは全件残す形で大きくなるので、種類と配信の絞りは JSON として読み解く前に
+   * 行の文字列で落とす（読み解くのは残った行だけ）。結果は全件読み解いた場合と一致する */
   readFile({ kind = '', session = '' } = {}) {
     if (!this.file) return [];
     const items = [];
+    const kindMark = kind ? `"kind":${JSON.stringify(kind)}` : '';
+    const sessionMark = session ? `"session":${JSON.stringify(session)}` : '';
     try {
       const text = fs.readFileSync(this.file, 'utf8');
       for (const line of text.split('\n')) {
         if (!line.trim()) continue;
+        if (kindMark && !line.includes(kindMark)) continue;
+        if (sessionMark && !line.includes(sessionMark)) continue;
         try {
           const item = JSON.parse(line);
           if (!item || typeof item !== 'object') continue;
