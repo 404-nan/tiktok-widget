@@ -369,6 +369,7 @@ const applyDeck = () => {
   liveBack = asset(p.cardBackImage, 'card-back.webp');
   liveBg = asset(p.backgroundImage, 'bg-celestial.webp');
   buildWheel();
+  applyBackground();
 };
 
 // 設定が変わったら開いている画面へ即反映する（背景と音はすぐ、deck は待機中に差し替え）
