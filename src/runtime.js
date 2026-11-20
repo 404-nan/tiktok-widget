@@ -452,7 +452,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWidgets(base) {
       const list = hub.config ? cfg.widgetList(hub.config, base) : [];
       const me = info();
-      return me.mode === 'tenant' ? list.filter((widget) => widget.section === 'all' || (me.widgets ?? []).includes(widget.section)) : list;
+      return me.mode === 'tenant' ? list.filter((widget) => widget.section === 'all' || widget.section === 'bundles' || (me.widgets ?? []).includes(widget.section)) : list;
     },
     performControl,
     simulateEvent,

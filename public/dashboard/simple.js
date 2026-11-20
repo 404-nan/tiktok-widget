@@ -65,6 +65,7 @@ export const INFO = {
   combo: { icon: 'layers', desc: '続けてギフトすると ×2 ×3 と数字が出て、色が上がっていく' },
   minecraft: { icon: 'box', desc: 'マイクラの枠の時間が分かります。枠の間は自動で TikTok につながります' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
+  bundles: { icon: 'layers', desc: '選んだウィジェットを1つの URL にまとめる' },
 };
 
 // 配信の大きさで、演出が出るコインの境目をまとめて決める
@@ -82,6 +83,11 @@ const CUTIN_SCALE = {
  * groups: [{ title, presets?（押すとまとめて値が入る型）, fields（出す項目） }]、note: 項目の代わりに出す案内
  */
 export const SIMPLE = {
+  bundles: {
+    groups: [
+      { title: 'まとめ', fields: ['list'] },
+    ],
+  },
   obs: {
     groups: [
       { title: '使う', fields: ['enabled', 'port'] },

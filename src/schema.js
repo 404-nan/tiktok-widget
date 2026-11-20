@@ -37,6 +37,19 @@ export const SCHEMA = {
     },
   },
 
+  bundles: {
+    kind: 'object',
+    title: 'リンクまとめ',
+    desc: '選んだウィジェットを1つのリンクにまとめる。ブラウザソースを1つに減らせる。',
+    fields: {
+      list: {
+        type: 'bundleList',
+        default: [],
+        desc: 'まとめの一覧。名前と、入れるウィジェットを選ぶ',
+        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw'],
+      },
+    },
+  },
   alerts: {
     kind: 'map',
     page: 'gift-alert',
