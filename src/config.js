@@ -88,6 +88,8 @@ function checkValue(field, value, where, issues) {
       return checkSlotTrigger(value, where, issues);
     case 'slotPayouts':
       return checkSlotPayouts(value, where, issues);
+    case 'bundleList':
+      return checkBundleList(field, value, where, issues);
     case 'obsRules':
       return checkObsRules(value, where, issues);
     case 'actions':
@@ -164,6 +166,36 @@ function checkSlotTrigger(value, where, issues) {
     minCoins: value.minCoins == null ? 0 : checkValue({ type: 'number', default: 0, min: 0 }, value.minCoins, `${where}.minCoins`, issues),
   };
   for (const key of Object.keys(value)) if (!['gifts', 'minCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
+  return out;
+}
+
+// リンクまとめの一覧：{id, name, widgets[]} の配列。id は英小文字・数字・- のみ、名前は40字まで、
+// widgets はまとめに入れられる節（field.eligible）だけを通し、重複は落とす。
+function checkBundleList(field, value, where, issues) {
+  const err = (msg) => issues.errors.push(`${where}: ${msg}`);
+  if (!Array.isArray(value)) { err('一覧（[]）で書いてください'); return structuredClone(field.default); }
+  if (value.length > 10) err('まとめは10個までにしてください');
+  const eligible = field.eligible ?? [];
+  const seen = new Set();
+  const out = [];
+  for (const [i, item] of value.slice(0, 10).entries()) {
+    const at = `${where}[${i}]`;
+    if (!item || typeof item !== 'object' || Array.isArray(item)) { issues.errors.push(`${at}: まとめの形が違います`); continue; }
+    for (const k of Object.keys(item)) if (!['id', 'name', 'widgets'].includes(k)) issues.warnings.push(`${at}: 知らない項目 ${k} は無視します`);
+    const id = typeof item.id === 'string' ? item.id : '';
+    if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(id)) { issues.errors.push(`${at}: id は英小文字・数字・- で32字までにしてください（今: ${JSON.stringify(item.id)}）`); continue; }
+    if (seen.has(id)) { issues.errors.push(`${at}: id ${id} が重なっています`); continue; }
+    seen.add(id);
+    const name = typeof item.name === 'string' ? item.name.trim() : '';
+    if (!name) issues.errors.push(`${at}: 名前を書いてください`);
+    if ([...name].length > 40) issues.errors.push(`${at}: 名前は40字までにしてください`);
+    if (item.widgets != null && !Array.isArray(item.widgets)) issues.errors.push(`${at}: widgets は一覧（[]）で書いてください`);
+    const rawWidgets = Array.isArray(item.widgets) ? item.widgets : [];
+    const bad = rawWidgets.filter((w) => !eligible.includes(w));
+    if (bad.length) issues.errors.push(`${at}: まとめに入れられないもの ${bad.join(', ')}`);
+    const widgets = [...new Set(rawWidgets.filter((w) => eligible.includes(w)))].slice(0, 40);
+    out.push({ id, name: [...name].slice(0, 40).join('') || 'まとめ', widgets });
+  }
   return out;
 }
 
@@ -907,6 +939,9 @@ export function widgetList(config, base = 'http://127.0.0.1:3939') {
         out.push({ section, id, extra: true, title: `${x.title}: ${id}`, url: `${base}/widgets/${x.page}.html${q}`, size: x.size(e) });
       }
     }
+  }
+  for (const b of config.bundles?.list ?? []) {
+    out.push({ section: 'bundles', id: b.id, title: `リンクまとめ: ${b.name}`, url: `${base}/widgets/bundle.html?b=${encodeURIComponent(b.id)}`, size: [1920, 1080] });
   }
   return out;
 }

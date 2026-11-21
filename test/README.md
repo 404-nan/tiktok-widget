@@ -38,6 +38,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `chat.test.js` | コメント処理のテスト |
 | `coins-nan.test.js` | コイン値の異常系テスト |
 | `config.test.js` / `keep-settings.test.js` | 設定読み書きと保持のテスト |
+| `bundle.test.js` | リンクまとめの設定の検証と、一覧への URL 追加のテスト |
 | `cutin-style.test.js` | カットイン設定のテスト |
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
 | `env.test.js` | 環境判定のテスト |
@@ -87,6 +88,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-10-21
+最後に直した日: 2026-11-20
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

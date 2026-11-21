@@ -41,7 +41,7 @@ export function bindRoutes(r, ctx) {
     if (req.role === 'obs') return { config: cfg.publicConfig(hub.config), defaults: cfg.publicConfig(defaults) };
     const me = info();
     const widgets = hub.config ? cfg.widgetList(hub.config, widgetBase ? widgetBase(origin(req)) : origin(req)) : [];
-    const visibleWidgets = me.mode === 'tenant' ? widgets.filter((widget) => widget.section === 'all' || (me.widgets ?? []).includes(widget.section)) : widgets;
+    const visibleWidgets = me.mode === 'tenant' ? widgets.filter((widget) => widget.section === 'all' || widget.section === 'bundles' || (me.widgets ?? []).includes(widget.section)) : widgets;
     return {
       path: store.path,
       yaml: store.readText(),

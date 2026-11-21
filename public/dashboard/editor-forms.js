@@ -5,6 +5,7 @@ import { mediaUrl, BASE } from '/widgets/lib/overlay.js';
 import { giftPicker } from './gift-picker.js';
 import { giftSoundRulesView } from './gift-sounds-form.js';
 import { masterVolumeField } from './gift-sounds-form.js';
+import { bundleListView } from './bundles-form.js';
 import { rulesEditor, hasRulesEditor } from './rules.js';
 import { LABELS, ENUM_LABELS, PUCHUN_TEXT_FIELDS, TOKEN_LABELS } from './editor-constants.js';
 import { SIMPLE_LABELS, UNITS } from './simple.js';
@@ -45,7 +46,7 @@ export function buildForms(ctx) {
   // --- 項目の組み立て ---
 
   // かんたんでは、短い項目は「呼び名 | 入れるところ」の1行に、長い項目は呼び名の下に置く
-  const WIDE_TYPES = ['list', 'items', 'rules', 'actions', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'gachaPaidRule', 'slotPayouts'];
+  const WIDE_TYPES = ['list', 'items', 'rules', 'actions', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'gachaPaidRule', 'slotPayouts', 'bundleList'];
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
@@ -104,6 +105,18 @@ export function buildForms(ctx) {
       coinLabel.className = 'field-label';
       coinLabel.textContent = '最低コイン';
       wrap.append(head, giftControl, coinLabel, coins);
+      return wrap;
+    }
+    if (field.type === 'bundleList') {
+      const wrap = labelFor(key, field);
+      const titles = Object.fromEntries((field.eligible ?? []).map((s) => [s, s === 'winsFx' ? 'WIN数の全画面演出' : schema.sections[s]?.title ?? s]));
+      wrap.append(bundleListView({
+        value,
+        eligible: field.eligible ?? [],
+        titles,
+        links: (payload.widgets ?? []).filter((w) => w.section === 'bundles'),
+        onSave: (next) => save(key, next),
+      }));
       return wrap;
     }
     if (field.type === 'slotPayouts') {

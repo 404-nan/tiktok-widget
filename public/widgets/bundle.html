@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+<title>リンクまとめ</title>
+<style>
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body.preview { background: linear-gradient(180deg, #25262b, #1d1e23); }
+  #stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  iframe { position: absolute; display: block; border: 0; background: transparent; transform-origin: top left; pointer-events: none; }
+  .preview-placeholder { position: absolute; z-index: 1; box-sizing: border-box; display: grid; place-items: center; border: 4px dashed rgba(246, 245, 241, .42); border-radius: 18px; padding: 12px; background: rgba(246, 245, 241, .05); color: rgba(246, 245, 241, .78); font: 500 40px/1.3 "Zen Kaku Gothic New", sans-serif; text-align: center; }
+</style>
+</head>
+<body>
+<main id="stage" aria-label="配信画面"></main>
+<script type="module">
+import { BASE, connect } from './lib/overlay.js';
+
+// リンクまとめ：配信者が選んだウィジェットだけを1ページに重ねる（?b=<まとめのid>）。
+// 仕組みは「全部まとめて」(all.html) と同じで、対象をまとめの選択に絞り、画面の大きさはブラウザソースに追随させる。
+// preview=1 は「動きを確認」（プレースホルダー枠と暗背景を出す）
+// preview=live は「配信画面そのまま」（本番と同じ見え方）
+const _pv = new URLSearchParams(location.search).get('preview');
+if (_pv === '1') document.body.classList.add('preview');
+const _isPreview = _pv === '1' || _pv === 'live';
+const bundleId = new URLSearchParams(location.search).get('b') ?? '';
+
+const stage = document.querySelector('#stage');
+const frameMap = new Map();
+const placeholderMap = new Map();
+const map = {
+  alerts: ['gift-alert', [760, 200]], chats: ['chat', [460, 640]], jars: ['gift-jar', [500, 700]],
+  goals: ['goal', [640, 180]], wins: ['wins', [600, 200]], timers: ['timer', [720, 260]],
+  bosses: ['boss', [720, 260]], counters: ['counter', [560, 220]], rankings: ['ranking', [420, 416]],
+  roulettes: ['roulette', [600, 680]], votes: ['vote', [720, 360]], cheers: ['cheer', [560, 160]], pushButtons: ['push-button', [640, 360]],
+};
+const objects = new Set(['slots']);
+const full = new Set(['cutins', 'imageCutins', 'rush', 'winsFx', 'giftSounds']);
+const fullMap = { cutins: 'cutin', imageCutins: 'image-cutin', rush: 'rush', winsFx: 'wins-fx', giftSounds: 'sounds' };
+// 単体のウィジェット（設定が1つだけのもの）。大きさは各ウィジェットの設計サイズ
+const single = { omikuji: ['omikuji', [640, 500]], gacha: ['gacha', [640, 360]], cardDraw: ['card-draw', [1080, 720]] };
+const title = { alerts: 'ギフト通知', chats: 'コメント欄', jars: 'ギフト瓶', goals: '目標バー', wins: 'WIN数', timers: 'タイマー', bosses: 'ボス討伐', counters: 'いいね・視聴者数', rankings: 'ランキング', roulettes: 'ルーレット', votes: 'コメント投票', cheers: 'いいね応援', pushButtons: '押しボタン', slots: 'スロット', omikuji: 'おみくじ', gacha: 'ガチャ', cardDraw: 'カードめくり' };
+
+const pageUrl = (page, id, extra = '') => {
+  const q = new URLSearchParams(extra);
+  if (id && id !== '*') q.set(page === 'roulette' ? 'ids' : 'id', id);
+  q.set('all', '1');
+  return `${BASE}/widgets/${page}.html?${q}`;
+};
+const entitled = (section, me) => me?.mode !== 'tenant' || (section === 'winsFx' ? me.access?.winsFx?.on : me.access?.[section]?.on !== false);
+const active = (section, config, me) => {
+  if (me?.billing?.overlay === false) return false;
+  if ((me?.billing?.limited ?? []).includes(section)) return false;
+  if (!entitled(section, me)) return false;
+  if (me?.mode === 'tenant') return me.widgets?.includes(section);
+  if (section === 'rush' || section === 'slots') return config[section]?.enabled !== false;
+  return section === 'winsFx' ? true : Object.keys(config[section] ?? {}).length > 0 || config[section] != null;
+};
+const sizeFor = (section, entry) => {
+  if (section === 'slots') return [720, 520];
+  if (section === 'jars') return { jar: [500, 700], heart: [600, 600], potion: [520, 700] }[entry.shape] ?? [500, 700];
+  if (section === 'wins') return entry.style === 'big' ? [380, 400] : [600, 200];
+  if (section === 'roulettes') return entry.style === 'strip' ? [820, 330] : [600, 680];
+  return map[section]?.[1] ?? [600, 200];
+};
+const place = (section, entry, index) => {
+  const W = stage.clientWidth || 1080;
+  const H = stage.clientHeight || 1920;
+  const defaults = { alerts: [4, 9], chats: [55, 4], jars: [10, 22], goals: [40, 18], wins: [4, 84], timers: [52, 70], bosses: [5, 39], counters: [4, 55], rankings: [60, 48], roulettes: [40, 43], votes: [8, 55], cheers: [8, 72], pushButtons: [8, 55], slots: [18, 40], omikuji: [20, 14], gacha: [20, 14], cardDraw: [20, 14] }[section] ?? [8, 9];
+  const scale = Math.max(.2, Math.min(3, Number(entry.posScale) || 1));
+  const size = section in single ? single[section][1] : sizeFor(section, entry);
+  const maxX = Math.max(0, 100 - size[0] * scale / W * 100);
+  const maxY = Math.max(0, 100 - size[1] * scale / H * 100);
+  const x = Number.isFinite(entry.posX) ? entry.posX : defaults[0] + index * 3;
+  const y = Number.isFinite(entry.posY) ? entry.posY : defaults[1] + index * 4;
+  return [Math.max(0, Math.min(maxX, x)), Math.max(0, Math.min(maxY, y)), scale];
+};
+function setFrame(key, url, x, y, scale, size, z) {
+  let f = frameMap.get(key);
+  if (!f) {
+    f = document.createElement('iframe');
+    f.title = key;
+    f.dataset.key = key;
+    f.setAttribute('aria-hidden', 'true');
+    frameMap.set(key, f);
+    stage.append(f);
+  }
+  if (_isPreview) { const u = new URL(url, location.href); u.searchParams.set('preview', _pv); url = u.href; }
+  if (f.src !== new URL(url, location.href).href) f.src = url;
+  f.style.width = `${size[0]}px`;
+  f.style.height = `${size[1]}px`;
+  f.style.left = `${x}px`;
+  f.style.top = `${y}px`;
+  f.style.transform = `scale(${scale})`;
+  f.style.zIndex = z;
+  f.hidden = false;
+  return f;
+}
+function setPlaceholder(key, label, x, y, scale, size) {
+  let p = placeholderMap.get(key);
+  if (!p) { p = document.createElement('div'); p.className = 'preview-placeholder'; p.textContent = `${label}はここに出ます`; placeholderMap.set(key, p); stage.append(p); }
+  p.style.width = `${size[0]}px`; p.style.height = `${size[1]}px`; p.style.left = `${x}px`; p.style.top = `${y}px`; p.style.transform = `scale(${scale})`; p.hidden = false;
+}
+function render(config, me = {}) {
+  const W = stage.clientWidth || 1080;
+  const H = stage.clientHeight || 1920;
+  const bundle = (config.bundles?.list ?? []).find((b) => b.id === bundleId);
+  const wanted = new Set();
+  if (bundle) {
+    for (const section of bundle.widgets ?? []) {
+      if (section in map) {
+        if (!active(section, config, me)) continue;
+        const entries = Object.entries(config[section] ?? {});
+        const list = section === 'roulettes' ? (entries.length ? [['*', entries[0][1]]] : []) : entries;
+        list.forEach(([id, entry], index) => {
+          if (entry.inAll === false) return;
+          const key = `${section}:${id}`;
+          wanted.add(key);
+          const [x, y, scale] = place(section, entry, index);
+          const size = sizeFor(section, entry);
+          if (_pv === '1') setPlaceholder(key, title[section], W * x / 100, H * y / 100, scale, size);
+          setFrame(key, pageUrl(map[section][0], id), W * x / 100, H * y / 100, scale, size, 2);
+        });
+      } else if (objects.has(section)) {
+        if (!active(section, config, me) || config[section]?.enabled === false) continue;
+        const key = `${section}:main`;
+        wanted.add(key);
+        const entry = config[section] || {};
+        const [x, y, scale] = place(section, entry, 0);
+        const size = sizeFor(section, entry);
+        if (_pv === '1') setPlaceholder(key, title[section], W * x / 100, H * y / 100, scale, size);
+        setFrame(key, pageUrl('slot', null), W * x / 100, H * y / 100, scale, size, 2);
+      } else if (full.has(section)) {
+        if (!active(section, config, me)) continue;
+        if (section === 'giftSounds') {
+          if (config.giftSounds?.enabled === false) continue;
+          const key = 'giftSounds:main';
+          wanted.add(key);
+          setFrame(key, pageUrl('sounds', null), 0, 0, 1, [W, H], 1);
+          continue;
+        }
+        const entries = section === 'winsFx' ? Object.entries(config.wins ?? {}) : Object.entries(config[section] ?? {});
+        entries.forEach(([id, entry]) => {
+          if (section !== 'winsFx' && entry.enabled === false) return;
+          const key = `${section}:${id}`;
+          wanted.add(key);
+          setFrame(key, pageUrl(fullMap[section], id), 0, 0, 1, [W, H], 10);
+        });
+      } else if (section in single) {
+        if (me?.billing?.overlay === false) continue;
+        if ((me?.billing?.limited ?? []).includes(section)) continue;
+        if (!entitled(section, me)) continue;
+        if (me?.mode === 'tenant' && !(me.widgets ?? []).includes(section)) continue;
+        const entry = config[section] ?? {};
+        if (entry.enabled === false) continue;
+        const key = `${section}:main`;
+        wanted.add(key);
+        const [x, y, scale] = place(section, entry, 0);
+        const size = single[section][1];
+        if (_pv === '1') setPlaceholder(key, title[section], W * x / 100, H * y / 100, scale, size);
+        setFrame(key, pageUrl(single[section][0], null), W * x / 100, H * y / 100, scale, size, 2);
+      }
+    }
+  }
+  for (const [key, f] of frameMap) f.hidden = !wanted.has(key);
+  for (const [key, p] of placeholderMap) p.hidden = !wanted.has(key);
+}
+async function boot() {
+  const [data, me] = await Promise.all([fetch('/api/config').then((r) => r.json()), fetch('/api/me').then((r) => r.json()).catch(() => ({}))]);
+  let currentConfig = data.config ?? {};
+  let currentMe = me;
+  render(currentConfig, currentMe);
+  window.addEventListener('resize', () => render(currentConfig, currentMe));
+  connect({
+    config: (config) => { currentConfig = config; render(currentConfig, currentMe); },
+    entitlements: (msg) => {
+      const info = msg && msg.info ? msg.info : msg;
+      currentMe = info || currentMe;
+      if (currentMe?.billing?.overlay === false) {
+        stage.replaceChildren();
+        frameMap.clear();
+        placeholderMap.clear();
+        return;
+      }
+      render(currentConfig, currentMe);
+    },
+  });
+}
+boot().catch(() => {});
+</script>
+</body>
+</html>

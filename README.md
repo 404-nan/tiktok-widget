@@ -127,6 +127,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 初見さん・常連さんの待ち | 設定の `maxQueue`（既定5人） | 古い人から出さずに飛ばす | `public/widgets/visitors/visitors.js` |
 | 読み上げの待ち行列 | 設定の `maxQueue`（既定5件） | 新しく来た読み上げを飛ばす | `public/widgets/lib/tts.js` |
 | WIN数の「1つ戻す」 | 50回まで | それより前には戻せない | `src/wins.js` |
+| リンクまとめの数 | 10個まで（1つのまとめに入れられるウィジェットは40個まで、名前は40字まで） | 超えた分は設定の検証でエラーになり保存されない | `src/config.js` |
 | 順番待ちの仕組み `createQueue` | 既定は上限なし。`max` を渡した画面だけ上の表の数 | 古いものから飛ばす | `public/widgets/lib/overlay.js` |
 | ボス討伐から次のボスまでのダメージ | - | 数字だけ出し、次のボスには持ち越さない | `src/boss.js` |
 | ステップアップ・群の待ち時間（`cooldownSeconds`） | 設定の秒数 | その間のギフトは数えない | `src/stepup.js`、`src/swarm.js` |
@@ -493,7 +494,7 @@ public/dashboard/templates.js テンプレートの一覧・差分・適用・�
 public/monitor/        配信中モニター
 public/history/        統計・履歴
 public/widgets/        各ウィジェット（`ootori.html` など。lib/ に共通処理・ルーレットの丸型と横型・入れ物の形）
-public/widgets/        各ウィジェット（`vote.html` / `vote.js` はコメント投票、`cheer.html` / `cheer.js` はいいね応援、`push-button.html` / `push-button.js` は押しボタン、`all.html` は複数表示、lib/ に共通処理）
+public/widgets/        各ウィジェット（`vote.html` / `vote.js` はコメント投票、`cheer.html` / `cheer.js` はいいね応援、`push-button.html` / `push-button.js` は押しボタン、`all.html` は複数表示、`bundle.html` は配信者が選んだ分だけを重ねるリンクまとめ、lib/ に共通処理）
 public/widgets/        各ウィジェット（lib/ に共通処理。中身は public/widgets/lib/README.md）
 test/                  node --test のテスト
 public/help/           配信者向けの使い方（OBS連携の接続手順を含む）
