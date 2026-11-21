@@ -1023,54 +1023,6 @@ SCHEMA.cardDraw = {
     pickSeconds: num(30, '番号を待つ秒数（来なければ自動でめくる）', { min: 5, max: 300 }), showMs: num(2500, '表で見せるミリ秒', { min: 500, max: 20000 }), shuffleMs: num(3000, '混ぜるミリ秒', { min: 500, max: 20000 }), revealMs: num(4000, '結果を見せるミリ秒', { min: 1000, max: 30000 }), doneMs: num(1200, '消えるまでのミリ秒', { min: 0, max: 10000 }),
   },
 };
-// タロットカードのホイール。出来事でホイールが回り、中央に止まったカードがめくれて結果が出る
-SCHEMA.cardWheel = {
-  kind: 'object', page: 'card-wheel', title: 'カードホイール', desc: 'タロットカードのホイールが回り、中央に止まったカードが3Dでめくれて、紺と金のプレートに結果が出る。カードの並び（deck）は題名・見出し・画像・文章・重みを配信者が差し替えられる。背景は透明・クロマキー用の色・単色・背景画像から選べる。URL は /widgets/card-wheel.html', size: () => [960, 720],
-  fields: {
-    enabled: bool(true, 'カードホイールを使う'),
-    events: list(['gift'], '回すきっかけの出来事', ['gift', 'follow', 'share']),
-    gifts: list([], 'このギフト名（または ID）だけ回す。空なら全部'),
-    minCoins: num(1, 'この合計コイン以上のギフトで回す', { min: 0 }),
-    background: oneOf(['transparent', 'chroma', 'solid', 'image'], 'transparent', '背景。transparent は透明、chroma は指定色でべた塗り（クロマキー合成用）、solid は単色、image は背景画像'),
-    chromaColor: color('#00FF00', 'クロマキー用の色（background が chroma のとき）'),
-    solidColor: color('#0B1030', '単色の背景の色（background が solid のとき）'),
-    backgroundImage: str('', '背景画像のアドレス（background が image のとき）。空なら同梱の星空の絵'),
-    cardBackImage: str('', 'カードの裏面の画像のアドレス。空なら同梱の裏面'),
-    deck: {
-      type: 'cardDeck',
-      default: [
-        { numeral: '0', title: 'THE FOOL', subtitle: '愚者 — 無垢なる旅立ち', image: 'card-00-fool.webp', text: '恐れを手放し、まだ見ぬ星空へ軽やかに一歩を踏み出すとき。直感が新しい扉を開きます。', weight: 1 },
-        { numeral: 'I', title: 'THE MAGICIAN', subtitle: '魔術師 — 創造と意志の開花', image: 'card-01-magician.webp', text: '必要な鍵はすでにあなたの手の中に。想いを言葉と行動に紡ぐほど、願いが形を帯びていきます。', weight: 1 },
-        { numeral: 'II', title: 'THE HIGH PRIESTESS', subtitle: '女教皇 — 静寂に宿る叡智', image: 'card-02-high-priestess.webp', text: '急いで答えを求めず、心の奥の静かな声に耳を澄ませて。月の光が隠れた真実を照らします。', weight: 1 },
-        { numeral: 'III', title: 'THE EMPRESS', subtitle: '女帝 — 豊かさと実りの恵み', image: 'card-03-empress.webp', text: '育ててきたものが静かに実を結ぶとき。惜しまず受け取り、周りへ分け合うほど豊かさが巡ります。', weight: 1 },
-        { numeral: 'IV', title: 'THE EMPEROR', subtitle: '皇帝 — 揺るがぬ礎と守り', image: 'card-04-emperor.webp', text: '焦らず土台を固めるほど、道はまっすぐ開けていきます。責任ある一歩が信頼を集める好機。', weight: 1 },
-        { numeral: 'V', title: 'THE HIEROPHANT', subtitle: '教皇 — 受け継ぐ知恵と導き', image: 'card-05-hierophant.webp', text: '先人の知恵と、信頼できる人の言葉に耳を澄まして。受け継ぐことで自分の力に変わります。', weight: 1 },
-        { numeral: 'VI', title: 'THE LOVERS', subtitle: '恋人 — 心の選択と結びつき', image: 'card-06-lovers.webp', text: '心が惹かれる選択こそ正解の合図。大切な人との結びつきが深まり、嬉しい知らせが届きそう。', weight: 1 },
-        { numeral: 'VII', title: 'THE CHARIOT', subtitle: '戦車 — 前進する勝利の勢い', image: 'card-07-chariot.webp', text: '迷いを置いて、まっすぐ進むとき。勢いに乗るほど、遠くの目標がぐっと近づきます。', weight: 1 },
-        { numeral: 'VIII', title: 'STRENGTH', subtitle: '力 — 優しさで制する強さ', image: 'card-08-strength.webp', text: '荒ぶる気持ちを優しく手なずけるほど、本当の強さが表れます。焦らず、静かに押し切って。', weight: 1 },
-        { numeral: 'IX', title: 'THE HERMIT', subtitle: '隠者 — 内なる灯火の探求', image: 'card-09-hermit.webp', text: '一人の静かな時間が答えを連れてきます。灯火を掲げて、自分の奥の声を確かめにいく好機。', weight: 1 },
-        { numeral: 'X', title: 'WHEEL OF FORTUNE', subtitle: '運命の輪 — 巡り来る好転', image: 'card-10-wheel.webp', text: '歯車が静かに噛み合い、流れが追い風へと変わる兆し。偶然の出会いや合図を見逃さないで。', weight: 1 },
-        { numeral: 'XI', title: 'JUSTICE', subtitle: '正義 — 公平な計りと真実', image: 'card-11-justice.webp', text: '感情でなく事実で計るほど、物事はすっきり整います。誠実な行いが正しく報われる好機。', weight: 1 },
-        { numeral: 'XII', title: 'THE HANGED MAN', subtitle: '吊るされた男 — 静止の中の発見', image: 'card-12-hanged-man.webp', text: '動けない時間にも意味があります。見方を変えた瞬間、詰まっていた流れが静かにほどけます。', weight: 1 },
-        { numeral: 'XIII', title: 'DEATH', subtitle: '死神 — 終わりと新しい始まり', image: 'card-13-death.webp', text: '手放すことを恐れないで。終わりの先にこそ、新しい物語の最初のページが待っています。', weight: 1 },
-        { numeral: 'XIV', title: 'TEMPERANCE', subtitle: '節制 — 調和とほどよさの流れ', image: 'card-14-temperance.webp', text: '急がず、ほどよく混ぜ合わせるほど全体が整います。穏やかな均衡が幸運を長持ちさせます。', weight: 1 },
-        { numeral: 'XV', title: 'THE DEVIL', subtitle: '悪魔 — 誘惑と本当の望み', image: 'card-15-devil.webp', text: '欲しい気持ちは正直な合図。振り回されず、自分の望みの正体を見極めるほど自由になります。', weight: 1 },
-        { numeral: 'XVI', title: 'THE TOWER', subtitle: '塔 — 崩壊の先のまっさらな空', image: 'card-16-tower.webp', text: '思いがけない変化も、古い殻を破る合図。崩れた跡地にこそ、まっさらな空が広がります。', weight: 1 },
-        { numeral: 'XVII', title: 'THE STAR', subtitle: '星 — 希望とやさしい導き', image: 'card-17-star.webp', text: '夜空に澄んだ光が差し込み、心が静かに癒やされる時。信じて続けてきた願いが報われはじめます。', weight: 1 },
-        { numeral: 'XVIII', title: 'THE MOON', subtitle: '月 — 夢と深層の直感', image: 'card-18-moon.webp', text: '霧の向こうにこそ大切な気づきが眠っています。迷いも想像力の糧にして、灯火を頼りに進んで。', weight: 1 },
-        { numeral: 'XIX', title: 'THE SUN', subtitle: '太陽 — 祝福と確かな実り', image: 'card-19-sun.webp', text: '雲が晴れ、あたたかな光がすべてを照らす吉兆。素直な喜びを分かち合うほど幸運が膨らみます。', weight: 1 },
-        { numeral: 'XX', title: 'JUDGEMENT', subtitle: '審判 — 目覚めと再びの呼び声', image: 'card-20-judgement.webp', text: '過去の経験が今の自分を呼び覚まします。やり直しではなく、生まれ変わる好機が来ています。', weight: 1 },
-        { numeral: 'XXI', title: 'THE WORLD', subtitle: '世界 — 調和と大いなる完成', image: 'card-21-world.webp', text: '長い旅路がひとつの美しい円を描くとき。これまでの経験すべてが結びつき、次の舞台へ羽ばたきます。', weight: 1 },
-      ],
-      desc: 'カードの並び。{ numeral, title, subtitle, image, text, weight } の形。image は同梱素材のファイル名か画像のアドレス。weight が 0 のカードは出ない',
-    },
-    spinSeconds: num(4.5, 'ホイールが回る秒数', { min: 2, max: 15 }),
-    showSeconds: num(6, '結果のプレートを出す秒数', { min: 2, max: 30 }),
-    sound: bool(true, 'カチカチ音を出す'),
-    volume: num(0.3, '音の大きさ', { min: 0, max: 1 }),
-    ...placementFields(20, 14),
-  },
-};
 
 // スパチャ風のコメント。この配信で決めたコイン以上を送った人のコメントだけを、1件ずつ大きく出す
 SCHEMA.superchats = {
