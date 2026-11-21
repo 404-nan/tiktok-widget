@@ -1,0 +1,10 @@
+[Unit]
+Description=死活の見張りを2分ごとに回す
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=tiktok-health-watch.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=tiktok-widget 死活の見張り（healthz を確認し、落ちていたら診断の束を残す）
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/lul/tiktok-widget/scripts/health-watch.sh

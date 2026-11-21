@@ -9,6 +9,11 @@
 | `fixtures/` | リハーサル用の設定・記録データ |
 | `perf/` | 本番・開発サーバーから隔離して性能を測る道具 |
 | `rehearse*.mjs` / `rehearse.sh` | リハーサルの収集と報告を行う |
+| `release-check.mjs` | 出す前の関門を一続きで回す（一時置き場の空き・全体テスト・版数とお知らせの対応・保存形式の後方互換の材料） |
+| `prod-tree-check.sh` | 本番の作業ツリーに未保存の変更が無いかを見る |
+| `deploy-release.sh` | 本番への投入（配信が無いことの確認・未保存変更の退避と復帰・台帳への記録・再起動・実物確認） |
+| `rollback-release.sh` | 台帳の最後の投入を戻す |
+| `health-watch.sh` / `systemd/` | 死活の見張り。healthz が3回続けて返らなければ診断の束を ~/backups/incidents/ に残す。利用者タイマーで2分ごとに回す |
 
 ## つながり
 

@@ -82,6 +82,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `vault.test.js` | データ退避のテスト |
 | `weight.test.js` | 重み付き抽選のテスト |
 | `widget-background.test.js` | 背景の項目が全ウィジェットに行き渡っていることと、値の検証、前面の適用の形 |
+| `release-gates.test.js` | 出す前の関門：設定の届き方（object 型の節を setupWidget で読まない）・お知らせの形（種別必須）・外部読み込みの許可リスト |
 | `wins.test.js` | WIN数のテスト |
 
 ## つながり
