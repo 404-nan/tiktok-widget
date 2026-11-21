@@ -1,0 +1,23 @@
+{
+  "default": {
+    "round": 1,
+    "hp": 50,
+    "maxHp": 150,
+    "defeated": false,
+    "defeatedAt": 0,
+    "lastHit": null,
+    "finisher": {
+      "user": null,
+      "round": 1,
+      "name": "魔王",
+      "at": 1795300245339
+    },
+    "kills": 1,
+    "total": 100,
+    "updatedAt": 1795300245342,
+    "ourCoins": 100,
+    "rivalCoins": 150,
+    "rankLive": false,
+    "rivalName": null
+  }
+}

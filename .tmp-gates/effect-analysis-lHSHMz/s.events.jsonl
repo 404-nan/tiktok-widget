@@ -1,0 +1,5 @@
+{"ts":1000,"kind":"gift","coins":10,"actor":"secret"}
+{"ts":61000,"kind":"effect","type":"combo","actor":"secret"}
+{"ts":62000,"kind":"gift","coins":30,"actor":"secret"}
+{"ts":121000,"kind":"effect","type":"combo"}
+{"ts":122000,"kind":"gift","coins":40}

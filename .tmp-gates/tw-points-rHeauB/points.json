@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "users": {
+    "taro": {
+      "name": "たろう",
+      "balance": 120,
+      "total": 120,
+      "lastCommentAt": 0,
+      "likeCarry": 0,
+      "staySince": null,
+      "stayUnits": 0,
+      "stayLastSeen": 0
+    },
+    "hana": {
+      "name": "はな",
+      "balance": 30,
+      "total": 30,
+      "lastCommentAt": 0,
+      "likeCarry": 0,
+      "staySince": null,
+      "stayUnits": 0,
+      "stayLastSeen": 0
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "updatedAt": 123,
+  "gifts": [
+    {
+      "id": "1",
+      "name": "Rose",
+      "nameJa": "ローズ",
+      "diamonds": 1,
+      "image": "rose.png"
+    }
+  ]
+}

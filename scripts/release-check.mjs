@@ -25,10 +25,12 @@ try {
 if (!skipTests) {
   const tmp = join(root, '.tmp-gates');
   mkdirSync(tmp, { recursive: true });
-  const run = spawnSync('node', ['--test', ...readdirSync(join(root, 'test')).filter((f) => f.endsWith('.test.js')).map((f) => join('test', f))], { cwd: root, encoding: 'utf8', env: { ...process.env, TMPDIR: tmp } });
-  const counts = (run.stdout + run.stderr).match(/ℹ tests (\d+)[\s\S]*?ℹ pass (\d+)[\s\S]*?ℹ fail (\d+)/);
+  const run = spawnSync('node', ['--test', ...readdirSync(join(root, 'test')).filter((f) => f.endsWith('.test.js')).map((f) => join('test', f))], { cwd: root, encoding: 'utf8', env: { ...process.env, TMPDIR: tmp }, timeout: 15 * 60 * 1000 });
+  const timedOut = run.error?.code === 'ETIMEDOUT';
+  const counts = timedOut ? null : (run.stdout + run.stderr).match(/ℹ tests (\d+)[\s\S]*?ℹ pass (\d+)[\s\S]*?ℹ fail (\d+)/);
   rmSync(tmp, { recursive: true, force: true });
-  if (counts && counts[3] === '0') say('✔', '全体テスト', `${counts[1]} 件・失敗 0`);
+  if (timedOut) say('✖', '全体テスト', '15分で終わらなかった（止まったテストが無いか、ログで切り分けること）');
+  else if (counts && counts[3] === '0') say('✔', '全体テスト', `${counts[1]} 件・失敗 0`);
   else say('✖', '全体テスト', counts ? `${counts[1]} 件・失敗 ${counts[3]}` : '結果を読めなかった');
 } else say('–', '全体テスト', '省略（--skip-tests）');
 

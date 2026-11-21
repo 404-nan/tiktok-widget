@@ -1,0 +1,18 @@
+{
+  "default": {
+    "round": 1,
+    "hp": 0,
+    "maxHp": 1,
+    "defeated": false,
+    "defeatedAt": 0,
+    "lastHit": null,
+    "finisher": null,
+    "kills": 0,
+    "total": 50,
+    "updatedAt": 1795300245338,
+    "ourCoins": 50,
+    "rivalCoins": 0,
+    "rankLive": false,
+    "rivalName": null
+  }
+}

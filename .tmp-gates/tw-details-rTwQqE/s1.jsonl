@@ -1,0 +1,3 @@
+{"ts":1,"kind":"gift","user":{"name":"A"}}
+{"ts":2,"kind":"follow","user":{"name":"B"}}
+{"ts":3,"kind":"gift","user":{"name":"C"}}

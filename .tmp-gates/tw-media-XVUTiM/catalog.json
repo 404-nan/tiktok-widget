@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "id": "312d9240e04a4ecd",
+      "name": "a.png",
+      "mime": "image/png",
+      "kind": "image",
+      "size": 4,
+      "file": "312d9240e04a4ecd.png",
+      "createdAt": 1795300252160
+    },
+    {
+      "id": "f02734ef7578ce2f",
+      "name": "b.mp3",
+      "mime": "audio/mpeg",
+      "kind": "audio",
+      "size": 3,
+      "file": "f02734ef7578ce2f.mp3",
+      "createdAt": 1795300252160
+    }
+  ]
+}

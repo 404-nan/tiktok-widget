@@ -45,7 +45,10 @@ test('実際の server.js の /healthz は live を返し、名前を返さな�
     assert.equal(JSON.stringify(body).includes('username'), false);
   } finally {
     child.kill();
-    await new Promise((resolve) => child.once('exit', resolve));
+    // 起動に失敗して既に終わっている子は 'exit' が二度と来ない。待ち続けるとテスト全体が止まる（2026-11-22 の事故）
+    if (child.exitCode === null && child.signalCode === null) {
+      await new Promise((resolve) => child.once('exit', resolve));
+    }
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });

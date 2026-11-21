@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "users": {
+    "taro": {
+      "name": "たろう",
+      "balance": 2,
+      "total": 2,
+      "lastCommentAt": 0,
+      "likeCarry": 0,
+      "staySince": 1000000,
+      "stayUnits": 0,
+      "stayLastSeen": 1000000
+    }
+  }
+}

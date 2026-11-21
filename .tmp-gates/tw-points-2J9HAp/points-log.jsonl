@@ -1,0 +1,4 @@
+{"ts":1000000,"user":"taro","delta":300,"reason":"gift","balance":300}
+{"ts":1000000,"user":"hana","delta":10,"reason":"follow","balance":10}
+{"ts":1000000,"user":"hana","delta":240,"reason":"test","balance":250}
+{"ts":1000000,"user":"hana","delta":-200,"reason":"test","balance":50}
