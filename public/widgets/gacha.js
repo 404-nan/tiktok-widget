@@ -204,6 +204,27 @@
     ws.onclose = function () { setTimeout(connect, 1000); };
   }
 
+  // 背景（透明／クロマキー用の色／単色／背景画像）。設定は /api/config の自分の節から取る
+  var bgReq = new XMLHttpRequest();
+  bgReq.open('GET', base + '/api/config', true);
+  bgReq.onreadystatechange = function () {
+    if (bgReq.readyState !== 4 || bgReq.status !== 200) return;
+    try {
+      var entry = (JSON.parse(bgReq.responseText).config || {})[kind] || {};
+      var mode = entry.background || 'transparent';
+      var els = [document.documentElement, document.body];
+      for (var i = 0; i < els.length; i++) { els[i].style.backgroundColor = ''; els[i].style.backgroundImage = ''; els[i].style.backgroundSize = ''; els[i].style.backgroundPosition = ''; }
+      if (mode === 'chroma' || mode === 'solid') {
+        var c = (mode === 'chroma' ? entry.chromaColor : entry.solidColor) || (mode === 'chroma' ? '#00FF00' : '#0B1030');
+        for (var j = 0; j < els.length; j++) els[j].style.backgroundColor = c;
+      } else if (mode === 'image' && entry.backgroundImage) {
+        var u = 'url("' + String(entry.backgroundImage).replace(/"/g, '%22') + '")';
+        for (var k = 0; k < els.length; k++) { els[k].style.backgroundImage = u; els[k].style.backgroundSize = 'cover'; els[k].style.backgroundPosition = 'center'; }
+      }
+    } catch (e) {}
+  };
+  bgReq.send(null);
+
   var req = new XMLHttpRequest();
   req.open('GET', base + '/api/' + kind, true);
   req.onreadystatechange = function () {

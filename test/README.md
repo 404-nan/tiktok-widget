@@ -79,6 +79,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `tiktok.test.js` | TikTok接続のテスト |
 | `vault.test.js` | データ退避のテスト |
 | `weight.test.js` | 重み付き抽選のテスト |
+| `widget-background.test.js` | 背景の項目が全ウィジェットに行き渡っていることと、値の検証、前面の適用の形 |
 | `wins.test.js` | WIN数のテスト |
 
 ## つながり

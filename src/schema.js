@@ -1077,6 +1077,20 @@ for (const section of Object.keys(SCHEMA)) {
   }
 }
 
+// 全ウィジェット共通の背景の項目（透明／クロマキー用の色／単色／背景画像）。
+// 画面に出ない部品（音だけのギフト音、橋渡しの obs、スロットの内部制御 relayStop、マイクラの接続設定 minecraft）は除く。
+const backgroundFields = () => ({
+  background: oneOf(['transparent', 'chroma', 'solid', 'image'], 'transparent', '背景。transparent 透明（今までどおり）/ chroma クロマキー用の色 / solid 単色 / image 背景画像'),
+  chromaColor: color('#00FF00', 'クロマキー用の色（背景が chroma のとき使う）'),
+  solidColor: color('#0B1030', '単色の色（背景が solid のとき使う）'),
+  backgroundImage: str('', '背景画像のアドレス（背景が image のとき使う）'),
+});
+const BACKGROUND_EXCLUDE = new Set(['giftSounds', 'obs', 'relayStop', 'minecraft']);
+for (const [name, section] of Object.entries(SCHEMA)) {
+  if (!section.page || BACKGROUND_EXCLUDE.has(name)) continue;
+  section.fields = { ...section.fields, ...backgroundFields() };
+}
+
 export const SECTIONS = Object.keys(SCHEMA);
 
 /** 各セクションの初期値（map のセクションは1件分） */
