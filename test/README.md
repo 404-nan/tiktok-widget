@@ -49,6 +49,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `events.test.js` | イベントバスのテスト |
 | `gacha.test.js` | ガチャのテスト |
 | `omikuji-pick.test.js` | おみくじの番号の選び方(本人のコメントだけ・時間切れ・配信者が選ぶ・配信者も押さない・待ち列・残りはミリ秒で渡す) |
+| `omikuji-personal-pity.test.js` | おみくじの個人の天井（人ごとの数え・全体との相互作用・保存と配信終了での戻し・テスト送信で進まない） |
 | `omikuji-ten-flip.test.js` | おみくじ10連の札が裏から表へ返る表示（表の組み立てと時間差、終わると印が消える、大吉の札だけ長く見せる舞台側の決まり） |
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |

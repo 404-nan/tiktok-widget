@@ -49,7 +49,9 @@ export class Gacha {
     this.config = defaultsFor(name);
     this.phase = 'idle';
     this.seq = 0;
-    this.pityCount = this.#loadPity();
+    const savedPity = this.#loadPity();
+    this.pityCount = savedPity.count;
+    this.pityUsers = savedPity.users; // 個人の天井の数え（引いた人の鍵 → 大吉が出ていない回数）
     this.pending = [];
     this.tier = null;
     this.forced = false;
@@ -72,21 +74,30 @@ export class Gacha {
     if (mode !== 'ended' && mode !== 'idle' && mode !== 'demo') return;
     if (!this.liveActive) return;
     this.liveActive = false;
-    if (this.pityCount !== 0) {
+    if (this.pityCount !== 0 || this.pityUsers.size > 0) {
       this.pityCount = 0;
+      this.pityUsers.clear();
       this.#savePity();
     }
   }
 
   /** 天井の数えの読み込み。保存先が無い・壊れているときは 0 から */
   #loadPity() {
-    if (!this.storeFile) return 0;
+    const empty = { count: 0, users: new Map() };
+    if (!this.storeFile) return empty;
     try {
       const saved = JSON.parse(fs.readFileSync(this.storeFile, 'utf8'));
       const n = Number(saved?.pityCount);
-      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+      const users = new Map();
+      if (saved?.pityUsers && typeof saved.pityUsers === 'object' && !Array.isArray(saved.pityUsers)) {
+        for (const [key, value] of Object.entries(saved.pityUsers)) {
+          const c = Number(value);
+          if (key && Number.isFinite(c) && c > 0) users.set(key, Math.floor(c));
+        }
+      }
+      return { count: Number.isFinite(n) && n > 0 ? Math.floor(n) : 0, users };
     } catch {
-      return 0;
+      return empty;
     }
   }
 
@@ -96,7 +107,7 @@ export class Gacha {
     try {
       fs.mkdirSync(path.dirname(this.storeFile), { recursive: true });
       const temp = `${this.storeFile}.tmp`;
-      fs.writeFileSync(temp, `${JSON.stringify({ version: 1, pityCount: this.pityCount })}\n`, { mode: 0o600 });
+      fs.writeFileSync(temp, `${JSON.stringify({ version: 2, pityCount: this.pityCount, pityUsers: Object.fromEntries(this.pityUsers) })}\n`, { mode: 0o600 });
       fs.renameSync(temp, this.storeFile);
     } catch {
       // 保存に失敗しても抽選自体は止めない
@@ -307,18 +318,20 @@ export class Gacha {
 
   #beginTen() {
     this.close();
-    const tiers = this.config.tiers;
-    const pityEvery = Number(this.config.pity) || 0;
     const isTest = this.trigger?.test === true || this.trigger?.kind === 'test';
+    const userKey = this.#userKey(this.trigger);
     let pityCount = this.pityCount;
+    let userCount = userKey ? (this.pityUsers.get(userKey) ?? 0) : null;
     const results = [];
     for (let i = 0; i < 10; i++) {
-      const rolled = rollTier(tiers, pityCount, pityEvery, this.random);
+      const rolled = this.#pickTier(pityCount, userCount);
       pityCount = rolled.pityCount;
+      userCount = rolled.userCount;
       results.push({ tier: rolled.tier, stick: this.#randomStick(), forced: rolled.forced });
     }
     if (!isTest) {
       this.pityCount = pityCount;
+      this.#applyUserPity(userKey, userCount);
       this.#savePity();
     }
     this.phase = 'ten';
@@ -363,16 +376,52 @@ export class Gacha {
     return 1 + Math.floor(this.random() * STICKS);
   }
 
+  /** 引いた人の鍵（個人の天井の数えの単位）。ID を優先し、無ければ名前。どちらも無ければ null */
+  #userKey(trigger) {
+    const user = trigger?.user;
+    return user?.id ? `id:${user.id}` : user?.name ? `name:${user.name}` : null;
+  }
+
+  /** 個人の天井の数えの反映。個人の設定が無い・鍵が無いときは何もしない。0 は消す */
+  #applyUserPity(userKey, userCount) {
+    if (!userKey || userCount == null) return;
+    if ((Number(this.config.pityPersonal) || 0) <= 0) return;
+    if (userCount > 0) this.pityUsers.set(userKey, userCount);
+    else this.pityUsers.delete(userKey);
+  }
+
+  /** 全体と個人、両方の天井を見て1回引く。pityCount は全体の数え、userCount は引いた人の数え（null は個人の対象外）。
+   * どちらかの天井に届いていれば対象が確定し、両方の数えは 0 に戻る。対象を引いたら両方 0、出なければ両方 +1。
+   * 対象の weight が 0 のときは、どちらの天井も発動しない（今の全体の決めと同じ） */
+  #pickTier(pityCount, userCount) {
+    const tiers = this.config.tiers;
+    const globalEvery = Number(this.config.pity) || 0;
+    const personalEvery = Number(this.config.pityPersonal) || 0;
+    const pityTier = tiers.find((tier) => tier?.pity === true && Number(tier?.weight) > 0);
+    if (pityTier && ((globalEvery > 0 && pityCount >= globalEvery) || (personalEvery > 0 && userCount != null && userCount >= personalEvery))) {
+      return { tier: pityTier, forced: true, pityCount: 0, userCount: userCount == null ? null : 0 };
+    }
+    const rolled = rollTier(tiers, pityCount, 0, this.random);
+    return {
+      tier: rolled.tier,
+      forced: false,
+      pityCount: rolled.pityCount,
+      userCount: userCount == null ? null : (rolled.tier?.pity === true ? 0 : userCount + 1),
+    };
+  }
+
   /** 棒が決まったら振って引く。運勢は番号と関係なく、ここで重みで決める */
   #roll(stick, first = false) {
     this.close();
     this.stick = stick;
     this.pick = null;
     this.phase = 'rolling';
-    const rolled = rollTier(this.config.tiers, this.pityCount, Number(this.config.pity) || 0, this.random);
+    const userKey = this.#userKey(this.trigger);
+    const rolled = this.#pickTier(this.pityCount, userKey ? (this.pityUsers.get(userKey) ?? 0) : null);
     // テストの抽選では天井回数を進めない（本物の当たりやすさを変えないため）
     if (this.trigger?.test !== true && this.trigger?.kind !== 'test') {
       this.pityCount = rolled.pityCount;
+      this.#applyUserPity(userKey, rolled.userCount);
       this.#savePity();
     }
     this.tier = rolled.tier;
