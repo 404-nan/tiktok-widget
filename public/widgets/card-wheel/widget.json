@@ -1,0 +1,1 @@
+{"desc":"タロットカードのホイールが回り、中央に止まったカードがめくれて結果が出る","events":[],"id":"cardWheel","name":"カードホイール","page":"card-wheel.html","sample":{"label":"回す","post":{"body":{"count":1,"diamonds":10,"giftName":"Rose","kind":"gift","senderName":"見本"},"path":"/api/simulate"}},"size":[960,720],"sounds":[]}

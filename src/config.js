@@ -80,6 +80,8 @@ function checkValue(field, value, where, issues) {
       return checkMediaRules(value, where, issues);
     case 'soundRules':
       return checkSoundRules(value, where, issues);
+    case 'cardDeck':
+      return checkCardDeck(value, where, issues);
     case 'gachaTiers':
       return checkGachaTiers(value, where, issues, where.startsWith('omikuji') ? 'omikuji' : 'gacha');
     case 'gachaPaidRule':
@@ -386,6 +388,38 @@ function checkGachaPaidRule(value, where, issues) {
   };
   for (const key of Object.keys(value)) if (!['gifts', 'minCoins', 'spinsPerCoins'].includes(key)) issues.warnings.push(`${where}.${key}: 使われない項目です`);
   return out;
+}
+
+function checkCardDeck(value, where, issues) {
+  const fallback = structuredClone(SCHEMA.cardWheel.fields.deck.default);
+  if (value == null) return fallback;
+  if (!Array.isArray(value) || value.length === 0) {
+    issues.errors.push(`${where}: カードを1枚以上書いてください`);
+    return fallback;
+  }
+  const known = ['numeral', 'title', 'subtitle', 'image', 'text', 'weight'];
+  return value.map((raw, i) => {
+    const at = `${where}[${i}]`;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      issues.errors.push(`${at}: { numeral, title, subtitle, image, text, weight } で書いてください`);
+      return { numeral: '', title: '？', subtitle: '', image: '', text: '', weight: 1 };
+    }
+    const title = String(raw.title ?? '').trim();
+    if (!title) issues.errors.push(`${at}.title: 題名を書いてください`);
+    const image = String(raw.image ?? '').trim();
+    if (!image) issues.errors.push(`${at}.image: 画像を書いてください`);
+    const weight = Number(raw.weight ?? 1);
+    if (!Number.isFinite(weight) || weight < 0) issues.errors.push(`${at}.weight: 0 以上の数にしてください`);
+    for (const key of Object.keys(raw)) if (!known.includes(key)) issues.warnings.push(`${at}.${key}: 使われない項目です`);
+    return {
+      numeral: String(raw.numeral ?? '').trim(),
+      title: title || '？',
+      subtitle: String(raw.subtitle ?? '').trim(),
+      image,
+      text: String(raw.text ?? '').trim(),
+      weight: Number.isFinite(weight) && weight >= 0 ? weight : 1,
+    };
+  });
 }
 
 function checkGachaTiers(value, where, issues, section = 'gacha') {

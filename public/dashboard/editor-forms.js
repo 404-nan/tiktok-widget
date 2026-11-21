@@ -46,7 +46,7 @@ export function buildForms(ctx) {
   // --- 項目の組み立て ---
 
   // かんたんでは、短い項目は「呼び名 | 入れるところ」の1行に、長い項目は呼び名の下に置く
-  const WIDE_TYPES = ['list', 'items', 'rules', 'actions', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'gachaPaidRule', 'slotPayouts', 'bundleList'];
+  const WIDE_TYPES = ['list', 'items', 'rules', 'actions', 'winRules', 'timerRules', 'mcRules', 'commands', 'mediaRules', 'soundRules', 'gachaTiers', 'gachaPaidRule', 'slotPayouts', 'bundleList', 'cardDeck'];
 
   function fieldFor(key, field, value) {
     const el = buildField(key, field, value);
@@ -117,6 +117,18 @@ export function buildForms(ctx) {
         links: (payload.widgets ?? []).filter((w) => w.section === 'bundles'),
         onSave: (next) => save(key, next),
       }));
+      return wrap;
+    }
+    if (field.type === 'cardDeck') {
+      const wrap = labelFor(key, field);
+      const control = document.createElement('textarea');
+      control.rows = 12;
+      control.className = 'mono';
+      control.spellcheck = false;
+      control.value = rulesToYaml(value);
+      control.placeholder = '- {numeral: XVII, title: THE STAR, subtitle: 星, image: card-17-star.webp, text: 願いが報われはじめます, weight: 1}';
+      control.addEventListener('input', () => patch(pathOf(key), { yaml: control.value.trim() || '[]' }, 700));
+      wrap.append(control);
       return wrap;
     }
     if (field.type === 'slotPayouts') {

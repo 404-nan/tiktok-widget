@@ -3,7 +3,7 @@
 
 import { SCHEMA } from './schema.js';
 
-export const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'ai', 'minecraft', 'combo'];
+export const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'cardWheel', 'ai', 'minecraft', 'combo'];
 export const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
