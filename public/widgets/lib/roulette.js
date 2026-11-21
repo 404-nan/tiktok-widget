@@ -2,7 +2,7 @@
 // 見た目は roulette-wheel.js（丸型。カジノ・柔道も）/ roulette-strip.js（横スライド）/ roulette-reel.js（スロット台）が受け持つ。
 
 import {
-  loadConfig, applyTheme, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
+  loadConfig, applyTheme, applyPageBackground, setupPage, params, list, connect, isFor, createQueue, chime, sleep, fmt, icon, mediaUrl,
   reloadOnConfigChange, resolveColor, readableOn, giftLabel,
 } from './overlay.js';
 import { giftUserName } from './roulette-gift.js';
@@ -36,6 +36,7 @@ export async function loadRoulettes() {
   const all = config?.roulettes ?? {};
   let entries = ids.length ? ids.filter((id) => all[id]).map((id) => [id, all[id]]) : Object.entries(all);
   if (entries.length === 0) entries = [['default', {}]];
+  applyPageBackground({ ...defaults.roulettes, ...entries[0][1] });
 
   reloadOnConfigChange((c) => [c?.theme, ids.length ? ids.map((id) => c?.roulettes?.[id]) : c?.roulettes], config);
   return entries.map(([id, entry]) => prepare(id, params({ ...FALLBACK, ...defaults.roulettes, ...entry })));

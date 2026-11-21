@@ -94,6 +94,7 @@ export async function setupWidget(section, fallback = {}) {
       .catch(() => {});
   }
   const entry = config?.[section]?.[id] ?? {};
+  applyPageBackground({ ...defaults[section], ...entry });
   reloadOnConfigChange((c) => [c?.theme, c?.active?.[section], c?.[section]?.[id], queryId]);
   configSnapshot = JSON.stringify([config?.theme, config?.active?.[section], config?.[section]?.[id], queryId]);
   setupSample(section, id);
@@ -270,6 +271,50 @@ export const list = (s) =>
  * handlers: { hello(status, state, msg), event(e, state), state(state), status(status), control(msg) }
  * hello の msg には、最近のコメント（recentChats）なども入っている
  */
+// 背景（透明／クロマキー用の色／単色／背景画像）の適用。設定は各ウィジェットの項目（background ほか）。
+// preview.html（body.preview）の暗い地は眺めるための物なので、そちらでは塗らない。
+export function applyPageBackground(entry) {
+  if (!entry || document.body?.classList.contains('preview')) return;
+  const mode = entry.background ?? 'transparent';
+  const els = [document.documentElement, document.body];
+  for (const el of els) { el.style.backgroundColor = ''; el.style.backgroundImage = ''; el.style.backgroundSize = ''; el.style.backgroundPosition = ''; }
+  if (mode === 'chroma' || mode === 'solid') {
+    const c = (mode === 'chroma' ? entry.chromaColor : entry.solidColor) || (mode === 'chroma' ? '#00FF00' : '#0B1030');
+    for (const el of els) el.style.backgroundColor = c;
+  } else if (mode === 'image' && entry.backgroundImage) {
+    const u = 'url("' + String(entry.backgroundImage).replace(/"/g, '%22') + '")';
+    for (const el of els) { el.style.backgroundImage = u; el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; }
+  }
+}
+
+// フォルダ名 → [設定の節, 種類]。connect の設定でも背景を効かせるために使う（setupWidget を使わないページ用）
+const PAGE_SECTIONS = {
+  'gift-alert': ['alerts', 'map'], chat: ['chats', 'map'], 'gift-jar': ['jars', 'map'], goal: ['goals', 'map'],
+  wins: ['wins', 'map'], timer: ['timers', 'map'], boss: ['bosses', 'map'], counter: ['counters', 'map'],
+  roulette: ['roulettes', 'map'], cutin: ['cutins', 'map'], puchun: ['puchuns', 'map'], 'image-cutin': ['imageCutins', 'map'],
+  ranking: ['rankings', 'map'], throne: ['throne', 'map'], vote: ['votes', 'map'], cheer: ['cheers', 'map'],
+  'push-button': ['pushButtons', 'map'], ticker: ['tickers', 'map'], supporters: ['supporters', 'map'], tts: ['tts', 'map'],
+  superchat: ['superchats', 'map'], 'mc-gifts': ['mcGifts', 'map'], visitors: ['visitors', 'map'],
+  rush: ['rush', 'object'], stepup: ['stepup', 'object'], swarm: ['swarm', 'object'], combo: ['combo', 'object'],
+  media: ['mediaAlerts', 'object'], gacha: ['gacha', 'object'], omikuji: ['omikuji', 'object'], peka: ['peka', 'object'],
+  dareba: ['dareba', 'object'], slot: ['slots', 'object'], ootori: ['ootori', 'object'], 'card-draw': ['cardDraw', 'object'],
+};
+
+function applyBackgroundFromSocket(config) {
+  if (!config) return;
+  const folder = location.pathname.match(/\/widgets\/([A-Za-z0-9._-]+?)(?:\.html)?(?:\/|$)/)?.[1];
+  const found = PAGE_SECTIONS[folder];
+  if (!found) return;
+  const [section, kind] = found;
+  if (kind === 'object') { applyPageBackground(config[section]); return; }
+  const holder = config[section] ?? {};
+  const queryId = new URLSearchParams(location.search).get('id');
+  const names = Object.keys(holder);
+  const id = queryId ?? (names.includes(config?.active?.[section]) ? config.active[section] : names.includes('default') ? 'default' : names[0]);
+  if (id) applyPageBackground(holder[id]);
+  else applyPageBackground({}); // 節が空なら初期値（透明）に戻す。setupWidget の初期値の当て方とそろえる
+}
+
 export function connect(handlers) {
   const compact = new URLSearchParams(loc.search || '').get('compact') === '1';
     // ダッシュボードの中の見本(preview=1 / preview=live)は、配信ソフトからの接続として数えない
@@ -288,7 +333,7 @@ export function connect(handlers) {
       } catch {
         return;
       }
-      if (msg.type === 'hello' || msg.type === 'config') handleConfig(msg.config);
+      if (msg.type === 'hello' || msg.type === 'config') { handleConfig(msg.config); applyBackgroundFromSocket(msg.config); }
       if (msg.type === 'hello') { latestState = msg.state; handlers.hello?.(msg.status, latestState, msg); window.__twSampleShow?.(Boolean(msg.sample?.on)); handlers.sample?.(Boolean(msg.sample?.on), msg.sample); }
       else if (msg.type === 'event') { latestState = mergeStatePatch(latestState, msg.state, msg.statePatch); handlers.event?.(msg.event, latestState); }
       else if (msg.type === 'state') { latestState = msg.state; handlers.state?.(latestState); }

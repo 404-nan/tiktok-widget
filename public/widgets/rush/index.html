@@ -399,13 +399,14 @@
 <script type="module">
   // RUSH モード。状態はサーバー（src/rush.js）が持ち、'rush' メッセージで届く。設定は config.yaml の rush
   import { brushImage } from './lib/brush.js';
-  import { loadConfig, applyTheme, setupPage, reloadOnConfigChange, params, connect, fmt, countTo, sleep } from './lib/overlay.js';
+  import { loadConfig, applyTheme, applyPageBackground, setupPage, reloadOnConfigChange, params, connect, fmt, countTo, sleep } from './lib/overlay.js';
 
   const $ = (id) => document.getElementById(id);
   const stage = $('stage');
 
   const { config, defaults } = await loadConfig();
   applyTheme(config?.theme);
+  applyPageBackground(config?.rush);
   setupPage();
   reloadOnConfigChange((c) => [c?.theme, c?.rush], config);
   const p = params({

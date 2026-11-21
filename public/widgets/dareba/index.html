@@ -63,13 +63,28 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
       oscillator.stop(context.currentTime + 0.2);
     } catch (error) {}
   }
+  function applyBg(entry) {
+    entry = entry || {};
+    var mode = entry.background || 'transparent';
+    var els = [document.documentElement, document.body];
+    for (var i = 0; i < els.length; i++) { els[i].style.backgroundColor = ''; els[i].style.backgroundImage = ''; els[i].style.backgroundSize = ''; els[i].style.backgroundPosition = ''; }
+    if (mode === 'chroma' || mode === 'solid') {
+      var c = (mode === 'chroma' ? entry.chromaColor : entry.solidColor) || (mode === 'chroma' ? '#00FF00' : '#0B1030');
+      for (var j = 0; j < els.length; j++) els[j].style.backgroundColor = c;
+    } else if (mode === 'image' && entry.backgroundImage) {
+      var u = 'url("' + String(entry.backgroundImage).replace(/"/g, '%22') + '")';
+      for (var k = 0; k < els.length; k++) { els[k].style.backgroundImage = u; els[k].style.backgroundSize = 'cover'; els[k].style.backgroundPosition = 'center'; }
+    }
+  }
   function receive(message) {
     if (message && message.type === 'hello') show(message.dareba);
     if (message && message.type === 'dareba') show(message.dareba);
+    if (message && (message.type === 'hello' || message.type === 'config')) applyBg((message.config || {}).dareba);
   }
   // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
   var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
   fetch(base + '/api/dareba').then(function (r) { return r.json(); }).then(show).catch(function () {});
+  fetch(base + '/api/config').then(function (r) { return r.json(); }).then(function (res) { applyBg((res.config || {}).dareba); }).catch(function () {});
   var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
   ws.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (error) {} };
 }());
