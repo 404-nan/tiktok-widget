@@ -42,3 +42,28 @@ test('前面の共通土台が背景を当てる形になっている', () => {
   const roulette = readFileSync(new URL('../public/widgets/lib/roulette.js', import.meta.url), 'utf8');
   assert.ok(roulette.includes('applyPageBackground'), 'ルーレットも背景を当てる');
 });
+
+test('前面の対応表（フォルダ→節）が設定の定義と一致する', () => {
+  const overlay = readFileSync(new URL('../public/widgets/lib/overlay.js', import.meta.url), 'utf8');
+  const block = overlay.match(/const PAGE_SECTIONS = \{([\s\S]*?)\};/);
+  assert.ok(block, 'PAGE_SECTIONS がある');
+  const actual = {};
+  for (const m of block[1].matchAll(/'([a-z-]+)': \['([a-zA-Z]+)', '(map|object)'\]|([a-z-]+): \['([a-zA-Z]+)', '(map|object)'\]/g)) {
+    actual[m[1] ?? m[4]] = [m[2] ?? m[5], m[3] ?? m[6]];
+  }
+  const expected = {};
+  for (const [name, section] of Object.entries(SCHEMA)) {
+    if (!section.page || EXCLUDED.includes(name)) continue;
+    expected[section.page.split('/')[0]] = [name, section.kind === 'map' ? 'map' : 'object'];
+  }
+  assert.deepEqual(actual, expected);
+});
+
+test('独自の受け取り方をするページにも背景を読む経路がある', () => {
+  const cardDraw = readFileSync(new URL('../public/widgets/card-draw/index.html', import.meta.url), 'utf8');
+  assert.ok(cardDraw.includes('applyPageBackground'), 'カードめくりが背景を当てる');
+  assert.ok(cardDraw.includes("msg.type === 'config'"), 'カードめくりが設定の変更にも追随する');
+  const dareba = readFileSync(new URL('../public/widgets/dareba/index.html', import.meta.url), 'utf8');
+  assert.ok(dareba.includes('function applyBg'), 'ダレバが背景を当てる');
+  assert.ok(dareba.includes("'/api/config'"), 'ダレバが設定を読む');
+});

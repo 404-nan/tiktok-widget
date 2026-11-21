@@ -312,6 +312,7 @@ function applyBackgroundFromSocket(config) {
   const names = Object.keys(holder);
   const id = queryId ?? (names.includes(config?.active?.[section]) ? config.active[section] : names.includes('default') ? 'default' : names[0]);
   if (id) applyPageBackground(holder[id]);
+  else applyPageBackground({}); // 節が空なら初期値（透明）に戻す。setupWidget の初期値の当て方とそろえる
 }
 
 export function connect(handlers) {
