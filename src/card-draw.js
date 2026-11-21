@@ -193,8 +193,10 @@ export class CardDraw {
       round: {
         count: r.deck.length,
         // 表で見せるのは最初と、結果が出たあと（外れたとき、どこに当たりがあったかを見せる）だけ。
-        // 混ぜて配ったあとは並びを渡さない(どこが当たりか分からないように)
-        faces: this.phase === 'show' || this.phase === 'reveal' || this.phase === 'done' ? r.deck : null,
+        // 混ぜて配ったあとは並びを渡さない(どこが当たりか分からないように)。
+        // 結果の段階で渡すのは「実際に当たるカード」の並び（reals）。表の並び（並びに出す大当たり）を
+        // そのまま渡すと、選んだカードが結果と違う文字でめくれてしまう（当たりが無い設定でも大吉が出たように見える）
+        faces: this.phase === 'show' ? r.deck : this.phase === 'reveal' || this.phase === 'done' ? (r.reals ?? r.deck) : null,
         picked: r.picked,
         result: this.phase === 'reveal' || this.phase === 'done' ? { win: r.win, label: r.win ? c.winLabel : c.loseLabel } : null,
         user: r.user,
