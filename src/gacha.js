@@ -1,4 +1,5 @@
 // 高額ギフトなどのガチャ（name='omikuji' ならおみくじ。同じ仕組みで設定・画面・イベント名だけ別）。待機 → 回転 → 結果 → 終了。一度に1回で、重なった分は待ち列。
+// 大きな演出（カードめくりの開示など）が流れている間は、舞台の順番待ち（src/stage-queue.js）で抽選を待たせ、終わってから順番に始める。
 // おみくじは回す前に「番号を選ぶ」段階（pick）を入れられる。送った人のコメント / 配信者のボタン / 時間切れでランダム。運勢は番号と関係なく重みで決める。
 // 画面は /widgets/gacha.html・/widgets/omikuji.html。各段階の長さはイベントに載せる。
 
@@ -40,12 +41,22 @@ export function rollTier(tiers, pityCount = 0, pityEvery = 0, random = Math.rand
 }
 
 export class Gacha {
-  constructor(hub, { bus = null, random = null, name = 'gacha', storeFile = null } = {}) {
+  constructor(hub, { bus = null, random = null, name = 'gacha', storeFile = null, stage = null, stageKey = 'local' } = {}) {
     this.name = name;
     this.hub = hub;
     this.bus = bus;
     this.random = typeof random === 'function' ? random : Math.random;
     this.storeFile = storeFile ? String(storeFile) : null;
+    // 舞台の順番待ち（src/stage-queue.js）。渡されたときだけ、設定 stageQueue が有効な節で使う
+    this.stage = stage ?? null;
+    this.stageKey = stageKey;
+    this.stagePending = []; // 舞台が空くまで待つ抽選（先入れ先出し）
+    this.stageHeld = false; // 自分が舞台の持ち主か
+    this.stageWaiting = false; // 舞台が空いたら知らせる登録をしているか
+    this.stageWaiter = () => {
+      this.stageWaiting = false;
+      this.#proceed();
+    };
     this.config = defaultsFor(name);
     this.phase = 'idle';
     this.seq = 0;
@@ -74,6 +85,12 @@ export class Gacha {
     if (mode !== 'ended' && mode !== 'idle' && mode !== 'demo') return;
     if (!this.liveActive) return;
     this.liveActive = false;
+    // 配信が終わったら、舞台を待っている抽選は全部やめる（次の配信へ持ち越さない）
+    if (this.stagePending.length) this.stagePending = [];
+    if (this.stageWaiting) {
+      this.stageWaiting = false;
+      this.stage?.cancelWait(this.stageKey, this.stageWaiter);
+    }
     if (this.pityCount !== 0 || this.pityUsers.size > 0) {
       this.pityCount = 0;
       this.pityUsers.clear();
@@ -132,6 +149,7 @@ export class Gacha {
       durations: this.durations,
       pityCount: this.pityCount,
       pending: this.pending.length,
+      stagePending: this.stagePending.length,
       enabled: this.config.enabled !== false,
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
@@ -170,6 +188,7 @@ export class Gacha {
     for (const timer of this.timers) clearTimeout(timer);
     this.timers.clear();
     this.phase = 'idle';
+    this.#releaseStage();
     this.trigger = null;
     this.tier = null;
     this.forced = false;
@@ -191,13 +210,85 @@ export class Gacha {
       // 進行中がテストの抽選なら、本物を後ろに並ばせず、テストを打ち切って本物を先に通す
       if (this.trigger?.test === true || this.trigger?.kind === 'test') {
         this.#abortTest();
-        return this.#begin(next);
+        return this.#beginOnStage(next);
       }
       // 待ちに上限はつけない。投げた分は全部回す
       this.pending.push(next);
       return { ok: true, queued: true, pending: this.pending.length, phase: this.phase, seq: this.seq };
     }
-    return this.#begin(next);
+    // 大きな演出（カードめくりの開示など）が舞台を使っている間は、抽選を始めずに舞台の待ち列で待つ。
+    // テストの抽選は待ち列に入れない（本物の抽選が進行中のときと同じく断る）
+    if (this.#stageEnabled() && this.stage.isBusy(this.stageKey) && this.stage.ownerOf(this.stageKey) !== this.name) {
+      if (next.test === true || next.kind === 'test') {
+        return { ok: false, reason: 'busy', error: '大きな演出が流れている間はテストを始められません。終わってから試してください' };
+      }
+      return this.#enqueueStage(next);
+    }
+    return this.#beginOnStage(next);
+  }
+
+  /** 舞台の順番待ちを使うか。舞台が渡されていて、設定 stageQueue が有効なときだけ */
+  #stageEnabled() {
+    return Boolean(this.stage) && this.config.stageQueue === true;
+  }
+
+  /**
+   * 舞台が空くまで抽選を待たせる。上限（stageQueueMax、既定20）を超えた分は引かず、
+   * バスへ知らせて記録（演出の記録）に残す。
+   */
+  #enqueueStage(trigger) {
+    const max = Math.max(1, Number(this.config.stageQueueMax) || 20);
+    if (this.stagePending.length >= max) {
+      this.bus?.emit(`${this.name}.stage-dropped`, { trigger, reason: 'stage-queue-full', max });
+      return { ok: true, queued: false, dropped: true, pending: this.stagePending.length, phase: this.phase, seq: this.seq };
+    }
+    this.stagePending.push(trigger);
+    this.#waitStage();
+    return { ok: true, queued: true, stage: true, pending: this.stagePending.length, phase: this.phase, seq: this.seq };
+  }
+
+  /** 舞台が空いたら知らせる登録（重ねて登録しない） */
+  #waitStage() {
+    if (this.stageWaiting || !this.stage) return;
+    this.stageWaiting = true;
+    this.stage.whenFree(this.stageKey, this.stageWaiter);
+  }
+
+  /**
+   * 舞台を取ってから抽選を始める。先に他の部品が取っていたら、舞台の待ち列の先頭へ戻して空くのを待つ
+   * （待ち列から取り出した分や、10連にまとめた分を失わないため）。
+   */
+  #beginOnStage(trigger) {
+    if (this.#stageEnabled()) {
+      if (!this.stage.acquire(this.stageKey, this.name)) {
+        this.stagePending.unshift(trigger);
+        this.#waitStage();
+        return { ok: true, queued: true, stage: true, pending: this.stagePending.length, phase: this.phase, seq: this.seq };
+      }
+      this.stageHeld = true;
+    }
+    return this.#begin(trigger);
+  }
+
+  /** 舞台を返す。返した拍子に、待っていた側が舞台を取ることがある */
+  #releaseStage() {
+    if (!this.stageHeld) return;
+    this.stageHeld = false;
+    this.stage?.release(this.stageKey, this.name);
+  }
+
+  /**
+   * 抽選が終わって待機に戻ったあと、次にやることを始める。
+   * 自分の待ち列（進行中に来た分）を先に、次に舞台の待ち列を見る。
+   */
+  #proceed() {
+    if (this.phase !== 'idle') return;
+    if (this.pending.length) {
+      this.#drain();
+      return;
+    }
+    const next = this.stagePending.shift();
+    if (next) this.#beginOnStage(next);
   }
 
   onEvent(e) {
@@ -284,11 +375,11 @@ export class Gacha {
   #drain() {
     const ten = this.#takeTenBatch();
     if (ten) {
-      this.#begin(ten);
+      this.#beginOnStage(ten);
       return;
     }
     const next = this.pending.shift();
-    if (next) this.#begin(next);
+    if (next) this.#beginOnStage(next);
   }
 
   /**
@@ -350,7 +441,8 @@ export class Gacha {
         this.tenResults = null;
         this.trigger = null;
         this.#emit('idle');
-        this.#drain();
+        this.#releaseStage();
+        this.#proceed();
       });
     });
   }
@@ -446,7 +538,8 @@ export class Gacha {
           this.trigger = null;
           this.stick = null;
           this.#emit('idle');
-          this.#drain();
+          this.#releaseStage();
+          this.#proceed();
         });
       });
     });

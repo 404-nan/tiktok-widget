@@ -45,9 +45,13 @@ export function pickNumber(text, count) {
 }
 
 export class CardDraw {
-  constructor(hub, { random = Math.random, onResult = null } = {}) {
+  constructor(hub, { random = Math.random, onResult = null, stage = null, stageKey = 'local' } = {}) {
     this.hub = hub;
     this.random = random;
+    // 舞台の順番待ち（src/stage-queue.js）。渡されたときだけ、開示の間は舞台の持ち主になる
+    this.stage = stage ?? null;
+    this.stageKey = stageKey;
+    this.stageHeld = false; // 自分が舞台の持ち主か（取れなかったときは返さない）
     // 結果の記録口（管理画面の「最近の結果」用）。{ user, win, label, giftLabel, test } を渡す
     this.onResult = typeof onResult === 'function' ? onResult : null;
     this.config = defaultsFor('cardDraw');
@@ -69,6 +73,7 @@ export class CardDraw {
   /** テストのラウンドを打ち切る。タイマーを全部止め、画面を空に戻す */
   #abortTest() {
     this.close();
+    this.#releaseStage();
     this.phase = 'idle';
     this.round = null;
     // 待機に戻る知らせにもテストの印を付ける（見本の画面がテストの表示で止まらないように）
@@ -140,9 +145,19 @@ export class CardDraw {
     }));
   }
 
+  /** 舞台を返す。持ち主のときだけ（開示のときに取れていなければ何もしない） */
+  #releaseStage() {
+    if (!this.stageHeld) return;
+    this.stageHeld = false;
+    this.stage?.release(this.stageKey, 'cardDraw');
+  }
+
   #reveal(n) {
     if (this.phase !== 'pick') return;
     this.close();
+    // 開示から結果の表示が終わるまでは舞台の持ち主になる（おみくじの抽選はその間、順番待ちになる）。
+    // 先に他の演出が使っていたら、ラウンドの途中なので待たずに進め、持ち主にはならない
+    if (this.stage) this.stageHeld = this.stage.acquire(this.stageKey, 'cardDraw');
     this.round.picked = n;
     this.round.win = this.round.reals ? this.round.reals[n - 1] === true : this.random() < (Number(this.config.winRate) || 0);
     // 結果が決まったら、カードの並びを結果に合わせる（外れたとき、どこに当たりがあったかを見せるため）。
@@ -172,6 +187,7 @@ export class CardDraw {
       this.phase = 'idle';
       this.round = null;
       this.#emit();
+      this.#releaseStage();
       const next = this.pending.shift();
       if (next) this.#begin(next);
     }));

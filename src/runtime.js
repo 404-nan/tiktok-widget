@@ -28,6 +28,7 @@ import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { CardDraw } from './card-draw.js';
+import { StageQueue } from './stage-queue.js';
 import { DrawResults } from './draw-results.js';
 import { Gacha } from './gacha.js';
 import { GachaViewers } from './gacha-viewers.js';
@@ -156,8 +157,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
-  const gacha = new Gacha(hub, { bus, storeFile: path.join(dataDir, 'gacha-pity.json') });
-  const omikuji = new Gacha(hub, { bus, name: 'omikuji', storeFile: path.join(dataDir, 'omikuji-pity.json') });
+  // 大きな演出の順番待ち（おみくじの抽選・カードめくりの開示が持ち主になる）。配信者ごとに1つ
+  const stage = new StageQueue();
+  const gacha = new Gacha(hub, { bus, storeFile: path.join(dataDir, 'gacha-pity.json'), stage, stageKey: id });
+  const omikuji = new Gacha(hub, { bus, name: 'omikuji', storeFile: path.join(dataDir, 'omikuji-pity.json'), stage, stageKey: id });
   // 抽選の結果の記録（管理画面で「誰が・何に当たったか」を見るため）。テストの結果は記録しない
   const drawResults = new DrawResults(path.join(dataDir, 'draw-results.jsonl'));
   const recordDraw = (kind) => ({ tier, trigger, results, forced }) => {
@@ -176,6 +179,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   bus.on('omikuji.ten', recordDraw('omikuji'));
   bus.on('gacha.reveal', recordDraw('gacha'));
   const cardDraw = new CardDraw(hub, {
+    stage, stageKey: id,
     onResult: ({ user, win, label, giftLabel, test, at }) => {
       if (test) return;
       drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null, session: history.sessionIdAt(at ?? null) });
