@@ -81,6 +81,7 @@
 | `vault.js` | Cloudflare 上で data/ を退避・復元する |
 | `visitors.js` | 配信者ごとの秘密鍵で来場者 ID を HMAC 化し、複数設定の最短保存期間・常連回数で通知と匿名記録を管理する |
 | `vote.js` | コメントの番号投票を1人1票で集計し、結果を WebSocket で配る |
+| `quiz.js` | クイズの出題・制限時間・コメントの正解判定を持ち、最初の正解者を WebSocket で配る（ポイントの支払いは runtime が onWin で行う） |
 | `wins.js` | WIN 数と全画面演出の段階を管理する |
 | `ws-mode.js` | WebSocket URL の compact 指定を判定する |
 

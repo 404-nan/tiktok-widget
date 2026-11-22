@@ -27,7 +27,7 @@ export function emptyState() {
 const EFFECT_TYPES = new Set([
   'event', 'roulette', 'rouletteResult', 'omikuji', 'gacha', 'puchun',
   'boss', 'cheer', 'combo', 'ootori', 'peka', 'push', 'rush', 'slot',
-  'cardDraw', 'goalAlert', 'stepup', 'swarm', 'throne', 'timer', 'vote',
+  'cardDraw', 'goalAlert', 'stepup', 'swarm', 'throne', 'timer', 'vote', 'quiz',
   'wins', 'winsCombo', 'dareba', 'named-sabotage', 'mediaAlert',
   'giftSound', 'relay-stop', 'slotResult', 'visitor',
 ]);

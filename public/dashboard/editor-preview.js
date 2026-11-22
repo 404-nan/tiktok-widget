@@ -260,6 +260,15 @@ export function buildPreview(ctx) {
         chip('リセット', 'rotate-ccw', vote('reset')),
         ...options.map((_, index) => chip(`${index + 1} に1票（テスト）`, 'message-circle', () => api('/api/simulate', { kind: 'chat', text: String(index + 1), user: `テスト参加者${++testVoteParticipant}` }))),
       );
+    } else if (tab === 'quizzes') {
+      const quiz = (action, data) => control('quiz', action, { id, ...(data ?? {}) });
+      const answer = payload.config.quizzes?.[id]?.answer ?? '';
+      box.replaceChildren(
+        chip('出題する', 'play', quiz('start')),
+        chip('締めて答えを出す', 'pause', quiz('finish')),
+        chip('リセット', 'rotate-ccw', quiz('reset')),
+        ...(answer ? [chip('答えを打つ（テスト）', 'message-circle', () => api('/api/simulate', { kind: 'chat', text: answer, user: `テスト参加者${++testVoteParticipant}` }))] : []),
+      );
     } else if (tab === 'cheers') {
       const cheer = (action, data) => control('cheer', action, { id, ...(data ?? {}) });
       box.replaceChildren(chip('いいね ×20（テスト）', 'heart', cheer('add', { value: 20 })), chip('いいね ×100（テスト）', 'heart', cheer('add', { value: 100 })), chip('満タンにする', 'trophy', cheer('fill')), chip('リセット', 'rotate-ccw', cheer('reset')));
