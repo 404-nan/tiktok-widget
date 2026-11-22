@@ -16,7 +16,7 @@
   if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
   var phases = (kind === 'omikuji'
-    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', ten: '10連', done: '終了' }
+    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', ten: '連', done: '終了' }
     : { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' });
 
   function seconds(n) {
@@ -163,7 +163,8 @@
   function show(data) {
     if (!data) return;
     var phase = data.phase || 'idle';
-    phaseEl.textContent = phases[phase] ?? phase;
+    // まとめ引きの段階表示は結果の実際の件数で出す（11連なら「11連」）
+    phaseEl.textContent = phase === 'ten' && data.results && data.results.length ? data.results.length + '連' : (phases[phase] ?? phase);
     var tier = data.tier;
     if ((phase === 'reveal' || phase === 'done') && tier) resultEl.textContent = tier.label || tier.id || '';
     else if (phase === 'idle' || phase === 'rolling') resultEl.textContent = '';

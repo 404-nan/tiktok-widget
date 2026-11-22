@@ -685,7 +685,7 @@ SCHEMA.omikuji = {
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
     'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
-    'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。URL は /widgets/omikuji.html',
+    'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。elevenGifts に入れたギフトなら11連にもできる。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
@@ -698,6 +698,7 @@ SCHEMA.omikuji = {
     tenCount: num(10, 'まとめ引きの回数。専用ギフトのまとめ引きと、まとめ引きの貯まる数に効く', { min: 2, max: 30 }),
     tenBatch: bool(true, 'まとめ引き。連打（コンボ）が tenCount 回以上なら、tenCount 回ぶんをひとつのまとめ引きにして一気に出す。余りは通常の引き方で引く。また、抽選が続いて同じ視聴者の分が待ちに tenCount 回ぶんたまったときも、自動でまとめ引きにする。変えたいときはここでオフに切り替えられます。設定しない場合も、同じ視聴者の分が tenCount 回ぶん貯まると、自動でまとめ引きになります。'),
     tenGifts: list([], 'まとめ引きギフト（ID または名前）。このギフトが届いたら、届いたぶんをまとめて tenCount 回引く（通常の引き方より優先）'),
+    elevenGifts: list([], '11連ギフト（ID または名前）。このギフトが届いたら、まとめ引きの回数（tenCount）に関係なく11回ぶんをまとめて引く（tenGifts より優先）'),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),

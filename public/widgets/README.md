@@ -11,7 +11,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `combo.html` | コンボ状態を送信者中心に表示し、背景透明で受信順に表示する |
 | `counter.html` | いいね・視聴者数などを表示する |
 | `cutin.html` | 通常カットインを表示する |
-| `gacha.html` / `gacha.js` | ガチャ画面と状態表示を行う。`gacha.js` はおみくじと共通で、番号を選ぶ段階の札(`li[data-n] > b`)と残り秒、だれの番(`pickWho`)と選び方(`pickHow`)、選ばれた札を筒へ落とす印(`chosen`)も出す |
+| `gacha.html` / `gacha.js` | ガチャ画面と状態表示を行う。`gacha.js` はおみくじと共通で、番号を選ぶ段階の札(`li[data-n] > b`)と残り秒、だれの番(`pickWho`)と選び方(`pickHow`)、選ばれた札を筒へ落とす印(`chosen`)、まとめ引きの段階表示(実際の件数で「◯連」)も出す |
 | `gift-alert.html` | ギフト・フォロー・シェアの通知を表示する |
 | `gift-jar.html` | ギフト瓶を表示する |
 | `goal.html` | 目標バーを表示する |

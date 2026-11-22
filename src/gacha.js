@@ -233,9 +233,15 @@ export class Gacha {
       coins: Number(e.totalDiamonds) || 0,
       user: e.user ? { id: e.user.id, name: e.user.name } : null,
     };
-    // おみくじの10連: 専用ギフトは通常の関門（gifts / minCoins）より先に判定する。
-    // 通常ギフトを指定している設定でも、10連ギフトが届いたら10連にする（通常の引き方より優先）
+    // おみくじのまとめ引き: 専用ギフトは通常の関門（gifts / minCoins）より先に判定する。
+    // 通常ギフトを指定している設定でも、まとめ引きギフトが届いたらまとめ引きにする（通常の引き方より優先）。
+    // elevenGifts は tenCount に関係なく11連で、tenGifts より優先する
     if (this.name === 'omikuji') {
+      const elevenGifts = Array.isArray(this.config.elevenGifts) ? this.config.elevenGifts : [];
+      if (elevenGifts.length > 0 && giftMatches(e.gift, elevenGifts)) {
+        this.start({ ...trigger, kind: 'ten', pullCount: 11 });
+        return;
+      }
       const tenGifts = Array.isArray(this.config.tenGifts) ? this.config.tenGifts : [];
       if (tenGifts.length > 0 && giftMatches(e.gift, tenGifts)) {
         this.start({ ...trigger, kind: 'ten' });
@@ -321,12 +327,14 @@ export class Gacha {
   }
 
   /**
-   * まとめ引き: tenCount 回ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数えは tenCount 回ぶん進める。
+   * まとめ引き: 指定の回数ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数え（全体・個人）は回数ぶん進める。
+   * 回数は tenCount、ただし elevenGifts の11連は引き継ぎ（pullCount）で 11 が渡る。壊れた引き継ぎは tenCount へ倒す。
    * テストのまとめ引きでは天井の数えを進めない（通常の抽選と同じ線引き）。
    */
   #beginTen() {
     this.close();
-    const ten = this.#tenCount();
+    const requested = Number(this.trigger?.pullCount);
+    const ten = Number.isInteger(requested) && requested >= 2 && requested <= 30 ? requested : this.#tenCount();
     const isTest = this.trigger?.test === true || this.trigger?.kind === 'test';
     const userKey = this.#userKey(this.trigger);
     let pityCount = this.pityCount;

@@ -390,7 +390,7 @@ export const SIMPLE = {
       // 送った人が選ばないときは時間切れで進む。配信者の番でも押さなければ同じ秒数のあとランダム
       { title: '棒の番号の選び方', fields: ['pickMode', 'pickSeconds', 'timeoutMode'] },
       { title: '運勢と出やすさ', fields: ['tiers'] },
-      { title: '10連', fields: ['tenBatch', 'tenGifts'] },
+      { title: '10連', fields: ['tenBatch', 'tenGifts', 'elevenGifts'] },
     ],
   },
   slots: {
@@ -467,7 +467,7 @@ export const SIMPLE_LABELS = {
   'gacha.enabled': 'ガチャを使う', 'gacha.minCoins': '何コインから回す', 'gacha.gifts': 'このギフトで回す', 'gacha.pity': '天井（この回数で確定）', 'gacha.tiers': 'レアリティと当たりやすさ',
   'omikuji.enabled': 'おみくじを使う', 'omikuji.displayMode': '表示の型', 'omikuji.resultFont': '運勢の文字', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
   'omikuji.pickMode': '番号の選び方', 'omikuji.pickSeconds': '番号を待つ秒数', 'omikuji.timeoutMode': '時間切れのとき',
-  'omikuji.pity': '天井（この回数で大吉が確定）', 'omikuji.tenBatch': '連打10回で10連にする', 'omikuji.tenGifts': '10連ギフト',
+  'omikuji.pity': '天井（この回数で大吉が確定）', 'omikuji.tenBatch': '連打10回で10連にする', 'omikuji.tenGifts': '10連ギフト', 'omikuji.elevenGifts': '特定ギフトで11連にする',
   'gacha.freePerReset': '1人の無料回数', 'gacha.resetMode': '無料回数のリセット', 'gacha.freeRequires': '無料回数の条件',
   'gacha.paidRule': '有料回数のたまり方', 'gacha.command': '回すコメント', 'gacha.cooldownSec': '同じ人の間隔',
   'slots.enabled': 'スロットを使う', 'slots.trigger': 'どんなときに回す？', 'slots.symbols': '絵柄と出やすさ', 'slots.payouts': '当たったときの動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔',
