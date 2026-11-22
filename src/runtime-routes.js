@@ -30,7 +30,7 @@ export function bindRoutes(r, ctx) {
     id, hub, store, info, entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues, timerSeconds, performControl,
   } = ctx;
@@ -214,6 +214,17 @@ export function bindRoutes(r, ctx) {
     try {
       const bid = req.params.id === 'all' ? null : cfg.activeId(hub.config, 'bosses', req.params.id === 'active' ? null : req.params.id);
       res.json({ ok: true, boss: boss.apply(bid, req.params.action, req.query.value ?? req.body?.value) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  // 扉の確率ゲーム。例: /api/door/default/start（挑戦を始める）・/api/door/default/pick?n=1（左の扉）・?n=2（右の扉）・/api/door/all/reset
+  r.get('/api/door', (_req, res) => res.json(door.snapshot()));
+  r.all('/api/door/:id/:action', (req, res) => {
+    try {
+      const did = req.params.id === 'all' ? null : cfg.activeId(hub.config, 'doors', req.params.id === 'active' ? null : req.params.id);
+      const value = req.params.action === 'pick' ? (req.query.n ?? req.body?.n ?? req.query.value ?? req.body?.value) : undefined;
+      res.json({ ok: true, door: door.apply(did, req.params.action, value) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

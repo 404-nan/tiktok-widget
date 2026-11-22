@@ -23,6 +23,7 @@ import { puchunPlays } from './puchun.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
+import { DoorEngine } from './door.js';
 import { createEventBus } from './events.js';
 import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
@@ -150,6 +151,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
+  const door = new DoorEngine(hub, path.join(dataDir, 'doors.json'));
   const bus = createEventBus();
   bus.on('*', (event) => {
     if (!history.current || event.type === 'gift') return;
@@ -274,6 +276,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
+    door.setConfig(config.doors);
     mediaAlerts.setConfig(config.mediaAlerts);
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
@@ -335,13 +338,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id, hub, store, info: () => info(), entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
     performControl: (...args) => _control.performControl(...args),
   });
   _control = bindControl(r, {
-    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss,
+    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss, door,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
     peka, throne, ootori, dareba, vote, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
@@ -441,6 +444,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
+    readDoor() { return door.snapshot(); },
     readVote() { return vote.snapshot(); },
     readCheer() { return cheer.snapshot(); },
     readPush() { return push.snapshot(); },

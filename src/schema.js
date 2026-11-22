@@ -315,6 +315,31 @@ export const SCHEMA = {
     },
   },
 
+  doors: {
+    kind: 'map',
+    page: 'door',
+    title: '扉の確率ゲーム',
+    desc:
+      'ギフトで挑戦が始まる、左右の扉を選ぶ3段階の確率ゲーム。各段階で当たりの扉が開く確率は chance1〜3（%）で設定でき、chance3 を 0 にすると最後だけ必ず外れる形にもできる。' +
+      '扉はダッシュボード・モニター・URL（Stream Deck など。例 /api/door/<名前>/pick?n=1）で選ぶ。' +
+      '挑戦中・結果の表示中に来た対象ギフトは新しい挑戦を始めない。状態はサーバーの data/doors.json に残る（挑戦の途中で止まったら待機に戻る）。URL は /widgets/door.html?id=<名前>',
+    size: () => [880, 620],
+    fields: {
+      ...placementFields(20, 14),
+      title: str('扉の確率ゲーム', '上に出す見出し'),
+      gifts: list([], 'このギフト名（または ID）で挑戦が始まる。空なら minCoins 以上のギフトで始まる'),
+      minCoins: num(0, '挑戦が始まるギフトの合計コイン（gifts が空のとき。0 でギフト全部）', { min: 0 }),
+      chance1: num(80, '1段目で当たりの扉が開く確率（%）', { min: 0, max: 100 }),
+      chance2: num(50, '2段目で当たりの扉が開く確率（%）', { min: 0, max: 100 }),
+      chance3: num(30, '3段目で当たりの扉が開く確率（%。0 にすると最後は必ず外れる）', { min: 0, max: 100 }),
+      clearText: str('全ての扉を突破！', '3段全部成功したときに出す文字'),
+      failText: str('残念…', '外れたときに出す文字'),
+      resultSeconds: num(10, '結果（突破・失敗）を出してから待機に戻るまでの秒数', { min: 3, max: 60 }),
+      sound: bool(true, '効果音'),
+      volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    },
+  },
+
   counters: {
     kind: 'map',
     page: 'counter',
