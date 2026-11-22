@@ -56,6 +56,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `omikuji-ten-flip.test.js` | おみくじ10連の札が裏から表へ返る表示（表の組み立てと時間差、終わると印が消える、大吉の札だけ長く見せる舞台側の決まり） |
 | `omikuji-tencount.test.js` | おみくじのまとめ引きの回数を設定 tenCount で変えられる(専用ギフトの件数・連打と待ちのまとめの境目が追随する・既定は10・札の「〜さんの◯連」・説明文に回数の固定数字が無い・最大30件でも札が舞台に収まる・結果の字の大きさが1段の高さ以下で中身も収まる) |
 | `omikuji-eleven.test.js` | elevenGifts の指定ギフトだけ11連にする設定、tenGifts との優先順、天井(全体・個人)の数え、前面の件数表示を確認する |
+| `omikuji-luck.test.js` | おみくじの luckBoost（無効時の互換・段数と上限・大吉の重み0・視聴者別・配信終了リセット・天井非干渉・滞在の区切りでの段と合算の上限） |
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
 | `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |

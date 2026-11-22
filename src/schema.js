@@ -684,6 +684,7 @@ SCHEMA.omikuji = {
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
+    'luckBoost を有効にすると、この配信で投げたコインが luckUnitCoins に届くごとに大吉の重みだけが元の値から luckStepPct%ずつ上がる。滞在の区切りを luckStayUnits の個数ためた分も段に数え、投げた量と滞在の段は合わせて luckMaxSteps まで。視聴者ごとに別々に計算し、天井の数え・発動は変わらない。' +
     'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
     'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。elevenGifts に入れたギフトなら11連にもできる。URL は /widgets/omikuji.html',
   fields: {
@@ -699,6 +700,11 @@ SCHEMA.omikuji = {
     tenBatch: bool(true, 'まとめ引き。連打（コンボ）が tenCount 回以上なら、tenCount 回ぶんをひとつのまとめ引きにして一気に出す。余りは通常の引き方で引く。また、抽選が続いて同じ視聴者の分が待ちに tenCount 回ぶんたまったときも、自動でまとめ引きにする。変えたいときはここでオフに切り替えられます。設定しない場合も、同じ視聴者の分が tenCount 回ぶん貯まると、自動でまとめ引きになります。'),
     tenGifts: list([], 'まとめ引きギフト（ID または名前）。このギフトが届いたら、届いたぶんをまとめて tenCount 回引く（通常の引き方より優先）'),
     elevenGifts: list([], '11連ギフト（ID または名前）。このギフトが届いたら、まとめ引きの回数（tenCount）に関係なく11回ぶんをまとめて引く（tenGifts より優先）'),
+    luckBoost: bool(false, '多く投げた人の運を上げる（無効なら確率は変わらない）'),
+    luckUnitCoins: num(1000, 'この配信で投げた合計コインが届くごとに上がる段の単位', { min: 1 }),
+    luckStepPct: num(1, '1段で大吉の元の重みに足す割合（％）', { min: 0 }),
+    luckMaxSteps: num(10, '大吉の重みを上げる段の上限', { min: 0, max: 999 }),
+    luckStayUnits: num(6, '滞在の区切り（ポイントの「滞在の区切り」、既定5分）をこの個数ためるごとに1段上がる。既定6で約30分の滞在ごとに1段。0 にすると滞在では上がらない', { min: 0, max: 999 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),

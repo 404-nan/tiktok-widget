@@ -184,6 +184,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
   const points = new Points(hub, { file: path.join(dataDir, 'points.json'), omikuji });
   gachaViewers.setPoints(points);
+  omikuji.setStaySource(points); // 確率アップ第2段（滞在ベース）の材料
   const slot = new SlotEngine(hub, { bus });
   const relayStop = new RelayStopEngine(hub, { slot });
   const peka = new Peka(hub);
