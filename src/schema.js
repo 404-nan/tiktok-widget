@@ -14,6 +14,15 @@ const oneOf = (values, def, desc) => ({ type: 'enum', values, default: def, desc
 const color = (def, desc) => ({ type: 'color', default: def, desc });
 const list = (def, desc, values) => ({ type: 'list', default: def, desc, values });
 
+// 書体（フォント）の設定。全ウィジェット共通の基本フォント（テーマ）と、ウィジェット個別の書体で同じ名前（font / customFont）を使う。
+// 画面側の効かせ方は public/widgets/lib/fonts.js の applyFont が持つ（番号はテストで照合する）。
+// 書体の実体は外部から読み込まず、端末や配信ソフト側にある書体名の並びで当てる。
+export const FONT_VALUES = ['default', 'rounded', 'mincho', 'pop', 'custom'];
+export const fontFields = () => ({
+  font: oneOf(FONT_VALUES, 'default', '書体（フォント）。default 今の書体 / rounded 丸ゴシック / mincho 明朝 / pop ポップ / custom 下の「自分の書体」を使う'),
+  customFont: str('', '自分の書体の名前（font が custom のとき使う。パソコンに入っている書体の名前を書く）'),
+});
+
 // 縦の配信画面で置き場所を決める項目。YAML に書かなくても初期値で使える。
 const placementFields = (x = 12, y = 12) => ({
   posX: num(x, '配信画面の左端（幅に対する %）', { min: 0, max: 100 }),
@@ -26,8 +35,9 @@ export const SCHEMA = {
   theme: {
     kind: 'object',
     title: 'テーマ',
-    desc: '全ウィジェット共通の色と大きさ。色は #RRGGBB か、accent / gold / ink / ink-2 / paper の名前で書ける。',
+    desc: '全ウィジェット共通の色と大きさ、基本の書体。色は #RRGGBB か、accent / gold / ink / ink-2 / paper の名前で書ける。書体は全ウィジェットの文字に効き、ウィジェット側に書体の設定があるものはそちらが優先（そちらが default のときはこの基本の書体に従う）。',
     fields: {
+      ...fontFields(),
       mode: oneOf(['dark', 'light'], 'dark', 'dark は墨の面に白文字、light は白の面に墨文字'),
       accent: color('#FF4F1F', '差し色（朱）。「今起きたこと」を示す色'),
       gold: color('#FFC53D', 'コインや達成を示す色'),
@@ -67,6 +77,7 @@ export const SCHEMA = {
       position: oneOf(['top', 'center', 'bottom'], 'top', '縦の位置'),
       align: oneOf(['left', 'center', 'right'], 'left', '横の位置'),
       style: str('standard', '通知の型（型の定義はウィジェット側の styles.json にデータで持ち、番号で選ぶ。未知の番号は標準の型で出す）'),
+      ...fontFields(),
       sound: bool(true, '効果音を鳴らす'),
       volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
       followText: str('フォローしてくれました', 'フォローのときの文'),
@@ -717,7 +728,8 @@ SCHEMA.omikuji = {
     'luckBoost を有効にすると、この配信で投げたコインが luckUnitCoins に届くごとに大吉の重みだけが元の値から luckStepPct%ずつ上がる。滞在の区切りを luckStayUnits の個数ためた分も段に数え、投げた量と滞在の段は合わせて luckMaxSteps まで。視聴者ごとに別々に計算し、天井の数え・発動は変わらない。' +
     'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
     'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。elevenGifts に入れたギフトなら11連にもできる。' +
-    '大きな演出が流れている間は、stageQueue の順番待ちで抽選を並ばせ、終わってから順番に引く。URL は /widgets/omikuji.html',
+    '大きな演出が流れている間は、stageQueue の順番待ちで抽選を並ばせ、終わってから順番に引く。' +
+    'いいね・シェアで引ける回（likeDrawEvery / shareDrawEvery）も同じ抽選の道を通り、天井の数えも同じく進む。順番待ちに入らなかった分は権利として保持して舞台が空いたら古い順に消化するが、保持は1人あたり stageQueueMax と同数までで、超えた分は引かず演出の記録に残す。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
@@ -736,6 +748,11 @@ SCHEMA.omikuji = {
     luckStepPct: num(1, '1段で大吉の元の重みに足す割合（％）', { min: 0 }),
     luckMaxSteps: num(10, '大吉の重みを上げる段の上限', { min: 0, max: 999 }),
     luckStayUnits: num(6, '滞在の区切り（ポイントの「滞在の区切り」、既定5分）をこの個数ためるごとに1段上がる。既定6で約30分の滞在ごとに1段。0 にすると滞在では上がらない', { min: 0, max: 999 }),
+    likeDrawEvery: num(0, 'いいねで引く。その人がこの配信で押したいいねが、この数の倍数に届くたびに、その人のおみくじを1回引く（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。途中の端数は持ち越す。テスト送信のいいねでは数えない', { min: 0, max: 100000 }),
+    shareDrawEvery: num(0, 'シェアで引く。その人がこの配信でシェアした回数が、この数の倍数に届くたびに、その人のおみくじを1回引く（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。テスト送信のシェアでは数えない', { min: 0, max: 1000 }),
+    likeBoostTotal: num(0, '総いいね数の的。その配信の総いいね数（全員の合計）がこの数に届いたら、その配信の残りずっと、大吉の重みに下の倍率が掛かる（0 で無効）。テスト送信のいいねは総いいね数に数えない', { min: 0 }),
+    likeBoostTimes: num(2, '総いいね数が的に届いたときの大吉の重みの倍率（1.5 のような小数も可）。確率上昇（luckBoost）の％が掛かったあとの重みに、最後にこの倍率が掛かる。大吉の確率（weight）を 0 にしていると、倍率が掛かっても出ない', { min: 1, max: 100 }),
+    likeGauge: oneOf(['off', 'bar', 'liquid', 'text'], 'off', '総いいね数までの進み具合の表示。off 出さない / bar 通常のバー / liquid 液体が溜まるバー / text 文字のみ。出すのは総いいね数の的（likeBoostTotal）までの進みだけで、個人の残りは出さない。的に届いたら「確率○倍中」と出す'),
     stageQueue: bool(true, '大きな演出の順番待ち。おみくじの抽選やカードめくりの開示など、大きな演出が流れている間は新しい抽選を始めず、終わってから順番に1つずつ引く。切ると、演出が重なっても今までどおりすぐ引く'),
     stageQueueMax: num(20, '順番待ちに並べる抽選の上限。超えた分は引かず、演出の記録に残す', { min: 1, max: 100 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),

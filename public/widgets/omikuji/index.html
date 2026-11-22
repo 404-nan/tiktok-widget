@@ -258,6 +258,28 @@
   .pity-head { font-size: 10px; letter-spacing: .14em; padding-left: .14em; }
   .pity-count { font-size: 15px; font-weight: 900; line-height: 1; white-space: nowrap; }
   .pity-count b { color: var(--shu); }
+  /* 総いいねの倍率が掛かっている間だけ、舞台の左下に小さく出す（天井バッジの対）。状態の likeBoost が true のときだけ出る */
+  .boost-badge { position: absolute; left: 4px; bottom: 6px; z-index: 6; margin: 0; padding: 6px 10px; border: 2px solid var(--ink); color: var(--ink); font-size: 14px; font-weight: 900; line-height: 1; box-shadow: 0 4px 10px rgba(0, 0, 0, .28); }
+  .boost-badge[hidden] { display: none; }
+  .boost-badge b { color: var(--shu); }
+  /* いいねの進み具合のゲージ（舞台の上に出す。形は設定 likeGauge で選ぶ。初期値は出さない）。
+     出すのは総いいね数の的までの進みだけ。文字は共通の基本フォントに従う（この要素には書体を固定しない） */
+  .like-gauge { width: 360px; margin: 2px 0 8px; padding: 10px 12px; background: #EFE6CF; border: 2px solid #24180F; color: #24180F; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); }
+  .like-gauge[hidden] { display: none; }
+  .lg-bar { height: 20px; border: 2px solid #24180F; background: rgba(36, 24, 15, .16); overflow: hidden; }
+  .lg-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #A87A0C, #F6C445); transition: width .45s ease; }
+  .like-gauge.full .lg-fill { animation: lg-glow 1.2s ease-in-out infinite alternate; }
+  @keyframes lg-glow { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+  .lg-liquid { display: none; width: 100%; height: 84px; border: 2px solid #24180F; background: #24180F; }
+  .like-gauge[data-style="liquid"] .lg-liquid { display: block; }
+  .like-gauge[data-style="liquid"] .lg-bar { display: none; }
+  .lg-text { display: none; margin: 0; text-align: center; }
+  .like-gauge[data-style="text"] .lg-text { display: block; }
+  .like-gauge[data-style="text"] .lg-bar { display: none; }
+  .lg-big { font-size: 44px; font-weight: 900; line-height: 1.05; color: #C02A1C; }
+  .lg-unit { font-size: 16px; font-weight: 700; }
+  .lg-status { margin: 6px 0 0; text-align: center; font-size: 14px; font-weight: 700; }
+  .lg-status.on { color: #C02A1C; font-size: 17px; font-weight: 900; }
   /* 10連の表示（gacha.js が data-ten="flip" を付ける）: 舞台を横4:縦3にして、裏返しの札が1枚ずつ回転して表に返る。
      表の意匠は正規の札そのまま（見出し・二重枠・運勢色の字・名前・朱印）。試作v3の見た目をそのまま移した。
      大吉の札だけ、返る動きを長くし、金の光を残して長く見せる（第2段） */
@@ -319,6 +341,12 @@
 </style>
 </head>
 <body data-kind="omikuji">
+<div class="like-gauge" id="likeGauge" hidden data-style="off">
+  <div class="lg-bar"><div class="lg-fill" id="lgFill"></div></div>
+  <canvas class="lg-liquid" id="lgLiquid"></canvas>
+  <p class="lg-text"><span class="lg-big" id="lgBig">0</span><span class="lg-unit"> あと</span></p>
+  <p class="lg-status" id="lgStatus"></p>
+</div>
 <div class="stage" id="stage" data-phase="idle">
   <div class="plate" id="plate">
     <div class="stick"><span class="stick-head"></span><span class="stick-name" id="stickName"></span></div>
@@ -347,6 +375,7 @@
     <p class="time" id="time"></p>
   </div>
   <p class="pity-badge washi" id="pityBadge" hidden><span class="pity-head">あと</span><span class="pity-count"><b id="pityLeft"></b>回</span></p>
+  <p class="boost-badge washi" id="boostBadge" hidden>確率<b id="boostTimes">2</b>倍中</p>
 </div>
 <script>
   // 舞台は 360x460 で作ってある。置かれた枠がそれより小さいときは、切らずに縮めて全部見せる。
@@ -384,8 +413,23 @@
 <script type="module">
   import { startVersionWatch } from './lib/version-watch.js';
   import { startDaikichiFx } from './omikuji/daikichi-fx.js';
+  import { fontFamily } from './lib/fonts.js';
   startVersionWatch('omikuji', { isIdle: () => !document.body.classList.contains('on') });
   startDaikichiFx(document.getElementById('stage'));
+  // 全ウィジェット共通の基本フォント（テーマの font / customFont）を、この画面の根元に効かせる。
+  // 舞台（.stage）は自分の書体を持つので従来どおり。ゲージなど舞台の外の文字が基本フォントに従う。
+  // gacha.js が設定を受け取るたびに window.__twApplyFont を呼ぶ（最初の1回はここで読む）
+  const applyBaseFont = (config) => {
+    const theme = (config || {}).theme || {};
+    const family = fontFamily(theme.font, theme.customFont);
+    const root = document.documentElement;
+    root.style.fontFamily = family;
+    if (family) root.dataset.font = theme.font;
+    else delete root.dataset.font;
+  };
+  window.__twApplyFont = applyBaseFont;
+  const base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
+  fetch(base + '/api/config').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) applyBaseFont(d.config); }).catch(() => {});
 </script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 // 高額ギフトなどのガチャ（name='omikuji' ならおみくじ。同じ仕組みで設定・画面・イベント名だけ別）。待機 → 回転 → 結果 → 終了。一度に1回で、重なった分は待ち列。
+// おみくじは、いいね・シェアの数え（likeDrawEvery / shareDrawEvery）でも本人の抽選が引ける。総いいね数が的（likeBoostTotal）に届くと大吉の重みへ倍率が掛かる。
 // 大きな演出（カードめくりの開示など）が流れている間は、舞台の順番待ち（src/stage-queue.js）で抽選を待たせ、終わってから順番に始める。
 // おみくじは回す前に「番号を選ぶ」段階（pick）を入れられる。送った人のコメント / 配信者のボタン / 時間切れでランダム。運勢は番号と関係なく重みで決める。
 // 画面は /widgets/gacha.html・/widgets/omikuji.html。各段階の長さはイベントに載せる。
@@ -76,6 +77,10 @@ export class Gacha {
     const savedPity = this.#loadPity();
     this.pityCount = savedPity.count;
     this.pityUsers = savedPity.users; // 個人の天井の数え（引いた人の鍵 → 大吉が出ていない回数）
+    this.likeTotal = savedPity.likeTotal; // この配信の総いいね数（倍率の的の数え）
+    this.likeUsers = savedPity.likeUsers; // いいね・シェアの個人の数え（鍵 → { likes, shares, likeGiven, shareGiven }）
+    this.likeHeld = []; // 順番待ちに入らなかった、いいね・シェアで貯めた抽選の権利（古い順に消化）
+    this.lastLikeProgressAt = 0; // 進み具合の知らせを出した時刻（出しすぎないため）
     this.pending = [];
     this.tier = null;
     this.forced = false;
@@ -104,16 +109,26 @@ export class Gacha {
       this.stageWaiting = false;
       this.stage?.cancelWait(this.stageKey, this.stageWaiter);
     }
+    let dirty = false;
     if (this.pityCount !== 0 || this.pityUsers.size > 0) {
       this.pityCount = 0;
       this.pityUsers.clear();
-      this.#savePity();
+      dirty = true;
     }
+    // いいね・シェアの数えと、まだ消化していない権利も、配信が終わったら全部戻す（天井と同じ寿命）
+    if (this.likeTotal !== 0 || this.likeUsers.size > 0 || this.likeHeld.length > 0) {
+      this.likeTotal = 0;
+      this.likeUsers.clear();
+      this.likeHeld = [];
+      dirty = true;
+    }
+    if (dirty) this.#savePity();
   }
 
-  /** 天井の数えの読み込み。保存先が無い・壊れているときは 0 から */
+  /** 天井の数えといいね・シェアの数えの読み込み。保存先が無い・壊れているときは 0 から。
+   * 版2（天井だけ）の保存もそのまま読める（いいね・シェアの数えは 0 から） */
   #loadPity() {
-    const empty = { count: 0, users: new Map() };
+    const empty = { count: 0, users: new Map(), likeTotal: 0, likeUsers: new Map() };
     if (!this.storeFile) return empty;
     try {
       const saved = JSON.parse(fs.readFileSync(this.storeFile, 'utf8'));
@@ -125,19 +140,45 @@ export class Gacha {
           if (key && Number.isFinite(c) && c > 0) users.set(key, Math.floor(c));
         }
       }
-      return { count: Number.isFinite(n) && n > 0 ? Math.floor(n) : 0, users };
+      const likeUsers = new Map();
+      if (saved?.likeUsers && typeof saved.likeUsers === 'object' && !Array.isArray(saved.likeUsers)) {
+        for (const [key, value] of Object.entries(saved.likeUsers)) {
+          if (!key || !value || typeof value !== 'object') continue;
+          const entry = {
+            likes: Math.max(0, Math.floor(Number(value.likes)) || 0),
+            shares: Math.max(0, Math.floor(Number(value.shares)) || 0),
+            likeGiven: Math.max(0, Math.floor(Number(value.likeGiven)) || 0),
+            shareGiven: Math.max(0, Math.floor(Number(value.shareGiven)) || 0),
+          };
+          if (entry.likes > 0 || entry.shares > 0 || entry.likeGiven > 0 || entry.shareGiven > 0) likeUsers.set(key, entry);
+        }
+      }
+      const likeTotal = Number(saved?.likeTotal);
+      return {
+        count: Number.isFinite(n) && n > 0 ? Math.floor(n) : 0,
+        users,
+        likeTotal: Number.isFinite(likeTotal) && likeTotal > 0 ? Math.floor(likeTotal) : 0,
+        likeUsers,
+      };
     } catch {
       return empty;
     }
   }
 
-  /** 天井の数えの保存。お金まわり（ポイント）と同じ格：仮ファイルへ書いてから入れ替える */
+  /** 天井の数えといいね・シェアの数えの保存（版3）。お金まわり（ポイント）と同じ格：仮ファイルへ書いてから入れ替える */
   #savePity() {
     if (!this.storeFile) return;
     try {
       fs.mkdirSync(path.dirname(this.storeFile), { recursive: true });
       const temp = `${this.storeFile}.tmp`;
-      fs.writeFileSync(temp, `${JSON.stringify({ version: 2, pityCount: this.pityCount, pityUsers: Object.fromEntries(this.pityUsers) })}\n`, { mode: 0o600 });
+      const data = {
+        version: 3,
+        pityCount: this.pityCount,
+        pityUsers: Object.fromEntries(this.pityUsers),
+        likeTotal: this.likeTotal,
+        likeUsers: Object.fromEntries(this.likeUsers),
+      };
+      fs.writeFileSync(temp, `${JSON.stringify(data)}\n`, { mode: 0o600 });
       fs.renameSync(temp, this.storeFile);
     } catch {
       // 保存に失敗しても抽選自体は止めない
@@ -178,6 +219,23 @@ export class Gacha {
       pick: this.#pickView(),
       stick: this.stick,
       ...this.#displayOptions(),
+      ...this.#likeView(),
+    };
+  }
+
+  /** いいねの進み具合（公開状態に出す分）。総いいね数・的・倍率・倍率が掛かっているか・ゲージの形・保持している権利の数。
+   * おみくじだけ。個人の数えは出さない */
+  #likeView() {
+    if (this.name !== 'omikuji') return {};
+    const total = Math.max(0, Number(this.config.likeBoostTotal) || 0);
+    const times = Number(this.config.likeBoostTimes);
+    return {
+      likeTotal: this.likeTotal,
+      likeBoostTotal: total,
+      likeBoostTimes: Number.isFinite(times) && times > 0 ? times : 1,
+      likeBoost: total > 0 && this.likeTotal >= total,
+      likeGauge: typeof this.config.likeGauge === 'string' ? this.config.likeGauge : 'off',
+      likeHeld: this.likeHeld.length,
     };
   }
 
@@ -321,7 +379,16 @@ export class Gacha {
       return;
     }
     const next = this.stagePending.shift();
-    if (next) this.#beginOnStage(next);
+    if (next) {
+      this.#beginOnStage(next);
+      return;
+    }
+    // 順番待ちに入らなかった、いいね・シェアの権利も、空いたら古い順に1つ消化する
+    const held = this.likeHeld.shift();
+    if (held) {
+      const res = this.start(held);
+      if (res?.dropped) this.likeHeld.unshift(held); // まだ舞台がいっぱいなら先頭に戻して次を待つ
+    }
   }
 
   onEvent(e) {
@@ -332,6 +399,10 @@ export class Gacha {
       const same = who && (e.user?.id ? e.user.id === who.id : e.user?.name === who.name);
       const stick = same ? pickNumber(e.text, this.pick.count) : null;
       if (stick) this.#roll(stick);
+      return;
+    }
+    if (this.name === 'omikuji' && (e?.kind === 'like' || e?.kind === 'share')) {
+      this.#onLikeShare(e);
       return;
     }
     if (e?.kind !== 'gift') return;
@@ -382,6 +453,103 @@ export class Gacha {
     for (let i = 0; i < times; i++) this.start({ ...trigger });
   }
 
+  /**
+   * いいね・シェアの数え（おみくじだけ）。個人の数えが設定の倍数に届くたびに、その人の抽選を1回渡す。
+   * 総いいね数は、いいねの count の合計（まとめ押しも count ぶん）。テスト送信では数えも権利も動かない。
+   * 数えは天井と同じ置き場に保存し、再起動でも端数と渡した回数がずれないようにする。
+   */
+  #onLikeShare(e) {
+    if (e.test === true) return;
+    const user = e.user ? { id: e.user.id, name: e.user.name } : null;
+    const key = this.#userKey({ user });
+    const boostBefore = this.#likeBoostActive();
+    let earned = 0;
+    if (e.kind === 'like') {
+      const n = Math.max(0, Math.floor(Number(e.count) || 0));
+      if (n <= 0) return;
+      this.likeTotal += n;
+      const every = Math.max(0, Math.floor(Number(this.config.likeDrawEvery)) || 0);
+      if (key && every > 0) {
+        const entry = this.#likeEntry(key);
+        entry.likes += n;
+        const due = Math.floor(entry.likes / every) - entry.likeGiven;
+        if (due > 0) {
+          entry.likeGiven += due;
+          earned += due;
+          for (let i = 0; i < due; i++) this.#grantLikeDraw(user, 'like');
+        }
+      }
+    } else {
+      // シェアは送った人が分からないものは数えない（誰の抽選か決められないため）
+      if (!key) return;
+      const every = Math.max(0, Math.floor(Number(this.config.shareDrawEvery)) || 0);
+      if (every <= 0) return;
+      const entry = this.#likeEntry(key);
+      entry.shares += 1;
+      const due = Math.floor(entry.shares / every) - entry.shareGiven;
+      if (due > 0) {
+        entry.shareGiven += due;
+        earned += due;
+        for (let i = 0; i < due; i++) this.#grantLikeDraw(user, 'share');
+      }
+    }
+    this.#savePity();
+    this.#emitLikeProgress(earned > 0 || boostBefore !== this.#likeBoostActive());
+  }
+
+  /** 個人のいいね・シェアの数えの入れ物（無ければ作る） */
+  #likeEntry(key) {
+    let entry = this.likeUsers.get(key);
+    if (!entry) {
+      entry = { likes: 0, shares: 0, likeGiven: 0, shareGiven: 0 };
+      this.likeUsers.set(key, entry);
+    }
+    return entry;
+  }
+
+  /**
+   * 届いた1回を、その人の抽選として通常の抽選の道（start）へ渡す。ギフトの条件は見ない別の入口。
+   * 順番待ちがいっぱいで引けなかった分は、権利として保持する。保持している権利があるときは
+   * 後ろに並べて、古い順に消化する（#proceed が空いたときに進める）。
+   */
+  #grantLikeDraw(user, source) {
+    const trigger = { kind: source, source, ts: Date.now(), test: false, user };
+    if (this.likeHeld.length) {
+      this.#holdLikeRight(trigger);
+      this.#proceed();
+      return;
+    }
+    const res = this.start(trigger);
+    if (res?.dropped) this.#holdLikeRight(trigger);
+  }
+
+  /**
+   * 権利の保持。1人あたりの上限は stageQueueMax と同数（設定の説明と README に明記）。
+   * 超えた分は引かず、バスへ知らせて演出の記録に残す。
+   */
+  #holdLikeRight(trigger) {
+    const cap = Math.max(1, Number(this.config.stageQueueMax) || 20);
+    const key = this.#userKey(trigger);
+    const mine = this.likeHeld.filter((t) => this.#userKey(t) === key).length;
+    if (mine >= cap) {
+      this.bus?.emit(`${this.name}.like-dropped`, { trigger, reason: 'like-held-full', max: cap });
+      return;
+    }
+    this.likeHeld.push(trigger);
+  }
+
+  /** 進み具合の知らせ（画面のゲージ・倍率表示用）。出しすぎないよう、節目以外は1秒に1回まで。
+   * ゲージも倍率も使っていない設定では、画面への知らせは出さない */
+  #emitLikeProgress(force = false) {
+    const view = this.#likeView();
+    this.bus?.emit(`${this.name}.like-progress`, view);
+    if (view.likeGauge === 'off' && view.likeBoostTotal <= 0) return;
+    const now = Date.now();
+    if (!force && now - this.lastLikeProgressAt < 1000) return;
+    this.lastLikeProgressAt = now;
+    this.hub.broadcast({ type: this.name, event: 'progress', phase: this.phase, seq: this.seq, ...view });
+  }
+
   close() {
     for (const timer of this.timers) clearTimeout(timer);
     this.timers.clear();
@@ -428,6 +596,8 @@ export class Gacha {
     if (this.pending.length < ten) return null;
     const first = this.pending[0];
     if (!first || first.kind === 'ten' || first.test === true || first.kind === 'test') return null;
+    // いいね・シェアで貯めた分は、まとめ引きにしない（1回ずつ引く決まり）
+    if (first.kind === 'like' || first.kind === 'share') return null;
     // 視聴者が分からない分は、誰の分ともまとめない（同じキーに寄せると別々の分が1人分に化けるため）
     const keyOf = (t) => (t?.user?.id ? `id:${t.user.id}` : t?.user?.name ? `name:${t.user.name}` : null);
     const key = keyOf(first);
@@ -435,7 +605,7 @@ export class Gacha {
     const mine = [];
     const rest = [];
     for (const t of this.pending) {
-      const same = t && t.kind !== 'ten' && t.test !== true && t.kind !== 'test' && keyOf(t) === key;
+      const same = t && t.kind !== 'ten' && t.test !== true && t.kind !== 'test' && t.kind !== 'like' && t.kind !== 'share' && keyOf(t) === key;
       if (same && mine.length < ten) mine.push(t);
       else rest.push(t);
     }
@@ -596,11 +766,25 @@ export class Gacha {
     this.staySource = source ?? null;
   }
 
+  /**
+   * 大吉の重みへの効き方。順番は固定：元の重み → 確率上昇（luckBoost）の％を足す → 最後に総いいねの倍率を掛ける。
+   * 倍率は daikichiWeightPct へ換算して同じ口（rollTier）に渡す：効く割合 ＝（1＋luckPct/100）× 倍率 － 1。
+   * どちらも、重み 0 の大吉には効かない（rollTier 側の決まり）。
+   */
   #luckOptions(trigger) {
-    if (this.name !== 'omikuji' || this.config.luckBoost !== true) return { daikichiWeightPct: 0 };
+    if (this.name !== 'omikuji') return { daikichiWeightPct: 0 };
+    let pct = this.#luckPct(trigger);
+    const times = this.#likeBoostTimes();
+    if (times !== 1) pct = ((1 + pct / 100) * times - 1) * 100;
+    return { daikichiWeightPct: pct };
+  }
+
+  /** 確率上昇（luckBoost）の％。その人が投げた量と滞在の段 × luckStepPct（上限 luckMaxSteps 段） */
+  #luckPct(trigger) {
+    if (this.config.luckBoost !== true) return 0;
     const stepPct = Number(this.config.luckStepPct);
     const maxSteps = Math.max(0, Math.floor(Number(this.config.luckMaxSteps)) || 0);
-    if (!Number.isFinite(stepPct) || stepPct <= 0 || maxSteps <= 0) return { daikichiWeightPct: 0 };
+    if (!Number.isFinite(stepPct) || stepPct <= 0 || maxSteps <= 0) return 0;
     let steps = 0;
     const unit = Number(this.config.luckUnitCoins);
     if (Number.isFinite(unit) && unit > 0) {
@@ -611,7 +795,20 @@ export class Gacha {
       const stayed = Number(this.staySource.stayUnitsFor?.(trigger?.user)) || 0;
       if (stayed > 0) steps += Math.floor(stayed / stayUnits);
     }
-    return { daikichiWeightPct: Math.min(maxSteps, steps) * stepPct };
+    return Math.min(maxSteps, steps) * stepPct;
+  }
+
+  /** 総いいねの倍率。総いいね数が的（likeBoostTotal）に届いていなければ 1（効かない） */
+  #likeBoostTimes() {
+    const total = Math.max(0, Number(this.config.likeBoostTotal) || 0);
+    if (total <= 0 || this.likeTotal < total) return 1;
+    const times = Number(this.config.likeBoostTimes);
+    return Number.isFinite(times) && times > 0 ? times : 1;
+  }
+
+  /** 総いいねの倍率が掛かっているか */
+  #likeBoostActive() {
+    return this.#likeBoostTimes() !== 1;
   }
 
   #emit(name) {
@@ -630,6 +827,7 @@ export class Gacha {
       pick: this.#pickView(),
       stick: this.stick,
       ...this.#displayOptions(),
+      ...this.#likeView(),
       event: name,
     };
     this.hub.broadcast({ type: this.name, ...payload });
