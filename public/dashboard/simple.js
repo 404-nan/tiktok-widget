@@ -10,7 +10,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats']],
-  ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts', 'cardDraw']],
+  ['企画・ゲーム', ['roulettes', 'votes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts', 'cardDraw']],
   ['豪華な演出', ['obs', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 

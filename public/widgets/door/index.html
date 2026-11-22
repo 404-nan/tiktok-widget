@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>扉の確率ゲーム</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
+<style>
+  /* 扉の確率ゲーム。重厚な金の扉2枚が並び、選んだ扉が「溜め → 開く」で当たり（光）か外れ（闇）かを見せる。
+     段階が進むごとに扉の装飾が増える（2段目で宝石、3段目で冠と炎）。当たりの判定はサーバーが持ち、画面は知らせに合わせて演出するだけ。 */
+  body { display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .stage { position: relative; width: 100%; max-width: 848px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+  /* --- 上の帯: 見出し・段階・挑戦者 --- */
+  .head { width: 100%; display: flex; align-items: center; gap: 16px; }
+  .title {
+    font-family: "Dela Gothic One", var(--font);
+    font-size: 30px; line-height: 1.1; color: #f3d67b;
+    text-shadow: 0 2px 0 #4a3405, 0 4px 14px rgba(0, 0, 0, .55);
+    white-space: nowrap;
+  }
+  .lamps { display: flex; gap: 8px; margin-left: auto; }
+  .lamp {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px 6px; border-radius: 999px;
+    background: rgba(16, 12, 6, .72); border: 1px solid rgba(243, 214, 123, .35);
+    color: rgba(246, 245, 241, .55); font-weight: 800; font-size: 15px; white-space: nowrap;
+  }
+  .lamp i { width: 11px; height: 11px; border-radius: 50%; background: #57462a; flex: none; }
+  .lamp.now { color: #ffe9a3; border-color: #f3d67b; }
+  .lamp.now i { background: #ffd94d; box-shadow: 0 0 10px 3px rgba(255, 217, 77, .75); animation: pulse 1.1s ease-in-out infinite; }
+  .lamp.done { color: #ffe9a3; }
+  .lamp.done i { background: #ffd94d; box-shadow: 0 0 7px 2px rgba(255, 217, 77, .5); }
+  .lamp.dead { color: rgba(246, 245, 241, .4); }
+  .lamp.dead i { background: #8c2b1d; box-shadow: none; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+  .who { width: 100%; display: flex; align-items: center; gap: 9px; min-height: 34px; color: #f6f5f1; font-weight: 800; font-size: 17px; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); opacity: 0; transition: opacity .3s linear; }
+  .who.on { opacity: 1; }
+  .who .avatar { box-shadow: 0 0 0 2px #f3d67b; }
+  .who small { color: #f3d67b; font-size: 13px; letter-spacing: .08em; }
+
+  /* --- 扉 --- */
+  .doors { display: flex; gap: 44px; margin-top: 2px; }
+  .unit { position: relative; width: 272px; height: 452px; perspective: 1100px; }
+  /* 扉の向こう側（光か闇） */
+  .beyond { position: absolute; inset: 14px 10px 8px; border-radius: 128px 128px 4px 4px; overflow: hidden; background: #0a0812; }
+  .beyond .core { position: absolute; inset: 0; opacity: 0; transition: opacity .5s linear; }
+  .beyond.win .core { opacity: 1; background: radial-gradient(ellipse 90% 70% at 50% 42%, #fffbe8 0%, #ffe98a 34%, #f7b733 62%, rgba(247, 183, 51, 0) 100%); }
+  .beyond.win .rays { position: absolute; inset: -40%; opacity: 1; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 240, 190, .5) 0deg 7deg, transparent 7deg 16deg); animation: spin 14s linear infinite; }
+  .beyond .rays { opacity: 0; transition: opacity .5s linear; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .beyond.lose .core { opacity: 1; background: radial-gradient(ellipse 80% 60% at 50% 45%, #241a38 0%, #0a0812 70%); }
+  .beyond .mist { position: absolute; width: 65%; height: 34%; border-radius: 50%; background: radial-gradient(closest-side, rgba(122, 90, 190, .5), transparent); filter: blur(6px); opacity: 0; }
+  .beyond.lose .mist { opacity: 1; animation: drift 5s ease-in-out infinite alternate; }
+  .beyond .mist.a { left: -8%; bottom: 4%; }
+  .beyond .mist.b { right: -10%; bottom: 16%; animation-delay: -2.4s; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(26px); } }
+  /* 石と金の枠 */
+  .frame {
+    position: absolute; inset: 0; border-radius: 140px 140px 8px 8px; pointer-events: none;
+    border: 10px solid #2b2118;
+    box-shadow: inset 0 0 0 3px #8a6a24, inset 0 0 26px rgba(0, 0, 0, .85), 0 10px 28px rgba(0, 0, 0, .5);
+  }
+  .frame::after { content: ""; position: absolute; inset: 3px; border-radius: 128px 128px 4px 4px; border: 2px solid rgba(243, 214, 123, .55); }
+  /* 扉そのもの */
+  .leaf {
+    position: absolute; inset: 14px 10px 8px; border-radius: 128px 128px 4px 4px;
+    background:
+      linear-gradient(180deg, rgba(255, 244, 190, .35), rgba(255, 244, 190, 0) 22%, rgba(0, 0, 0, 0) 78%, rgba(0, 0, 0, .38)),
+      linear-gradient(90deg, #5d420e 0%, #a37f22 16%, #e9c95c 36%, #fbe98a 50%, #e9c95c 64%, #a37f22 84%, #5d420e 100%);
+    box-shadow: inset 0 0 0 3px #6e5410, inset 0 0 34px rgba(74, 52, 5, .55);
+    transform-origin: 0 50%;
+    transition: transform 1s cubic-bezier(.55, .02, .25, 1), filter .4s linear, opacity .4s linear;
+  }
+  .unit.right .leaf { transform-origin: 100% 50%; }
+  .leaf .panel {
+    position: absolute; left: 50%; transform: translateX(-50%); width: 58%;
+    border-radius: 90px 90px 4px 4px;
+    border: 3px solid rgba(94, 66, 14, .85);
+    background: linear-gradient(180deg, rgba(255, 248, 205, .28), rgba(120, 88, 18, .25) 55%, rgba(40, 28, 2, .35));
+    box-shadow: inset 0 3px 8px rgba(255, 250, 215, .5), inset 0 -8px 14px rgba(40, 28, 2, .5), 0 2px 3px rgba(255, 246, 190, .35);
+  }
+  .leaf .panel.top { top: 12%; height: 40%; }
+  .leaf .panel.bottom { top: 60%; height: 30%; border-radius: 6px; }
+  .leaf .stud { position: absolute; width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3b0, #caa437 55%, #6e5410); box-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+  .leaf .ring {
+    position: absolute; top: 52%; width: 46px; height: 46px; border-radius: 50%;
+    border: 7px solid #7a5c14; box-shadow: inset 0 2px 3px rgba(255, 248, 205, .7), 0 3px 6px rgba(0, 0, 0, .55), inset 0 -3px 5px rgba(0, 0, 0, .5);
+    background: radial-gradient(circle at 40% 32%, rgba(255, 243, 176, .5), rgba(0, 0, 0, 0) 60%);
+  }
+  .unit.left .ring { right: 15px; }
+  .unit.right .ring { left: 15px; }
+  .leaf .num {
+    position: absolute; top: 26px; left: 50%; transform: translateX(-50%);
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 38% 30%, #3a2c12, #171006 70%);
+    border: 2px solid rgba(255, 233, 163, .8); color: #ffe9a3;
+    font-family: var(--font-num); font-weight: 800; font-size: 24px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .5), inset 0 0 8px rgba(0, 0, 0, .8);
+  }
+  /* 装飾: 2段目で宝石、3段目で冠と炎（段階は body の data-stage で切り替える） */
+  .leaf .gems { position: absolute; top: 15%; left: 0; right: 0; display: flex; justify-content: center; gap: 26px; opacity: 0; transition: opacity .5s linear; }
+  .leaf .gem { width: 17px; height: 17px; transform: rotate(45deg); border-radius: 3px; box-shadow: 0 0 9px 2px rgba(255, 120, 120, .35), inset 0 0 4px rgba(255, 255, 255, .8); background: linear-gradient(135deg, #ffb3ab, #d43a2a 55%, #7c1408); }
+  .leaf .gem.b { background: linear-gradient(135deg, #bfe3ff, #2a7ad4 55%, #0d3f7c); box-shadow: 0 0 9px 2px rgba(120, 190, 255, .35), inset 0 0 4px rgba(255, 255, 255, .8); }
+  .leaf .gem.g { background: linear-gradient(135deg, #c9f5c0, #39a02c 55%, #14540c); box-shadow: 0 0 9px 2px rgba(130, 255, 120, .3), inset 0 0 4px rgba(255, 255, 255, .8); }
+  body[data-stage="2"] .leaf .gems, body[data-stage="3"] .leaf .gems { opacity: 1; }
+  .leaf .crown { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity .5s linear; filter: drop-shadow(0 0 9px rgba(255, 201, 61, .8)); }
+  body[data-stage="3"] .leaf .crown { opacity: 1; }
+  .flames { position: absolute; left: 0; right: 0; bottom: -6px; height: 44px; display: flex; justify-content: space-around; opacity: 0; transition: opacity .5s linear; pointer-events: none; }
+  body[data-stage="3"] .flames { opacity: 1; }
+  .flames i { width: 22px; height: 34px; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; background: radial-gradient(50% 65% at 50% 72%, #fff3b0 0%, #ffb02e 45%, #f25c05 78%, rgba(242, 92, 5, 0) 100%); transform-origin: 50% 100%; animation: flick .5s ease-in-out infinite alternate; }
+  .flames i:nth-child(2n) { animation-duration: .38s; height: 26px; }
+  .flames i:nth-child(3n) { animation-duration: .62s; height: 40px; }
+  @keyframes flick { from { transform: scaleY(.86) rotate(-2.5deg); } to { transform: scaleY(1.08) rotate(2.5deg); } }
+
+  /* 状態ごとの見え方 */
+  .stage-wrap[data-phase="idle"] .leaf { filter: brightness(.62) saturate(.8); }
+  .stage-wrap[data-phase="idle"] .unit { opacity: .88; }
+  .stage-wrap[data-phase="pick"] .leaf { animation: breathe 1.8s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { box-shadow: inset 0 0 0 3px #6e5410, inset 0 0 34px rgba(74, 52, 5, .55), 0 0 12px rgba(255, 217, 77, .25); } 50% { box-shadow: inset 0 0 0 3px #6e5410, inset 0 0 34px rgba(74, 52, 5, .55), 0 0 30px rgba(255, 217, 77, .55); } }
+  .unit.picked .leaf { animation: none; filter: brightness(1.12); }
+  .unit.unpicked .leaf { filter: brightness(.5) saturate(.7); }
+  /* 溜め: 選んだ扉が震え、合わせ目から光が漏れる */
+  .unit.charging .leaf { animation: tremble .09s linear infinite; }
+  .unit.charging .seam { opacity: 1; }
+  .seam { position: absolute; top: 16px; bottom: 10px; width: 5px; border-radius: 3px; background: #fff6cf; box-shadow: 0 0 18px 7px rgba(255, 233, 163, .85); opacity: 0; transition: opacity .3s linear; z-index: 3; }
+  .unit.left .seam { right: 12px; }
+  .unit.right .seam { left: 12px; }
+  @keyframes tremble { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(1.6px, -.8px) rotate(.35deg); } 50% { transform: translate(-1.4px, .6px) rotate(-.3deg); } 75% { transform: translate(1px, 1px) rotate(.2deg); } 100% { transform: translate(0, 0) rotate(0); } }
+  /* 開く */
+  .unit.left .leaf.open { transform: perspective(1100px) rotateY(-103deg); }
+  .unit.right .leaf.open { transform: perspective(1100px) rotateY(103deg); }
+
+  .under { display: flex; gap: 44px; }
+  .plate-name { width: 272px; text-align: center; font-weight: 900; font-size: 19px; color: #f6f5f1; text-shadow: 0 2px 6px rgba(0, 0, 0, .85); letter-spacing: .12em; }
+  .plate-name b { color: #ffd94d; font-family: var(--font-num); margin-right: 6px; }
+  .hint { min-height: 26px; font-size: 16px; font-weight: 700; color: rgba(246, 245, 241, .85); text-shadow: 0 1px 5px rgba(0, 0, 0, .85); }
+
+  /* 結果の文字: 叩きつける（ボス討伐と同じ作り） */
+  .ko { position: absolute; left: 50%; top: 46%; width: 0; height: 0; pointer-events: none; z-index: 5; }
+  .word { position: absolute; left: 0; top: 0; font-family: "Dela Gothic One", var(--font); font-size: 76px; line-height: 1.1; white-space: nowrap; transform: translate(-50%, -50%) rotate(-5deg) scale(2.6); opacity: 0; }
+  .word span { display: block; }
+  .word .back { color: #111113; -webkit-text-stroke: 15px #111113; text-shadow: 4px 7px 0 #111113, 8px 13px 0 rgba(0, 0, 0, .55); }
+  .word .mid { position: absolute; inset: 0; color: #fff; -webkit-text-stroke: 6px #fff; }
+  .word .front { position: absolute; inset: 0; color: #ffc53d; }
+  .word.bad .front { color: #b9b3c9; }
+  .word.go { opacity: 1; transform: translate(-50%, -50%) rotate(-5deg); transition: transform .14s cubic-bezier(.5, 0, .9, .6), opacity .04s linear; }
+  .word.out { opacity: 0; transform: translate(-50%, -50%) rotate(-5deg) scale(1.06); transition: opacity .35s linear, transform .35s ease-out; }
+  .banner {
+    position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%) scale(.6); z-index: 5; pointer-events: none;
+    padding: 8px 26px 10px; background: rgba(14, 10, 3, .85); border: 2px solid #f3d67b; border-radius: 8px;
+    color: #ffe9a3; font-family: "Dela Gothic One", var(--font); font-size: 34px; white-space: nowrap; opacity: 0;
+  }
+  .banner.go { opacity: 1; transform: translate(-50%, -50%) scale(1); transition: opacity .12s linear, transform .22s cubic-bezier(.2, 1.6, .4, 1); }
+  .banner.out { opacity: 0; transition: opacity .3s linear; }
+  .spark { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #ffc53d; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); pointer-events: none; z-index: 4; animation: spark 1.1s cubic-bezier(.2, .8, .3, 1) forwards; }
+  .spark.w { background: #fff; }
+  @keyframes spark { 0% { transform: translate(0, 0) scale(0); opacity: 1; } 30% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(var(--s)) rotate(200deg); opacity: 0; } }
+  .darkveil { position: absolute; inset: 0; background: #05030a; opacity: 0; pointer-events: none; transition: opacity .5s linear; z-index: 2; }
+  .darkveil.on { opacity: .45; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage-wrap[data-phase="pick"] .leaf, .lamp.now i, .beyond.win .rays, .flames i { animation: none; }
+  }
+</style>
+</head>
+<body data-stage="1">
+<div class="stage stage-wrap" id="wrap" data-phase="idle">
+  <div class="head">
+    <div class="title" id="title">扉の確率ゲーム</div>
+    <div class="lamps" id="lamps">
+      <span class="lamp" data-lamp="1"><i></i>1段目</span>
+      <span class="lamp" data-lamp="2"><i></i>2段目</span>
+      <span class="lamp" data-lamp="3"><i></i>3段目</span>
+    </div>
+  </div>
+  <div class="who" id="who"></div>
+  <div class="doors">
+    <div class="unit left" id="unit1">
+      <div class="beyond" id="beyond1"><div class="rays"></div><div class="core"></div><i class="mist a"></i><i class="mist b"></i></div>
+      <div class="leaf">
+        <div class="panel top"></div><div class="panel bottom"></div>
+        <div class="gems"><i class="gem"></i><i class="gem b"></i><i class="gem g"></i></div>
+        <svg class="crown" width="74" height="42" viewBox="0 0 74 42" aria-hidden="true"><path d="M6 36 L2 10 L20 22 L37 4 L54 22 L72 10 L68 36 Z" fill="#f7c948" stroke="#8a6a24" stroke-width="2.5" stroke-linejoin="round"/><circle cx="37" cy="26" r="5" fill="#d43a2a" stroke="#8a6a24" stroke-width="2"/><rect x="6" y="34" width="62" height="6" rx="3" fill="#caa437" stroke="#8a6a24" stroke-width="2"/></svg>
+        <span class="ring"></span><span class="num">1</span>
+      </div>
+      <div class="seam"></div>
+      <div class="frame"></div>
+      <div class="flames"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="unit right" id="unit2">
+      <div class="beyond" id="beyond2"><div class="rays"></div><div class="core"></div><i class="mist a"></i><i class="mist b"></i></div>
+      <div class="leaf">
+        <div class="panel top"></div><div class="panel bottom"></div>
+        <div class="gems"><i class="gem"></i><i class="gem b"></i><i class="gem g"></i></div>
+        <svg class="crown" width="74" height="42" viewBox="0 0 74 42" aria-hidden="true"><path d="M6 36 L2 10 L20 22 L37 4 L54 22 L72 10 L68 36 Z" fill="#f7c948" stroke="#8a6a24" stroke-width="2.5" stroke-linejoin="round"/><circle cx="37" cy="26" r="5" fill="#d43a2a" stroke="#8a6a24" stroke-width="2"/><rect x="6" y="34" width="62" height="6" rx="3" fill="#caa437" stroke="#8a6a24" stroke-width="2"/></svg>
+        <span class="ring"></span><span class="num">2</span>
+      </div>
+      <div class="seam"></div>
+      <div class="frame"></div>
+      <div class="flames"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+  <div class="under">
+    <div class="plate-name"><b>1</b>左の扉</div>
+    <div class="plate-name"><b>2</b>右の扉</div>
+  </div>
+  <div class="hint" id="hint">ギフトで挑戦が始まります</div>
+  <div class="darkveil" id="veil"></div>
+  <div class="banner" id="banner"></div>
+  <div class="ko"><div class="word" id="word"><span class="back"></span><span class="mid"></span><span class="front"></span></div></div>
+</div>
+<script type="module">
+  import { setupWidget, connect, avatarNode, sleep } from './lib/overlay.js';
+
+  // 設定は config.yaml の doors.<id>（?id= がなければ default）。進行はサーバー（/api/door）が持つ
+  const p = await setupWidget('doors', {
+    title: '扉の確率ゲーム', clearText: '全ての扉を突破！', failText: '残念…', sound: true, volume: 0.4,
+  });
+  let id = window.__twWidgetId || 'default';
+  const $ = (x) => document.getElementById(x);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('title').textContent = p.title;
+  window.addEventListener('tw-config-change', (event) => {
+    if (event.detail.section !== 'doors' || window.__twWidgetQueryId != null) return;
+    id = event.detail.id;
+    Object.assign(p, event.detail.config?.doors?.[id] ?? {});
+    $('title').textContent = p.title;
+    sync();
+  });
+
+  // 鋲（スタッズ）を扉の縁に打つ
+  for (const unit of [$('unit1'), $('unit2')]) {
+    const leaf = unit.querySelector('.leaf');
+    const pos = [];
+    for (let i = 0; i < 5; i++) pos.push([10 + i * 4.5, 8], [10 + i * 4.5, 92]);
+    for (let i = 1; i < 6; i++) pos.push([6, 12 + i * 13], [94, 12 + i * 13]);
+    for (const [x, y] of pos) {
+      const s = document.createElement('i');
+      s.className = 'stud';
+      s.style.left = `calc(${x}% - 6px)`;
+      s.style.top = `calc(${y}% - 6px)`;
+      leaf.append(s);
+    }
+  }
+
+  // --- 効果音（音源なしで合成。ボス討伐と同じ作り） ---
+  let ac;
+  const audio = () => (ac ??= new AudioContext());
+  function tones(notes, { type = 'sine', gap = 0.08, len = 0.32, vol = 1, at = 0 } = {}) {
+    if (!p.sound) return;
+    try {
+      const a = audio(), t0 = a.currentTime + at;
+      notes.forEach((f, i) => {
+        const o = a.createOscillator(), g = a.createGain(), t = t0 + i * gap;
+        o.type = type;
+        o.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(p.volume * 0.5 * vol, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(g).connect(a.destination);
+        o.start(t);
+        o.stop(t + len + 0.05);
+      });
+    } catch {}
+  }
+  function boom(level, at = 0) {
+    if (!p.sound) return;
+    try {
+      const a = audio(), t = a.currentTime + at;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(160 - level * 10, t);
+      o.frequency.exponentialRampToValueAtTime(32, t + 0.2 + level * 0.1);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(p.volume * (0.55 + level * 0.2), t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3 + level * 0.15);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + 0.55 + level * 0.2);
+    } catch {}
+  }
+  // 溜めの音: 下から上へ駆け上がる
+  function chargeSound(seconds) {
+    if (!p.sound) return;
+    try {
+      const a = audio(), t = a.currentTime;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(90, t);
+      o.frequency.exponentialRampToValueAtTime(660, t + seconds);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(p.volume * 0.1, t + 0.12);
+      g.gain.setValueAtTime(p.volume * 0.1, t + seconds - 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + seconds + 0.05);
+    } catch {}
+  }
+  const SOUND = {
+    start() { boom(2); tones([392, 523, 659], { type: 'triangle', gap: 0.07, len: 0.25, vol: 0.5, at: 0.05 }); },
+    open() { boom(3); },
+    win() { tones([523, 659, 784, 1047], { type: 'triangle', gap: 0.06, len: 0.35, at: 0.1 }); },
+    clear() { boom(4); tones([523, 659, 784, 1047, 1319, 1568], { type: 'triangle', gap: 0.06, len: 0.45, at: 0.12 }); tones([1047, 1319, 1568], { gap: 0, len: 1.6, vol: 0.4, at: 0.55 }); },
+    fail() { tones([392, 330, 262, 196], { type: 'triangle', gap: 0.14, len: 0.4, vol: 0.7, at: 0.15 }); },
+  };
+
+  // --- 表示 ---
+  const units = { 1: $('unit1'), 2: $('unit2') };
+  const beyonds = { 1: $('beyond1'), 2: $('beyond2') };
+  let shown = null;
+
+  function setLamps(d) {
+    for (const lamp of $('lamps').children) {
+      const n = Number(lamp.dataset.lamp);
+      lamp.classList.toggle('done', d.phase !== 'idle' && n < d.stage || d.phase === 'clear');
+      lamp.classList.toggle('now', (d.phase === 'pick' || d.phase === 'reveal') && n === d.stage);
+      lamp.classList.toggle('dead', d.phase === 'failed' && n === d.stage);
+    }
+  }
+  function setWho(d) {
+    const el = $('who');
+    if (d.by?.name) {
+      el.replaceChildren(avatarNode(d.by, 34), Object.assign(document.createElement('small'), { textContent: '挑戦者' }), document.createTextNode(d.by.name));
+      el.classList.add('on');
+    } else {
+      el.classList.remove('on');
+      el.replaceChildren();
+    }
+  }
+  function setHint(d) {
+    const el = $('hint');
+    if (d.phase === 'idle') el.textContent = 'ギフトで挑戦が始まります';
+    else if (d.phase === 'pick') el.textContent = `${d.stage}段目：左（1）か右（2）の扉を選んでください`;
+    else if (d.phase === 'reveal') el.textContent = '扉が開きます…';
+    else if (d.phase === 'clear') el.textContent = p.clearText;
+    else if (d.phase === 'failed') el.textContent = p.failText;
+  }
+  // 状態をそのまま映す（演出なし。つなぎ直しや途中参加のとき）
+  function render(d) {
+    shown = d;
+    document.body.dataset.stage = String(Math.max(1, d.stage || 1));
+    $('wrap').dataset.phase = d.phase;
+    setLamps(d);
+    setWho(d);
+    setHint(d);
+    for (const n of [1, 2]) {
+      const leaf = units[n].querySelector('.leaf');
+      // 静止画としての状態: 結果が出ている間は、選んだ扉を開いたままにする（reveal の途中は演出側が持つ）
+      const open = d.picked === n && (d.phase === 'clear' || d.phase === 'failed');
+      leaf.classList.toggle('open', open);
+      units[n].classList.toggle('picked', d.picked === n && (d.phase === 'reveal' || d.phase === 'clear' || d.phase === 'failed'));
+      units[n].classList.toggle('unpicked', d.picked != null && d.picked !== n && (d.phase === 'reveal' || d.phase === 'clear' || d.phase === 'failed'));
+      beyonds[n].className = `beyond${d.picked === n && (d.phase === 'clear' || d.phase === 'failed') ? (d.win ? ' win' : ' lose') : ''}`;
+    }
+    $('veil').classList.toggle('on', d.phase === 'failed');
+  }
+
+  function sparks(count, x, y) {
+    const wrap = $('wrap');
+    const w = wrap.getBoundingClientRect();
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('i');
+      el.className = `spark${i % 4 === 0 ? ' w' : ''}`;
+      const a = rnd(0, Math.PI * 2), dist = rnd(70, 300);
+      el.style.left = `${x - w.left}px`;
+      el.style.top = `${y - w.top}px`;
+      el.style.setProperty('--dx', `${Math.cos(a) * dist}px`);
+      el.style.setProperty('--dy', `${Math.sin(a) * dist * 0.55}px`);
+      el.style.setProperty('--s', String(rnd(0.5, 1.4)));
+      el.style.animationDelay = `${rnd(0, 0.12)}s`;
+      wrap.append(el);
+      setTimeout(() => el.remove(), 1400);
+    }
+  }
+
+  function showWord(text, bad) {
+    const word = $('word');
+    word.classList.toggle('bad', bad);
+    for (const el of word.children) el.textContent = text;
+    word.classList.remove('out', 'go');
+    void word.offsetWidth;
+    word.classList.add('go');
+  }
+  function hideWord() {
+    const word = $('word');
+    word.classList.add('out');
+    word.classList.remove('go');
+  }
+  async function showBanner(text, ms = 1300) {
+    const b = $('banner');
+    b.textContent = text;
+    b.classList.remove('out', 'go');
+    void b.offsetWidth;
+    b.classList.add('go');
+    await sleep(ms);
+    b.classList.add('out');
+    b.classList.remove('go');
+  }
+
+  // 選んだ扉: 溜め（震えと光漏れ）→ 開く。サーバーの次の知らせ（約3.4秒後）まで開いたまま見せる
+  async function onReveal(d, ev) {
+    const n = ev.picked;
+    const other = n === 1 ? 2 : 1;
+    shown = d;
+    document.body.dataset.stage = String(d.stage || 1);
+    $('wrap').dataset.phase = 'reveal';
+    setLamps({ ...d, phase: 'reveal' });
+    setHint({ phase: 'reveal' });
+    units[n].classList.add('picked');
+    units[other].classList.add('unpicked');
+    const chargeMs = reduced ? 250 : 1500;
+    units[n].classList.add('charging');
+    chargeSound(chargeMs / 1000);
+    await sleep(chargeMs);
+    units[n].classList.remove('charging');
+    beyonds[n].classList.add(ev.win ? 'win' : 'lose');
+    units[n].querySelector('.leaf').classList.add('open');
+    SOUND.open();
+    if (ev.win) {
+      const r = units[n].getBoundingClientRect();
+      sparks(22, r.left + r.width / 2, r.top + r.height * 0.4);
+      SOUND.win();
+    } else {
+      $('veil').classList.add('on');
+    }
+  }
+
+  // 次の段階へ: 開いた扉を閉めて、装飾を次の段階に
+  async function onStage(d) {
+    await showBanner(`${d.stage - 1}段目 突破！`);
+    for (const n of [1, 2]) {
+      units[n].querySelector('.leaf').classList.remove('open');
+      units[n].classList.remove('picked', 'unpicked');
+      beyonds[n].className = 'beyond';
+    }
+    $('veil').classList.remove('on');
+    await sleep(650);
+    render(d);
+    tones([659, 784], { type: 'triangle', gap: 0.07, len: 0.2, vol: 0.5 });
+  }
+
+  async function onClear(d) {
+    shown = d;
+    setLamps(d);
+    setHint(d);
+    showWord(p.clearText, false);
+    const r = $('wrap').getBoundingClientRect();
+    sparks(40, r.left + r.width / 2, r.top + r.height * 0.42);
+    SOUND.clear();
+    await sleep(2400);
+    hideWord();
+    render(d);
+  }
+
+  async function onFail(d) {
+    shown = d;
+    setLamps(d);
+    setHint(d);
+    showWord(p.failText, true);
+    SOUND.fail();
+    await sleep(2200);
+    hideWord();
+    render(d);
+  }
+
+  function onIdle(d) {
+    hideWord();
+    $('veil').classList.remove('on');
+    render(d);
+  }
+
+  // 知らせは順番に（演出の途中で次の知らせが来ても崩れないように）
+  let chain = Promise.resolve();
+  function onDoor({ door: d, event: ev }) {
+    if (!d || !ev) return;
+    chain = chain.then(async () => {
+      try {
+        if (ev.kind === 'start') { render({ ...d, phase: 'pick' }); SOUND.start(); }
+        else if (ev.kind === 'reveal') await onReveal(d, ev);
+        else if (ev.kind === 'stage') await onStage(d);
+        else if (ev.kind === 'clear') await onClear(d);
+        else if (ev.kind === 'fail') await onFail(d);
+        else if (ev.kind === 'idle' || ev.kind === 'reset') onIdle(d);
+        else render(d);
+      } catch {}
+    });
+  }
+
+  async function sync() {
+    try {
+      const all = await (await fetch('/api/door')).json();
+      if (all[id]) render(all[id]);
+    } catch {}
+  }
+
+  await sync();
+  connect({
+    hello: sync,
+    door(msg) {
+      if (msg.id === id) onDoor(msg);
+    },
+  });
+</script>
+</body>
+</html>

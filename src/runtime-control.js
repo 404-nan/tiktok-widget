@@ -16,7 +16,7 @@ import { runActions } from './actions.js';
  */
 export function bindControl(r, ctx) {
   const {
-    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss,
+    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss, door,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
     peka, throne, ootori, dareba, vote, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
@@ -359,6 +359,18 @@ export function bindControl(r, ctx) {
       try {
         const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'bosses') : data?.id || null;
         return { status: 200, body: { ok: true, boss: boss.apply(wid, String(action), data?.value, { test: true }) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    // 扉の確率ゲームもサーバーで持つ（start / pick（n が 1=左・2=右）/ reset）。
+    // 配信者が配信中に扉を選ぶ本物の操作なので、ボスのテストボタンと違い test の印は付けない
+    if (target === 'door') {
+      try {
+        if (action === 'status') return { status: 200, body: { ok: true, door: door.snapshot() } };
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'doors') : data?.id || null;
+        const value = action === 'pick' ? (data?.n ?? data?.value) : undefined;
+        return { status: 200, body: { ok: true, door: door.apply(wid, String(action), value) } };
       } catch (err) {
         return { status: 400, body: { error: err.message } };
       }

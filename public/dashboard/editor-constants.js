@@ -1,5 +1,5 @@
 // editor.js の定数。タブ一覧・表示名・フォームの構成など。
-export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
+export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 export const ENUM_LABELS = {

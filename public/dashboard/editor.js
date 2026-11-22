@@ -93,7 +93,7 @@ export function createEditor({ api, setMessage }) {
         const data = await res.json().catch(() => ({}));
         if (data.config) payload = data;
         // WIN数・延長タイマー・ボス討伐の「試す」ボタンは設定で変わる
-        if (data.config && (tab === 'wins' || tab === 'timers' || tab === 'bosses')) renderActions();
+        if (data.config && (tab === 'wins' || tab === 'timers' || tab === 'bosses' || tab === 'doors')) renderActions();
         showIssues(data.errors, data.warnings, data.ok ? '保存しました' : null);
         updateUrl();
         if (!yamlDirty && data.yaml) $('yamlText').value = data.yaml;
@@ -1169,6 +1169,7 @@ export function createEditor({ api, setMessage }) {
     if (tab === 'wins') return [['クリア +1', `${base}/api/wins/active/win`], ['-1', `${base}/api/wins/active/add?value=-1`], ['1つ戻す', `${base}/api/wins/active/undo`], ['リセット', `${base}/api/wins/active/reset`]];
     if (tab === 'timers') return [['スタート', `${base}/api/timer/active/start`], ['一時停止', `${base}/api/timer/active/pause`], ['止める・動かす', `${base}/api/timer/active/toggle`], ['+1分', `${base}/api/timer/active/add?seconds=60`], ['-1分', `${base}/api/timer/active/add?seconds=-60`], ['リセット', `${base}/api/timer/active/reset`]];
     if (tab === 'bosses') return [['HP を戻す', `${base}/api/boss/active/heal`], ['ダメージ 100', `${base}/api/boss/active/damage?value=100`], ['討伐', `${base}/api/boss/active/defeat`], ['次のボス', `${base}/api/boss/active/next`], ['1体目から', `${base}/api/boss/active/reset`]];
+    if (tab === 'doors') return [['挑戦を始める', `${base}/api/door/active/start`], ['左の扉', `${base}/api/door/active/pick?n=1`], ['右の扉', `${base}/api/door/active/pick?n=2`], ['待機に戻す', `${base}/api/door/active/reset`]];
     return [];
   }
 

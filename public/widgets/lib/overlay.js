@@ -101,7 +101,7 @@ export async function setupWidget(section, fallback = {}) {
   return params({ ...fallback, ...defaults[section], ...entry });
 }
 
-const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット', tts: '読み上げ' };
+const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', doors: '扉の確率ゲーム', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット', tts: '読み上げ' };
 /** 各ウィジェットの本物の描画関数を、見本モードにも使う。 */
 export function setSampleRenderer(renderer) {
   window.__twSampleRenderer = renderer;
@@ -290,7 +290,7 @@ export function applyPageBackground(entry) {
 // フォルダ名 → [設定の節, 種類]。connect の設定でも背景を効かせるために使う（setupWidget を使わないページ用）
 const PAGE_SECTIONS = {
   'gift-alert': ['alerts', 'map'], chat: ['chats', 'map'], 'gift-jar': ['jars', 'map'], goal: ['goals', 'map'],
-  wins: ['wins', 'map'], timer: ['timers', 'map'], boss: ['bosses', 'map'], counter: ['counters', 'map'],
+  wins: ['wins', 'map'], timer: ['timers', 'map'], boss: ['bosses', 'map'], door: ['doors', 'map'], counter: ['counters', 'map'],
   roulette: ['roulettes', 'map'], cutin: ['cutins', 'map'], puchun: ['puchuns', 'map'], 'image-cutin': ['imageCutins', 'map'],
   ranking: ['rankings', 'map'], throne: ['throne', 'map'], vote: ['votes', 'map'], cheer: ['cheers', 'map'],
   'push-button': ['pushButtons', 'map'], ticker: ['tickers', 'map'], supporters: ['supporters', 'map'], tts: ['tts', 'map'],

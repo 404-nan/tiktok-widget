@@ -1,0 +1,1 @@
+{"desc":"","events":[],"id":"doors","name":"扉の確率ゲーム","page":"door.html","sample":{"label":"入室","post":{"body":{"kind":"member"},"path":"/api/simulate"}},"size":[880,620],"sounds":[]}
