@@ -135,7 +135,7 @@ test('個人の数えは保存され、読み直しても残る。版1の保存�
   drawAndSee(t, first.omikuji, gift());
   first.omikuji.close();
   const saved = JSON.parse(fs.readFileSync(storeFile, 'utf8'));
-  assert.equal(saved.version, 3);
+  assert.equal(saved.version, 4);
   assert.deepEqual(saved.pityUsers, { 'id:u1': 2 });
 
   const second = setup({ pityPersonal: 5 }, () => 0.999, { storeFile });

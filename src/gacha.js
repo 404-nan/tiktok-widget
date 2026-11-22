@@ -79,7 +79,7 @@ export class Gacha {
     this.pityUsers = savedPity.users; // 個人の天井の数え（引いた人の鍵 → 大吉が出ていない回数）
     this.likeTotal = savedPity.likeTotal; // この配信の総いいね数（倍率の的の数え）
     this.likeUsers = savedPity.likeUsers; // いいね・シェアの個人の数え（鍵 → { likes, shares, likeGiven, shareGiven }）
-    this.likeHeld = []; // 順番待ちに入らなかった、いいね・シェアで貯めた抽選の権利（古い順に消化）
+    this.likeHeld = savedPity.likeHeld; // 順番待ちに入らなかった、いいね・シェアで貯めた抽選の権利（古い順に消化）。天井と同じ保存に含め、再起動でも消えない
     this.lastLikeProgressAt = 0; // 進み具合の知らせを出した時刻（出しすぎないため）
     this.pending = [];
     this.tier = null;
@@ -125,10 +125,10 @@ export class Gacha {
     if (dirty) this.#savePity();
   }
 
-  /** 天井の数えといいね・シェアの数えの読み込み。保存先が無い・壊れているときは 0 から。
-   * 版2（天井だけ）の保存もそのまま読める（いいね・シェアの数えは 0 から） */
+  /** 天井の数えといいね・シェアの数え、未消化の権利の読み込み。保存先が無い・壊れているときは 0 から。
+   * 版2（天井だけ）・版3（権利なし）の保存もそのまま読める（無い分は 0・空から） */
   #loadPity() {
-    const empty = { count: 0, users: new Map(), likeTotal: 0, likeUsers: new Map() };
+    const empty = { count: 0, users: new Map(), likeTotal: 0, likeUsers: new Map(), likeHeld: [] };
     if (!this.storeFile) return empty;
     try {
       const saved = JSON.parse(fs.readFileSync(this.storeFile, 'utf8'));
@@ -154,29 +154,50 @@ export class Gacha {
         }
       }
       const likeTotal = Number(saved?.likeTotal);
+      // 未消化の権利は、誰の分・どちらの入口かを確かめてから、保存の並び（古い順）のまま戻す
+      const likeHeld = [];
+      if (Array.isArray(saved?.likeHeld)) {
+        for (const item of saved.likeHeld) {
+          if (!item || typeof item !== 'object') continue;
+          if (item.kind !== 'like' && item.kind !== 'share') continue;
+          const user = item.user && typeof item.user === 'object'
+            ? { id: item.user.id ?? null, name: item.user.name ?? null }
+            : null;
+          if (!user || (user.id == null && !user.name)) continue; // 誰の権利か分からないものは戻せない
+          const ts = Number(item.ts);
+          likeHeld.push({ kind: item.kind, source: item.kind, ts: Number.isFinite(ts) ? ts : 0, test: false, user });
+        }
+      }
       return {
         count: Number.isFinite(n) && n > 0 ? Math.floor(n) : 0,
         users,
         likeTotal: Number.isFinite(likeTotal) && likeTotal > 0 ? Math.floor(likeTotal) : 0,
         likeUsers,
+        likeHeld,
       };
     } catch {
       return empty;
     }
   }
 
-  /** 天井の数えといいね・シェアの数えの保存（版3）。お金まわり（ポイント）と同じ格：仮ファイルへ書いてから入れ替える */
+  /** 天井の数えといいね・シェアの数え、未消化の権利の保存（版4）。お金まわり（ポイント）と同じ格：仮ファイルへ書いてから入れ替える */
   #savePity() {
     if (!this.storeFile) return;
     try {
       fs.mkdirSync(path.dirname(this.storeFile), { recursive: true });
       const temp = `${this.storeFile}.tmp`;
       const data = {
-        version: 3,
+        version: 4,
         pityCount: this.pityCount,
         pityUsers: Object.fromEntries(this.pityUsers),
         likeTotal: this.likeTotal,
         likeUsers: Object.fromEntries(this.likeUsers),
+        // 未消化の権利（古い順）。再起動で消えると、渡した回数だけが残って二度と渡り直せないため一緒に残す
+        likeHeld: this.likeHeld.map((t) => ({
+          kind: t?.kind === 'share' ? 'share' : 'like',
+          ts: Number.isFinite(Number(t?.ts)) ? Number(t.ts) : 0,
+          user: t?.user ? { id: t.user.id ?? null, name: t.user.name ?? null } : null,
+        })),
       };
       fs.writeFileSync(temp, `${JSON.stringify(data)}\n`, { mode: 0o600 });
       fs.renameSync(temp, this.storeFile);
@@ -193,6 +214,8 @@ export class Gacha {
     const base = defaultsFor(this.name);
     this.config = { ...base, ...(cfg ?? {}) };
     if (!Array.isArray(this.config.tiers) || !this.config.tiers.length) this.config.tiers = base.tiers;
+    // 再起動で保存から戻した未消化の権利があれば、設定がそろったこの時点で消化を再開する
+    if (this.likeHeld.length) this.#proceed();
   }
 
   /** まとめ引き（10連）の回数。tenCount が2以上ならそれを使い、無い・おかしいときは今までの10。 */
@@ -387,7 +410,8 @@ export class Gacha {
     const held = this.likeHeld.shift();
     if (held) {
       const res = this.start(held);
-      if (res?.dropped) this.likeHeld.unshift(held); // まだ舞台がいっぱいなら先頭に戻して次を待つ
+      // まだ舞台がいっぱい（dropped）・設定が無効で始められない（null）ときは、先頭に戻して次を待つ（捨てない）
+      if (!res || res.dropped) this.likeHeld.unshift(held);
     }
   }
 

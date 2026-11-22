@@ -192,7 +192,7 @@ test('数えと渡した回数は保存され、作り直しても二重に渡�
   const first = setup({ likeDrawEvery: 100 }, { storeFile: file });
   first.omikuji.onEvent(like(80));
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.equal(saved.version, 3);
+  assert.equal(saved.version, 4);
   assert.equal(saved.likeTotal, 80);
   assert.equal(saved.likeUsers['id:u1'].likes, 80);
   first.omikuji.close();
@@ -227,6 +227,67 @@ test('順番待ちがいっぱいの分は権利として保持し、空いた�
   finishDraw(t, omikuji);
   assert.equal(omikuji.seq, 4, '順番待ち2件＋保持2件が全部引けた');
   assert.equal(omikuji.snapshot().likeHeld, 0);
+  omikuji.close();
+});
+
+test('保持した権利は保存され、作り直しても（再起動）消えずに古い順に消化される。二重には渡らない', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'like-store-'));
+  const file = path.join(dir, 'omikuji-pity.json');
+  const u2 = { id: 'u2', name: '二郎' };
+  const u3 = { id: 'u3', name: '三郎' };
+  const stage1 = new StageQueue();
+  stage1.acquire('local', 'cardDraw'); // 大きな演出が舞台を使っている
+  const first = setup({ likeDrawEvery: 10, stageQueue: true, stageQueueMax: 2 }, { storeFile: file, stage: stage1 });
+  first.omikuji.onEvent(like(10)); // 一郎：順番待ちへ
+  first.omikuji.onEvent(like(10, u2)); // 二郎：順番待ちへ（上限2でいっぱい）
+  first.omikuji.onEvent(like(10, u3)); // 三郎：入らず権利として保持
+  first.omikuji.onEvent(like(10)); // 一郎：保持の後ろに並ぶ
+  assert.equal(first.omikuji.snapshot().stagePending, 2);
+  assert.equal(first.omikuji.snapshot().likeHeld, 2);
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(saved.version, 4);
+  assert.deepEqual(saved.likeHeld.map((h) => h.user.id), ['u3', 'u1'], '未消化の権利が古い順に保存される');
+  first.omikuji.close();
+
+  // 作り直し（再起動）。舞台はまだ使われている想定で、保持した権利だけが戻る（順番待ちは従来どおり戻らない）
+  const stage2 = new StageQueue();
+  stage2.acquire('local', 'cardDraw');
+  const second = setup({ likeDrawEvery: 10, stageQueue: true, stageQueueMax: 2 }, { storeFile: file, stage: stage2 });
+  assert.equal(second.omikuji.snapshot().likeHeld, 1, '先頭の1件は順番待ちへ移り、残り1件は保持のまま');
+  assert.equal(second.omikuji.snapshot().stagePending, 1);
+  stage2.release('local', 'cardDraw');
+  advance(t);
+  finishDraw(t, second.omikuji);
+  const order = second.msgs.filter((m) => m.type === 'omikuji' && m.event === 'rolling').map((m) => m.trigger?.user?.id);
+  assert.deepEqual(order, ['u3', 'u1'], '保持した権利が古い順に消化される');
+  assert.equal(second.omikuji.snapshot().likeHeld, 0);
+  const savedAfter = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepEqual(savedAfter.likeHeld, [], '消化した権利は保存からも消える');
+  second.omikuji.close();
+
+  // もう一度作り直しても、渡し直しは起きない
+  const third = setup({ likeDrawEvery: 10, stageQueue: true, stageQueueMax: 2 }, { storeFile: file });
+  assert.equal(third.omikuji.snapshot().likeHeld, 0);
+  assert.equal(third.omikuji.seq, 0, '再起動のたびに権利が渡り直されることはない');
+  assert.equal(third.omikuji.phase, 'idle');
+  third.omikuji.close();
+});
+
+test('版3の保存（未消化の権利なし）もそのまま読める', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'like-store-'));
+  const file = path.join(dir, 'omikuji-pity.json');
+  fs.writeFileSync(file, `${JSON.stringify({
+    version: 3, pityCount: 0, pityUsers: {}, likeTotal: 80,
+    likeUsers: { 'id:u1': { likes: 80, shares: 0, likeGiven: 0, shareGiven: 0 } },
+  })}\n`);
+  const { omikuji } = setup({ likeDrawEvery: 100 }, { storeFile: file });
+  assert.equal(omikuji.snapshot().likeTotal, 80, '版3の数えはそのまま続く');
+  assert.equal(omikuji.snapshot().likeHeld, 0, '権利は空から');
+  omikuji.onEvent(like(30));
+  assert.equal(omikuji.phase, 'rolling', '合計110で1回引ける');
+  finishDraw(t, omikuji);
   omikuji.close();
 });
 
