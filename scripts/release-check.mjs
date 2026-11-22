@@ -21,9 +21,10 @@ try {
   else say('✔', '一時置き場の空き', `残り ${Math.round(free / 1048576)}MB`);
 } catch { say('✖', '一時置き場の空き', '確認できなかった'); }
 
-// 2. 全体テスト（専用の一時置き場で回し、終わったら消す）
+// 2. 全体テスト（/tmp の中の専用の置き場で回し、終わったら消す。
+// 置き場を置く場所でテストの結果が変わる物がある（メディアのテストが実測で確認済み）ので、通常の実行と同じ /tmp の中にする）
 if (!skipTests) {
-  const tmp = join(root, '.tmp-gates');
+  const tmp = join(process.env.TMPDIR || '/tmp', 'release-gates-tmp');
   mkdirSync(tmp, { recursive: true });
   const run = spawnSync('node', ['--test', ...readdirSync(join(root, 'test')).filter((f) => f.endsWith('.test.js')).map((f) => join('test', f))], { cwd: root, encoding: 'utf8', env: { ...process.env, TMPDIR: tmp }, timeout: 15 * 60 * 1000 });
   const timedOut = run.error?.code === 'ETIMEDOUT';
