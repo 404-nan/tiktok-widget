@@ -1168,7 +1168,7 @@ export function createEditor({ api, setMessage }) {
     if (tab === 'cheers') return [['いいね ×20（テスト）', `${base}/api/cheer/active/add?value=20`], ['いいね ×100（テスト）', `${base}/api/cheer/active/add?value=100`], ['満タンにする', `${base}/api/cheer/active/fill`], ['リセット', `${base}/api/cheer/active/reset`]];
     if (tab === 'wins') return [['クリア +1', `${base}/api/wins/active/win`], ['-1', `${base}/api/wins/active/add?value=-1`], ['1つ戻す', `${base}/api/wins/active/undo`], ['リセット', `${base}/api/wins/active/reset`]];
     if (tab === 'timers') return [['スタート', `${base}/api/timer/active/start`], ['一時停止', `${base}/api/timer/active/pause`], ['止める・動かす', `${base}/api/timer/active/toggle`], ['+1分', `${base}/api/timer/active/add?seconds=60`], ['-1分', `${base}/api/timer/active/add?seconds=-60`], ['リセット', `${base}/api/timer/active/reset`]];
-    if (tab === 'bosses') return [['HP を戻す', `${base}/api/boss/active/heal`], ['ダメージ 100', `${base}/api/boss/active/damage?value=100`], ['討伐', `${base}/api/boss/active/defeat`], ['次のボス', `${base}/api/boss/active/next`], ['1体目から', `${base}/api/boss/active/reset`]];
+    if (tab === 'bosses') return [['ボス戦を開始', `${base}/api/boss/active/start`], ['HP を戻す', `${base}/api/boss/active/heal`], ['ダメージ 100', `${base}/api/boss/active/damage?value=100`], ['討伐', `${base}/api/boss/active/defeat`], ['次のボス', `${base}/api/boss/active/next`], ['1体目から', `${base}/api/boss/active/reset`]];
     return [];
   }
 

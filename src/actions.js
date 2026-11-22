@@ -1,7 +1,7 @@
 // ルーレットの当たりなどで実行する動作。
 // 設定の actions を検証し、タイマー・WIN数・RUSH・メディア・効果音・ボス・ガチャ・おみくじへ渡す。
 
-export const ACTION_TYPES = ['roulette.spin', 'timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'gacha.start', 'omikuji.start'];
+export const ACTION_TYPES = ['roulette.spin', 'timer.add', 'wins.add', 'rush.start', 'media.play', 'sound.play', 'boss.damage', 'boss.heal', 'boss.start', 'gacha.start', 'omikuji.start'];
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 
 /** 動作1件を検証する。壊れていれば null（issues.errors に理由） */
@@ -95,6 +95,9 @@ function runOne(action, deps, meta = {}) {
     case 'boss.heal':
       if (!deps.boss) throw new Error('ボスがありません');
       return deps.boss.healBy(id, action.amount, { test: meta.trigger?.test === true });
+    case 'boss.start':
+      if (!deps.boss) throw new Error('ボスがありません');
+      return deps.boss.apply(id, 'start', null, { test: meta.trigger?.test === true });
     case 'gacha.start': {
       if (!deps.gacha) throw new Error('ガチャがありません');
       const started = deps.gacha.start({ kind: 'action', source: 'action', ts: meta.trigger?.ts ?? meta.spin?.at ?? null, ...(meta.trigger?.test === true ? { test: true } : {}) });
