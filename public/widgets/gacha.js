@@ -107,9 +107,12 @@
       box.textContent = '';
       box.hidden = true;
       stageEl.removeAttribute('data-ten');
+      stageEl.removeAttribute('data-ten-rows');
       return;
     }
     stageEl.setAttribute('data-ten', 'flip');
+    // 段数（5列で折り返した段。舞台側の CSS が段数に合わせて札の中身を縮める、対の決まり）
+    stageEl.setAttribute('data-ten-rows', String(Math.ceil(results.length / 5)));
     box.hidden = false;
     box.textContent = '';
     var who = data.trigger && data.trigger.user;
@@ -176,7 +179,9 @@
       var drawerName = phase !== 'idle' && who && who.name ? who.name : '';
       setText('slipName', drawerName);
       setText('stickName', data.displayMode === 'short' ? '' : drawerName);
-      setText('drawWho', data.results && drawerName ? drawerName + ' さんの10連' : '');
+      var results = data.results;
+      // まとめ引きの札は、実際の件数で「〜さんの◯連」と出す（既定の10なら今までと同じ「10連」）
+      setText('drawWho', results && results.length && drawerName ? drawerName + ' さんの' + results.length + '連' : '');
     }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));
