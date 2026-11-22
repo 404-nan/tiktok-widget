@@ -1,0 +1,22 @@
+{
+  "id": "commentSlide",
+  "name": "コメントスライド",
+  "desc": "決めたコメントが流れたら、決めた言葉を画面の右端から横に流す（表示だけ）",
+  "size": [
+    640,
+    120
+  ],
+  "page": "comment-slide.html",
+  "events": [],
+  "sample": {
+    "label": "コメント",
+    "post": {
+      "path": "/api/simulate",
+      "body": {
+        "kind": "chat",
+        "text": "コメントスライドの見本"
+      }
+    }
+  },
+  "sounds": []
+}

@@ -46,7 +46,7 @@ export const SCHEMA = {
         type: 'bundleList',
         default: [],
         desc: 'まとめの一覧。名前と、入れるウィジェットを選ぶ',
-        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw'],
+        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw', 'commentSlide'],
       },
     },
   },
@@ -1040,6 +1040,27 @@ SCHEMA.superchats = {
   kind: 'map', page: 'superchat', title: 'スパチャ風コメント', desc: 'この配信で minCoins 以上のギフトを送った人のコメントだけを、1件ずつ seconds 秒ずつ出す。色は送ったコインの合計で変わる。待ちは20件まで(多いときは古いものから消える)。URL は /widgets/superchat.html?id=<名前>', size: () => [520, 240],
   fields: {
     minCoins: num(100, 'この配信でこのコイン以上を送った人のコメントだけ出す', { min: 1 }), seconds: num(8, '1件を出す秒数', { min: 3, max: 60 }), avatars: bool(true, 'アイコンを出す'),
+  },
+};
+
+// 決めたコメントが流れたら、決めた言葉を画面の右端から横に流す(表示だけ。記録やポイントには触れない)
+SCHEMA.commentSlide = {
+  kind: 'map', page: 'comment-slide', title: 'コメントスライド',
+  desc: '決めたコメントが流れたら、決めた言葉を画面の右端から横にスライドして出す。コメントに「きっかけの言葉」を含むかで見て、上から最初に一致した1つだけを出す。同時に来た分は待ち行列に入れて最大3つまで(超えた分は捨てる)。表示だけの部品で、記録やポイントには触れない。URL は /widgets/comment-slide.html?id=<名前>',
+  size: () => [640, 120],
+  fields: {
+    trigger1: str('', 'きっかけの言葉1。コメントに含まれていたら出す(空なら使わない)'),
+    text1: str('', '出す言葉1'),
+    trigger2: str('', 'きっかけの言葉2。コメントに含まれていたら出す(空なら使わない)'),
+    text2: str('', '出す言葉2'),
+    trigger3: str('', 'きっかけの言葉3。コメントに含まれていたら出す(空なら使わない)'),
+    text3: str('', '出す言葉3'),
+    trigger4: str('', 'きっかけの言葉4。コメントに含まれていたら出す(空なら使わない)'),
+    text4: str('', '出す言葉4'),
+    trigger5: str('', 'きっかけの言葉5。コメントに含まれていたら出す(空なら使わない)'),
+    text5: str('', '出す言葉5'),
+    seconds: num(4, '出す言葉を表示する秒数', { min: 1, max: 30 }),
+    color: color('accent', '帯の色'),
   },
 };
 

@@ -185,6 +185,8 @@ export function buildPreview(ctx) {
     const e = isObj(tab) ? {} : payload.config[tab]?.[id] ?? {};
     // おみくじは仮の名前の人が送った形で始め、番号待ちから見せる（名前がないと番号待ちを飛ばすため）
     if (tab === 'omikuji') return api('/api/control', { target: 'omikuji', action: 'start', data: { user: 'テスト視聴者' } });
+    // コメントスライドは、決めたきっかけの言葉を含むコメントを送って出す
+    if (tab === 'commentSlide') { const first = String(e.trigger1 ?? '').trim(); return api('/api/simulate', { kind: 'chat', text: first ? `テスト ${first}` : 'テストコメント' }); }
     // 出す条件がギフト以外だけのときは、ギフトを流しても出ない。先に出来事の条件を見る
     if (e.events?.length && !e.events.includes('gift')) return api('/api/simulate', { kind: e.events[0] });
     if (e.gifts?.length) return api('/api/simulate', { kind: 'gift', giftName: e.gifts[0], diamonds: 10 });
@@ -375,6 +377,14 @@ export function buildPreview(ctx) {
         ),
         chip('「!」のコマンド', null, () => say({ text: '!roulette' })),
         chip('コメント欄を空にする', null, control('chat', 'reset')),
+      );
+    } else if (tab === 'commentSlide') {
+      // 決めたきっかけの言葉を含むコメントを送って、スライドが出ることを確かめる
+      const e = payload.config.commentSlide?.[id] ?? {};
+      const first = String(e.trigger1 ?? '').trim();
+      box.replaceChildren(
+        chip(first ? `「${first}」を含むコメント` : 'コメントを送る', 'message-square', () => api('/api/simulate', { kind: 'chat', text: first ? `テスト ${first}` : 'テストコメント' })),
+        chip('スライドを消す', 'rotate-ccw', control('commentSlide', 'reset')),
       );
     } else if (tab === 'counters' || tab === 'goals' || tab === 'rankings') {
       box.append(
