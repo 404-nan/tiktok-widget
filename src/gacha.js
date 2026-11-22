@@ -124,6 +124,12 @@ export class Gacha {
     if (!Array.isArray(this.config.tiers) || !this.config.tiers.length) this.config.tiers = base.tiers;
   }
 
+  /** まとめ引き（10連）の回数。tenCount が2以上ならそれを使い、無い・おかしいときは今までの10。 */
+  #tenCount() {
+    const n = Math.floor(Number(this.config.tenCount));
+    return Number.isFinite(n) && n >= 2 ? n : TEN_DEFAULT;
+  }
+
   snapshot() {
     const show = this.phase === 'reveal' || this.phase === 'done';
     return {
@@ -240,10 +246,11 @@ export class Gacha {
     // おみくじは連打（コンボ）の回数ぶん引く。待ち列に上限はないので、投げた分は全部回す
     const times = this.name === 'omikuji' ? Math.max(1, Number(e.gift?.count) || 1) : 1;
     if (times > 1) trigger.coins = Math.floor((Number(e.totalDiamonds) || 0) / times);
-    // 10連まとめが有効なら、10回ぶんを1つのまとめ引きにして、余りは通常の引き方で回す
-    if (this.name === 'omikuji' && this.config.tenBatch === true && times >= 10) {
-      const batches = Math.floor(times / 10);
-      const rest = times - batches * 10;
+    // まとめ引きが有効なら、tenCount 回ぶんを1つのまとめ引きにして、余りは通常の引き方で回す
+    const ten = this.#tenCount();
+    if (this.name === 'omikuji' && this.config.tenBatch === true && times >= ten) {
+      const batches = Math.floor(times / ten);
+      const rest = times - batches * ten;
       for (let i = 0; i < batches; i++) this.start({ ...trigger, kind: 'ten' });
       for (let i = 0; i < rest; i++) this.start({ ...trigger });
       return;
@@ -276,11 +283,7 @@ export class Gacha {
     return { ok: true, queued: false, phase: this.phase, seq: this.seq, durations: { ...this.durations } };
   }
 
-  /**
-   * 10連: 10回ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数えは10回ぶん進める。
-   * テストの10連では天井の数えを進めない（通常の抽選と同じ線引き）。
-   */
-  /** 待ち列の次を始める。同じ視聴者の分が10回ぶんたまっていたら、10連にまとめる */
+  /** 待ち列の次を始める。同じ視聴者の分が tenCount 回ぶんたまっていたら、まとめ引きにする */
   #drain() {
     const ten = this.#takeTenBatch();
     if (ten) {
@@ -292,12 +295,13 @@ export class Gacha {
   }
 
   /**
-   * 10連まとめ（tenBatch）が有効で、待ち列の先頭の視聴者と同じ人の分が10回ぶん以上たまっていたら、
-   * その10回ぶんを取り出して1つの10連にする。テストの分はまとめない。10連そのもの（kind: 'ten'）は対象外。
+   * まとめ引き（tenBatch）が有効で、待ち列の先頭の視聴者と同じ人の分が tenCount 回ぶん以上たまっていたら、
+   * その tenCount 回ぶんを取り出して1つのまとめ引きにする。テストの分はまとめない。まとめ引きそのもの（kind: 'ten'）は対象外。
    */
   #takeTenBatch() {
     if (this.name !== 'omikuji' || this.config.tenBatch !== true) return null;
-    if (this.pending.length < 10) return null;
+    const ten = this.#tenCount();
+    if (this.pending.length < ten) return null;
     const first = this.pending[0];
     if (!first || first.kind === 'ten' || first.test === true || first.kind === 'test') return null;
     // 視聴者が分からない分は、誰の分ともまとめない（同じキーに寄せると別々の分が1人分に化けるため）
@@ -308,22 +312,27 @@ export class Gacha {
     const rest = [];
     for (const t of this.pending) {
       const same = t && t.kind !== 'ten' && t.test !== true && t.kind !== 'test' && keyOf(t) === key;
-      if (same && mine.length < 10) mine.push(t);
+      if (same && mine.length < ten) mine.push(t);
       else rest.push(t);
     }
-    if (mine.length < 10) return null;
+    if (mine.length < ten) return null;
     this.pending = rest;
     return { ...first, kind: 'ten' };
   }
 
+  /**
+   * まとめ引き: tenCount 回ぶんをその場で引き、結果をまとめて画面へ渡す。天井の数えは tenCount 回ぶん進める。
+   * テストのまとめ引きでは天井の数えを進めない（通常の抽選と同じ線引き）。
+   */
   #beginTen() {
     this.close();
+    const ten = this.#tenCount();
     const isTest = this.trigger?.test === true || this.trigger?.kind === 'test';
     const userKey = this.#userKey(this.trigger);
     let pityCount = this.pityCount;
     let userCount = userKey ? (this.pityUsers.get(userKey) ?? 0) : null;
     const results = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < ten; i++) {
       const rolled = this.#pickTier(pityCount, userCount);
       pityCount = rolled.pityCount;
       userCount = rolled.userCount;
@@ -334,13 +343,15 @@ export class Gacha {
       this.#applyUserPity(userKey, userCount);
       this.#savePity();
     }
+    // 見せる長さは回数に合わせる（1枚ずつ約0.45秒で出し、最後に余韻）。既定の10なら今までと同じ 6000
+    const revealMs = Math.round(TEN_REVEAL_MS * ten / TEN_DEFAULT);
     this.phase = 'ten';
     this.tenResults = results;
     this.tier = null;
     this.forced = false;
-    this.durations = { rollMs: 0, revealMs: TEN_REVEAL_MS, doneMs: durationsOf(this.config, this.name).doneMs };
+    this.durations = { rollMs: 0, revealMs, doneMs: durationsOf(this.config, this.name).doneMs };
     this.#emit('ten');
-    this.#arm(TEN_REVEAL_MS, () => {
+    this.#arm(revealMs, () => {
       if (this.phase !== 'ten') return;
       this.phase = 'done';
       this.#emit('done');
@@ -484,7 +495,9 @@ export class Gacha {
   }
 }
 
-/** 10連を見せる長さ。画面側は1枚ずつずらして出す（10枚 × 約0.45秒 + 余韻） */
+/** まとめ引き（10連）の回数の既定。設定 tenCount が無い・おかしいときはこれを使う */
+const TEN_DEFAULT = 10;
+/** まとめ引きを見せる長さ（10枚のとき）。画面側は1枚ずつずらして出す（1枚 × 約0.45秒 + 余韻）。回数ぶんに比例させる */
 const TEN_REVEAL_MS = 6000;
 
 const SHORT_TEMPOS = {

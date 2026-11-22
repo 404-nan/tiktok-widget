@@ -176,7 +176,9 @@
       var drawerName = phase !== 'idle' && who && who.name ? who.name : '';
       setText('slipName', drawerName);
       setText('stickName', data.displayMode === 'short' ? '' : drawerName);
-      setText('drawWho', data.results && drawerName ? drawerName + ' さんの10連' : '');
+      var results = data.results;
+      // まとめ引きの札は、実際の件数で「〜さんの◯連」と出す（既定の10なら今までと同じ「10連」）
+      setText('drawWho', results && results.length && drawerName ? drawerName + ' さんの' + results.length + '連' : '');
     }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));

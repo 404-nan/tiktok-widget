@@ -49,7 +49,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 
 `obs-bridge.html` は `src/schema.js` の設定と `/ws` のイベントを使い、`lib/sha256.js` で OBS WebSocket 認証を行います。新しい公開 JavaScript は ES5、外部 CDN なしで作ります。既存ウィジェットの一覧は一番上の [`README.md`](../../README.md) を見てください。
 
-最後に直した日: 2026-11-20
+最後に直した日: 2026-11-22
 
 - WebSocket を開くウィジェットは、URL に `preview=1` または `preview=live` があるとき `/ws?preview=1` でつなぐ。サーバーはこれを配信ソフトからの接続(obs)として数えない(準備の印と自動でつなぐのため)。`test/preview-ws.test.js` で確かめている
 - `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す

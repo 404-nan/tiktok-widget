@@ -187,7 +187,7 @@
   @keyframes drop { 0% { transform: translateY(var(--sag, 0)) rotate(0) scale(1.12); } 25% { transform: translateY(calc(var(--sag, 0) - 8px)) rotate(0) scale(1.12); } 100% { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(0) scale(.5); opacity: 0; } }
   @keyframes tremble { 0%, 100% { margin-left: -102px; } 50% { margin-left: -99px; } }
   @keyframes fadeout { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
-  /* 10連: 小さい和紙の札を5列×2段で、1枚ずつ時間差で出す */
+  /* まとめ引き: 小さい和紙の札を5列で折り返して、1枚ずつ時間差で出す。フリップ表示では段が増えても行が均等に縮んで舞台に収まる */
   .ten { position: absolute; inset: 64px 10px auto; z-index: 5; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
   .ten[hidden] { display: none; }
   .ten-slip { background-color: var(--washi); color: var(--ink); border: 1px solid rgba(36, 24, 15, .25); border-radius: 3px; min-height: 92px; display: grid; place-items: center; padding: 6px 2px; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); opacity: 0; animation: tenpop .45s var(--ease-out, ease-out) both; }
