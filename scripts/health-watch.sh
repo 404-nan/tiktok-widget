@@ -4,6 +4,20 @@
 STATE=~/backups/health-watch.state
 INCIDENTS=~/backups/incidents
 mkdir -p "$INCIDENTS"
+# 社内の状態を1つの JSON にまとめる（コンソールと AI レーンが読む口。失敗しても見張りは止めない）
+write_status() {
+  local ok=false live="" version="" head="" last="null" inc=0
+  body=$(curl -s -m 5 http://127.0.0.1:3939/healthz 2>/dev/null) && ok=true
+  live=$(printf '%s' "$body" | sed -n 's/.*"live":\([0-9]*\).*/\1/p')
+  version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' ~/tiktok-widget/package.json 2>/dev/null | head -1)
+  head=$(cd ~/tiktok-widget 2>/dev/null && git rev-parse --short HEAD 2>/dev/null)
+  [ -f ~/backups/RELEASE-LEDGER.jsonl ] && last=$(tail -1 ~/backups/RELEASE-LEDGER.jsonl)
+  inc=$(find "$INCIDENTS" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+  printf '{"ts":"%s","ok":%s,"live":%s,"version":"%s","head":"%s","lastDeploy":%s,"incidents":%s}\n' \
+    "$(date -Is)" "$ok" "${live:-null}" "$version" "$head" "$last" "$inc" > ~/backups/ops-status.json.tmp \
+    && mv ~/backups/ops-status.json.tmp ~/backups/ops-status.json
+}
+write_status || true
 count=0; reported=""
 [ -f "$STATE" ] && { count=$(sed -n 's/^count=\([0-9]*\)$/\1/p' "$STATE"); reported=$(sed -n 's/^reported=//p' "$STATE"); }
 if curl -sf -m 5 http://127.0.0.1:3939/healthz >/dev/null 2>&1; then
