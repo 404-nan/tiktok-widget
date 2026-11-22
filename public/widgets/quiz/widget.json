@@ -1,0 +1,1 @@
+{"desc":"問題を出して、視聴者がコメントで答える。最初の正解者へポイントを払う","events":[],"id":"quizzes","name":"クイズ","page":"quiz.html","sample":{"label":"出題","post":{"body":{},"path":"/api/quiz/default/start"}},"size":[720,480],"sounds":[]}

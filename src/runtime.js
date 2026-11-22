@@ -38,6 +38,7 @@ import { ThroneEngine } from './throne.js';
 import { OotoriEngine } from './ootori.js';
 import { DarebaEngine } from './dareba.js';
 import { VoteEngine } from './vote.js';
+import { QuizEngine } from './quiz.js';
 import { CheerEngine } from './cheer.js';
 import { PushButtonEngine } from './push-button.js';
 import { shouldAutoConnect } from './rental.js';
@@ -196,6 +197,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const vote = new VoteEngine(hub, {
     onResult: ({ id: voteId, actions, result }) => runActions(actions, actionDeps(), { source: 'vote', voteId, result }),
   });
+  const quiz = new QuizEngine(hub, {
+    // 最初の正解者へポイントを払う。テスト送信の正解では払わない（本番の残高を動かさない）
+    onWin: ({ user, points: amount, test }) => {
+      if (test || !(amount > 0)) return;
+      points.add(user, amount, 'quiz');
+    },
+  });
   const cheer = new CheerEngine(hub, {
     onFull: ({ id: cheerId, actions, round, cheer: state }) => runActions(actions, actionDeps(), { source: 'cheer', cheerId, round, cheer: state }),
   });
@@ -285,6 +293,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     dareba.setConfig(config.dareba);
     vote.setEnabled(entitled('votes'));
     vote.setConfig(entitled('votes') ? config.votes : {});
+    quiz.setEnabled(entitled('quizzes'));
+    quiz.setConfig(entitled('quizzes') ? config.quizzes : {});
     cheer.setEnabled(entitled('cheers'));
     cheer.setConfig(entitled('cheers') ? config.cheers : {});
     push.setEnabled(entitled('pushButtons'));
@@ -330,7 +340,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id, hub, store, info: () => info(), entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, quiz, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
     performControl: (...args) => _control.performControl(...args),
@@ -338,7 +348,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   _control = bindControl(r, {
     hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
-    peka, throne, ootori, dareba, vote, cheer, push, visitors, preparation,
+    peka, throne, ootori, dareba, vote, quiz, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
     setStayConnected, rememberTiktokId,
     auto, currentAutoId, timerSeconds,
@@ -437,6 +447,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
     readVote() { return vote.snapshot(); },
+    readQuiz() { return quiz.snapshot(); },
     readCheer() { return cheer.snapshot(); },
     readPush() { return push.snapshot(); },
     readVisitors() { return visitors.snapshot(); },
@@ -466,6 +477,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       unwatch();
       roulette.clear();
       vote.reset();
+      quiz.reset();
       cheer.reset();
       push.reset();
       demo.stop();

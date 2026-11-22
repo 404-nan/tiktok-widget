@@ -36,6 +36,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `obs-bridge.html` / `obs-bridge.js` | 透明なブラウザソースからローカルの obs-websocket へ演出命令を送る |
 | `push-button.html` / `push-button.js` | 押し数と段階を表示する |
 | `vote.html` / `vote.js` | コメント投票の票数・名前・結果を表示する |
+| `quiz.html`（`quiz/index.html`） | クイズの問題・選択肢・制限時間と、正解者・答えの発表をテレビ番組風に表示する |
 | `cheer.html` / `cheer.js` | いいね応援ゲージと満タン演出を表示する |
 | `stepup.html` / `stepup.js` | STEP 1〜5、残りゲージ、段階演出を表示する |
 | `swarm.html` / `swarm.js` | ギフトの群と群予告を表示する |

@@ -3,7 +3,7 @@
 
 import { SCHEMA } from './schema.js';
 
-export const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'ai', 'minecraft', 'combo'];
+export const FEATURE_ORDER = ['alerts', 'chats', 'wins', 'winsFx', 'timers', 'bosses', 'roulettes', 'votes', 'quizzes', 'cheers', 'pushButtons', 'jars', 'goals', 'counters', 'rankings', 'throne', 'ootori', 'dareba', 'tickers', 'supporters', 'visitors', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'peka', 'mcGifts', 'superchats', 'cardDraw', 'ai', 'minecraft', 'combo'];
 export const PREMIUM_KEYS = ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo'];
 export const FEATURES = Object.fromEntries(
   FEATURE_ORDER.map((key) => {
@@ -22,4 +22,4 @@ export const PREMIUM = Object.fromEntries(Object.entries(FEATURES).filter(([, f]
 export const featureOfPage = (page) => Object.entries(FEATURES).find(([, f]) => f.pages.includes(page))?.[0] ?? null;
 
 // OBS 用の鍵でできること（読むだけ）
-export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/swarm$/, /^\/api\/combo$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/, /^\/api\/mc-gifts$/, /^\/api\/card-draw$/];
+export const OBS_ALLOWED = [/^\/api\/config$/, /^\/api\/wins$/, /^\/api\/rush$/, /^\/api\/stepup$/, /^\/api\/swarm$/, /^\/api\/combo$/, /^\/api\/timer$/, /^\/api\/boss$/, /^\/api\/vote$/, /^\/api\/quiz$/, /^\/api\/cheer$/, /^\/api\/push-button$/, /^\/api\/me$/, /^\/api\/sample$/, /^\/api\/info-feed$/, /^\/api\/visitors$/, /^\/api\/gacha$/, /^\/api\/omikuji$/, /^\/api\/slot$/, /^\/api\/relay-stop$/, /^\/api\/peka$/, /^\/api\/throne$/, /^\/api\/ootori$/, /^\/api\/dareba$/, /^\/api\/minecraft\/goal-alert$/, /^\/api\/media-alerts$/, /^\/api\/media-alerts\/[a-f0-9]+\/file$/, /^\/api\/gift-sounds$/, /^\/api\/gift-names$/, /^\/api\/mc-gifts$/, /^\/api\/card-draw$/];

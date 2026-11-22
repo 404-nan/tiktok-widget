@@ -46,7 +46,7 @@ export const SCHEMA = {
         type: 'bundleList',
         default: [],
         desc: 'まとめの一覧。名前と、入れるウィジェットを選ぶ',
-        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw'],
+        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'quizzes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw'],
       },
     },
   },
@@ -934,6 +934,32 @@ SCHEMA.votes = {
     sound: bool(true, '結果発表の効果音'),
     volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
     color: color('accent', '投票バーの色'),
+  },
+};
+
+SCHEMA.quizzes = {
+  kind: 'map',
+  page: 'quiz',
+  title: 'クイズ',
+  desc:
+    '問題を出して、視聴者がコメントで答えるクイズ。答えの文と一致した最初の人が正解で、その人へポイントを払う（ポイントの設定を使う）。' +
+    '出題する・締める・リセットはダッシュボード、Stream Deck、MCP、CLIから操作できる。' +
+    'URL は /widgets/quiz.html?id=<名前>',
+  size: () => [720, 480],
+  fields: {
+    ...placementFields(8, 30),
+    title: str('クイズ', '画面の見出し'),
+    source: oneOf(['single', 'set'], 'single', '問題の出し方。single は下の問題をそのまま出す、set は問題集から順に出す'),
+    question: str('', '問題文（出し方が single のとき）'),
+    answer: str('', '答え（出し方が single のとき）。コメントがこの文と一致したら正解（全角・半角と大文字小文字は区別しない）'),
+    choices: list([], '選択肢（出し方が single のとき。2〜4個。答えは選択肢のどれかと同じ文にする。視聴者は番号でも答えられる）'),
+    questions: list([], '問題集（出し方が set のとき）。1件ごとに「問題文|答え」か「問題文|答え|選択肢1|選択肢2|…」の形で書く。順に出して、最後まで行くと最初に戻る'),
+    seconds: num(30, '制限時間（秒）。0 で時間切れなし', { min: 0, max: 3600 }),
+    rewardPoints: num(100, '最初の正解者へ払うポイント（0 で払わない）', { min: 0, max: 100000 }),
+    showAnswer: bool(true, '結果のときに答えを見せる'),
+    sound: bool(true, '正解の効果音'),
+    volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    color: color('accent', '帯の色'),
   },
 };
 

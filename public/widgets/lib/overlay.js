@@ -292,7 +292,7 @@ const PAGE_SECTIONS = {
   'gift-alert': ['alerts', 'map'], chat: ['chats', 'map'], 'gift-jar': ['jars', 'map'], goal: ['goals', 'map'],
   wins: ['wins', 'map'], timer: ['timers', 'map'], boss: ['bosses', 'map'], counter: ['counters', 'map'],
   roulette: ['roulettes', 'map'], cutin: ['cutins', 'map'], puchun: ['puchuns', 'map'], 'image-cutin': ['imageCutins', 'map'],
-  ranking: ['rankings', 'map'], throne: ['throne', 'map'], vote: ['votes', 'map'], cheer: ['cheers', 'map'],
+  ranking: ['rankings', 'map'], throne: ['throne', 'map'], vote: ['votes', 'map'], quiz: ['quizzes', 'map'], cheer: ['cheers', 'map'],
   'push-button': ['pushButtons', 'map'], ticker: ['tickers', 'map'], supporters: ['supporters', 'map'], tts: ['tts', 'map'],
   superchat: ['superchats', 'map'], 'mc-gifts': ['mcGifts', 'map'], visitors: ['visitors', 'map'],
   rush: ['rush', 'object'], stepup: ['stepup', 'object'], swarm: ['swarm', 'object'], combo: ['combo', 'object'],
