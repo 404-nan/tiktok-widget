@@ -3,7 +3,7 @@
 // 見る物: 一時置き場の空き／全体テスト／版数とお知らせの対応／保存形式を変えた時の読み込みテストの有無。
 // テストの中の関門（設定の届き方・お知らせの形・外部読み込み）は test/release-gates.test.js が毎回見ている。
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, mkdirSync, rmSync, statfsSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -31,7 +31,10 @@ if (!skipTests) {
   rmSync(tmp, { recursive: true, force: true });
   if (timedOut) say('✖', '全体テスト', '15分で終わらなかった（止まったテストが無いか、ログで切り分けること）');
   else if (counts && counts[3] === '0') say('✔', '全体テスト', `${counts[1]} 件・失敗 0`);
-  else say('✖', '全体テスト', counts ? `${counts[1]} 件・失敗 ${counts[3]}` : '結果を読めなかった');
+  else {
+    writeFileSync(join(root, 'release-check-test.log'), (run.stdout ?? '') + (run.stderr ?? ''));
+    say('✖', '全体テスト', `${counts ? `${counts[1]} 件・失敗 ${counts[3]}` : '結果を読めなかった'}（記録: release-check-test.log）`);
+  }
 } else say('–', '全体テスト', '省略（--skip-tests）');
 
 // 3. 版数とお知らせの対応（利用者に見える変更があるのに、版数もお知らせも無い束を止める）

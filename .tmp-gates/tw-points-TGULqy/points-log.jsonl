@@ -1,5 +1,0 @@
-{"ts":1000000,"user":"taro","delta":150,"reason":"test","balance":150}
-{"ts":1000000,"user":"taro","delta":-100,"reason":"omikuji","balance":50}
-{"ts":1000000,"user":"hana","delta":100,"reason":"test","balance":100}
-{"ts":1000000,"user":"hana","delta":-100,"reason":"omikuji","balance":0}
-{"ts":1000000,"user":"hana","delta":100,"reason":"omikuji-refund","balance":100}
