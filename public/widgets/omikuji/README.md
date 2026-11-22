@@ -18,4 +18,4 @@
 - 版の更新: `../lib/version-watch.js`
 - テスト: `test/omikuji-*.test.js`
 
-最後に直した日: 2026-11-16
+最後に直した日: 2026-11-22
