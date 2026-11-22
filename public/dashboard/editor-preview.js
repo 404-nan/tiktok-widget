@@ -130,7 +130,7 @@ export function buildPreview(ctx) {
     if (!simple() && tab === 'bosses') {
       const base = `${location.origin}${BASE}`;
       $('sizeHint').textContent +=
-        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
+        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: ボス戦を開始 ${base}/api/boss/active/start ／ HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
     }
     renderRouletteUrls(w);
     if (simple()) previewModeSwitch();

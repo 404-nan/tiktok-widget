@@ -2,6 +2,7 @@
 // HP・何体目か・最後に一撃を入れた人はサーバーで持ち、data/boss.json に残す（OBS を読み込み直しても続きから）。
 // HP が 0 になったら討伐: ウィジェットに知らせ、設定があればルーレットを回し、Minecraft にコマンドを送る（runtime.js でつなぐ）。
 // 少し待ってから、HP を hpScale 倍にした次のボスが出てくる。
+// manualStart の設定では、ボタンや動作で開始するまでボスは待機する。ミッション（指定ギフトの個数）は戦闘中だけ数える。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,7 +13,7 @@ import { giftMatches, giftDisplayName } from './gifts.js';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BOSS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'boss.json');
 
-export const BOSS_ACTIONS = ['damage', 'defeat', 'heal', 'next', 'set', 'reset', 'rival', 'rivalAdd'];
+export const BOSS_ACTIONS = ['damage', 'defeat', 'heal', 'next', 'set', 'reset', 'rival', 'rivalAdd', 'start'];
 const SAVE_DELAY = 400; // いいねなどで細かく削られるので、保存は少しまとめる
 
 const slimUser = (u) => (u ? { id: u.id, name: u.name, avatar: u.avatar ?? null } : null);
@@ -101,8 +102,8 @@ export class BossEngine {
         s.maxHp = max;
         this.hub.broadcast({ type: 'boss', id, boss: this.get(id), event: { kind: 'config' } });
       }
-      // 討伐から次のボスまでの間にサーバーを止めていたときも、続きから
-      if (s.defeated && cfg.autoNext !== false && !this.timers[id]) this.#scheduleNext(id);
+      // 討伐から次のボスまでの間にサーバーを止めていたときも、続きから（手動開始のときは開始待ちのまま）
+      if (s.defeated && cfg.autoNext !== false && !cfg.manualStart && !this.timers[id]) this.#scheduleNext(id);
     }
     this.#save();
   }
@@ -140,7 +141,9 @@ export class BossEngine {
       hp,
       maxHp,
       name: nameFor(cfg, s.round),
-      nextAt: gap ? null : s.defeated && cfg.autoNext !== false ? s.defeatedAt + delay : null,
+      nextAt: gap ? null : s.defeated && cfg.autoNext !== false && !cfg.manualStart ? s.defeatedAt + delay : null,
+      started: this.#effectiveStarted(id),
+      mission: this.#missionView(cfg, s),
       now: Date.now(),
       mode: gap ? 'rank-gap' : 'hp',
       ourCoins: ours,
@@ -163,6 +166,9 @@ export class BossEngine {
     if (e.test) return;
     if (e.kind !== 'gift' && e.kind !== 'like') return;
     for (const [id, cfg] of Object.entries(this.config)) {
+      // 手動開始で待機中のボスは、ダメージもミッションも進まない
+      if (!this.#effectiveStarted(id)) continue;
+      this.#countMission(id, cfg, e);
       if (cfg?.mode === 'rank-gap') {
         if (e.kind !== 'gift') continue;
         const coins = this.#gapCoins(cfg, e);
@@ -190,7 +196,8 @@ export class BossEngine {
   /**
    * 手で動かす（ダッシュボードのテストボタン・URL・AI）。id を省くと設定にある全部。
    * action: damage（value のダメージ。省くと 100）/ defeat（今すぐ討伐）/ heal（HP を満タンに戻す）/
-   *         next（次のボスへ）/ set（HP を value にする）/ reset（1体目からやり直す）
+   *         next（次のボスへ）/ set（HP を value にする）/ reset（1体目からやり直す）/
+   *         start（手動開始の戦闘を始める。待機中ならその体を、討伐済みなら次の体を出す）
    */
   apply(id, action, value, opts = {}) {
     const prevTest = this._testFlag === true;
@@ -251,8 +258,11 @@ export class BossEngine {
           const s = this.#state(k);
           s.round += 1;
           s.lastHit = null;
+          s.mission = { count: 0, done: false };
           this.#layoutGap(k, { kind: 'next' }, { emitDefeat: false });
         } else this.#next(k);
+      } else if (action === 'start') {
+        this.#start(k);
       } else if (action === 'reset') {
         const cfg = this.cfgOf(k);
         const fresh = this.#fresh(cfg, 1);
@@ -308,6 +318,74 @@ export class BossEngine {
     return this.cfgOf(id)?.mode === 'rank-gap';
   }
 
+  /** 戦闘が始まっているか。manualStart でない設定は常時戦闘中（今までの動き） */
+  #effectiveStarted(id) {
+    const cfg = this.cfgOf(id);
+    if (!cfg?.manualStart) return true;
+    return Boolean(this.#state(id).started);
+  }
+
+  /** 画面に出すミッション（設定が無ければ null）。数えは目標で止まる */
+  #missionView(cfg, s) {
+    const giftName = String(cfg?.missionGift ?? '').trim();
+    const target = Math.max(0, Math.floor(Number(cfg?.missionCount) || 0));
+    if (!giftName || target <= 0) return null;
+    const m = s.mission ?? { count: 0, done: false };
+    return { gift: giftName, target, count: Math.min(target, Math.max(0, m.count)), done: Boolean(m.done) };
+  }
+
+  /** 戦闘中に指定ギフトが届いたらミッションの数えを進め、画面へ知らせる */
+  #countMission(id, cfg, e) {
+    if (e.kind !== 'gift') return;
+    const giftName = String(cfg?.missionGift ?? '').trim();
+    const target = Math.max(0, Math.floor(Number(cfg?.missionCount) || 0));
+    if (!giftName || target <= 0) return;
+    if (!giftMatches(e.gift, [giftName])) return;
+    const s = this.#state(id);
+    if (s.defeated) return;
+    const m = (s.mission ??= { count: 0, done: false });
+    if (m.done) return;
+    m.count = Math.min(target, m.count + Math.max(1, Math.floor(Number(e.gift?.count) || 1)));
+    m.done = m.count >= target;
+    s.updatedAt = Date.now();
+    this.#broadcast(id, { hp: s.hp, maxHp: s.maxHp, round: s.round }, { kind: 'mission', done: m.done });
+    this.#save();
+  }
+
+  /**
+   * 手動で戦闘を始める。待機中なら今の体を出す。討伐済みなら次の体を出す。
+   * すでに戦闘中なら何もしない。ミッションは新しい戦闘で数え直す
+   */
+  #start(id) {
+    const cfg = this.cfgOf(id);
+    if (!cfg) return;
+    const s = this.#state(id);
+    if (this.#isGap(id)) {
+      if (s.started && !s.defeated) return;
+      const wasDefeated = Boolean(s.defeated);
+      s.started = true;
+      s.mission = { count: 0, done: false };
+      if (wasDefeated) {
+        s.round += 1;
+        s.ourCoins = 0;
+        s.lastHit = null;
+      }
+      this.#layoutGap(id, { kind: 'start' }, { emitDefeat: false });
+      this.#save(true);
+      return;
+    }
+    if (s.defeated) {
+      this.#next(id, 'start');
+      this.#save(true);
+      return;
+    }
+    if (s.started) return;
+    s.started = true;
+    s.mission = { count: 0, done: false };
+    this.#change(id, {}, { kind: 'start' });
+    this.#save(true);
+  }
+
   /** 順位差の自分側。コインは 1:1。いいねと coinDamage は使わない */
   #gapCoins(cfg, e) {
     if (e?.kind !== 'gift') return 0;
@@ -320,6 +398,8 @@ export class BossEngine {
     if (add <= 0) return;
     const cfg = this.cfgOf(id);
     if (!cfg) return;
+    // 手動開始で待機中のボスは進まない（開始してから）
+    if (cfg.manualStart && !this.#state(id).started) return;
     const s = this.#state(id);
     s.ourCoins = Math.max(0, Number(s.ourCoins) || 0) + add;
     s.total += add;
@@ -419,12 +499,15 @@ export class BossEngine {
     return {
       round, hp, maxHp, defeated: false, defeatedAt: 0, lastHit: null, finisher: null, kills: 0, total: 0, updatedAt: Date.now(),
       ourCoins: 0, rivalCoins: rival, rankLive: false, rivalName: null,
+      started: !cfg?.manualStart, mission: { count: 0, done: false },
     };
   }
 
   #hit(id, damage, by, trigger = null) {
     const cfg = this.cfgOf(id);
     if (!cfg) return;
+    // 手動開始で待機中のボスは倒せない（開始してから）
+    if (cfg.manualStart && !this.#state(id).started) return;
     const s = this.#state(id);
     const prev = { hp: s.hp, maxHp: s.maxHp, round: s.round };
     s.total += damage;
@@ -451,7 +534,7 @@ export class BossEngine {
     const event = { kind: 'defeat', damage, by, tier: Math.max(1, hitTier(cfg, damage)), overflow: damage - prev.hp };
     this.#broadcast(id, prev, event);
     this.hub.emit('bossDefeated', { id, config: cfg, boss: this.get(id), by, trigger });
-    if (cfg.autoNext !== false) this.#scheduleNext(id);
+    if (cfg.autoNext !== false && !cfg.manualStart) this.#scheduleNext(id);
     this.#save(true);
   }
 
@@ -469,13 +552,13 @@ export class BossEngine {
     this.timers[id] = timer;
   }
 
-  // 次のボス: 何体目かを1つ進め、HP を hpScale 倍にして満タンで出す
-  #next(id) {
+  // 次のボス: 何体目かを1つ進め、HP を hpScale 倍にして満タンで出す。ミッションは新しい戦闘で数え直す
+  #next(id, kind = 'next') {
     const cfg = this.cfgOf(id) ?? {};
     const s = this.#state(id);
     const round = s.round + 1;
     const maxHp = maxHpFor(cfg, round);
-    this.#change(id, { round, hp: maxHp, maxHp, defeated: false, defeatedAt: 0, lastHit: null }, { kind: 'next' });
+    this.#change(id, { round, hp: maxHp, maxHp, defeated: false, defeatedAt: 0, lastHit: null, started: true, mission: { count: 0, done: false } }, { kind });
   }
 
   #change(id, patch, event) {
@@ -528,6 +611,9 @@ export class BossEngine {
           rivalCoins: s.rivalCoins == null ? null : Math.max(0, Number(s.rivalCoins) || 0),
           rankLive: false,
           rivalName: null,
+          // 古い保存には無い。無いときは「戦闘中」として扱い、今までの動きを変えない
+          started: s.started !== false,
+          mission: { count: Math.max(0, Math.floor(Number(s.mission?.count) || 0)), done: Boolean(s.mission?.done) },
         };
       }
     } catch {}

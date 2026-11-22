@@ -198,3 +198,100 @@ test('設定の検証: commands は1行ずつ、ダメージにするものは c
   assert.ok(bad.errors.some((e) => e.includes('bosses.default.commands')));
   assert.ok(bad.errors.some((e) => e.includes('bosses.default.hp')));
 });
+
+test('手動開始: 待機中はギフトで削れず、start で戦闘が始まる', () => {
+  const { engine, hub, sent } = setup({ default: boss({ hp: 1000, manualStart: true }) });
+  assert.equal(engine.get('default').started, false, '初めは待機中');
+  hub.emit('event', gift('Doughnut', 2, 30));
+  assert.equal(engine.get('default').hp, 1000, '待機中はダメージが入らない');
+  engine.apply('default', 'damage', 100);
+  assert.equal(engine.get('default').hp, 1000, '待機中は手で叩いても倒せない');
+  const out = engine.apply('default', 'start');
+  assert.equal(out.default.started, true, 'start で戦闘中になる');
+  const msg = sent.filter((m) => m.type === 'boss').at(-1);
+  assert.equal(msg.event.kind, 'start', '開始の知らせが出る');
+  hub.emit('event', gift('Doughnut', 2, 30));
+  assert.equal(engine.get('default').hp, 940, '開始後はギフトで削れる');
+  // 戦闘中の start は何もしない（知らせも増えない）
+  const before = sent.length;
+  engine.apply('default', 'start');
+  assert.equal(sent.length, before, '戦闘中の start は知らせを出さない');
+});
+
+test('手動開始: 倒した後は自動で出ず、start で次のボスが出る', () => {
+  const { engine } = setup({ default: boss({ hp: 100, hpScale: 2, manualStart: true }) });
+  engine.apply('default', 'start');
+  engine.apply('default', 'defeat');
+  const down = engine.get('default');
+  assert.equal(down.defeated, true);
+  assert.equal(down.nextAt, null, '手動開始では次のボスの予定を出さない');
+  const out = engine.apply('default', 'start');
+  assert.equal(out.default.round, 2, 'start で次のボスになる');
+  assert.equal(out.default.hp, 200, 'HP は hpScale 倍で満タン');
+  assert.equal(out.default.started, true);
+  assert.equal(out.default.defeated, false);
+});
+
+test('手動開始でない設定は、今までどおり常時戦闘中', () => {
+  const { engine, hub } = setup({ default: boss({ hp: 1000 }) });
+  assert.equal(engine.get('default').started, true);
+  hub.emit('event', gift('Doughnut', 1, 10));
+  assert.equal(engine.get('default').hp, 990);
+});
+
+test('ミッション: 指定ギフトの個数を戦闘中だけ数え、目標で達成になる', () => {
+  const { engine, hub, sent } = setup({ default: boss({ hp: 100000, missionGift: 'Rose', missionCount: 3 }) });
+  assert.deepEqual(engine.get('default').mission, { gift: 'Rose', target: 3, count: 0, done: false });
+  hub.emit('event', gift('Rose', 2, 1));
+  assert.equal(engine.get('default').mission.count, 2, '連打の個数ぶん数える');
+  hub.emit('event', gift('Doughnut', 5, 1));
+  assert.equal(engine.get('default').mission.count, 2, 'ほかのギフトは数えない');
+  hub.emit('event', gift('Rose', 5, 1));
+  const m = engine.get('default').mission;
+  assert.equal(m.count, 3, '数えは目標で止まる');
+  assert.equal(m.done, true, '目標で達成');
+  const msg = sent.filter((x) => x.type === 'boss' && x.event?.kind === 'mission').at(-1);
+  assert.equal(msg.event.done, true, '達成の知らせが出る');
+  hub.emit('event', gift('Rose', 1, 1));
+  assert.equal(engine.get('default').mission.count, 3, '達成後は数えない');
+});
+
+test('ミッション: テスト送信では進まず、討伐をまたぐと数え直す', () => {
+  const { engine, hub } = setup({ default: boss({ hp: 100, missionGift: 'Rose', missionCount: 50 }) });
+  hub.emit('event', { ...gift('Rose', 3, 1), test: true });
+  assert.equal(engine.get('default').mission.count, 0, 'テスト送信は本番の数を動かさない');
+  hub.emit('event', gift('Rose', 3, 1));
+  assert.equal(engine.get('default').mission.count, 3);
+  engine.apply('default', 'defeat');
+  engine.apply('default', 'next');
+  assert.equal(engine.get('default').mission.count, 0, '次のボスでは数え直す');
+});
+
+test('ミッション: 手動開始の待機中は進まない', () => {
+  const { engine, hub } = setup({ default: boss({ hp: 100000, manualStart: true, missionGift: 'Rose', missionCount: 2 }) });
+  hub.emit('event', gift('Rose', 1, 1));
+  assert.equal(engine.get('default').mission.count, 0);
+  engine.apply('default', 'start');
+  hub.emit('event', gift('Rose', 1, 1));
+  assert.equal(engine.get('default').mission.count, 1);
+});
+
+test('手動開始とミッションの状態はファイルに残り、作り直しても続きから', () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tw-boss-')), 'boss.json');
+  const first = setup({ default: boss({ hp: 100000, manualStart: true, missionGift: 'Rose', missionCount: 5 }) }, file);
+  first.engine.apply('default', 'start');
+  first.hub.emit('event', gift('Rose', 2, 1));
+  first.engine.flush();
+  const second = setup({ default: boss({ hp: 100000, manualStart: true, missionGift: 'Rose', missionCount: 5 }) }, file);
+  assert.equal(second.engine.get('default').started, true);
+  assert.equal(second.engine.get('default').mission.count, 2);
+});
+
+test('動作 boss.start で戦闘を始められる', async () => {
+  const { runActions, parseAction } = await import('../src/actions.js');
+  const { engine } = setup({ default: boss({ hp: 1000, manualStart: true }) });
+  assert.ok(parseAction({ type: 'boss.start' }, 'actions[0]'), 'boss.start が検証を通る');
+  const [r] = runActions([{ type: 'boss.start', id: 'default' }], { boss: engine });
+  assert.equal(r.ok, true);
+  assert.equal(engine.get('default').started, true);
+});

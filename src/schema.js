@@ -272,8 +272,10 @@ export const SCHEMA = {
       '討伐で「討伐!」のハンコと金の演出、とどめを刺した人のアイコン。少し待つと HP を hpScale 倍にした次のボスが出てくる。' +
       '討伐から次のボスが出るまでのダメージは「オーバーキル」として数字だけ出し、次のボスには持ち越さない。' +
       '討伐でルーレットを回したり（roulette）、Minecraft にコマンドを送ったり（commands）できる。' +
+      'manualStart を true にすると、ダッシュボードのボタンか動作 boss.start で開始するまでボスは待機し、ギフトのダメージも入らない（開始は /api/boss/<名前>/start でもできる）。' +
+      'missionGift と missionCount を入れると、戦闘中にそのギフトの個数を数えて画面に出しっぱなしにする（ミッション）。' +
       'HP はサーバーの data/boss.json に残るので、OBS を読み込み直しても続きから。URL は /widgets/boss.html?id=<名前>',
-    size: () => [720, 260],
+    size: () => [720, 420],
     fields: {
       ...placementFields(5, 39),
       name: str('魔王', 'ボスの名前（1体目）'),
@@ -292,6 +294,9 @@ export const SCHEMA = {
       nextNames: list([], '2体目からの名前（順に使う。足りなければ最後の名前。空なら同じ名前）'),
       autoNext: bool(true, '倒したら次のボスを出す（false なら倒れたまま。「HP を戻す」か「次のボス」で再開）'),
       nextDelay: num(6, '討伐から次のボスが出るまでの秒数', { min: 2, max: 120 }),
+      manualStart: bool(false, '手動で戦闘を始める（true のときは、ダッシュボードのボタンか動作 boss.start で開始するまでボスは待機し、ギフトのダメージも入らない。開始するとその体が出て、倒した後はまた開始するまで次の体は出ない。false なら今までどおり、ボスは常に出ていてギフトで削れる）'),
+      missionGift: str('', 'ミッションにするギフト名（または ID）。戦闘中、このギフトが届いた個数を数えて、画面に「ミッション」として出しっぱなしにする。空ならミッションなし'),
+      missionCount: num(0, 'ミッションの目標個数（missionGift のギフトがこの個数たまったら達成。数えは目標で止まる。0 でミッションなし）', { min: 0 }),
       defeatText: str('討伐!', '討伐のときに叩きつける文字'),
       roulette: str('', '討伐で回すルーレットの名前（roulettes の名前。空なら回さない）'),
       commands: {
