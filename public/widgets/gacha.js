@@ -157,6 +157,17 @@
     return flip;
   }
 
+  // 天井までの残り（おみくじの画面にだけある #pityBadge）。数値のときだけ出し、null や未定義なら何も出さない
+  function showPity(data) {
+    var badge = document.getElementById('pityBadge');
+    if (!badge) return;
+    var left = data ? data.pityLeft : null;
+    if (typeof left !== 'number' || !isFinite(left)) { badge.hidden = true; return; }
+    var leftEl = document.getElementById('pityLeft');
+    if (leftEl) leftEl.textContent = String(Math.max(0, Math.round(left)));
+    badge.hidden = false;
+  }
+
   function show(data) {
     if (!data) return;
     var phase = data.phase || 'idle';
@@ -171,6 +182,7 @@
     if (data.resultFont) stageEl.setAttribute('data-font', data.resultFont);
     showPick(data);
     renderTen(data);
+    showPity(data);
     if (kind === 'omikuji') {
       var who = data.trigger && data.trigger.user;
       var drawerName = phase !== 'idle' && who && who.name ? who.name : '';

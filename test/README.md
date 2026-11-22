@@ -51,6 +51,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `gacha.test.js` | ガチャのテスト |
 | `omikuji-pick.test.js` | おみくじの番号の選び方(本人のコメントだけ・時間切れ・配信者が選ぶ・配信者も押さない・待ち列・残りはミリ秒で渡す) |
 | `omikuji-personal-pity.test.js` | おみくじの個人の天井（人ごとの数え・全体との相互作用・保存と配信終了での戻し・テスト送信で進まない） |
+| `omikuji-pity.test.js` | おみくじの天井(大吉が出ない回数が設定に届いたら確定。配信ごとに0へ戻る)と、残り回数(pityLeft。天井の対象の重みが全部0のときは null) |
+| `omikuji-pity-badge.test.js` | おみくじの天井バッジ(pityLeft が数値のときだけ「あと◯回」を出し、null や未定義では出さない) |
 | `omikuji-ten-flip.test.js` | おみくじ10連の札が裏から表へ返る表示（表の組み立てと時間差、終わると印が消える、大吉の札だけ長く見せる舞台側の決まり） |
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
@@ -88,6 +90,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-20
+最後に直した日: 2026-11-22
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

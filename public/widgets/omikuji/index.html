@@ -196,6 +196,12 @@
   .ten-slip[data-tier="daikyo"] { background-color: #4A4238; color: var(--washi); }
   .ten-slip[data-tier="kyo"] { background-color: #B9B0A0; }
   @keyframes tenpop { 0% { opacity: 0; transform: translateY(14px) scale(.8) rotate(-3deg); } 100% { opacity: 1; transform: none; } }
+  /* 天井まであと何回か: 舞台の右下の隅に小さく出す（和紙の丸に墨の縁、数は朱）。状態の pityLeft が数値のときだけ出る */
+  .pity-badge { position: absolute; right: 4px; bottom: 6px; z-index: 6; box-sizing: border-box; width: 60px; height: 60px; margin: 0; padding: 4px; border: 2px solid var(--ink); border-radius: 50%; color: var(--ink); box-shadow: 0 4px 10px rgba(0, 0, 0, .28); display: grid; align-content: center; justify-items: center; gap: 1px; text-align: center; }
+  .pity-badge[hidden] { display: none; }
+  .pity-head { font-size: 10px; letter-spacing: .14em; padding-left: .14em; }
+  .pity-count { font-size: 15px; font-weight: 900; line-height: 1; white-space: nowrap; }
+  .pity-count b { color: var(--shu); }
   /* 10連の表示（gacha.js が data-ten="flip" を付ける）: 舞台を横4:縦3にして、裏返しの札が1枚ずつ回転して表に返る。
      表の意匠は正規の札そのまま（見出し・二重枠・運勢色の字・名前・朱印）。試作v3の見た目をそのまま移した。
      大吉の札だけ、返る動きを長くし、金の光を残して長く見せる（第2段） */
@@ -256,6 +262,7 @@
     <p class="kicker" id="phase"></p>
     <p class="time" id="time"></p>
   </div>
+  <p class="pity-badge washi" id="pityBadge" hidden><span class="pity-head">あと</span><span class="pity-count"><b id="pityLeft"></b>回</span></p>
 </div>
 <script>
   // 舞台は 360x460 で作ってある。置かれた枠がそれより小さいときは、切らずに縮めて全部見せる。
