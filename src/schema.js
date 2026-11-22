@@ -46,7 +46,7 @@ export const SCHEMA = {
         type: 'bundleList',
         default: [],
         desc: 'まとめの一覧。名前と、入れるウィジェットを選ぶ',
-        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw'],
+        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw', 'commentSlide'],
       },
     },
   },

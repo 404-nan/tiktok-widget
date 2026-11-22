@@ -295,6 +295,7 @@ const PAGE_SECTIONS = {
   ranking: ['rankings', 'map'], throne: ['throne', 'map'], vote: ['votes', 'map'], cheer: ['cheers', 'map'],
   'push-button': ['pushButtons', 'map'], ticker: ['tickers', 'map'], supporters: ['supporters', 'map'], tts: ['tts', 'map'],
   superchat: ['superchats', 'map'], 'mc-gifts': ['mcGifts', 'map'], visitors: ['visitors', 'map'],
+  'comment-slide': ['commentSlide', 'map'],
   rush: ['rush', 'object'], stepup: ['stepup', 'object'], swarm: ['swarm', 'object'], combo: ['combo', 'object'],
   media: ['mediaAlerts', 'object'], gacha: ['gacha', 'object'], omikuji: ['omikuji', 'object'], peka: ['peka', 'object'],
   dareba: ['dareba', 'object'], slot: ['slots', 'object'], ootori: ['ootori', 'object'], 'card-draw': ['cardDraw', 'object'],
