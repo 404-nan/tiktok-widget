@@ -686,7 +686,8 @@ SCHEMA.omikuji = {
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
     'luckBoost を有効にすると、この配信で投げたコインが luckUnitCoins に届くごとに大吉の重みだけが元の値から luckStepPct%ずつ上がる。滞在の区切りを luckStayUnits の個数ためた分も段に数え、投げた量と滞在の段は合わせて luckMaxSteps まで。視聴者ごとに別々に計算し、天井の数え・発動は変わらない。' +
     'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
-    'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。elevenGifts に入れたギフトなら11連にもできる。URL は /widgets/omikuji.html',
+    'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。elevenGifts に入れたギフトなら11連にもできる。' +
+    '大きな演出が流れている間は、stageQueue の順番待ちで抽選を並ばせ、終わってから順番に引く。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
@@ -705,6 +706,8 @@ SCHEMA.omikuji = {
     luckStepPct: num(1, '1段で大吉の元の重みに足す割合（％）', { min: 0 }),
     luckMaxSteps: num(10, '大吉の重みを上げる段の上限', { min: 0, max: 999 }),
     luckStayUnits: num(6, '滞在の区切り（ポイントの「滞在の区切り」、既定5分）をこの個数ためるごとに1段上がる。既定6で約30分の滞在ごとに1段。0 にすると滞在では上がらない', { min: 0, max: 999 }),
+    stageQueue: bool(true, '大きな演出の順番待ち。おみくじの抽選やカードめくりの開示など、大きな演出が流れている間は新しい抽選を始めず、終わってから順番に1つずつ引く。切ると、演出が重なっても今までどおりすぐ引く'),
+    stageQueueMax: num(20, '順番待ちに並べる抽選の上限。超えた分は引かず、演出の記録に残す', { min: 1, max: 100 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
