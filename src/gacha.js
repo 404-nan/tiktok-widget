@@ -137,6 +137,7 @@ export class Gacha {
       seq: this.seq,
       durations: this.durations,
       pityCount: this.pityCount,
+      pityLeft: this.#pityLeft(),
       pending: this.pending.length,
       enabled: this.config.enabled !== false,
       tier: show ? this.tier : null,
@@ -160,6 +161,19 @@ export class Gacha {
     if (!this.pick) return null;
     const { by, count, endsAt } = this.pick;
     return { by, count, leftMs: Math.max(0, endsAt - Date.now()) };
+  }
+
+  /** 天井までの残り回数（全体の天井だけ。前面に出す用）。天井が無効（0）のときは null。0 未満にはしない（0 で止める）。
+   * 天井の対象（pity が true）のうち重みが正のものが1つも無い設定では、天井は実際には発動しない。
+   * そのときは pity の設定値にかかわらず null にして、「あと0回」に張り付いて必ず出ると誤解させない。
+   * 数えは対象を引くと 0 に戻るので、残りもそのまま満タンへ戻る。個人の天井（pityPersonal）の残りはここには混ぜない。 */
+  #pityLeft() {
+    const every = Math.max(0, Number(this.config.pity) || 0);
+    if (every <= 0) return null;
+    const tiers = Array.isArray(this.config.tiers) ? this.config.tiers : [];
+    const hasTarget = tiers.some((tier) => tier?.pity === true && Number(tier?.weight) > 0);
+    if (!hasTarget) return null;
+    return Math.max(0, every - this.pityCount);
   }
 
   /** 配信者が番号を選ぶ（配信者の番のときだけ） */
@@ -479,6 +493,7 @@ export class Gacha {
       durations: this.durations,
       trigger: this.trigger,
       pityCount: this.pityCount,
+      pityLeft: this.#pityLeft(),
       pending: this.pending.length,
       tier: show ? this.tier : null,
       forced: show ? this.forced : false,
