@@ -107,9 +107,12 @@
       box.textContent = '';
       box.hidden = true;
       stageEl.removeAttribute('data-ten');
+      stageEl.removeAttribute('data-ten-rows');
       return;
     }
     stageEl.setAttribute('data-ten', 'flip');
+    // 段数（5列で折り返した段。舞台側の CSS が段数に合わせて札の中身を縮める、対の決まり）
+    stageEl.setAttribute('data-ten-rows', String(Math.ceil(results.length / 5)));
     box.hidden = false;
     box.textContent = '';
     var who = data.trigger && data.trigger.user;

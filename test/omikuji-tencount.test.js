@@ -235,3 +235,73 @@ test('結果が最大30件でも、札は舞台の中に収まる（フリップ
   assert.ok(rowFor(30) >= 40, `30件で1段が ${rowFor(30)}px となり、札の見出しと名前が収まらない`);
   assert.ok(rowFor(10) >= 92, '10件の札の高さが今まで（92px）より小さい');
 });
+
+// --- 検品の直し（2回目）: 箱だけでなく、札の中身も段の高さに収める ---
+// 段が多いと結果の字（44px固定）が段より大きくなり、見出し・名前・印と重なっていた。
+// 4段以上は中身を段に合わせて小さくし、見出し・名前・印を省く（3段までは今まで通り）。
+
+function tenGeometry() {
+  const stageH = Number(/\.stage\[data-ten="flip"\] \{[^}]*\bheight:\s*(\d+)px/.exec(OMIKUJI_HTML)?.[1]);
+  const flipTen = /\.stage\[data-ten="flip"\] \.ten \{([^}]*)\}/.exec(OMIKUJI_HTML)?.[1] ?? '';
+  const inset = /inset:\s*(\d+)px\s+\d+px\s+(\d+)px/.exec(flipTen);
+  const gap = Number(/\.ten \{[^}]*\bgap:\s*(\d+)px/.exec(OMIKUJI_HTML)?.[1]);
+  const cols = Number(/\.ten \{[^}]*grid-template-columns:\s*repeat\((\d+),\s*1fr\)/.exec(OMIKUJI_HTML)?.[1]);
+  const area = stageH - Number(inset?.[1]) - Number(inset?.[2]);
+  const rowFor = (n) => {
+    const rows = Math.ceil(n / cols);
+    return (area - (rows - 1) * gap) / rows;
+  };
+  return { cols, rowFor };
+}
+
+// 結果の字の大きさを CSS から取る（段ごとの上書きがあればそちら、無ければ既定）
+function resultFontSize(rows, suffix) {
+  const sel = suffix ? `\\.m-result\\.${suffix}` : '\\.m-result';
+  if (rows >= 4) {
+    const over = new RegExp(`\\[data-ten-rows="${rows}"\\] \\.ten-slip ${sel} \\{ font-size: (\\d+)px; \\}`).exec(OMIKUJI_HTML);
+    if (over) return Number(over[1]);
+  }
+  const base = new RegExp(`\\.ten-slip ${sel} \\{[^}]*?font-size: (\\d+)px`).exec(OMIKUJI_HTML);
+  return base ? Number(base[1]) : NaN;
+}
+
+test('結果の字の大きさは、どの件数でも1段の高さ以下（札の中身の収まり）', () => {
+  const { cols, rowFor } = tenGeometry();
+  for (let n = 2; n <= 30; n++) {
+    const rows = Math.ceil(n / cols);
+    const rowH = rowFor(n);
+    for (const suffix of ['', 'len3', 'len4', 'len5', 'len6']) {
+      const size = resultFontSize(rows, suffix);
+      assert.ok(Number.isFinite(size), `${rows}段（${suffix || '基本'}）の字の大きさを CSS から取れない`);
+      assert.ok(size <= rowH, `${n}件（${rows}段・1段 ${rowH.toFixed(1)}px）で結果の字 ${size}px が段の高さを超える`);
+    }
+  }
+});
+
+test('段が多いときは、結果の字を縦に積んだ高さも段に収まり、見出し・名前・印は省かれる', () => {
+  const { cols, rowFor } = tenGeometry();
+  const chars = { '': 2, len3: 3, len4: 4, len5: 5, len6: 6 };
+  for (const rows of [4, 5, 6]) {
+    const rowH = rowFor(rows * cols);
+    for (const [suffix, count] of Object.entries(chars)) {
+      const size = resultFontSize(rows, suffix);
+      // 縦書きは1文字の高さがほぼ字の大きさ（字間 -.02em ぶん少し詰まる）
+      assert.ok(size * count * 0.98 <= rowH, `${rows}段（1段 ${rowH.toFixed(1)}px）で${count}文字の結果（${size}px）が縦に積むと段からはみ出す`);
+    }
+    for (const part of ['m-head', 'm-foot', 'm-seal']) {
+      assert.match(OMIKUJI_HTML, new RegExp(`\\[data-ten-rows="${rows}"\\] \\.ten-slip \\.${part}[^}]*display: none`), `${rows}段で ${part} を省く決まりが無い`);
+    }
+  }
+});
+
+test('前面は、結果の件数から段数を舞台に出す（中身を縮める決まりと対）', () => {
+  const { byId, send } = loadOmikujiFront();
+  send({ phase: 'ten', trigger: tenTrigger, results: tenResults(30) });
+  assert.equal(byId.get('stage').getAttribute('data-ten-rows'), '6');
+  send({ phase: 'ten', trigger: tenTrigger, results: tenResults(20) });
+  assert.equal(byId.get('stage').getAttribute('data-ten-rows'), '4');
+  send({ phase: 'ten', trigger: tenTrigger, results: tenResults(10) });
+  assert.equal(byId.get('stage').getAttribute('data-ten-rows'), '2');
+  send({ phase: 'ten', trigger: tenTrigger, results: null });
+  assert.equal(byId.get('stage').getAttribute('data-ten-rows'), null);
+});
