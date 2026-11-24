@@ -149,3 +149,60 @@ test('単発の抽選でも、大吉の確率が 0 なら天井に届いても�
   assert.equal(omikuji.snapshot().pityCount, 3, '保証は発動せず、数えは増え続ける');
   omikuji.close();
 });
+test('天井の残り（pityLeft）は、設定から今の数えを引いた数。大吉で数えが戻れば満タンに戻る', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji, sent } = setup({ pity: 2 });
+  assert.equal(omikuji.snapshot().pityLeft, 2, 'まだ引いていないので満タン');
+  drawAndSee(t, omikuji);
+  assert.equal(omikuji.snapshot().pityLeft, 1);
+  assert.equal(sent.at(-1).pityLeft, 1, '画面へ渡すお知らせにも載る');
+  drawAndSee(t, omikuji);
+  assert.equal(omikuji.snapshot().pityLeft, 0, '天井に届くと0');
+  const hit = drawAndSee(t, omikuji); // 天井で大吉が確定し、数えは 0 に戻る
+  assert.equal(hit.tier, 'daikichi');
+  assert.equal(hit.forced, true);
+  assert.equal(omikuji.snapshot().pityCount, 0);
+  assert.equal(omikuji.snapshot().pityLeft, 2, '残りも満タンに戻る');
+  omikuji.close();
+});
+
+test('大吉が自然に出たときも、残りは満タンに戻る', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji } = setup({ pity: 5 }, () => 0); // 先頭の大吉を引く
+  drawAndSee(t, omikuji);
+  assert.equal(omikuji.snapshot().pityCount, 0);
+  assert.equal(omikuji.snapshot().pityLeft, 5);
+  omikuji.close();
+});
+
+test('天井が無効（0）のときは、残りは null', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const { omikuji, sent } = setup({ pity: 0 });
+  assert.equal(omikuji.snapshot().pityLeft, null);
+  drawAndSee(t, omikuji);
+  assert.equal(omikuji.snapshot().pityCount, 1, '数え自体は進む');
+  assert.equal(omikuji.snapshot().pityLeft, null);
+  assert.equal(sent.at(-1).pityLeft, null);
+  omikuji.close();
+});
+
+test('天井の対象の重みが 0 だけの設定では、残りは null（天井は実際には発動しない）', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const tiers = defaultsFor('omikuji').tiers.map((tier) => (tier.id === 'daikichi' ? { ...tier, weight: 0 } : tier));
+  const { omikuji, sent } = setup({ pity: 2, tiers });
+  assert.equal(omikuji.snapshot().pityLeft, null, '発動しない天井の残りは出さない');
+  drawAndSee(t, omikuji);
+  assert.equal(omikuji.snapshot().pityCount, 1, '数え自体は進む');
+  assert.equal(omikuji.snapshot().pityLeft, null, '数えが進んでも残りは出さない');
+  assert.equal(sent.at(-1).pityLeft, null, '画面へ渡すお知らせにも載らない');
+  omikuji.close();
+});
+
+test('残りは 0 で止める（数えが設定を超えてもマイナスにしない）', () => {
+  const { omikuji } = setup({ pity: 2 });
+  omikuji.pityCount = 5;
+  assert.equal(omikuji.snapshot().pityLeft, 0);
+  omikuji.pityCount = 999;
+  assert.equal(omikuji.snapshot().pityLeft, 0);
+  omikuji.close();
+});

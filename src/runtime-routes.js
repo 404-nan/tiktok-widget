@@ -30,7 +30,7 @@ export function bindRoutes(r, ctx) {
     id, hub, store, info, entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues, timerSeconds, performControl,
   } = ctx;
@@ -218,6 +218,17 @@ export function bindRoutes(r, ctx) {
       res.status(400).json({ error: err.message });
     }
   });
+  // 扉の確率ゲーム。例: /api/door/default/start（挑戦を始める）・/api/door/default/pick?n=1（左の扉）・?n=2（右の扉）・/api/door/all/reset
+  r.get('/api/door', (_req, res) => res.json(door.snapshot()));
+  r.all('/api/door/:id/:action', (req, res) => {
+    try {
+      const did = req.params.id === 'all' ? null : cfg.activeId(hub.config, 'doors', req.params.id === 'active' ? null : req.params.id);
+      const value = req.params.action === 'pick' ? (req.query.n ?? req.body?.n ?? req.query.value ?? req.body?.value) : undefined;
+      res.json({ ok: true, door: door.apply(did, req.params.action, value) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
   // コメント投票。Stream Deck から押せるように GET と POST の両方を受ける。
   r.get('/api/vote', (_req, res) => res.json(vote.snapshot()));
   r.all('/api/vote/:id/:action', (req, res) => {
@@ -240,6 +251,32 @@ export function bindRoutes(r, ctx) {
         else if (action === 'reset') out[id] = (vote.reset(id), vote.snapshot()[id]);
       }
       return res.json({ ok: true, vote: ids.length === 1 ? out[ids[0]] : undefined, votes: out });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  });
+  // クイズ。Stream Deck から押せるように GET と POST の両方を受ける。
+  // start には今回だけの問題（question / answer / choices / seconds）を渡せる。
+  r.get('/api/quiz', (_req, res) => res.json(quiz.snapshot()));
+  r.all('/api/quiz/:id/:action', (req, res) => {
+    const requested = req.params.id;
+    const action = req.params.action;
+    const allowedActions = ['status', 'start', 'finish', 'reset'];
+    if (!allowedActions.includes(action)) return res.status(400).json({ error: 'クイズの動作は start / finish / reset / status のどれかです' });
+    const ids = requested === 'all'
+      ? quiz.ids()
+      : [requested === 'active' ? cfg.activeId(hub.config, 'quizzes') : requested];
+    try {
+      if (action === 'status') return res.json({ ok: true, quizzes: quiz.snapshot() });
+      if (!ids.length || ids.some((id) => !id || !quiz.ids().includes(id))) throw new Error('クイズの設定がありません');
+      const data = { ...req.body, ...req.query };
+      const out = {};
+      for (const id of ids) {
+        if (action === 'start') out[id] = quiz.start(id, { question: data.question, answer: data.answer, choices: data.choices, seconds: data.seconds, source: data.source });
+        else if (action === 'finish') out[id] = quiz.finish(id);
+        else if (action === 'reset') out[id] = (quiz.reset(id), quiz.snapshot()[id]);
+      }
+      return res.json({ ok: true, quiz: ids.length === 1 ? out[ids[0]] : undefined, quizzes: out });
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }

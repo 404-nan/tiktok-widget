@@ -14,6 +14,15 @@ const oneOf = (values, def, desc) => ({ type: 'enum', values, default: def, desc
 const color = (def, desc) => ({ type: 'color', default: def, desc });
 const list = (def, desc, values) => ({ type: 'list', default: def, desc, values });
 
+// 書体（フォント）の設定。全ウィジェット共通の基本フォント（テーマ）と、ウィジェット個別の書体で同じ名前（font / customFont）を使う。
+// 画面側の効かせ方は public/widgets/lib/fonts.js の applyFont が持つ（番号はテストで照合する）。
+// 書体の実体は外部から読み込まず、端末や配信ソフト側にある書体名の並びで当てる。
+export const FONT_VALUES = ['default', 'rounded', 'mincho', 'pop', 'custom'];
+export const fontFields = () => ({
+  font: oneOf(FONT_VALUES, 'default', '書体（フォント）。default 今の書体 / rounded 丸ゴシック / mincho 明朝 / pop ポップ / custom 下の「自分の書体」を使う'),
+  customFont: str('', '自分の書体の名前（font が custom のとき使う。パソコンに入っている書体の名前を書く）'),
+});
+
 // 縦の配信画面で置き場所を決める項目。YAML に書かなくても初期値で使える。
 const placementFields = (x = 12, y = 12) => ({
   posX: num(x, '配信画面の左端（幅に対する %）', { min: 0, max: 100 }),
@@ -26,8 +35,9 @@ export const SCHEMA = {
   theme: {
     kind: 'object',
     title: 'テーマ',
-    desc: '全ウィジェット共通の色と大きさ。色は #RRGGBB か、accent / gold / ink / ink-2 / paper の名前で書ける。',
+    desc: '全ウィジェット共通の色と大きさ、基本の書体。色は #RRGGBB か、accent / gold / ink / ink-2 / paper の名前で書ける。書体は全ウィジェットの文字に効き、ウィジェット側に書体の設定があるものはそちらが優先（そちらが default のときはこの基本の書体に従う）。',
     fields: {
+      ...fontFields(),
       mode: oneOf(['dark', 'light'], 'dark', 'dark は墨の面に白文字、light は白の面に墨文字'),
       accent: color('#FF4F1F', '差し色（朱）。「今起きたこと」を示す色'),
       gold: color('#FFC53D', 'コインや達成を示す色'),
@@ -46,7 +56,7 @@ export const SCHEMA = {
         type: 'bundleList',
         default: [],
         desc: 'まとめの一覧。名前と、入れるウィジェットを選ぶ',
-        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw'],
+        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'quizzes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw', 'commentSlide'],
       },
     },
   },
@@ -67,6 +77,7 @@ export const SCHEMA = {
       position: oneOf(['top', 'center', 'bottom'], 'top', '縦の位置'),
       align: oneOf(['left', 'center', 'right'], 'left', '横の位置'),
       style: str('standard', '通知の型（型の定義はウィジェット側の styles.json にデータで持ち、番号で選ぶ。未知の番号は標準の型で出す）'),
+      ...fontFields(),
       sound: bool(true, '効果音を鳴らす'),
       volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
       followText: str('フォローしてくれました', 'フォローのときの文'),
@@ -272,8 +283,10 @@ export const SCHEMA = {
       '討伐で「討伐!」のハンコと金の演出、とどめを刺した人のアイコン。少し待つと HP を hpScale 倍にした次のボスが出てくる。' +
       '討伐から次のボスが出るまでのダメージは「オーバーキル」として数字だけ出し、次のボスには持ち越さない。' +
       '討伐でルーレットを回したり（roulette）、Minecraft にコマンドを送ったり（commands）できる。' +
+      'manualStart を true にすると、ダッシュボードのボタンか動作 boss.start で開始するまでボスは待機し、ギフトのダメージも入らない（開始は /api/boss/<名前>/start でもできる）。' +
+      'missionGift と missionCount を入れると、戦闘中にそのギフトの個数を数えて画面に出しっぱなしにする（ミッション）。' +
       'HP はサーバーの data/boss.json に残るので、OBS を読み込み直しても続きから。URL は /widgets/boss.html?id=<名前>',
-    size: () => [720, 260],
+    size: () => [720, 420],
     fields: {
       ...placementFields(5, 39),
       name: str('魔王', 'ボスの名前（1体目）'),
@@ -292,6 +305,9 @@ export const SCHEMA = {
       nextNames: list([], '2体目からの名前（順に使う。足りなければ最後の名前。空なら同じ名前）'),
       autoNext: bool(true, '倒したら次のボスを出す（false なら倒れたまま。「HP を戻す」か「次のボス」で再開）'),
       nextDelay: num(6, '討伐から次のボスが出るまでの秒数', { min: 2, max: 120 }),
+      manualStart: bool(false, '手動で戦闘を始める（true のときは、ダッシュボードのボタンか動作 boss.start で開始するまでボスは待機し、ギフトのダメージも入らない。開始するとその体が出て、倒した後はまた開始するまで次の体は出ない。false なら今までどおり、ボスは常に出ていてギフトで削れる）'),
+      missionGift: str('', 'ミッションにするギフト名（または ID）。戦闘中、このギフトが届いた個数を数えて、画面に「ミッション」として出しっぱなしにする。空ならミッションなし'),
+      missionCount: num(0, 'ミッションの目標個数（missionGift のギフトがこの個数たまったら達成。数えは目標で止まる。0 でミッションなし）', { min: 0 }),
       defeatText: str('討伐!', '討伐のときに叩きつける文字'),
       roulette: str('', '討伐で回すルーレットの名前（roulettes の名前。空なら回さない）'),
       commands: {
@@ -305,6 +321,31 @@ export const SCHEMA = {
       superstreamAction: str('', '討伐で起こすマイクラの演出を1つ（例 lightning）'),
       power: num(1, '演出の強さ（揺れ・ダメージの数字の大きさの倍率）', { min: 0.3, max: 3 }),
       color: color('accent', 'HP の色'),
+      sound: bool(true, '効果音'),
+      volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    },
+  },
+
+  doors: {
+    kind: 'map',
+    page: 'door',
+    title: '扉の確率ゲーム',
+    desc:
+      'ギフトで挑戦が始まる、左右の扉を選ぶ3段階の確率ゲーム。各段階で当たりの扉が開く確率は chance1〜3（%）で設定でき、chance3 を 0 にすると最後だけ必ず外れる形にもできる。' +
+      '扉はダッシュボード・モニター・URL（Stream Deck など。例 /api/door/<名前>/pick?n=1）で選ぶ。' +
+      '挑戦中・結果の表示中に来た対象ギフトは新しい挑戦を始めない。状態はサーバーの data/doors.json に残る（挑戦の途中で止まったら待機に戻る）。URL は /widgets/door.html?id=<名前>',
+    size: () => [880, 620],
+    fields: {
+      ...placementFields(20, 14),
+      title: str('扉の確率ゲーム', '上に出す見出し'),
+      gifts: list([], 'このギフト名（または ID）で挑戦が始まる。空なら minCoins 以上のギフトで始まる'),
+      minCoins: num(0, '挑戦が始まるギフトの合計コイン（gifts が空のとき。0 でギフト全部）', { min: 0 }),
+      chance1: num(80, '1段目で当たりの扉が開く確率（%）', { min: 0, max: 100 }),
+      chance2: num(50, '2段目で当たりの扉が開く確率（%）', { min: 0, max: 100 }),
+      chance3: num(30, '3段目で当たりの扉が開く確率（%。0 にすると最後は必ず外れる）', { min: 0, max: 100 }),
+      clearText: str('全ての扉を突破！', '3段全部成功したときに出す文字'),
+      failText: str('残念…', '外れたときに出す文字'),
+      resultSeconds: num(10, '結果（突破・失敗）を出してから待機に戻るまでの秒数', { min: 3, max: 60 }),
       sound: bool(true, '効果音'),
       volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
     },
@@ -684,8 +725,11 @@ SCHEMA.omikuji = {
     '番号（棒は 1〜10 番）は pickMode で選び方を決める。送った人が選ぶときは本人のコメントの数字だけを拾い、pickSeconds 秒で時間切れ。' +
     '時間切れは timeoutMode に従い、配信者が選ぶ番になっても同じ秒数だれも押さなければランダムで引く。運勢は番号と関係なく tiers の重みで決まる。選んでいる間の次のギフトは待ち列で待つ。' +
     '天井（pity）は、大吉が出ない回数が設定した回数に届いたら、次の1回を大吉に確定させる仕組み。数えるのは配信全体で、大吉が出たら 0 に戻る。' +
+    'luckBoost を有効にすると、この配信で投げたコインが luckUnitCoins に届くごとに大吉の重みだけが元の値から luckStepPct%ずつ上がる。滞在の区切りを luckStayUnits の個数ためた分も段に数え、投げた量と滞在の段は合わせて luckMaxSteps まで。視聴者ごとに別々に計算し、天井の数え・発動は変わらない。' +
     'きっかけ: gifts のギフト（設定があれば、そのギフトだけで引く）/ gifts が空なら minCoins 以上のギフト / omikuji.start。連打（コンボ）は回数ぶん続けて引く。' +
-    '10連（10回ぶんをまとめて引いて一気に出す）は tenBatch（連打が10回以上のとき／同じ視聴者の分が待ちに10回ぶんたまったとき）か tenGifts（専用ギフト）で使う。URL は /widgets/omikuji.html',
+    'まとめ引きの回数は tenCount で変えられる。まとめ引きは tenBatch（連打が tenCount 回以上のとき／同じ視聴者の分が待ちに tenCount 回ぶんたまったとき）か tenGifts（専用ギフト）で使う。elevenGifts に入れたギフトなら11連にもできる。' +
+    '大きな演出が流れている間は、stageQueue の順番待ちで抽選を並ばせ、終わってから順番に引く。' +
+    'いいね・シェアで引ける回（likeDrawEvery / shareDrawEvery）も同じ抽選の道を通り、天井の数えも同じく進む。順番待ちに入らなかった分は権利として保持して舞台が空いたら古い順に消化するが、保持は1人あたり stageQueueMax と同数までで、超えた分は引かず演出の記録に残す。URL は /widgets/omikuji.html',
   fields: {
     ...SCHEMA.gacha.fields,
     enabled: bool(true, 'おみくじを使う'),
@@ -695,8 +739,22 @@ SCHEMA.omikuji = {
     minCoins: num(1, '合計コインがこれ以上のギフトで引く。1 なら全部のギフトで引く。0 にするとギフトでは引かない（動作からの開始だけになる）。gifts を設定しているときは、この条件は使わない', { min: 0 }),
     pity: num(0, '天井。この回数だけ大吉が出なかったら、次の1回は大吉が確定（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。大吉が出たらその場で 0 に戻る。ただし大吉の確率（weight）を 0 にしていると、天井でも大吉は出ない（天井は発動しない）', { min: 0, max: 999 }),
     pityPersonal: num(0, '個人の天井。この回数だけ、その人が引いて大吉が出なかったら、その人の次の1回は大吉が確定（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。大吉が出たら、その人の数えはその場で 0 に戻る。大吉の確率（weight）を 0 にしていると発動しない', { min: 0, max: 999 }),
-    tenBatch: bool(true, '10連まとめ。連打（コンボ）が10回以上なら、10回ぶんを1つのまとめ引き（10連）にして一気に出す。余りは通常の引き方で引く。また、抽選が続いて同じ視聴者の分が待ちに10回ぶんたまったときも、自動で10連にする。変えたいときはここでオフに切り替えられます。設定しない場合も、同じ視聴者の分が10回ぶん貯まると、自動で10連になります。'),
-    tenGifts: list([], '10連ギフト（ID または名前）。このギフトが届いたら、1回のギフトで10回ぶんをまとめて引く（通常の引き方より優先）'),
+    tenCount: num(10, 'まとめ引きの回数。専用ギフトのまとめ引きと、まとめ引きの貯まる数に効く', { min: 2, max: 30 }),
+    tenBatch: bool(true, 'まとめ引き。連打（コンボ）が tenCount 回以上なら、tenCount 回ぶんをひとつのまとめ引きにして一気に出す。余りは通常の引き方で引く。また、抽選が続いて同じ視聴者の分が待ちに tenCount 回ぶんたまったときも、自動でまとめ引きにする。変えたいときはここでオフに切り替えられます。設定しない場合も、同じ視聴者の分が tenCount 回ぶん貯まると、自動でまとめ引きになります。'),
+    tenGifts: list([], 'まとめ引きギフト（ID または名前）。このギフトが届いたら、届いたぶんをまとめて tenCount 回引く（通常の引き方より優先）'),
+    elevenGifts: list([], '11連ギフト（ID または名前）。このギフトが届いたら、まとめ引きの回数（tenCount）に関係なく11回ぶんをまとめて引く（tenGifts より優先）'),
+    luckBoost: bool(false, '多く投げた人の運を上げる（無効なら確率は変わらない）'),
+    luckUnitCoins: num(1000, 'この配信で投げた合計コインが届くごとに上がる段の単位', { min: 1 }),
+    luckStepPct: num(1, '1段で大吉の元の重みに足す割合（％）', { min: 0 }),
+    luckMaxSteps: num(10, '大吉の重みを上げる段の上限', { min: 0, max: 999 }),
+    luckStayUnits: num(6, '滞在の区切り（ポイントの「滞在の区切り」、既定5分）をこの個数ためるごとに1段上がる。既定6で約30分の滞在ごとに1段。0 にすると滞在では上がらない', { min: 0, max: 999 }),
+    likeDrawEvery: num(0, 'いいねで引く。その人がこの配信で押したいいねが、この数の倍数に届くたびに、その人のおみくじを1回引く（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。途中の端数は持ち越す。テスト送信のいいねでは数えない', { min: 0, max: 100000 }),
+    shareDrawEvery: num(0, 'シェアで引く。その人がこの配信でシェアした回数が、この数の倍数に届くたびに、その人のおみくじを1回引く（0 で無効）。数えるのは1回の配信の中だけで、配信が終わると0に戻る。テスト送信のシェアでは数えない', { min: 0, max: 1000 }),
+    likeBoostTotal: num(0, '総いいね数の的。その配信の総いいね数（全員の合計）がこの数に届いたら、その配信の残りずっと、大吉の重みに下の倍率が掛かる（0 で無効）。テスト送信のいいねは総いいね数に数えない', { min: 0 }),
+    likeBoostTimes: num(2, '総いいね数が的に届いたときの大吉の重みの倍率（1.5 のような小数も可）。確率上昇（luckBoost）の％が掛かったあとの重みに、最後にこの倍率が掛かる。大吉の確率（weight）を 0 にしていると、倍率が掛かっても出ない', { min: 1, max: 100 }),
+    likeGauge: oneOf(['off', 'bar', 'liquid', 'text'], 'off', '総いいね数までの進み具合の表示。off 出さない / bar 通常のバー / liquid 液体が溜まるバー / text 文字のみ。出すのは総いいね数の的（likeBoostTotal）までの進みだけで、個人の残りは出さない。的に届いたら「確率○倍中」と出す'),
+    stageQueue: bool(true, '大きな演出の順番待ち。おみくじの抽選やカードめくりの開示など、大きな演出が流れている間は新しい抽選を始めず、終わってから順番に1つずつ引く。切ると、演出が重なっても今までどおりすぐ引く'),
+    stageQueueMax: num(20, '順番待ちに並べる抽選の上限。超えた分は引かず、演出の記録に残す', { min: 1, max: 100 }),
     resultFont: oneOf(['simple', 'bold', 'mincho', 'brush'], 'simple', '運勢の文字。simple は Zen Kaku Gothic New 900、bold は Dela Gothic One、mincho は Shippori Mincho 800、brush は Yuji Syuku'),
     pickMode: oneOf(['viewer', 'random', 'streamer'], 'viewer', '長い型のときだけ。棒の番号の選び方。viewer は送った人がコメントで選ぶ、random はおまかせ、streamer は配信者がダッシュボードのボタンで選ぶ'),
     pickSeconds: num(10, '番号を待つ秒数', { min: 3, max: 120 }),
@@ -937,6 +995,32 @@ SCHEMA.votes = {
   },
 };
 
+SCHEMA.quizzes = {
+  kind: 'map',
+  page: 'quiz',
+  title: 'クイズ',
+  desc:
+    '問題を出して、視聴者がコメントで答えるクイズ。答えの文と一致した最初の人が正解で、その人へポイントを払う（ポイントの設定を使う）。' +
+    '出題する・締める・リセットはダッシュボード、Stream Deck、MCP、CLIから操作できる。' +
+    'URL は /widgets/quiz.html?id=<名前>',
+  size: () => [720, 480],
+  fields: {
+    ...placementFields(8, 30),
+    title: str('クイズ', '画面の見出し'),
+    source: oneOf(['single', 'set'], 'single', '問題の出し方。single は下の問題をそのまま出す、set は問題集から順に出す'),
+    question: str('', '問題文（出し方が single のとき）'),
+    answer: str('', '答え（出し方が single のとき）。コメントがこの文と一致したら正解（全角・半角と大文字小文字は区別しない）'),
+    choices: list([], '選択肢（出し方が single のとき。2〜4個。答えは選択肢のどれかと同じ文にする。視聴者は番号でも答えられる）'),
+    questions: list([], '問題集（出し方が set のとき）。1件ごとに「問題文|答え」か「問題文|答え|選択肢1|選択肢2|…」の形で書く。順に出して、最後まで行くと最初に戻る'),
+    seconds: num(30, '制限時間（秒）。0 で時間切れなし', { min: 0, max: 3600 }),
+    rewardPoints: num(100, '最初の正解者へ払うポイント（0 で払わない）', { min: 0, max: 100000 }),
+    showAnswer: bool(true, '結果のときに答えを見せる'),
+    sound: bool(true, '正解の効果音'),
+    volume: num(0.3, '効果音の音量（0〜1）', { min: 0, max: 1 }),
+    color: color('accent', '帯の色'),
+  },
+};
+
 SCHEMA.cheers = {
   kind: 'map', page: 'cheer', title: 'いいね応援ゲージ', desc: 'いいねをみんなでためて満タンにする応援ゲージ。URL は /widgets/cheer.html?id=<名前>', size: () => [560, 160],
   fields: {
@@ -1029,6 +1113,27 @@ SCHEMA.superchats = {
   kind: 'map', page: 'superchat', title: 'スパチャ風コメント', desc: 'この配信で minCoins 以上のギフトを送った人のコメントだけを、1件ずつ seconds 秒ずつ出す。色は送ったコインの合計で変わる。待ちは20件まで(多いときは古いものから消える)。URL は /widgets/superchat.html?id=<名前>', size: () => [520, 240],
   fields: {
     minCoins: num(100, 'この配信でこのコイン以上を送った人のコメントだけ出す', { min: 1 }), seconds: num(8, '1件を出す秒数', { min: 3, max: 60 }), avatars: bool(true, 'アイコンを出す'),
+  },
+};
+
+// 決めたコメントが流れたら、決めた言葉を画面の右端から横に流す(表示だけ。記録やポイントには触れない)
+SCHEMA.commentSlide = {
+  kind: 'map', page: 'comment-slide', title: 'コメントスライド',
+  desc: '決めたコメントが流れたら、決めた言葉を画面の右端から横にスライドして出す。コメントに「きっかけの言葉」を含むかで見て、上から最初に一致した1つだけを出す。同時に来た分は待ち行列に入れて最大3つまで(超えた分は捨てる)。表示だけの部品で、記録やポイントには触れない。URL は /widgets/comment-slide.html?id=<名前>',
+  size: () => [640, 120],
+  fields: {
+    trigger1: str('', 'きっかけの言葉1。コメントに含まれていたら出す(空なら使わない)'),
+    text1: str('', '出す言葉1'),
+    trigger2: str('', 'きっかけの言葉2。コメントに含まれていたら出す(空なら使わない)'),
+    text2: str('', '出す言葉2'),
+    trigger3: str('', 'きっかけの言葉3。コメントに含まれていたら出す(空なら使わない)'),
+    text3: str('', '出す言葉3'),
+    trigger4: str('', 'きっかけの言葉4。コメントに含まれていたら出す(空なら使わない)'),
+    text4: str('', '出す言葉4'),
+    trigger5: str('', 'きっかけの言葉5。コメントに含まれていたら出す(空なら使わない)'),
+    text5: str('', '出す言葉5'),
+    seconds: num(4, '出す言葉を表示する秒数', { min: 1, max: 30 }),
+    color: color('accent', '帯の色'),
   },
 };
 

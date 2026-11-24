@@ -16,7 +16,7 @@
   if (location.search.indexOf('preview=1') >= 0) document.body.classList.add('preview');
   var wsProto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
   var phases = (kind === 'omikuji'
-    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', ten: '10連', done: '終了' }
+    ? { idle: '', pick: '番号を選んでいます', rolling: '引いています', reveal: '運勢', ten: '連', done: '終了' }
     : { idle: '待機', rolling: '回転中', reveal: '結果', done: '終了' });
 
   function seconds(n) {
@@ -107,9 +107,12 @@
       box.textContent = '';
       box.hidden = true;
       stageEl.removeAttribute('data-ten');
+      stageEl.removeAttribute('data-ten-rows');
       return;
     }
     stageEl.setAttribute('data-ten', 'flip');
+    // 段数（5列で折り返した段。舞台側の CSS が段数に合わせて札の中身を縮める、対の決まり）
+    stageEl.setAttribute('data-ten-rows', String(Math.ceil(results.length / 5)));
     box.hidden = false;
     box.textContent = '';
     var who = data.trigger && data.trigger.user;
@@ -157,10 +160,118 @@
     return flip;
   }
 
+  // いいねの進み具合（おみくじの画面にだけある #likeGauge と、舞台の中の #boostBadge）。
+  // 形（likeGauge: bar / liquid / text / off）と総いいね数の的はサーバーの公開状態から取る。個人の残りは出さない。
+  // 倍率が掛かっている間は、舞台の左下に「確率○倍中」の札も出す
+  var lgTarget = 0; // 液体の目標の溜まり具合（0〜1）
+  var lgShown = 0; // 液体の表示上の溜まり具合（なめらかに追う）
+  var lgSplash = 0; // 液体の波の勢い（いいねが増えた瞬間に立ち、時間で収まる）
+  var lgPrevTotal = null;
+
+  function fmtTimes(v) {
+    var t = Number(v);
+    if (!isFinite(t) || t <= 0) t = 1;
+    return String(Math.round(t * 100) / 100);
+  }
+
+  function showLike(data) {
+    var badge = document.getElementById('boostBadge');
+    if (badge) {
+      if (data && data.likeBoost) {
+        setText('boostTimes', fmtTimes(data.likeBoostTimes));
+        badge.hidden = false;
+      } else badge.hidden = true;
+    }
+    var box = document.getElementById('likeGauge');
+    if (!box) return;
+    var style = data ? data.likeGauge : null;
+    var total = data ? Number(data.likeBoostTotal) : 0;
+    if (!style || style === 'off' || !(total > 0)) { box.hidden = true; return; }
+    var now = Math.max(0, Number(data.likeTotal) || 0);
+    if (lgPrevTotal != null && now > lgPrevTotal) lgSplash = Math.min(lgSplash + (now - lgPrevTotal) / 60, 1.6);
+    lgPrevTotal = now;
+    var left = Math.max(total - now, 0);
+    lgTarget = Math.min(now / total, 1);
+    box.hidden = false;
+    box.setAttribute('data-style', style);
+    box.classList.toggle('full', Boolean(data.likeBoost));
+    var fill = document.getElementById('lgFill');
+    if (fill) fill.style.width = (lgTarget * 100) + '%';
+    setText('lgBig', left.toLocaleString('ja-JP'));
+    var status = document.getElementById('lgStatus');
+    if (status) {
+      if (data.likeBoost) {
+        status.textContent = '確率' + fmtTimes(data.likeBoostTimes) + '倍中';
+        status.classList.add('on');
+      } else {
+        status.textContent = 'あと ' + left.toLocaleString('ja-JP') + ' で確率' + fmtTimes(data.likeBoostTimes) + '倍';
+        status.classList.remove('on');
+      }
+    }
+  }
+
+  // 液体バーの波（canvas）。ゲージが液体の形で出ている間だけ描く
+  (function () {
+    var cv = document.getElementById('lgLiquid');
+    if (!cv || typeof cv.getContext !== 'function') return;
+    var ctx = cv.getContext('2d');
+    if (!ctx) return;
+    var t0 = performance.now();
+    function wave(nowMs) {
+      requestAnimationFrame(wave);
+      var box = document.getElementById('likeGauge');
+      if (!box || box.hidden || box.getAttribute('data-style') !== 'liquid') return;
+      var rect = cv.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      var wantW = Math.max(1, Math.round(rect.width * dpr));
+      var wantH = Math.max(1, Math.round(rect.height * dpr));
+      if (cv.width !== wantW || cv.height !== wantH) { cv.width = wantW; cv.height = wantH; }
+      var t = (nowMs - t0) / 1000;
+      lgShown += (lgTarget - lgShown) * 0.06;
+      if (Math.abs(lgTarget - lgShown) < 0.0005) lgShown = lgTarget;
+      lgSplash *= 0.965;
+      var W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+      if (lgShown <= 0.001) return;
+      var level = H * (1 - lgShown);
+      var amp = (3 + lgSplash * 9) * dpr;
+      function layer(speed, len, top, bottom) {
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        for (var x = 0; x <= W; x += 6) {
+          var y = level + Math.sin(x / len + t * speed) * amp + Math.sin(x / (len * 0.37) - t * speed * 1.6) * amp * 0.45;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        var g = ctx.createLinearGradient(0, level, 0, H);
+        g.addColorStop(0, top);
+        g.addColorStop(1, bottom);
+        ctx.fillStyle = g;
+        ctx.fill();
+      }
+      layer(1.1, 90, 'rgba(246, 196, 69, .45)', 'rgba(168, 122, 12, .45)');
+      layer(1.9, 55, 'rgba(255, 233, 138, .9)', 'rgba(154, 116, 31, .9)');
+    }
+    requestAnimationFrame(wave);
+  })();
+
+  // 天井までの残り（おみくじの画面にだけある #pityBadge）。数値のときだけ出し、null や未定義なら何も出さない
+  function showPity(data) {
+    var badge = document.getElementById('pityBadge');
+    if (!badge) return;
+    var left = data ? data.pityLeft : null;
+    if (typeof left !== 'number' || !isFinite(left)) { badge.hidden = true; return; }
+    var leftEl = document.getElementById('pityLeft');
+    if (leftEl) leftEl.textContent = String(Math.max(0, Math.round(left)));
+    badge.hidden = false;
+  }
+
   function show(data) {
     if (!data) return;
     var phase = data.phase || 'idle';
-    phaseEl.textContent = phases[phase] ?? phase;
+    // まとめ引きの段階表示は結果の実際の件数で出す（11連なら「11連」）
+    phaseEl.textContent = phase === 'ten' && data.results && data.results.length ? data.results.length + '連' : (phases[phase] ?? phase);
     var tier = data.tier;
     if ((phase === 'reveal' || phase === 'done') && tier) resultEl.textContent = tier.label || tier.id || '';
     else if (phase === 'idle' || phase === 'rolling') resultEl.textContent = '';
@@ -171,12 +282,16 @@
     if (data.resultFont) stageEl.setAttribute('data-font', data.resultFont);
     showPick(data);
     renderTen(data);
+    showPity(data);
+    showLike(data);
     if (kind === 'omikuji') {
       var who = data.trigger && data.trigger.user;
       var drawerName = phase !== 'idle' && who && who.name ? who.name : '';
       setText('slipName', drawerName);
       setText('stickName', data.displayMode === 'short' ? '' : drawerName);
-      setText('drawWho', data.results && drawerName ? drawerName + ' さんの10連' : '');
+      var results = data.results;
+      // まとめ引きの札は、実際の件数で「〜さんの◯連」と出す（既定の10なら今までと同じ「10連」）
+      setText('drawWho', results && results.length && drawerName ? drawerName + ' さんの' + results.length + '連' : '');
     }
     stageEl.setAttribute('data-tier', (phase === 'reveal' || phase === 'done') ? toneOf(tier) : '');
     stageEl.style.setProperty('--roll', seconds(d.rollMs));
@@ -195,8 +310,14 @@
     var data;
     try { data = JSON.parse(text); } catch (e) { return; }
     if (!data) return;
-    if (data.type === 'hello' || data.type === 'config') { applyBg((data.config || {})[kind]); return; }
+    if (data.type === 'hello' || data.type === 'config') {
+      applyBg((data.config || {})[kind]);
+      if (window.__twApplyFont) window.__twApplyFont(data.config);
+      return;
+    }
     if (data.type !== kind) return;
+    // 進み具合だけの知らせは、抽選の表示を動かさずゲージと倍率の札だけ直す
+    if (data.event === 'progress') { showLike(data); return; }
     show(data);
   }
 
@@ -224,7 +345,11 @@
   bgReq.open('GET', base + '/api/config', true);
   bgReq.onreadystatechange = function () {
     if (bgReq.readyState !== 4 || bgReq.status !== 200) return;
-    try { applyBg((JSON.parse(bgReq.responseText).config || {})[kind]); } catch (e) {}
+    try {
+      var cfg = JSON.parse(bgReq.responseText).config || {};
+      applyBg(cfg[kind]);
+      if (window.__twApplyFont) window.__twApplyFont(cfg);
+    } catch (e) {}
   };
   bgReq.send(null);
 

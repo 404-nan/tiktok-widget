@@ -6,12 +6,14 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 // 長さを比べてから先頭を捨てる（.shift()）か、満杯で受け付けない（ok: false / 'full'）コード
+// 外から持ってきた Three.js（omikuji/three/ の下）だけは、自分たちの待ちの決まりではないので見ない
+const VENDOR = path.join(root, 'public/widgets/omikuji/three');
 const DROP = /(length\s*>=?\s*[^;\n]+\)\s*[^;\n]*\.shift\(\))|(while\s*\([^)]*length\s*>=?[^)]*\)\s*[^;\n]*\.shift\(\))|(length\s*>=?\s*[A-Z_0-9]+\)\s*return\s*\{\s*ok:\s*false)|(createQueue\([^)]*max:\s*\d+)/;
 
 function files(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
     const p = path.join(dir, d.name);
-    if (d.isDirectory()) return files(p);
+    if (d.isDirectory()) return p === VENDOR ? [] : files(p);
     return /\.(js|html)$/.test(d.name) ? [p] : [];
   });
 }

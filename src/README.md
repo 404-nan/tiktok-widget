@@ -17,18 +17,20 @@
 | `ai.js` | AI の案を検証し、設定変更の形にする。使ったトークンは `data/ai-usage.jsonl` に残す(中身は書かない) |
 | `api-keys.js` | 管理画面の API キーを保存・伏せ字表示する |
 | `billing.js` | 利用期限・プラン・課金状態を判定する |
-| `boss.js` | ボスの HP、ダメージ、討伐を管理する |
+| `boss.js` | ボスの HP、ダメージ、討伐、手動開始とミッションを管理する |
 | `cheer.js` | いいねをため、満タンと次の目標を WebSocket で配る（記録しない） |
 | `combo.js` | コンボの回数・段階・終了イベント・テスト用状態を管理し、Hubへ配る |
 | `config.js` | schema に沿って設定を検証し、初期値を補う |
 | `cutin-draw.js` | カットインの抽選値を作り、柄・昇格・RUSH格上げの結果を決める |
 | `cutin-style.js` | 画像付きカットインの切り抜き設定 |
 | `dareba.js` | ギフトの勢いが落ちたときの事件を判定し、種類・送信者・進行状態を配信する |
+| `door.js` | 扉の確率ゲームの進行（段階・選んだ扉・当たり外れ）を管理する |
 | `demo.js` | `member` を含むテスト用イベントを作る |
 | `env.js` | 開発環境と本番環境を判定する |
 | `events.js` | イベント名と配信時刻を整える |
 | `gacha-viewers.js` | ガチャの本物の視聴者ごとの無料回・有料回を数えて保存し、コメントで回す。デモとテストは数えない |
-| `gacha.js` | ガチャ・おみくじの抽選と状態を管理する。おみくじは棒の番号を選ぶ段階(送った人のコメント / 配信者のボタン / 時間切れ)を持つ。天井は全体の数えと、引いた人ごとの数え（個人の天井 pityPersonal）の両方を持ち、どちらか届いたら確定する |
+| `gacha.js` | ガチャ・おみくじの抽選と状態を管理する。おみくじは棒の番号を選ぶ段階(送った人のコメント / 配信者のボタン / 時間切れ)を持つ。まとめ引き(10連)の回数は設定 tenCount(既定10)から読む(elevenGifts の指定ギフトは tenCount に関係なく11連)。天井は全体の数えと、引いた人ごとの数え（個人の天井 pityPersonal）の両方を持ち、どちらか届いたら確定する。luckBoost が有効なら、視聴者ごとの配信内コインと滞在の区切りで大吉の重みだけを上げる。設定は luckUnitCoins / luckStepPct / luckMaxSteps / luckStayUnits。滞在の材料は runtime が setStaySource で渡す（points の stayUnitsFor が、滞在中の区切りの個数を返す）。おみくじは大きな演出の間、舞台の順番待ち（stage-queue.js）で抽選を待たせる。おみくじはいいね・シェアでも引ける（likeDrawEvery / shareDrawEvery：視聴者ごとに数え、倍数に届くたび通常の抽選の道で1回。順番待ちに入らなかった分は権利として保持し空いたら消化、保持の上限は1人あたり stageQueueMax と同数で超えた分は omikuji.like-dropped に残して捨てる）。全員のいいねの合計が likeBoostTotal に届くと、配信の残りずっと大吉の重みに likeBoostTimes 倍が掛かる（luckBoost の％のあとに掛ける。天井には関係しない）。いいねの数え・総いいね数・未消化の権利は天井と同じファイルに版4で保存し、再起動でも権利が消えず設定の反映時に消化を再開する |
+| `stage-queue.js` | 舞台の順番待ち。配信者ごとに大きな演出の持ち主を1つだけ管理し、終わったら待っている側へ知らせる。持ち主はおみくじの抽選と結果表示、カードめくりの開示。他の部品は acquire / release の口だけ使えば持ち主になれる |
 | `gift-coins.json` | ギフトの控えのコイン数を持つ |
 | `gift-display.js` | ギフトの表示名を日本語にする |
 | `gift-names-ja.json` | GiftID ごとの日本語ギフト名を持つ |
@@ -50,7 +52,7 @@
 | `minecraft.js` | ギフトや演出を Minecraft の RCON へつなぐ |
 | `normalize.js` | TikTok のイベントをアプリ内の形にそろえる |
 | `superstream.js` の `giftTable` | 妨害マイクラのギフト表(ギフト → 何が起きるか)をプロフィールから作る。`/api/mc-gifts` が使う |
-| `card-draw.js` | カードめくりの段階を進める。ギフトで始まり、送った本人のコメントの番号でめくる(来なければ時間で自動)。結果は winRate の確率 |
+| `card-draw.js` | カードめくりの段階を進める。ギフトで始まり、送った本人のコメントの番号でめくる(来なければ時間で自動)。結果は winRate の確率。開示から結果の表示が終わるまでは舞台の持ち主になる（stage-queue.js） |
 | `notes.js` | 管理画面のお知らせを保存する(くわしいページの行き先は / か https:// だけ) |
 | `ootori.js` | ラスト10分の席、大トリ、参加者一覧、終了演出の時間をサーバーで管理する |
 | `peka.js` | 遅れて光る告知ランプの抽選、予定時刻、点灯、待ち行列をサーバーで管理する |
@@ -64,7 +66,7 @@
 | `roulette.js` | ルーレットを抽選し、結果を配る |
 | `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定する |
 | `rush.js` | RUSH の突入、延長、終了を管理する |
-| `schema.js` | `pushButtons` とカットインの段階ごとの声・メディア種類を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
+| `schema.js` | `pushButtons`、カットインの段階ごとの声・メディア種類、コメントスライドのきっかけの言葉と出す言葉を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |
 | `slot.js` | スロットの抽選と状態を管理する |
 | `stepup.js` | ステップアップ予告の合計・段階・冷却を管理する |
@@ -79,6 +81,7 @@
 | `vault.js` | Cloudflare 上で data/ を退避・復元する |
 | `visitors.js` | 配信者ごとの秘密鍵で来場者 ID を HMAC 化し、複数設定の最短保存期間・常連回数で通知と匿名記録を管理する |
 | `vote.js` | コメントの番号投票を1人1票で集計し、結果を WebSocket で配る |
+| `quiz.js` | クイズの出題・制限時間・コメントの正解判定を持ち、最初の正解者を WebSocket で配る（ポイントの支払いは runtime が onWin で行う） |
 | `wins.js` | WIN 数と全画面演出の段階を管理する |
 | `ws-mode.js` | WebSocket URL の compact 指定を判定する |
 
@@ -96,4 +99,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-10-24
+最後に直した日: 2026-11-22

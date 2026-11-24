@@ -1,0 +1,207 @@
+<!-- クイズ: テレビのクイズ番組の型で、問題・選択肢・制限時間を大きく出す。判定はサーバー側（src/quiz.js）。 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>クイズ</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<link rel="stylesheet" href="/vendor/fonts/zen-kaku-gothic-new/700.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #quiz {
+    box-sizing: border-box; width: min(96vw, 688px); margin: 0 auto; padding: 0 0 16px;
+    background: linear-gradient(180deg, #131c4a 0%, #0b1030 58%, #080c24 100%);
+    color: #f6f5f1; border: 3px solid var(--gold); border-radius: 14px;
+    box-shadow: 0 0 0 6px rgba(255, 197, 61, .18), 0 24px 60px rgba(0, 0, 0, .5);
+    overflow: hidden;
+  }
+  #quiz.idle { display: none; }
+  body.preview #quiz.idle { display: block; opacity: .55; }
+  /* 上の帯：番組名と制限時間 */
+  #band {
+    display: flex; align-items: center; gap: 16px; padding: 10px 22px 9px;
+    background: linear-gradient(180deg, rgba(255, 197, 61, .22), rgba(255, 197, 61, .05));
+    border-bottom: 2px solid rgba(255, 197, 61, .65);
+  }
+  #badge {
+    flex: none; padding: 6px 16px; border-radius: 999px;
+    background: var(--band, var(--signal)); color: #fff; font-size: 24px; font-weight: 900; letter-spacing: .14em;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  }
+  #title { flex: 1; font-size: 24px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #timer { flex: none; text-align: right; line-height: 1; }
+  #timer .num { font-size: 52px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--gold); text-shadow: 0 3px 0 rgba(0,0,0,.35); }
+  #timer .unit { font-size: 18px; font-weight: 800; color: var(--paper-dim); margin-left: 2px; }
+  #timer.low .num { color: #ff5a3c; animation: pulse .5s ease-in-out infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+  #bar { height: 8px; background: rgba(246, 245, 241, .14); }
+  #barFill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--gold), #ff9d3c); transition: width .25s linear; }
+  /* 問題 */
+  #qwrap { display: flex; gap: 16px; padding: 15px 26px 4px; align-items: flex-start; }
+  #qmark {
+    flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--gold) 62%, #d99a16);
+    color: #231a00; font-size: 30px; font-weight: 900; box-shadow: 0 6px 16px rgba(0, 0, 0, .4);
+  }
+  #question { flex: 1; font-size: 33px; font-weight: 900; line-height: 1.45; overflow-wrap: anywhere; padding-top: 4px; }
+  #guide { padding: 5px 26px 0; font-size: 19px; font-weight: 700; color: var(--paper-dim); letter-spacing: .04em; }
+  /* 選択肢 */
+  #choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 26px 2px; }
+  .choice {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 10px;
+    background: linear-gradient(180deg, #2a3a8f, #1a2565); border: 2px solid rgba(160, 180, 255, .5);
+    font-size: 24px; font-weight: 800; overflow-wrap: anywhere;
+  }
+  .choice .no {
+    flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    background: #f6f5f1; color: #1a2565; font-size: 22px; font-weight: 900;
+  }
+  .choice.correct { background: linear-gradient(180deg, #ffd94d, #f5a623); border-color: #fff2c4; color: #231a00; animation: hit .18s linear 2; }
+  .choice.correct .no { background: #231a00; color: var(--gold); }
+  #quiz.result .choice:not(.correct) { opacity: .45; }
+  @keyframes hit { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+  /* 結果 */
+  #result { display: none; margin: 12px 26px 0; padding: 12px 20px; border-radius: 10px; text-align: center; }
+  #quiz.result #result { display: block; }
+  #result.win { background: linear-gradient(180deg, rgba(255, 197, 61, .28), rgba(255, 197, 61, .1)); border: 2px solid var(--gold); }
+  #result.miss { background: rgba(246, 245, 241, .07); border: 2px solid rgba(246, 245, 241, .25); }
+  #resultMain { font-size: 31px; font-weight: 900; letter-spacing: .03em; }
+  #result.win #resultMain { color: var(--gold); }
+  #resultSub { margin-top: 6px; font-size: 22px; font-weight: 800; }
+  #resultSub .pts { color: var(--gold); }
+  @media (max-width: 560px) {
+    #question { font-size: 28px; }
+    #choices { grid-template-columns: 1fr; }
+    #timer .num { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+<main id="quiz" class="idle" aria-live="polite">
+  <div id="band">
+    <div id="badge">クイズ</div>
+    <div id="title">クイズ</div>
+    <div id="timer"><span class="num"></span><span class="unit">秒</span></div>
+  </div>
+  <div id="bar"><div id="barFill"></div></div>
+  <div id="qwrap"><div id="qmark">Q</div><div id="question"></div></div>
+  <div id="guide"></div>
+  <div id="choices"></div>
+  <div id="result"><div id="resultMain"></div><div id="resultSub"></div></div>
+</main>
+<script type="module">
+  import { setupWidget, connect, setSampleRenderer, cssColor, chime, BASE } from './lib/overlay.js';
+
+  // 設定は config.yaml の quizzes.<id>（?id= がなければ default）
+  const p = await setupWidget('quizzes', { title: 'クイズ', seconds: 30, sound: true, volume: 0.3, showAnswer: true, color: 'accent' });
+  const id = window.__twWidgetId || 'default';
+  const root = document.getElementById('quiz');
+  root.style.setProperty('--band', cssColor(p.color));
+  const titleEl = document.getElementById('title');
+  const timerEl = document.getElementById('timer');
+  const timerNum = timerEl.querySelector('.num');
+  const barFill = document.getElementById('barFill');
+  const questionEl = document.getElementById('question');
+  const guideEl = document.getElementById('guide');
+  const choicesEl = document.getElementById('choices');
+  const resultEl = document.getElementById('result');
+  const resultMain = document.getElementById('resultMain');
+  const resultSub = document.getElementById('resultSub');
+
+  let current = null;   // 最後に受けた状態
+  let startedAt = 0;    // この問題の表示時間の計算用（残り時間バーの分母）
+  let totalMs = 0;
+  let clock = null;
+
+  const sample = () => ({
+    phase: 'open', title: p.title || 'クイズ', question: '日本でいちばん高い山は？', choices: ['富士山', '北岳', '奥穂高岳', '槍ヶ岳'],
+    endsAt: Date.now() + 25000, now: Date.now(), winner: null, reason: null, answer: null, rewardPoints: 100,
+  });
+
+  function stopClock() { if (clock) clearInterval(clock); clock = null; }
+
+  function tick() {
+    if (!current || current.phase !== 'open' || !current.endsAt) return;
+    const left = Math.max(0, current.endsAt - Date.now());
+    timerNum.textContent = String(Math.ceil(left / 1000));
+    timerEl.classList.toggle('low', left <= 5000);
+    if (totalMs > 0) barFill.style.width = `${Math.max(0, Math.min(100, left / totalMs * 100))}%`;
+  }
+
+  function render(state, event) {
+    current = state;
+    stopClock();
+    if (!state || state.phase === 'idle') {
+      root.className = 'idle';
+      window.__twIsIdle = () => true;
+      return;
+    }
+    window.__twIsIdle = () => false;
+    root.className = state.phase === 'result' ? 'result' : 'open';
+    titleEl.textContent = state.title || 'クイズ';
+    questionEl.textContent = state.question || '';
+    // 選択肢（結果のときは正解の選択肢を金にする）
+    choicesEl.replaceChildren(...(state.choices || []).map((text, i) => {
+      const div = document.createElement('div');
+      div.className = 'choice' + (state.phase === 'result' && state.answer != null && text === state.answer ? ' correct' : '');
+      const no = document.createElement('span');
+      no.className = 'no';
+      no.textContent = String(i + 1);
+      const label = document.createElement('span');
+      label.textContent = text;
+      div.append(no, label);
+      return div;
+    }));
+    if (state.phase === 'open') {
+      guideEl.textContent = (state.choices || []).length
+        ? 'コメントで番号か答えを送ってね。最初の正解者にはポイント！'
+        : 'コメントで答えを送ってね。最初の正解者にはポイント！';
+      resultEl.className = '';
+      if (state.endsAt) {
+        totalMs = Math.max(1, state.endsAt - (state.now || Date.now()));
+        tick();
+        clock = setInterval(tick, 200);
+      } else {
+        timerNum.textContent = '∞';
+        barFill.style.width = '100%';
+      }
+      if (event === 'start') startedAt = Date.now();
+    } else {
+      guideEl.textContent = '';
+      timerNum.textContent = '';
+      barFill.style.width = '0%';
+      const win = state.reason === 'win' && state.winner;
+      resultEl.className = win ? 'win' : 'miss';
+      resultMain.textContent = win
+        ? `${state.winner.name || ''} さん、正解！`
+        : state.reason === 'timeout' ? '時間切れ…' : '終了しました';
+      resultSub.replaceChildren();
+      if (p.showAnswer !== false && state.answer != null) resultSub.append(`答えは「${state.answer}」`);
+      if (win && state.rewardPoints > 0) {
+        const pts = document.createElement('span');
+        pts.className = 'pts';
+        pts.textContent = `　+${state.rewardPoints} ポイント`;
+        resultSub.append(pts);
+      }
+      if (win && event === 'win' && p.sound !== false) chime('win', Number(p.volume) || 0.3);
+    }
+  }
+
+  async function loadState() {
+    try {
+      const res = await fetch(`${BASE}/api/quiz`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data[id]) render(data[id]);
+    } catch { /* サーバーが落ちているときは何も出さない */ }
+  }
+
+  setSampleRenderer((on) => render(on ? sample() : current));
+  await loadState();
+  connect({
+    quiz(msg) { if (!msg.id || msg.id === id) render(msg.quiz, msg.event); },
+    hello() { loadState(); },
+  });
+</script>
+</body>
+</html>

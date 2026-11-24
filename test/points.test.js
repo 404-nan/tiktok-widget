@@ -213,3 +213,14 @@ test('履歴（points-log.jsonl）に増減が残る', () => {
   assert.equal(lines[1].delta, -4);
   assert.equal(lines[1].balance, 6);
 });
+
+test('stayUnitsFor は滞在中の区切りだけを返し、記録を作らない', () => {
+  const { points, getNow } = setup();
+  const now = getNow();
+  points.users['taro'] = { name: 'たろう', staySince: now - 35 * 60_000, stayLastSeen: now, stayUnits: 7 };
+  assert.equal(points.stayUnitsFor(taro), 7);
+  points.users['hana'] = { name: 'はな', staySince: now - 35 * 60_000, stayLastSeen: now - 3 * 60_000, stayUnits: 7 };
+  assert.equal(points.stayUnitsFor(hana), 0, '最後の動きから2分を超えたら滞在中とみなさない');
+  assert.equal(points.stayUnitsFor({ id: 'nobody', name: 'だれ' }), 0);
+  assert.equal(points.users['nobody'], undefined, '引いただけでは記録を作らない');
+});

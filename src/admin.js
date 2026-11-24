@@ -198,7 +198,7 @@ export async function timer(action = 'status', id = null, seconds) {
   return Object.entries(out).map(([k, t]) => line(k, t)).join('\n');
 }
 
-/** ボス討伐の HP を変える・見る（サーバーが必要）。action: damage / defeat / heal / next / set / reset / status。id を省くと全部 */
+/** ボス討伐の HP を変える・見る（サーバーが必要）。action: damage / defeat / heal / next / set / reset / start（手動開始の戦闘を始める）/ status。id を省くと全部 */
 export async function boss(action = 'status', id = null, value) {
   const line = (k, b) => `${k}: ${b.round}体目 ${b.name} HP ${b.hp} / ${b.maxHp}${b.defeated ? '（討伐済み）' : ''}`;
   if (action === 'status') {

@@ -7,18 +7,18 @@
 <link rel="stylesheet" href="lib/overlay.css">
 <link rel="stylesheet" href="/vendor/fonts/dela-gothic-one/400.css">
 <style>
-  /* ボス討伐 HP バー。スコアボードの板に、ボスの顔・名前・HP。
+  /* ボス討伐。上に太い HP の帯（何体目か・名前・HP・ミッション）、下いっぱいにボスの顔。
      ダメージで HP が削れ、白い残像がゆっくり追いかける（格闘ゲームの体力ゲージ）。数字が飛び、ボスが揺れ、大ダメージは板ごと揺れる。
-     HP 0 で一瞬止まってから「討伐!」を叩きつけ、金の光と、とどめを刺した人のアイコン。少し待つと次のボスが出てくる */
-  body { display: flex; align-items: flex-end; padding: 24px; }
-  .wrap { position: relative; width: 100%; }
+     HP 0 で一瞬止まってから「討伐!」を叩きつけ、金の光と、とどめを刺した人のアイコン。少し待つと次のボスが出てくる。
+     手動開始のときは、開始されるまで待機の幕を出す */
+  body { display: flex; padding: 24px; }
+  .wrap { position: relative; flex: 1; min-height: 0; }
 
   .plate {
     position: relative;
     display: grid;
-    grid-template-columns: 176px minmax(0, 1fr);
-    min-height: 156px;
-    height: auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
     background: var(--surface);
     color: var(--on-surface);
     border-radius: var(--r);
@@ -26,16 +26,16 @@
     overflow: hidden;
   }
 
-  /* --- ボスの顔 --- */
+  /* --- ボスの顔（板の下いっぱい） --- */
   .face {
     position: relative;
+    grid-row: 2;
     background: var(--ink-2);
-    clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 100%, 0 100%);
     overflow: hidden;
   }
   .face .art { position: absolute; inset: 0; transform-origin: 50% 80%; }
   .face img, .face svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .face svg { padding: 8px 18px 0 4px; }
+  .face svg { padding: 10px; }
   .face img.king { object-fit: cover; object-position: 50% 15%; transform: scale(1.08); }
   .pflash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
   .pflash.go { animation: pflash .22s steps(2) 1; }
@@ -75,8 +75,8 @@
   }
   .defeated .seal { opacity: 1; transform: rotate(-12deg); transition: opacity .1s linear .2s, transform .18s cubic-bezier(.5, 0, .9, .6) .2s; }
 
-  /* --- 名前・HP --- */
-  .main { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 0 26px 0 14px; min-width: 0; }
+  /* --- 名前・HP（上の帯） --- */
+  .main { grid-row: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 14px 22px 16px; min-width: 0; }
   .top { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .round {
     flex: none;
@@ -98,7 +98,7 @@
   .hitter .avatar { box-shadow: 0 0 0 2px var(--signal); }
 
   /* HP バー: 黒い溝に、白い残像と朱の HP。斜めに切った形 */
-  .gauge { position: relative; height: 34px; background: #000; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+  .gauge { position: relative; height: 46px; background: #000; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
   .gauge i { position: absolute; inset: 0; transform-origin: left; }
   .lag { background: var(--paper); transition: transform .9s cubic-bezier(.4, 0, .2, 1); }
   .fill { background: var(--signal); transition: transform .12s linear, background-color .2s linear; }
@@ -106,11 +106,32 @@
   .ticks { position: absolute; inset: 0; display: flex; justify-content: space-evenly; pointer-events: none; }
   .ticks b { width: 2px; background: rgba(0, 0, 0, .55); }
   .nums { display: flex; align-items: baseline; gap: 8px; line-height: 1; }
-  .nums .hp { font-size: 38px; font-weight: 700; }
+  .nums .hp { font-size: 42px; font-weight: 700; }
   .nums .max { font-family: var(--font-num); font-weight: 600; font-size: 22px; color: var(--on-surface-dim); }
   .nums .label { font-family: var(--font-num); font-weight: 700; font-style: italic; font-size: 20px; color: var(--signal); margin-right: 2px; }
   .gap { margin: 0; font-size: 14px; font-weight: 700; color: var(--on-surface-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .gap[hidden] { display: none; }
+
+  /* ミッション: 戦闘中ずっと出す帯。金の細バーで進み具合、達成で帯ごと金に変わる */
+  .mission { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-left: 6px solid var(--gold); background: var(--surface-2); }
+  .mission[hidden] { display: none; }
+  .mission .m-label { flex: none; font-size: 13px; font-weight: 900; letter-spacing: .12em; color: var(--gold); }
+  .mission .m-text { flex: none; font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .mission .m-bar { flex: 1; min-width: 40px; height: 10px; background: #000; overflow: hidden; }
+  .mission .m-bar i { display: block; height: 100%; background: var(--gold); transform-origin: left; transform: scaleX(0); transition: transform .3s var(--ease-out); }
+  .mission .m-count { flex: none; font-family: var(--font-num); font-weight: 700; font-size: 20px; line-height: 1; }
+  .mission.done { background: var(--gold); color: var(--ink); }
+  .mission.done .m-label { color: var(--ink); }
+  .mission.done .m-bar i { background: var(--ink); }
+  .mission.pop { animation: missionpop .5s cubic-bezier(.2, 1.6, .4, 1); }
+  @keyframes missionpop { 0% { transform: scale(1.04); } 100% { transform: none; } }
+
+  /* 手動開始の待機: 板全体に幕をかけ、ボスは色を落として待つ */
+  .standby { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(10, 10, 12, .72); text-align: center; padding: 16px; }
+  .standby[hidden] { display: none; }
+  .standby .s-title { font-family: "Dela Gothic One", var(--font); font-size: 40px; line-height: 1.15; color: var(--paper); }
+  .standby .s-sub { font-size: 15px; font-weight: 700; color: var(--paper-dim); }
+  .standby-on .face .art { filter: grayscale(.6) brightness(.55); }
 
   /* 残りが少ない: HP が赤く点滅（1秒に2回）、数字も赤 */
   .low .fill { animation: low .5s steps(1) infinite; }
@@ -269,7 +290,17 @@
       </div>
       <div class="gauge"><i class="lag" id="lag"></i><i class="fill" id="fill"></i><span class="ticks"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></span></div>
       <div class="nums"><span class="label" id="hpLabel">HP</span><span class="hp num" id="hp"></span><span class="max" id="max"></span></div>
+      <div class="mission" id="mission" hidden>
+        <span class="m-label">ミッション</span>
+        <span class="m-text" id="missionText"></span>
+        <span class="m-bar"><i id="missionFill"></i></span>
+        <span class="m-count" id="missionCount"></span>
+      </div>
       <p class="gap" id="gap" hidden></p>
+    </div>
+    <div class="standby" id="standby" hidden>
+      <div class="s-title">ボス戦開始待ち</div>
+      <div class="s-sub">ダッシュボードの「ボス戦を開始」で登場します</div>
     </div>
     <div class="countdown"><i id="countdown"></i></div>
     <div class="redflash" id="redflash"></div>
@@ -393,8 +424,23 @@
       const who = b.rivalName ? `上の人 ${b.rivalName}` : '上の人';
       gap.textContent = `${who} ${fmt(b.rivalCoins)}コイン ・ 自分 ${fmt(b.ourCoins)}コイン`;
     }
+    // ミッション（設定が無ければ出さない）と、手動開始の待機
+    const m = b.mission;
+    const mel = $('mission');
+    if (!m) {
+      mel.hidden = true;
+    } else {
+      mel.hidden = false;
+      mel.classList.toggle('done', Boolean(m.done));
+      $('missionText').textContent = m.done ? `達成！ ${m.gift} × ${fmt(m.target)}` : `${m.gift} を ${fmt(m.target)} 個`;
+      $('missionCount').textContent = `${fmt(m.count)} / ${fmt(m.target)}`;
+      $('missionFill').style.transform = `scaleX(${m.target > 0 ? m.count / m.target : 0})`;
+    }
+    const standby = b.started === false;
+    $('standby').hidden = !standby;
+    document.body.classList.toggle('standby-on', standby);
     setBar(waiting ? 0 : b.hp, Math.max(1, waiting ? 1 : b.maxHp), { instant: instant || waiting });
-    const low = !waiting && !charging && !b.defeated && p.lowHp > 0 && b.maxHp > 0 && b.hp / b.maxHp <= p.lowHp / 100;
+    const low = !waiting && !standby && !charging && !b.defeated && p.lowHp > 0 && b.maxHp > 0 && b.hp / b.maxHp <= p.lowHp / 100;
     document.body.classList.toggle('low', low);
     document.body.classList.toggle('defeated', !waiting && Boolean(b.defeated));
     countdown(b);
@@ -623,6 +669,15 @@
     tones([523, 659, 784], { type: 'triangle', gap: 0.07, len: 0.18, vol: 0.35 });
   }
 
+  // ミッションの進み。達成したら金の光と短いファンファーレ
+  function onMission(b, ev) {
+    render(b);
+    if (!ev.done) return;
+    restart($('goldflash'), 'go');
+    restart($('mission'), 'pop');
+    tones([784, 988, 1175, 1568], { type: 'triangle', gap: 0.07, len: 0.3, vol: 0.5 });
+  }
+
   // 討伐: HP が 0 になる → 一瞬止まって暗くなる → 「討伐!」を叩きつけ、金の光、とどめを刺した人
   async function onDefeat(b, ev) {
     render({ ...b, defeated: false }, { roll: true });
@@ -705,6 +760,7 @@
     // ふつうのダメージは待たせずに出す（演出中なら状態だけ合わせる）
     if (kind === 'hit' && !busy.on) return onHit(b, ev, prev);
     if (kind === 'heal' && !busy.on) return onHeal(b, ev);
+    if (kind === 'mission' && !busy.on) return onMission(b, ev);
     if (kind === 'overkill') {
       damage(ev.damage, 0, { over: true });
       if (ev.by?.user) showHitter(ev.by.user);
@@ -716,8 +772,9 @@
       try {
         if (kind === 'hit') onHit(b, ev, prev);
         else if (kind === 'defeat') await onDefeat(b, ev);
-        else if (kind === 'next') await onNext(b);
+        else if (kind === 'next' || kind === 'start') await onNext(b);
         else if (kind === 'heal') onHeal(b, ev);
+        else if (kind === 'mission') onMission(b, ev);
         else if (kind === 'reset') {
           $('word').classList.remove('go');
           $('healword').classList.remove('go');

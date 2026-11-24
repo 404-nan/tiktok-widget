@@ -130,7 +130,7 @@ export function buildPreview(ctx) {
     if (!simple() && tab === 'bosses') {
       const base = `${location.origin}${BASE}`;
       $('sizeHint').textContent +=
-        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
+        ` Stream Deck の「Webサイト」などで次の URL を開くと押せます（今の種類）: ボス戦を開始 ${base}/api/boss/active/start ／ HP を戻す ${base}/api/boss/active/heal ／ ダメージ 100 ${base}/api/boss/active/damage?value=100 ／ 討伐 ${base}/api/boss/active/defeat ／ 次のボス ${base}/api/boss/active/next ／ 1体目から ${base}/api/boss/active/reset`;
     }
     renderRouletteUrls(w);
     if (simple()) previewModeSwitch();
@@ -185,6 +185,8 @@ export function buildPreview(ctx) {
     const e = isObj(tab) ? {} : payload.config[tab]?.[id] ?? {};
     // おみくじは仮の名前の人が送った形で始め、番号待ちから見せる（名前がないと番号待ちを飛ばすため）
     if (tab === 'omikuji') return api('/api/control', { target: 'omikuji', action: 'start', data: { user: 'テスト視聴者' } });
+    // コメントスライドは、決めたきっかけの言葉を含むコメントを送って出す
+    if (tab === 'commentSlide') { const first = String(e.trigger1 ?? '').trim(); return api('/api/simulate', { kind: 'chat', text: first ? `テスト ${first}` : 'テストコメント' }); }
     // 出す条件がギフト以外だけのときは、ギフトを流しても出ない。先に出来事の条件を見る
     if (e.events?.length && !e.events.includes('gift')) return api('/api/simulate', { kind: e.events[0] });
     if (e.gifts?.length) return api('/api/simulate', { kind: 'gift', giftName: e.gifts[0], diamonds: 10 });
@@ -257,6 +259,15 @@ export function buildPreview(ctx) {
         chip('結果を出す', 'trophy', vote('result')),
         chip('リセット', 'rotate-ccw', vote('reset')),
         ...options.map((_, index) => chip(`${index + 1} に1票（テスト）`, 'message-circle', () => api('/api/simulate', { kind: 'chat', text: String(index + 1), user: `テスト参加者${++testVoteParticipant}` }))),
+      );
+    } else if (tab === 'quizzes') {
+      const quiz = (action, data) => control('quiz', action, { id, ...(data ?? {}) });
+      const answer = payload.config.quizzes?.[id]?.answer ?? '';
+      box.replaceChildren(
+        chip('出題する', 'play', quiz('start')),
+        chip('締めて答えを出す', 'pause', quiz('finish')),
+        chip('リセット', 'rotate-ccw', quiz('reset')),
+        ...(answer ? [chip('答えを打つ（テスト）', 'message-circle', () => api('/api/simulate', { kind: 'chat', text: answer, user: `テスト参加者${++testVoteParticipant}` }))] : []),
       );
     } else if (tab === 'cheers') {
       const cheer = (action, data) => control('cheer', action, { id, ...(data ?? {}) });
@@ -375,6 +386,14 @@ export function buildPreview(ctx) {
         ),
         chip('「!」のコマンド', null, () => say({ text: '!roulette' })),
         chip('コメント欄を空にする', null, control('chat', 'reset')),
+      );
+    } else if (tab === 'commentSlide') {
+      // 決めたきっかけの言葉を含むコメントを送って、スライドが出ることを確かめる
+      const e = payload.config.commentSlide?.[id] ?? {};
+      const first = String(e.trigger1 ?? '').trim();
+      box.replaceChildren(
+        chip(first ? `「${first}」を含むコメント` : 'コメントを送る', 'message-square', () => api('/api/simulate', { kind: 'chat', text: first ? `テスト ${first}` : 'テストコメント' })),
+        chip('スライドを消す', 'rotate-ccw', control('commentSlide', 'reset')),
       );
     } else if (tab === 'counters' || tab === 'goals' || tab === 'rankings') {
       box.append(

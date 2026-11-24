@@ -23,11 +23,13 @@ import { puchunPlays } from './puchun.js';
 import { WinsEngine } from './wins.js';
 import { TimerEngine } from './timer.js';
 import { BossEngine } from './boss.js';
+import { DoorEngine } from './door.js';
 import { createEventBus } from './events.js';
 import { bindRouletteActions, runActions } from './actions.js';
 import { MediaAlerts } from './media-alerts.js';
 import { GiftSounds } from './gift-sounds.js';
 import { CardDraw } from './card-draw.js';
+import { StageQueue } from './stage-queue.js';
 import { DrawResults } from './draw-results.js';
 import { Gacha } from './gacha.js';
 import { GachaViewers } from './gacha-viewers.js';
@@ -38,6 +40,7 @@ import { ThroneEngine } from './throne.js';
 import { OotoriEngine } from './ootori.js';
 import { DarebaEngine } from './dareba.js';
 import { VoteEngine } from './vote.js';
+import { QuizEngine } from './quiz.js';
 import { CheerEngine } from './cheer.js';
 import { PushButtonEngine } from './push-button.js';
 import { shouldAutoConnect } from './rental.js';
@@ -149,6 +152,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   const timer = new TimerEngine(hub, path.join(dataDir, 'timers.json'));
   const boss = new BossEngine(hub, path.join(dataDir, 'boss.json'));
+  const door = new DoorEngine(hub, path.join(dataDir, 'doors.json'));
   const bus = createEventBus();
   bus.on('*', (event) => {
     if (!history.current || event.type === 'gift') return;
@@ -156,8 +160,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   });
   const mediaAlerts = new MediaAlerts({ dir: path.join(dataDir, 'alert-media'), hub, bus });
   const giftSounds = new GiftSounds({ media: mediaAlerts, hub });
-  const gacha = new Gacha(hub, { bus, storeFile: path.join(dataDir, 'gacha-pity.json') });
-  const omikuji = new Gacha(hub, { bus, name: 'omikuji', storeFile: path.join(dataDir, 'omikuji-pity.json') });
+  // 大きな演出の順番待ち（おみくじの抽選・カードめくりの開示が持ち主になる）。配信者ごとに1つ
+  const stage = new StageQueue();
+  const gacha = new Gacha(hub, { bus, storeFile: path.join(dataDir, 'gacha-pity.json'), stage, stageKey: id });
+  const omikuji = new Gacha(hub, { bus, name: 'omikuji', storeFile: path.join(dataDir, 'omikuji-pity.json'), stage, stageKey: id });
   // 抽選の結果の記録（管理画面で「誰が・何に当たったか」を見るため）。テストの結果は記録しない
   const drawResults = new DrawResults(path.join(dataDir, 'draw-results.jsonl'));
   const recordDraw = (kind) => ({ tier, trigger, results, forced }) => {
@@ -176,6 +182,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   bus.on('omikuji.ten', recordDraw('omikuji'));
   bus.on('gacha.reveal', recordDraw('gacha'));
   const cardDraw = new CardDraw(hub, {
+    stage, stageKey: id,
     onResult: ({ user, win, label, giftLabel, test, at }) => {
       if (test) return;
       drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null, session: history.sessionIdAt(at ?? null) });
@@ -184,6 +191,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
   const points = new Points(hub, { file: path.join(dataDir, 'points.json'), omikuji });
   gachaViewers.setPoints(points);
+  omikuji.setStaySource(points); // 確率アップ第2段（滞在ベース）の材料
   const slot = new SlotEngine(hub, { bus });
   const relayStop = new RelayStopEngine(hub, { slot });
   const peka = new Peka(hub);
@@ -195,6 +203,13 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const presets = new Presets(hub, { run: (actions, meta) => runActions(actions, actionDeps(), meta) });
   const vote = new VoteEngine(hub, {
     onResult: ({ id: voteId, actions, result }) => runActions(actions, actionDeps(), { source: 'vote', voteId, result }),
+  });
+  const quiz = new QuizEngine(hub, {
+    // 最初の正解者へポイントを払う。テスト送信の正解では払わない（本番の残高を動かさない）
+    onWin: ({ user, points: amount, test }) => {
+      if (test || !(amount > 0)) return;
+      points.add(user, amount, 'quiz');
+    },
   });
   const cheer = new CheerEngine(hub, {
     onFull: ({ id: cheerId, actions, round, cheer: state }) => runActions(actions, actionDeps(), { source: 'cheer', cheerId, round, cheer: state }),
@@ -269,6 +284,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     wins.setConfig(config.wins);
     timer.setConfig(config.timers);
     boss.setConfig(config.bosses);
+    door.setConfig(config.doors);
     mediaAlerts.setConfig(config.mediaAlerts);
     giftSounds.setConfig(entitled('giftSounds') ? config.giftSounds : { ...config.giftSounds, enabled: false });
     gacha.setConfig(config.gacha);
@@ -285,6 +301,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     dareba.setConfig(config.dareba);
     vote.setEnabled(entitled('votes'));
     vote.setConfig(entitled('votes') ? config.votes : {});
+    quiz.setEnabled(entitled('quizzes'));
+    quiz.setConfig(entitled('quizzes') ? config.quizzes : {});
     cheer.setEnabled(entitled('cheers'));
     cheer.setConfig(entitled('cheers') ? config.cheers : {});
     push.setEnabled(entitled('pushButtons'));
@@ -330,15 +348,15 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id, hub, store, info: () => info(), entitled, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, vote, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
     performControl: (...args) => _control.performControl(...args),
   });
   _control = bindControl(r, {
-    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss,
+    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss, door,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
-    peka, throne, ootori, dareba, vote, cheer, push, visitors, preparation,
+    peka, throne, ootori, dareba, vote, quiz, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
     setStayConnected, rememberTiktokId,
     auto, currentAutoId, timerSeconds,
@@ -436,7 +454,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readWins() { return wins.snapshot(); },
     readTimer() { return timer.snapshot(); },
     readBoss() { return boss.snapshot(); },
+    readDoor() { return door.snapshot(); },
     readVote() { return vote.snapshot(); },
+    readQuiz() { return quiz.snapshot(); },
     readCheer() { return cheer.snapshot(); },
     readPush() { return push.snapshot(); },
     readVisitors() { return visitors.snapshot(); },
@@ -466,6 +486,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       unwatch();
       roulette.clear();
       vote.reset();
+      quiz.reset();
       cheer.reset();
       push.reset();
       demo.stop();

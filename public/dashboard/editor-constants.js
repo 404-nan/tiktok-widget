@@ -1,5 +1,5 @@
 // editor.js の定数。タブ一覧・表示名・フォームの構成など。
-export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
+export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'quizzes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'commentSlide', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 export const ENUM_LABELS = {
@@ -65,7 +65,8 @@ export const LABELS = {
   'omikuji.enabled': 'おみくじを使う', 'omikuji.minCoins': '何コインから引く', 'omikuji.gifts': 'このギフトで引く', 'omikuji.tiers': '運勢と出やすさ',
   'omikuji.pickMode': '番号の選び方', 'omikuji.pickSeconds': '番号を待つ秒数', 'omikuji.timeoutMode': '時間切れのとき',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔', 'slots.idleMode': '待機中の表示',
-  'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
+  'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色',
+  'quizzes.title': '見出し', 'quizzes.source': '問題の出し方', 'quizzes.question': '問題文', 'quizzes.answer': '答え', 'quizzes.choices': '選択肢（カンマ区切り）', 'quizzes.questions': '問題集（1行ごとに「問題文|答え」）', 'quizzes.seconds': '制限時間（秒）', 'quizzes.rewardPoints': '正解者へのポイント', 'quizzes.showAnswer': '答えを見せる', 'quizzes.sound': '効果音', 'quizzes.volume': '音量', 'quizzes.color': '帯の色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
   coinDamage: '1 コインのダメージ', likeDamage: 'いいね 1 回のダメージ', 'bosses.gifts': 'ダメージにするギフト名（カンマ区切り。空なら全部）',
@@ -84,6 +85,7 @@ export const LABELS = {
   shareSeconds: 'シェアで延びる秒数', likeEvery: 'いいね何回ごとに延ばすか（0 で延ばさない）', likeSeconds: 'いいねで延びる秒数',
   pausedExtend: '一時停止中もギフトで延びる', 'timers.hint': '案内文（空なら自動）', showHint: '案内文と延長の合計を出す',
   'timers.avatars': '延ばした人のアイコン', warnMinutes: '時計を朱にする残り（分）', dangerMinutes: '赤く脈打つ残り（分）', endText: '0 になったときの文字',
+  'commentSlide.trigger1': 'きっかけの言葉1', 'commentSlide.text1': '出す言葉1', 'commentSlide.trigger2': 'きっかけの言葉2', 'commentSlide.text2': '出す言葉2', 'commentSlide.trigger3': 'きっかけの言葉3', 'commentSlide.text3': '出す言葉3', 'commentSlide.trigger4': 'きっかけの言葉4', 'commentSlide.text4': '出す言葉4', 'commentSlide.trigger5': 'きっかけの言葉5', 'commentSlide.text5': '出す言葉5', 'commentSlide.seconds': '出す秒数', 'commentSlide.color': '帯の色',
 };
 
 // puchun.html の presets.js と同じ順・キーで、ダッシュボードに字の欄を出す。
@@ -115,8 +117,10 @@ export const BASIC = {
   omikuji: ['enabled', 'displayMode', 'resultFont', 'minCoins', 'gifts', 'pickMode', 'pickSeconds', 'timeoutMode', 'tiers'],
   slots: ['enabled', 'trigger', 'look', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
+  quizzes: ['title', 'source', 'question', 'answer', 'choices', 'questions', 'seconds', 'rewardPoints', 'showAnswer', 'sound', 'volume', 'color'],
   cheers: ['title', 'goal', 'growth', 'loop', 'fullText', 'fullActions', 'sound', 'volume', 'color', 'fullColor'],
   pushButtons: ['label', 'seconds', 'keyword', 'likesPerPush', 'steps', 'blueActions', 'greenActions', 'redActions', 'goldActions', 'missText', 'sound', 'volume', 'color'],
+  commentSlide: ['trigger1', 'text1', 'trigger2', 'text2', 'trigger3', 'text3', 'trigger4', 'text4', 'trigger5', 'text5', 'seconds', 'color'],
   minecraft: ['enabled', 'host', 'port', 'password', 'superstreamProfile', 'superstreamFile', 'forwardGifts', 'rules'],
 };
 // WIN数の演出の段階の境目（src/wins.js の LOSS_PRESETS と同じ）

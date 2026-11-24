@@ -42,9 +42,65 @@
   .stage[data-tier="daikichi"][data-phase="reveal"] .glory::before, .stage[data-tier="daikichi"][data-phase="done"] .glory::before { animation: spin-slow 16s linear infinite; }
   .stage[data-tier="daikichi"][data-phase="reveal"] .glory::after, .stage[data-tier="daikichi"][data-phase="done"] .glory::after { animation: dust-fall 2.6s linear infinite; }
   .stage[data-tier="daikichi"] .slip { box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 44px rgba(255, 196, 0, .38); }
-  .stage[data-tier="daikichi"] .result { text-shadow: 0 0 24px rgba(255, 196, 0, .5), 0 2px 0 rgba(120, 80, 0, .30); }
+  .stage[data-tier="daikichi"] .result { filter: drop-shadow(0 0 18px rgba(255, 196, 0, .45)) drop-shadow(0 2px 0 rgba(120, 80, 0, .25)); }
   .stage[data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .6s 1.25s var(--ease-out) both; }
   .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .5s var(--ease-out) both; }
+
+  /* 大吉の確定演出（作り込み）: 間 → 破裂 → 確定 → 余韻 → 収束。
+     --fx-delay は破裂のタイミング（短い型は速く、長い型は紙が開いてから） */
+  .stage { --fx-delay: 1.2s; }
+  .stage[data-display="short"] { --fx-delay: .5s; }
+  .glory { z-index: 0; }
+  .slip { z-index: 2; }
+  .pick { z-index: 5; }
+  /* 周りが少し沈んで、紙だけが浮く */
+  .fx-dim { position: absolute; inset: -30px; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .6s ease;
+    background: radial-gradient(ellipse 62% 54% at 50% 47%, transparent 46%, rgba(24, 12, 0, .44) 100%); }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .fx-dim { animation: dim-in .55s ease-out both; }
+  .stage[data-tier="daikichi"][data-phase="done"] .fx-dim { opacity: .5; }
+  /* 後光の破裂（広がって、収まる） */
+  .stage[data-tier="daikichi"][data-phase="reveal"] .glory { animation: glory-flare 1.5s ease-out both; }
+  .stage[data-tier="daikichi"][data-phase="done"] .glory { animation: glory-calm 3.2s ease-in-out infinite alternate; }
+  /* 衝撃の輪（破裂と、字が決まった瞬間の2回） */
+  .fx-front { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .ring { position: absolute; left: 50%; top: 216px; width: 250px; height: 250px; margin-left: -125px; margin-top: -125px;
+    border-radius: 50%; border: 3px solid rgba(255, 206, 66, .9); opacity: 0;
+    box-shadow: 0 0 26px rgba(255, 196, 0, .35), inset 0 0 26px rgba(255, 196, 0, .28); }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .ring.r1 { animation: ring-out 1.15s var(--fx-delay) ease-out both; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .ring.r2 { animation: ring-out 1.5s calc(var(--fx-delay) + .5s) ease-out both; }
+  /* 金の粉の破裂（粒は下のスクリプトが作る。--a 向き / --d 距離 / --s 大きさ / --dl 遅れ） */
+  .sparks span { position: absolute; left: 50%; top: 216px; width: var(--s, 7px); height: var(--s, 7px); margin-left: calc(var(--s, 7px) / -2); margin-top: calc(var(--s, 7px) / -2);
+    border-radius: 50% 50% 50% 6px; opacity: 0;
+    background: radial-gradient(circle, #fff3b0 0 30%, #ffc824 62%, rgba(255, 180, 0, 0) 100%); }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .sparks span { animation: spark-fly 1.3s calc(var(--fx-delay) + var(--dl, 0s)) cubic-bezier(.17, .67, .35, 1) both; }
+  /* 字のきらめき（金の流れ） */
+  .stage[data-tier="daikichi"] .result {
+    background-image: linear-gradient(100deg, #8a6408 22%, #caa00f 40%, #ffedb0 50%, #caa00f 60%, #8a6408 78%);
+    background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stage[data-tier="daikichi"][data-phase="reveal"] .result, .stage[data-tier="daikichi"][data-phase="done"] .result { animation: sheen 2.8s linear infinite; }
+  .stage[data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .6s 1.25s var(--ease-out) both, sheen 2.8s linear infinite; }
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .result { animation: slam-gold .55s var(--fx-delay) var(--ease-out) both, sheen 2.8s linear infinite; }
+  /* 短い型は、破裂に合わせて紙と判も少し遅らせる（間を作る） */
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .slip { animation: unfold .45s .28s var(--ease-out) both; }
+  .stage[data-display="short"][data-phase="reveal"][data-tier="daikichi"] .seal { animation: stamp-big .38s calc(var(--fx-delay) + .5s) ease-out both; }
+  .stage[data-phase="reveal"][data-tier="daikichi"] .seal { animation: stamp-big .38s 1.75s ease-out both; }
+  /* Three.js で描けるとき（omikuji/daikichi-fx.js が板を足して .fx-3d を付ける）は、後光・輪・粉をこの板に任せ、CSS の同じ役の飾りは消す。
+     描けないとき（WebGL なし・three が読めない・動きを減らす設定）は、上の CSS の後光・輪・粉がそのまま出る。板は大吉が終わると外される。
+     板は body の直下に置き、ウィジェットの画面いっぱいに広げる（金の粉や輪が画面の端まで届く）。紙の後ろに回る光は板の中で紙に隠す */
+  .fx-3d-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; }
+  .stage.fx-3d .glory, .stage.fx-3d .fx-front { display: none; }
+  /* 光が画面いっぱいに出るので、沈み込みも広げて外側へ溶かす（四角い縁を見せない） */
+  .stage.fx-3d .fx-dim { inset: -150px -170px; background: radial-gradient(closest-side, transparent 38%, rgba(24, 12, 0, .44) 68%, transparent 100%); }
+  /* 終わりの段階：光が静かに脈打ってから、消える */
+  .stage[data-tier="daikichi"][data-phase="done"] .slip { animation: daikichi-done var(--done, 3.5s) linear both; }
+  @keyframes dim-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes glory-flare { 0% { transform: scale(.72); filter: brightness(1.7); } 55% { transform: scale(1.1); filter: brightness(1.25); } 100% { transform: scale(1); filter: brightness(1); } }
+  @keyframes glory-calm { from { transform: scale(1); } to { transform: scale(1.045); } }
+  @keyframes ring-out { 0% { transform: scale(.22); opacity: 0; } 12% { opacity: .95; } 100% { transform: scale(2.25); opacity: 0; } }
+  @keyframes spark-fly { 0% { transform: rotate(var(--a, 0deg)) translateY(0) scale(1); opacity: 0; } 10% { opacity: 1; } 72% { opacity: 1; } 100% { transform: rotate(var(--a, 0deg)) translateY(calc(var(--d, 150px) * -1)) scale(.35) rotate(50deg); opacity: 0; } }
+  @keyframes sheen { from { background-position: 115% 0; } to { background-position: -115% 0; } }
+  @keyframes stamp-big { 0% { transform: rotate(-8deg) scale(2.1); opacity: 0; } 62% { transform: rotate(-8deg) scale(.94); opacity: .95; } 100% { transform: rotate(-8deg) scale(1); opacity: .92; } }
+  @keyframes daikichi-done { 0% { opacity: 1; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 44px rgba(255, 196, 0, .38); } 30% { opacity: 1; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 74px rgba(255, 196, 0, .62); } 62% { opacity: 1; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 40px rgba(255, 196, 0, .34); } 100% { opacity: 0; box-shadow: 0 16px 30px rgba(0, 0, 0, .36), 0 0 30px rgba(255, 196, 0, .25); } }
 
   /* 和紙のすき目(小さな SVG のノイズを1枚だけ敷く。動かさない) */
   .washi {
@@ -187,7 +243,7 @@
   @keyframes drop { 0% { transform: translateY(var(--sag, 0)) rotate(0) scale(1.12); } 25% { transform: translateY(calc(var(--sag, 0) - 8px)) rotate(0) scale(1.12); } 100% { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(0) scale(.5); opacity: 0; } }
   @keyframes tremble { 0%, 100% { margin-left: -102px; } 50% { margin-left: -99px; } }
   @keyframes fadeout { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
-  /* 10連: 小さい和紙の札を5列×2段で、1枚ずつ時間差で出す */
+  /* まとめ引き: 小さい和紙の札を5列で折り返して、1枚ずつ時間差で出す。フリップ表示では段が増えても行が均等に縮んで舞台に収まる */
   .ten { position: absolute; inset: 64px 10px auto; z-index: 5; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
   .ten[hidden] { display: none; }
   .ten-slip { background-color: var(--washi); color: var(--ink); border: 1px solid rgba(36, 24, 15, .25); border-radius: 3px; min-height: 92px; display: grid; place-items: center; padding: 6px 2px; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); opacity: 0; animation: tenpop .45s var(--ease-out, ease-out) both; }
@@ -196,6 +252,34 @@
   .ten-slip[data-tier="daikyo"] { background-color: #4A4238; color: var(--washi); }
   .ten-slip[data-tier="kyo"] { background-color: #B9B0A0; }
   @keyframes tenpop { 0% { opacity: 0; transform: translateY(14px) scale(.8) rotate(-3deg); } 100% { opacity: 1; transform: none; } }
+  /* 天井まであと何回か: 舞台の右下の隅に小さく出す（和紙の丸に墨の縁、数は朱）。状態の pityLeft が数値のときだけ出る */
+  .pity-badge { position: absolute; right: 4px; bottom: 6px; z-index: 6; box-sizing: border-box; width: 60px; height: 60px; margin: 0; padding: 4px; border: 2px solid var(--ink); border-radius: 50%; color: var(--ink); box-shadow: 0 4px 10px rgba(0, 0, 0, .28); display: grid; align-content: center; justify-items: center; gap: 1px; text-align: center; }
+  .pity-badge[hidden] { display: none; }
+  .pity-head { font-size: 10px; letter-spacing: .14em; padding-left: .14em; }
+  .pity-count { font-size: 15px; font-weight: 900; line-height: 1; white-space: nowrap; }
+  .pity-count b { color: var(--shu); }
+  /* 総いいねの倍率が掛かっている間だけ、舞台の左下に小さく出す（天井バッジの対）。状態の likeBoost が true のときだけ出る */
+  .boost-badge { position: absolute; left: 4px; bottom: 6px; z-index: 6; margin: 0; padding: 6px 10px; border: 2px solid var(--ink); color: var(--ink); font-size: 14px; font-weight: 900; line-height: 1; box-shadow: 0 4px 10px rgba(0, 0, 0, .28); }
+  .boost-badge[hidden] { display: none; }
+  .boost-badge b { color: var(--shu); }
+  /* いいねの進み具合のゲージ（舞台の上に出す。形は設定 likeGauge で選ぶ。初期値は出さない）。
+     出すのは総いいね数の的までの進みだけ。文字は共通の基本フォントに従う（この要素には書体を固定しない） */
+  .like-gauge { width: 360px; margin: 2px 0 8px; padding: 10px 12px; background: #EFE6CF; border: 2px solid #24180F; color: #24180F; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); }
+  .like-gauge[hidden] { display: none; }
+  .lg-bar { height: 20px; border: 2px solid #24180F; background: rgba(36, 24, 15, .16); overflow: hidden; }
+  .lg-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #A87A0C, #F6C445); transition: width .45s ease; }
+  .like-gauge.full .lg-fill { animation: lg-glow 1.2s ease-in-out infinite alternate; }
+  @keyframes lg-glow { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+  .lg-liquid { display: none; width: 100%; height: 84px; border: 2px solid #24180F; background: #24180F; }
+  .like-gauge[data-style="liquid"] .lg-liquid { display: block; }
+  .like-gauge[data-style="liquid"] .lg-bar { display: none; }
+  .lg-text { display: none; margin: 0; text-align: center; }
+  .like-gauge[data-style="text"] .lg-text { display: block; }
+  .like-gauge[data-style="text"] .lg-bar { display: none; }
+  .lg-big { font-size: 44px; font-weight: 900; line-height: 1.05; color: #C02A1C; }
+  .lg-unit { font-size: 16px; font-weight: 700; }
+  .lg-status { margin: 6px 0 0; text-align: center; font-size: 14px; font-weight: 700; }
+  .lg-status.on { color: #C02A1C; font-size: 17px; font-weight: 900; }
   /* 10連の表示（gacha.js が data-ten="flip" を付ける）: 舞台を横4:縦3にして、裏返しの札が1枚ずつ回転して表に返る。
      表の意匠は正規の札そのまま（見出し・二重枠・運勢色の字・名前・朱印）。試作v3の見た目をそのまま移した。
      大吉の札だけ、返る動きを長くし、金の光を残して長く見せる（第2段） */
@@ -227,15 +311,48 @@
   .ten-slip .m-result.len6 { font-size: 18px; }
   .ten-slip .m-foot { position: absolute; bottom: 9px; left: 0; right: 0; text-align: center; writing-mode: horizontal-tb; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 11px; color: var(--ink); }
   .ten-slip .m-seal { position: absolute; right: 9px; bottom: 25px; width: 26px; height: 26px; padding: 2px; background: var(--shu); color: var(--washi); writing-mode: horizontal-tb; font-family: "Zen Kaku Gothic New", var(--font); font-weight: 700; font-size: 9px; line-height: 1.15; display: grid; place-items: center; text-align: center; mix-blend-mode: multiply; transform: rotate(-8deg); clip-path: polygon(1% 3%, 99% 0, 100% 97%, 3% 100%); }
-  @media (prefers-reduced-motion: reduce) { .stage * { animation-duration: .01s !important; animation-iteration-count: 1 !important; } .ten-slip .flip { animation-duration: .01s !important; } }
+  /* 段が多いとき（4段以上＝16件以上）は、1段の高さに合わせて札の中身も小さくする。
+     結果の字は段の高さ以下にし、縦に積んだ高さも段の中に収める。見出し・名前・印は省く
+     （引いた人の名前は舞台の見出しに出ている）。3段（15件）までは今までの大きさのまま。
+     段数は gacha.js が data-ten-rows に出す（5列で折り返した段数） */
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-result { font-size: 24px; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-result.len3 { font-size: 20px; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-result.len4 { font-size: 15px; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-result.len5 { font-size: 12px; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-result.len6 { font-size: 10px; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .face.back span { font-size: 10px; }
+  .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-result { font-size: 19px; }
+  .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-result.len3 { font-size: 15px; }
+  .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-result.len4 { font-size: 12px; }
+  .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-result.len5 { font-size: 9px; }
+  .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-result.len6 { font-size: 8px; }
+  .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .face.back span { font-size: 8px; }
+  .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-result { font-size: 15px; }
+  .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-result.len3 { font-size: 12px; }
+  .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-result.len4 { font-size: 10px; }
+  .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-result.len5 { font-size: 8px; }
+  .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-result.len6 { font-size: 6px; }
+  .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .face.back span { font-size: 7px; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-head, .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-head, .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-head { display: none; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-foot, .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-foot, .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-foot { display: none; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .m-seal, .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .m-seal, .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .m-seal { display: none; }
+  .stage[data-ten="flip"][data-ten-rows="4"] .ten-slip .face::before, .stage[data-ten="flip"][data-ten-rows="5"] .ten-slip .face::before, .stage[data-ten="flip"][data-ten-rows="6"] .ten-slip .face::before { inset: 2px; border-width: 2px; }
+  @media (prefers-reduced-motion: reduce) { .stage * { animation-duration: .01s !important; animation-iteration-count: 1 !important; } .ten-slip .flip { animation-duration: .01s !important; } .stage .glory, .stage .fx-dim, .stage .fx-front { display: none !important; } }
 </style>
 </head>
 <body data-kind="omikuji">
+<div class="like-gauge" id="likeGauge" hidden data-style="off">
+  <div class="lg-bar"><div class="lg-fill" id="lgFill"></div></div>
+  <canvas class="lg-liquid" id="lgLiquid"></canvas>
+  <p class="lg-text"><span class="lg-big" id="lgBig">0</span><span class="lg-unit"> あと</span></p>
+  <p class="lg-status" id="lgStatus"></p>
+</div>
 <div class="stage" id="stage" data-phase="idle">
   <div class="plate" id="plate">
     <div class="stick"><span class="stick-head"></span><span class="stick-name" id="stickName"></span></div>
     <div class="tube" id="tube"><div class="tube-hole"></div><div class="tube-body"></div><div class="tube-label washi">おみくじ</div></div>
     <div class="glory" aria-hidden="true"></div>
+    <div class="fx-dim" aria-hidden="true"></div>
     <p class="draw-who washi" id="drawWho"></p>
     <div class="slip washi">
       <span class="slip-head">おみくじ</span>
@@ -243,6 +360,7 @@
       <span class="slip-name" id="slipName"></span>
       <span class="seal">開運<br>守護</span>
     </div>
+    <div class="fx-front" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="sparks"></span></div>
     <div class="pick" id="pick">
       <svg class="rope" viewBox="0 0 360 100" aria-hidden="true">
         <path class="r1" d="M4 2 Q180 16 356 2"/><path class="r2" d="M4 2 Q180 16 356 2"/>
@@ -256,6 +374,8 @@
     <p class="kicker" id="phase"></p>
     <p class="time" id="time"></p>
   </div>
+  <p class="pity-badge washi" id="pityBadge" hidden><span class="pity-head">あと</span><span class="pity-count"><b id="pityLeft"></b>回</span></p>
+  <p class="boost-badge washi" id="boostBadge" hidden>確率<b id="boostTimes">2</b>倍中</p>
 </div>
 <script>
   // 舞台は 360x460 で作ってある。置かれた枠がそれより小さいときは、切らずに縮めて全部見せる。
@@ -273,12 +393,43 @@
     addEventListener('resize', fit);
     new MutationObserver(fit).observe(document.getElementById('stage'), { attributes: true, attributeFilter: ['data-ten'] });
     fit();
+    // 大吉の破裂の粒（種を固定して、いつ見ても同じ破裂にする）
+    const sparks = document.querySelector('.sparks');
+    if (sparks) {
+      let seed = 7;
+      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      for (let i = 0; i < 26; i++) {
+        const s = document.createElement('span');
+        s.style.setProperty('--a', Math.round(rnd() * 360) + 'deg');
+        s.style.setProperty('--d', Math.round(90 + rnd() * 190) + 'px');
+        s.style.setProperty('--s', (5 + rnd() * 7).toFixed(1) + 'px');
+        s.style.setProperty('--dl', (rnd() * 0.35).toFixed(2) + 's');
+        sparks.appendChild(s);
+      }
+    }
   })();
 </script>
 <script src="gacha.js"></script>
 <script type="module">
   import { startVersionWatch } from './lib/version-watch.js';
+  import { startDaikichiFx } from './omikuji/daikichi-fx.js';
+  import { fontFamily } from './lib/fonts.js';
   startVersionWatch('omikuji', { isIdle: () => !document.body.classList.contains('on') });
+  startDaikichiFx(document.getElementById('stage'));
+  // 全ウィジェット共通の基本フォント（テーマの font / customFont）を、この画面の根元に効かせる。
+  // 舞台（.stage）は自分の書体を持つので従来どおり。ゲージなど舞台の外の文字が基本フォントに従う。
+  // gacha.js が設定を受け取るたびに window.__twApplyFont を呼ぶ（最初の1回はここで読む）
+  const applyBaseFont = (config) => {
+    const theme = (config || {}).theme || {};
+    const family = fontFamily(theme.font, theme.customFont);
+    const root = document.documentElement;
+    root.style.fontFamily = family;
+    if (family) root.dataset.font = theme.font;
+    else delete root.dataset.font;
+  };
+  window.__twApplyFont = applyBaseFont;
+  const base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
+  fetch(base + '/api/config').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) applyBaseFont(d.config); }).catch(() => {});
 </script>
 </body>
 </html>

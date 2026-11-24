@@ -16,9 +16,9 @@ import { runActions } from './actions.js';
  */
 export function bindControl(r, ctx) {
   const {
-    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss,
+    hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss, door,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
-    peka, throne, ootori, dareba, vote, cheer, push, visitors, preparation,
+    peka, throne, ootori, dareba, vote, quiz, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
     setStayConnected, rememberTiktokId,
     auto, currentAutoId, timerSeconds,
@@ -363,6 +363,18 @@ export function bindControl(r, ctx) {
         return { status: 400, body: { error: err.message } };
       }
     }
+    // 扉の確率ゲームもサーバーで持つ（start / pick（n が 1=左・2=右）/ reset）。
+    // 配信者が配信中に扉を選ぶ本物の操作なので、ボスのテストボタンと違い test の印は付けない
+    if (target === 'door') {
+      try {
+        if (action === 'status') return { status: 200, body: { ok: true, door: door.snapshot() } };
+        const wid = data?.id === 'active' ? cfg.activeId(hub.config, 'doors') : data?.id || null;
+        const value = action === 'pick' ? (data?.n ?? data?.value) : undefined;
+        return { status: 200, body: { ok: true, door: door.apply(wid, String(action), value) } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
     if (target === 'vote') {
       if (!entitled('votes')) return { status: 403, body: { error: 'コメント投票は管理者が使えるようにすると使えます' } };
       const requested = data?.id;
@@ -381,6 +393,27 @@ export function bindControl(r, ctx) {
           else throw new Error('動作は start / close / result / reset / status のどれかです');
         }
         return { status: 200, body: { ok: true, vote: ids.length === 1 ? out[ids[0]] : undefined, votes: out } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    if (target === 'quiz') {
+      if (!entitled('quizzes')) return { status: 403, body: { error: 'クイズは管理者が使えるようにすると使えます' } };
+      const requested = data?.id;
+      const ids = requested === 'all' ? quiz.ids() : [requested === 'active' || !requested ? cfg.activeId(hub.config, 'quizzes') : requested];
+      try {
+        const allowedActions = ['status', 'start', 'finish', 'reset'];
+        if (!allowedActions.includes(action)) throw new Error('クイズの動作は start / finish / reset / status のどれかです');
+        if (action === 'status') return { status: 200, body: { ok: true, quizzes: quiz.snapshot() } };
+        if (!ids.length || ids.some((id) => !id || !quiz.ids().includes(id))) throw new Error('クイズの設定がありません');
+        const out = {};
+        for (const id of ids) {
+          if (action === 'start') out[id] = quiz.start(id, data);
+          else if (action === 'finish') out[id] = quiz.finish(id);
+          else if (action === 'reset') { quiz.reset(id); out[id] = quiz.snapshot()[id]; }
+          else throw new Error('動作は start / finish / reset / status のどれかです');
+        }
+        return { status: 200, body: { ok: true, quiz: ids.length === 1 ? out[ids[0]] : undefined, quizzes: out } };
       } catch (err) {
         return { status: 400, body: { error: err.message } };
       }
