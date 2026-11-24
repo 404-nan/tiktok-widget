@@ -70,6 +70,10 @@
 | POST /api/gacha-viewers/:id/adjust | 視聴者の調整 |
 | POST /api/gacha-viewers/reset-free | 無料分のリセット |
 | GET /api/omikuji | おみくじ |
+| GET /api/door | 扉の確率ゲームの状態 |
+| ALL /api/door/:id/:action | 扉の操作（開始・選択・リセット） |
+| GET /api/quiz | クイズの状態 |
+| ALL /api/quiz/:id/:action | クイズの操作（出題・終了など） |
 | GET /api/dareba | ダレバ |
 | GET /api/ootori | 大鳥 |
 | GET /api/peka | ペカ |
