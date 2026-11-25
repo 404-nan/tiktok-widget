@@ -182,7 +182,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   bus.on('omikuji.ten', recordDraw('omikuji'));
   bus.on('gacha.reveal', recordDraw('gacha'));
   const cardDraw = new CardDraw(hub, {
-    stage, stageKey: id,
+    stage, stageKey: id, storeFile: path.join(dataDir, 'card-draw-pity.json'),
     onResult: ({ user, win, label, giftLabel, test, at }) => {
       if (test) return;
       drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null, session: history.sessionIdAt(at ?? null) });

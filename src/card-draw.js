@@ -4,6 +4,8 @@
 // 実際に当たるカードの枚数（winCount）を決めて、選んだカードが当たりかどうかで決めるか。
 // 表に見せる当たりの枚数は裏とは別に設定できる(showJackpot と showWinCount)。
 // 確率が 0 のときは、並びに大当たりが出ていても当たらない。
+import fs from 'node:fs';
+import path from 'node:path';
 import { defaultsFor } from './schema.js';
 import { giftDisplayName, giftMatches } from './gifts.js';
 
@@ -45,7 +47,7 @@ export function pickNumber(text, count) {
 }
 
 export class CardDraw {
-  constructor(hub, { random = Math.random, onResult = null, stage = null, stageKey = 'local' } = {}) {
+  constructor(hub, { random = Math.random, onResult = null, stage = null, stageKey = 'local', storeFile = null } = {}) {
     this.hub = hub;
     this.random = random;
     // 舞台の順番待ち（src/stage-queue.js）。渡されたときだけ、開示の間は舞台の持ち主になる
@@ -60,6 +62,84 @@ export class CardDraw {
     this.pending = [];
     this.round = null;
     this.timers = new Set();
+    // 天井の数え（おみくじと同じ考え方）。保存先があれば再起動でも消えない
+    this.storeFile = storeFile ? String(storeFile) : null;
+    const savedPity = this.#loadPity();
+    this.pityCount = savedPity.count; // 全体の天井の数え（当たりが出ていない回数）
+    this.pityUsers = savedPity.users; // 個人の天井の数え（めくった人の鍵 → 当たりが出ていない回数）
+    // 天井の数えは1回の配信の中だけ。配信が完全に終わったら0に戻す
+    this.liveActive = false;
+    if (this.hub && typeof this.hub.on === 'function') this.hub.on('status', (status) => this.#onStreamStatus(status));
+  }
+
+  /** 配信の状態の知らせ。配信が本当に終わったときだけ数えを戻す。
+   * 接続し直しの途中（connecting）と、再接続の失敗（error）は配信の終了ではないので戻さない */
+  #onStreamStatus(status) {
+    const mode = status?.mode;
+    if (mode === 'live') { this.liveActive = true; return; }
+    if (mode !== 'ended' && mode !== 'idle' && mode !== 'demo') return;
+    if (!this.liveActive) return;
+    this.liveActive = false;
+    if (this.pityCount !== 0 || this.pityUsers.size > 0) {
+      this.pityCount = 0;
+      this.pityUsers.clear();
+      this.#savePity();
+    }
+  }
+
+  /** 天井の数えの読み込み。保存先が無い・壊れているときは 0 から */
+  #loadPity() {
+    const empty = { count: 0, users: new Map() };
+    if (!this.storeFile) return empty;
+    try {
+      const saved = JSON.parse(fs.readFileSync(this.storeFile, 'utf8'));
+      const n = Number(saved?.pityCount);
+      const users = new Map();
+      if (saved?.pityUsers && typeof saved.pityUsers === 'object' && !Array.isArray(saved.pityUsers)) {
+        for (const [key, value] of Object.entries(saved.pityUsers)) {
+          const c = Number(value);
+          if (key && Number.isFinite(c) && c > 0) users.set(key, Math.floor(c));
+        }
+      }
+      return { count: Number.isFinite(n) && n > 0 ? Math.floor(n) : 0, users };
+    } catch {
+      return empty;
+    }
+  }
+
+  /** 天井の数えの保存（版1）。おみくじと同じ格：仮ファイルへ書いてから入れ替える */
+  #savePity() {
+    if (!this.storeFile) return;
+    try {
+      fs.mkdirSync(path.dirname(this.storeFile), { recursive: true });
+      const temp = `${this.storeFile}.tmp`;
+      const data = { version: 1, pityCount: this.pityCount, pityUsers: Object.fromEntries(this.pityUsers) };
+      fs.writeFileSync(temp, `${JSON.stringify(data)}\n`, { mode: 0o600 });
+      fs.renameSync(temp, this.storeFile);
+    } catch {
+      // 保存に失敗しても抽選自体は止めない
+    }
+  }
+
+  /** めくった人の鍵（個人の天井の数えの単位）。ID を優先し、無ければ名前。どちらも無ければ null */
+  #userKey(trigger) {
+    const user = trigger?.user;
+    return user?.id ? `id:${user.id}` : user?.name ? `name:${user.name}` : null;
+  }
+
+  /** 個人の天井の数えの反映。個人の設定が無い・鍵が無いときは何もしない。0 は消す */
+  #applyUserPity(userKey, userCount) {
+    if (!userKey || userCount == null) return;
+    if ((Number(this.config.pityPersonal) || 0) <= 0) return;
+    if (userCount > 0) this.pityUsers.set(userKey, userCount);
+    else this.pityUsers.delete(userKey);
+  }
+
+  /** 全体の天井の残り。当たりが出たら満タンへ戻る。個人の天井の残りはここには混ぜない */
+  #pityLeft() {
+    const every = Math.max(0, Number(this.config.pity) || 0);
+    if (every <= 0) return null;
+    return Math.max(0, every - this.pityCount);
   }
 
   setConfig(cfg) {
@@ -67,7 +147,7 @@ export class CardDraw {
   }
 
   snapshot() {
-    return { phase: this.phase, seq: this.seq, pending: this.pending.length, enabled: this.config.enabled !== false, ...this.#view() };
+    return { phase: this.phase, seq: this.seq, pending: this.pending.length, enabled: this.config.enabled !== false, pityCount: this.pityCount, pityLeft: this.#pityLeft(), ...this.#view() };
   }
 
   /** テストのラウンドを打ち切る。タイマーを全部止め、画面を空に戻す */
@@ -159,14 +239,47 @@ export class CardDraw {
     // 先に他の演出が使っていたら、ラウンドの途中なので待たずに進め、持ち主にはならない
     if (this.stage) this.stageHeld = this.stage.acquire(this.stageKey, 'cardDraw');
     this.round.picked = n;
-    this.round.win = this.round.reals ? this.round.reals[n - 1] === true : this.random() < (Number(this.config.winRate) || 0);
+    // 天井（おみくじと同じ意味）：全体か個人の数えが設定値に届いていたら、この回は当たり確定。
+    // 当たりの決め方（確率・実際に当たるカードの枚数）にかかわらず当たりにし、枚数方式では
+    // 選んだ位置へ当たりを寄せる（当たりが1枚も用意されていない設定では、その1枚だけ足す）
+    const userKey = this.#userKey(this.trigger);
+    const userCount = userKey ? (this.pityUsers.get(userKey) ?? 0) : null;
+    const pityEvery = Math.max(0, Number(this.config.pity) || 0);
+    const personalEvery = Math.max(0, Number(this.config.pityPersonal) || 0);
+    const forced = (pityEvery > 0 && this.pityCount >= pityEvery)
+      || (personalEvery > 0 && userCount != null && userCount >= personalEvery);
+    this.round.forced = forced;
+    if (forced) {
+      this.round.win = true;
+      if (this.round.reals && this.round.reals[n - 1] !== true) {
+        const other = this.round.reals.findIndex((face, i) => i !== n - 1 && face === true);
+        if (other >= 0) [this.round.reals[n - 1], this.round.reals[other]] = [this.round.reals[other], this.round.reals[n - 1]];
+        else this.round.reals[n - 1] = true;
+      }
+    } else {
+      this.round.win = this.round.reals ? this.round.reals[n - 1] === true : this.random() < (Number(this.config.winRate) || 0);
+    }
     // 結果が決まったら、カードの並びを結果に合わせる（外れたとき、どこに当たりがあったかを見せるため）。
     // 並びは最初から両方（当たり・ハズレ）を含むので、選んだ位置と入れ替えるだけで合わせられる。
     // 確率 0（当たり無し）と確率 1（全部当たり）は、並びと結果が最初から一致している。
+    // 例外は天井で当たりになった確率 0 の回：並びに当たりが1枚も無いので、選んだ位置だけ当たりにする
     const deck = this.round.deck;
     if (!this.round.reals && deck[n - 1] !== this.round.win) {
       const other = deck.findIndex((face, i) => i !== n - 1 && face === this.round.win);
       if (other >= 0) [deck[n - 1], deck[other]] = [deck[other], deck[n - 1]];
+      else if (this.round.win) deck[n - 1] = true;
+    }
+    // 天井の数えを進める（テストのめくりでは進めない。おみくじと同じ線引き）。
+    // 当たりが出たら全体は 0 に戻り、めくった本人の数えも 0 に戻る
+    if (this.trigger?.test !== true && this.trigger?.kind !== 'test') {
+      if (this.round.win) {
+        this.pityCount = 0;
+        this.#applyUserPity(userKey, userCount == null ? null : 0);
+      } else {
+        this.pityCount += 1;
+        this.#applyUserPity(userKey, userCount == null ? null : userCount + 1);
+      }
+      this.#savePity();
     }
     if (this.onResult) {
       const c = this.config;
