@@ -287,6 +287,7 @@ export class CardDraw {
         this.onResult({
           user: this.round.user?.name ?? null,
           win: this.round.win,
+          forced: this.round.forced === true,
           label: this.round.win ? c.winLabel : c.loseLabel,
           giftLabel: this.round.giftLabel,
           test: Boolean(this.trigger?.test) || this.trigger?.kind === 'test' || this.trigger?.kind === 'dev',

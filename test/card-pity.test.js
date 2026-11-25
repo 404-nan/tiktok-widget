@@ -159,6 +159,21 @@ test('確率 0 でも天井の回は、めくれたカードが当たりの顔�
   draw.close();
 });
 
+test('結果の記録に、天井で当たった回は forced の印が付く', async () => {
+  const results = [];
+  const draw = new CardDraw(makeHub(), { random: () => 0.99, onResult: (r) => results.push(r) });
+  draw.setConfig({ ...BASE, winRate: 0, pity: 1 });
+  const user = { id: 'u1', name: 'ゆず' };
+  await play(draw, user);
+  const r = await play(draw, user);
+  assert.equal(r.forced, true);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].forced, false);
+  assert.equal(results[1].forced, true);
+  assert.equal(results[1].win, true);
+  draw.close();
+});
+
 test('テスト送信のめくりでは天井の数えは進まない', async () => {
   const draw = new CardDraw(makeHub(), { random: () => 0.99 });
   draw.setConfig({ ...BASE, winRate: 0, pity: 2, pityPersonal: 2 });

@@ -183,9 +183,9 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   bus.on('gacha.reveal', recordDraw('gacha'));
   const cardDraw = new CardDraw(hub, {
     stage, stageKey: id, storeFile: path.join(dataDir, 'card-draw-pity.json'),
-    onResult: ({ user, win, label, giftLabel, test, at }) => {
+    onResult: ({ user, win, forced, label, giftLabel, test, at }) => {
       if (test) return;
-      drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, gift: giftLabel ?? null, session: history.sessionIdAt(at ?? null) });
+      drawResults.add({ kind: 'cardDraw', user, result: label ?? '', win, forced: Boolean(forced), gift: giftLabel ?? null, session: history.sessionIdAt(at ?? null) });
     },
   });
   const gachaViewers = new GachaViewers(path.join(dataDir, 'gacha-viewers.json'), { gacha, bus });
