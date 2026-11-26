@@ -17,6 +17,8 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 配信画面の遊び方選択 | 配信画面の見本で、耐久・目標配信などの使うものを選び、配置を保存する | できた | `public/dashboard/stage.js`、`src/runtime.js` |
 | AI にたのむ | 設定変更の案を見てから反映し、元に戻す | できた | `src/ai.js`、`public/dashboard/ai.js` |
 | ギフト・コメント・視聴者数の受信と WebSocket 配信 | TikTok LIVE のイベントを受けて画面へ配る | できた | - |
+| WebSocket 切断時のイベント再送 | 再接続時に直近500件を連番で受け取り直し、同じ連番は画面で重ねて処理しない | できた | `src/hub.js`、`public/widgets/lib/overlay.js` |
+| 配信中の集計状態の再起動復元 | `data/live-state.json`（配信者ごとは `data/tenants/<id>/live-state.json`）から、room ID が一致する場合だけ状態・連番・再送履歴を戻す | できた | `src/runtime.js` |
 | オーバーレイ、ダッシュボード、モニター、統計、管理画面 | 配信・設定・履歴を管理する。統計に OBS ウィジェット利用時間を表示し、配信中の接続回数も記録する | できた | `src/history.js`、`public/history/` |
 | 演出の効果ログと配信後レポート | ギフト・フォロー・シェアとサーバー側演出を匿名で記録し、配信合計と同じ数え方で前後のコインを比較する。記録は消さずに全部残す | できた | `src/effect-log.js`、`src/gifts.js`、`public/history/` |
 | 配信の1件ごとの記録 | ギフト・フォロー・シェア・ルーレットを「誰が・いつ・何を」で配信ごとに全部残し、配信単位で種類を絞って全件をページ単位で読める | できた（開発側） | `src/session-details.js`、`src/history.js`、`src/runtime-routes.js` |
@@ -145,6 +147,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | マイクラにつながらない間のコマンド | - | 送らずに捨て、記録に残す | `src/minecraft.js` |
 | おみくじの番号を待つ時間 | 設定の `pickSeconds`（既定10秒）。配信者の番も同じ秒数 | 送った人が選ばなければ `timeoutMode`（既定ランダム）、配信者も押さなければランダムで引く。待つ間の次のギフトは待ち列（捨てない） | `src/gacha.js` |
 | おみくじの舞台の順番待ち | 設定の `stageQueueMax`（既定20件）。`stageQueue` を切ると順番待ち自体をしない | 超えた分は引かず、バスの知らせで演出の記録に残す | `src/gacha.js`、`src/stage-queue.js` |
+| WebSocket 再接続時の出来事リング | 直近500件、クライアントの重複記録は直近1,000連番 | それより前の分は再送できず、hello の `gap` が true になる | `src/hub.js`、`public/widgets/lib/replay-cursor.js`、`public/widgets/lib/replay-socket.js` |
 | クイズの正解の受付 | 最初の正解者1人だけ | 2人目以降の正解は結果にせず、ポイントも払わない。テスト送信の正解でも払わない | `src/quiz.js` |
 | クイズの問題集の進み方 | 問題集の件数ぶん順に出す | 最後まで行くと最初に戻る（問題は捨てない） | `src/quiz.js` |
 
@@ -555,4 +558,3 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にします。すでにある名前は前の名前を残し、変わった名前は標準出力に出します（コインの値は一覧に更新）。終わったらブラウザ用の表も作り直します。ログイン・API キー・有料プランは不要です。AI 向けの決まりは `AGENTS.md` にあります。
-

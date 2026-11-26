@@ -1,6 +1,7 @@
 // ウィジェット共通: 設定の読み込み、サーバーとの接続、URL パラメータ、数値の表示、ギフト画像など。
 import { giftNameJa } from './gift-names.js';
 import { fontFamily } from './fonts.js';
+import { ReplayCursor } from './replay-cursor.js';
 import './gift-name.js';
 
 // --- 配信者ごとの URL（/t/<鍵>/...） ---
@@ -349,16 +350,24 @@ function applyFontFromSocket(config) {
   applyBaseFont(config, id ? holder[id] : null, config[section]);
 }
 
-export function connect(handlers) {
+export function connect(handlers, { reconnectDelay = 2000 } = {}) {
   const compact = new URLSearchParams(loc.search || '').get('compact') === '1';
-    // ダッシュボードの中の見本(preview=1 / preview=live)は、配信ソフトからの接続として数えない
+  // ダッシュボードの中の見本(preview=1 / preview=live)は、配信ソフトからの接続として数えない
   const pv = new URLSearchParams(loc.search || '').get('preview');
   const preview = pv === '1' || pv === 'live';
-  const query = [compact && 'compact=1', preview && 'preview=1'].filter(Boolean).join('&');
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${query ? `?${query}` : ''}`;
+  const cursor = new ReplayCursor();
   let ws;
   let latestState = null;
   const open = () => {
+    const query = new URLSearchParams();
+    if (compact) query.set('compact', '1');
+    if (preview) query.set('preview', '1');
+    if (cursor.epoch && cursor.lastSeq != null) {
+      query.set('since', String(cursor.lastSeq));
+      query.set('epoch', cursor.epoch);
+    }
+    const suffix = query.size ? `?${query}` : '';
+    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${suffix}`;
     ws = new WebSocket(url);
     ws.onmessage = (m) => {
       let msg;
@@ -367,9 +376,11 @@ export function connect(handlers) {
       } catch {
         return;
       }
+      if (msg.type === 'hello') cursor.hello(msg);
+      else if (msg.type === 'event' && !cursor.accept(msg)) return;
       if (msg.type === 'hello' || msg.type === 'config') { handleConfig(msg.config); applyBackgroundFromSocket(msg.config); applyFontFromSocket(msg.config); }
       if (msg.type === 'hello') { latestState = msg.state; handlers.hello?.(msg.status, latestState, msg); window.__twSampleShow?.(Boolean(msg.sample?.on)); handlers.sample?.(Boolean(msg.sample?.on), msg.sample); }
-      else if (msg.type === 'event') { latestState = mergeStatePatch(latestState, msg.state, msg.statePatch); handlers.event?.(msg.event, latestState); }
+      else if (msg.type === 'event') { latestState = mergeStatePatch(latestState, msg.state, msg.statePatch); handlers.event?.(msg.event, latestState, msg); }
       else if (msg.type === 'state') { latestState = msg.state; handlers.state?.(latestState); }
       else if (msg.type === 'status') handlers.status?.(msg.status);
       else if (msg.type === 'control') handlers.control?.(msg);
@@ -380,7 +391,7 @@ export function connect(handlers) {
       else if (msg.type === 'entitlements' && !handlers.entitlements) location.reload();
       else handlers[msg.type]?.(msg); // roulette / rouletteResult / minecraft など
     };
-    ws.onclose = () => setTimeout(open, 2000);
+    ws.onclose = () => setTimeout(open, reconnectDelay);
   };
   open();
 }

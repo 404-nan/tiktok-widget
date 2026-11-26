@@ -19,6 +19,10 @@ const JITTER = 0.2;
 const OFFLINE_FIRST_WINDOW_MS = 30 * 60 * 1000;
 const OFFLINE_FIRST_DELAY_MS = 60 * 1000;
 const OFFLINE_DELAY_MS = 5 * 60 * 1000;
+const messageIdOf = (data) => {
+  const id = data?.common?.msgId ?? data?.msgId;
+  return id == null ? null : String(id);
+};
 
 export function preLiveRetryDelay(elapsedMs) {
   return elapsedMs >= OFFLINE_FIRST_WINDOW_MS ? OFFLINE_DELAY_MS : OFFLINE_FIRST_DELAY_MS;
@@ -267,7 +271,11 @@ export class TikTokSource {
     };
     const pub = (fn) => (data) => {
       try {
-        this.hub.publish({ ...fn(data), source: 'tiktok' });
+        this.hub.publish({
+          ...fn(data),
+          ...(messageIdOf(data) == null ? {} : { msgId: messageIdOf(data) }),
+          source: 'tiktok',
+        });
       } catch (err) {
         console.warn('[tiktok] イベントの変換に失敗:', err);
       }
@@ -314,7 +322,11 @@ export class TikTokSource {
   #publishGift(data) {
     try {
       const event = normalizeGift(data, this.gifts);
-      if (event) this.hub.publish({ ...event, source: 'tiktok' });
+      if (event) this.hub.publish({
+        ...event,
+        ...(messageIdOf(data) == null ? {} : { msgId: messageIdOf(data) }),
+        source: 'tiktok',
+      });
     } catch (err) {
       console.warn('[tiktok] イベントの変換に失敗:', err);
     }

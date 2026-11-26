@@ -225,7 +225,12 @@ export function bindControl(r, ctx) {
     const event = makeEvent(body?.kind, body ?? {});
     if (!event) return { status: 400, body: { error: '不明なイベント種類です' } };
     // 実際のTikTok経路を再現したい受け入れテストだけ、明示的に印を付ける。
-    hub.publish({ ...event, ...(body?.source === 'tiktok' ? { source: 'tiktok' } : {}), test: true });
+    hub.publish({
+      ...event,
+      ...(body?.eventId == null ? {} : { eventId: String(body.eventId) }),
+      ...(body?.source === 'tiktok' ? { source: 'tiktok' } : {}),
+      test: true,
+    });
     // 配信中のテストは画面に出るだけ（数は変わらない）
     return { status: 200, body: { ok: true, visualOnly: hub.status.mode === 'live' } };
   }

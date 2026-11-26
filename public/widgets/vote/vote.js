@@ -221,11 +221,13 @@
 
   function connect() {
     var protocol = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
-    var socket = new WebSocket(protocol + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-    socket.onmessage = function (event) {
-      try { receive(JSON.parse(event.data)); } catch (error) {}
-    };
-    socket.onclose = function () { setTimeout(connect, 1000); };
+    window.twReplaySocket.connect(
+      protocol + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+      function (event) {
+        try { receive(JSON.parse(event.data)); } catch (error) {}
+      },
+      1000,
+    );
   }
 
   function loadState() {

@@ -3,11 +3,13 @@
 // サーバー内のほかの仕組み（履歴・ルーレット・Minecraft）は 'event' / 'status' / 'reset' を購読する。
 
 import { EventEmitter } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import { publicConfig } from './config.js';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
+export const REPLAY_SIZE = 500;
 
 export function emptyState() {
   return {
@@ -56,6 +58,8 @@ export class Hub extends EventEmitter {
     this.recent = [];
     this.recentChats = []; // 新しい順
     this.seq = 0;
+    this.epoch = randomUUID();
+    this.replayRing = [];
     this.config = null;
   this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
     this.testDirty = false; // テストやデモで数が増えているか
@@ -63,7 +67,14 @@ export class Hub extends EventEmitter {
     this.sampleTimer = null;
   }
 
-  addClient(ws) {
+  addClient(ws, { since = null, epoch = null } = {}) {
+    const parsedSince = since == null || since === '' ? null : Number(since);
+    const hasSince = Number.isSafeInteger(parsedSince) && parsedSince >= 0;
+    const epochMatches = epoch === this.epoch;
+    const oldestSeq = this.replayRing[0]?.event?.id;
+    const gap = !epochMatches || (hasSince && (
+      oldestSeq == null ? parsedSince < this.seq : parsedSince < oldestSeq - 1
+    ));
     const wasConnected = this.hasClient(ws.role);
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
@@ -74,12 +85,37 @@ export class Hub extends EventEmitter {
     });
     // 未払いの配信画面には、中身もエラー文も出さない
     if (ws.quiet) {
-      this.#send(ws, { type: 'hello', status: { mode: 'idle', message: '' }, state: emptyState(), sample: { on: false, until: null }, config: null, recentChats: [] });
+      this.#send(ws, {
+        type: 'hello',
+        status: { mode: 'idle', message: '' },
+        state: emptyState(),
+        sample: { on: false, until: null },
+        config: null,
+        recentChats: [],
+        epoch: this.epoch,
+        seq: this.seq,
+        gap,
+      });
       return;
     }
     // ウィジェットにはパスワードなどを抜いた設定を配る
     // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
-    this.#send(ws, { type: 'hello', status: this.status, state: this.state, sample: this.sampleState(), config: publicConfig(this.config), recentChats: this.recentChats });
+    this.#send(ws, {
+      type: 'hello',
+      status: this.status,
+      state: this.state,
+      sample: this.sampleState(),
+      config: publicConfig(this.config),
+      recentChats: this.recentChats,
+      epoch: this.epoch,
+      seq: this.seq,
+      gap,
+    });
+    if (epochMatches && hasSince) {
+      for (const msg of this.replayRing) {
+        if (msg.event.id > parsedSince) this.#sendForClient(ws, { ...msg, replay: true });
+      }
+    }
   }
 
   // その役目(obs など)の画面が、今つながっているか
@@ -115,7 +151,12 @@ export class Hub extends EventEmitter {
   /** 正規化済みイベントを集計に反映して配信する */
   publish(event) {
     if (!event) return;
-    const e = { id: ++this.seq, ts: Date.now(), ...event };
+    const e = {
+      ...event,
+      id: ++this.seq,
+      ts: Date.now(),
+      key: event.msgId ?? event.eventId ?? null,
+    };
     // 配る前に、サーバー側の仕組みがイベントへ共有用の印を付けられるようにする。
     try {
       this.emit('prepare', e);
@@ -174,23 +215,12 @@ export class Hub extends EventEmitter {
   }
 
   broadcast(msg) {
-    const text = JSON.stringify(msg);
-    const compactText = msg.type === 'event'
-      ? JSON.stringify({ type: 'event', event: msg.event, statePatch: statePatch(msg.event, msg.state) })
-      : null;
+    if (msg.type === 'event') {
+      this.replayRing.push(JSON.parse(JSON.stringify(msg)));
+      if (this.replayRing.length > REPLAY_SIZE) this.replayRing.shift();
+    }
     for (const ws of this.clients) {
-      if (ws.readyState !== 1) continue;
-      // プレビュー（ダッシュボードの中の見本）には、本番の演出を流さない。
-      // 見ているだけの場所で発火させないため（2026-11-10 本人の指示）。
-      // 出来事そのものだけでなく、出来事から派生した演出の知らせも止める。
-      // テスト由来の物と、状態や設定の同期は従来どおり届ける。
-      if (ws.role === 'preview' && EFFECT_TYPES.has(msg.type) && !isTestMessage(msg)) continue;
-      if (typeof ws.allowMessage === 'function' && !ws.allowMessage(msg)) continue;
-      if (ws.compact && msg.type === 'event') {
-        ws.send(compactText);
-        continue;
-      }
-      ws.send(text);
+      this.#sendForClient(ws, msg);
     }
   }
 
@@ -205,6 +235,28 @@ export class Hub extends EventEmitter {
 
   #send(ws, msg) {
     ws.send(JSON.stringify(msg));
+  }
+
+  #sendForClient(ws, msg) {
+    if (ws.readyState !== 1 || ws.quiet) return false;
+    // プレビュー（ダッシュボードの中の見本）には、本番の演出を流さない。
+    // 見ているだけの場所で発火させないため（2026-11-10 本人の指示）。
+    // 出来事そのものだけでなく、出来事から派生した演出の知らせも止める。
+    // テスト由来の物と、状態や設定の同期は従来どおり届ける。
+    if (ws.role === 'preview' && EFFECT_TYPES.has(msg.type) && !isTestMessage(msg)) return false;
+    if (typeof ws.allowMessage === 'function' && !ws.allowMessage(msg)) return false;
+    if (ws.compact && msg.type === 'event') {
+      const compact = {
+        type: 'event',
+        event: msg.event,
+        statePatch: statePatch(msg.event, msg.state),
+        ...(msg.replay === true ? { replay: true } : {}),
+      };
+      ws.send(JSON.stringify(compact));
+      return true;
+    }
+    ws.send(JSON.stringify(msg));
+    return true;
   }
 
   #apply(e) {

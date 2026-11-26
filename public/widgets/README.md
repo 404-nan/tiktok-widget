@@ -19,6 +19,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `image-cutin.html` | 画像付きカットインを表示する |
 | `locked.html` | 利用できない画面を表示する |
 | `media.html` / `media.js` | メディア通知を再生する |
+| `lib/replay-socket.js` / `lib/replay-cursor.js` | `overlay.js` を使わない WebSocket ウィジェットのイベント再送と連番重複除外 |
 | `puchun/` | パチンコ演出の見本。`try.html`(ためす画面)・`puchun.html`(流す画面)・`presets.js`(演出4本)・`fx.js`(タイムラインの土台)・`parts.js`(部品)・`fonts/`(Reggae One、OFL)。詳しくは `puchun/README.md` |
 | `ranking.html` | ランキングを表示する |
 | `roulette.html` / `roulette-strip.html` | 丸型・横スライドなどのルーレットを表示する |

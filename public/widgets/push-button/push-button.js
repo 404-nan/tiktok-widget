@@ -15,9 +15,11 @@
     root.innerHTML = '<div>' + (result.tierName === 'miss' ? '不発' : result.pushes + ' 押し') + '</div><div>' + (result.tierName === 'miss' ? '' : result.tierName === 'gold' ? '金' : result.tierName === 'red' ? '赤' : result.tierName === 'green' ? '緑' : '青') + '</div>';
   }
   function connect() {
-    var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-    socket.onmessage = function (event) { var message = JSON.parse(event.data); if (message.type === 'hello' && message.config && message.config.pushButtons) draw(message.config.pushButtons[id]); if (message.type === 'push' && message.id === id) draw(message.push); };
-    socket.onclose = function () { setTimeout(connect, 1000); };
+    window.twReplaySocket.connect(
+      (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+      function (event) { var message = JSON.parse(event.data); if (message.type === 'hello' && message.config && message.config.pushButtons) draw(message.config.pushButtons[id]); if (message.type === 'push' && message.id === id) draw(message.push); },
+      1000,
+    );
   }
   if (preview) draw({ phase: 'result', pushes: 14, result: { pushes: 14, tierName: 'green' } }); else fetch(base + '/api/push-button').then(function (response) { return response.json(); }).then(function (states) { draw(states[id]); }).catch(function () {});
   connect();

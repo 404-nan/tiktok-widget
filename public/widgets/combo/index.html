@@ -48,7 +48,7 @@
     .panel.hit, .panel.ending { animation: none; }
   }
 </style>
-</head>
+<script src="lib/replay-socket.js"></script></head>
 <body>
 <main class="stage" aria-live="polite">
   <section class="panel" id="panel" aria-label="コンボ">
@@ -248,12 +248,13 @@
   }
 
   function connect() {
-    var socket;
-    try { socket = new WebSocket(wsPath); } catch (error) { setTimeout(connect, 2000); return; }
-    socket.onopen = function () { waiting.classList.add('hidden'); };
-    socket.onmessage = function (message) { try { handleMessage(JSON.parse(message.data)); } catch (error) {} };
-    socket.onclose = function () { waiting.classList.remove('hidden'); setTimeout(connect, 2000); };
-    socket.onerror = function () { try { socket.close(); } catch (error) {} };
+    window.twReplaySocket.connect(
+      wsPath,
+      function (message) { try { handleMessage(JSON.parse(message.data)); } catch (error) {} },
+      2000,
+      function () { waiting.classList.add('hidden'); },
+      function () { waiting.classList.remove('hidden'); },
+    );
   }
 
   fetch(api).then(function (response) { if (!response.ok) throw new Error('combo'); return response.json(); }).then(function (snapshot) { drawState(snapshot); waiting.classList.add('hidden'); }).catch(function () { waiting.classList.remove('hidden'); setTimeout(load, 2000); });

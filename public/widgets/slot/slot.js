@@ -448,9 +448,11 @@
 
   function connect() {
     var proto = location.protocol.indexOf('https') === 0 ? 'wss:' : 'ws:';
-    var ws = new WebSocket(proto + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-    ws.onmessage = function (ev) { onMessage(ev.data); };
-    ws.onclose = function () { setTimeout(connect, 1000); };
+    window.twReplaySocket.connect(
+      proto + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+      function (ev) { onMessage(ev.data); },
+      1000,
+    );
   }
 
   function getJSON(path, fn) {

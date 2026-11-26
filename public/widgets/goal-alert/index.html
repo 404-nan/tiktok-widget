@@ -19,7 +19,7 @@
     #alert.warning #message { animation: blink 500ms ease-in-out 2; }
     @keyframes blink { 50% { opacity: .3; } }
   </style>
-</head>
+<script src="lib/replay-socket.js"></script></head>
 <body>
   <div id="alert" aria-live="assertive"><div id="message"></div><div id="distance"></div></div>
   <script>
@@ -68,8 +68,11 @@
         if (state && state.distance != null && state.stage && state.stage !== 'safe') show({ type: 'goalAlert', stage: state.stage, distance: state.distance, message: state.stage === 'final' ? '最終防衛ライン' : 'ゴールまで ' + state.distance + 'm' });
       }).catch(function () {});
 
-      var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-      socket.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (e) {} };
+      window.twReplaySocket.connect(
+        (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+        function (event) { try { receive(JSON.parse(event.data)); } catch (e) {} },
+        2000,
+      );
     }());
   </script>
 </body>

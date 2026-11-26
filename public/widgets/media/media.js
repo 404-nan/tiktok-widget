@@ -95,9 +95,11 @@
   }
 
   function connect() {
-    var ws = new WebSocket(wsProto + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-    ws.onmessage = function (ev) { onText(ev.data); };
-    ws.onclose = function () { setTimeout(connect, 1000); };
+    window.twReplaySocket.connect(
+      wsProto + '//' + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+      function (ev) { onText(ev.data); },
+      1000,
+    );
   }
 
   xhr('GET', '/api/media-alerts', null, function (status, text) {

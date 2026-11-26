@@ -14,7 +14,7 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 #result { margin-top: 8px; background: #FF4F1F; color: #F6F5F1; padding: 14px 20px; font-size: 48px; font-weight: bold; }
 @media (max-width: 600px) { #dareba { width: 92%; top: 12%; } #sender { font-size: 22px; } #plate, #result { font-size: 34px; } }
 </style>
-</head>
+<script src="lib/replay-socket.js"></script></head>
 <body>
 <div id="dareba" aria-live="polite"><div id="sender"></div><div id="plate"></div><div id="result"></div></div>
 <script>
@@ -85,8 +85,11 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
   var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
   fetch(base + '/api/dareba').then(function (r) { return r.json(); }).then(show).catch(function () {});
   fetch(base + '/api/config').then(function (r) { return r.json(); }).then(function (res) { applyBg((res.config || {}).dareba); }).catch(function () {});
-  var ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-  ws.onmessage = function (event) { try { receive(JSON.parse(event.data)); } catch (error) {} };
+  window.twReplaySocket.connect(
+    (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+    function (event) { try { receive(JSON.parse(event.data)); } catch (error) {} },
+    2000,
+  );
 }());
 </script>
 </body>

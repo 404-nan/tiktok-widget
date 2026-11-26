@@ -64,15 +64,17 @@
   function connect() {
     // 配信者ごとの URL（/t/<鍵>/...）で開いたときは、その下の /ws と /api を使う
     var base = (location.pathname.match(/^\/t\/[^/]+/) || [''])[0];
-    var socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''));
-    socket.onmessage = function (event) {
-      var message = JSON.parse(event.data);
-      if (message.type === 'hello') {
-        config = (message.config && message.config.cheers && message.config.cheers[id]) || config;
-        fetch(base + '/api/cheer').then(function (response) { return response.json(); }).then(function (all) { if (all[id]) state = all[id]; draw(); });
-      } else if (message.type === 'cheer') apply(message);
-    };
-    socket.onclose = function () { setTimeout(connect, 1500); };
+    window.twReplaySocket.connect(
+      (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + base + '/ws' + (/[?&]preview=(?:1|live)/.test(location.search) ? '?preview=1' : ''),
+      function (event) {
+        var message = JSON.parse(event.data);
+        if (message.type === 'hello') {
+          config = (message.config && message.config.cheers && message.config.cheers[id]) || config;
+          fetch(base + '/api/cheer').then(function (response) { return response.json(); }).then(function (all) { if (all[id]) state = all[id]; draw(); });
+        } else if (message.type === 'cheer') apply(message);
+      },
+      1500,
+    );
   }
 
   draw();
