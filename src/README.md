@@ -68,6 +68,7 @@
 | `rush.js` | RUSH の突入、延長、終了を管理する |
 | `schema.js` | `pushButtons`、カットインの段階ごとの声・メディア種類、コメントスライドのきっかけの言葉と出す言葉を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |
+| `static-cache.js` | `public/` の静的ファイルに `Cache-Control: no-cache` を付け、ETag の 304 を残す |
 | `slot.js` | スロットの抽選と状態を管理する |
 | `stepup.js` | ステップアップ予告の合計・段階・冷却を管理する |
 | `superstream.js` | Minecraft 側の演出プロフィールを読む |
@@ -99,4 +100,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

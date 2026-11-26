@@ -29,6 +29,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `acceptance/pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューの回帰条件を確認する |
 | `acceptance/ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界を確認する |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
+| `static-cache.test.js` | `public/` の静的ファイルの `no-cache`、ETag の 304、`/vendor/` のフォントの長いキャッシュを実サーバーで確かめる |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
@@ -104,6 +105,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

@@ -26,6 +26,11 @@
 - `tiktok-widget-deploy.timer` が1分ごとに `deploy/server/auto-deploy.sh` を動かす。`~/tiktok-widget` の HEAD が進み、未コミットの変更がなく、`/healthz` の `live` が 0 なら、`npm test` を通してから本番を再起動する。切断直後の誤再起動を防ぐため、`/healthz` は最後に `live` だった時刻から15分未満の `connecting` / `error` も配信中に数える。
 - 手で再起動しない。本番に出したいものは `~/tiktok-widget` にコミットすれば、配信が終わったあとに入る。
 
+## 静的ファイルのキャッシュ
+
+- `public/` から配る静的ファイルは `Cache-Control: no-cache` で配る。`no-cache` は保存してよいが使う前に必ず確かめる意味で、ETag が同じなら 304 で軽く返せる。`node_modules` から配る `/vendor/` のフォントなど（`maxAge: '7d'` を付けている物）は今までどおり7日、`/media/` は今の動きを変えない。
+- 本番は Cloudflare を通るので、反映後に `curl -sI https://widget.lul.works/widgets/lib/overlay.js` で `max-age=14400` が消えたことを確かめる。消えていなければ Cloudflare 側の「ブラウザーのキャッシュ時間」を「元のサーバーに従う」にする必要がある（オーナーの許可が要る）。
+
 ## 配信中の禁止事項
 
 - 本番サービスを止めない、再起動しない、`/reload` を実行しない。

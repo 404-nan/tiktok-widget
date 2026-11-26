@@ -24,6 +24,7 @@ import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 import { healthz } from './src/healthz.js';
 import { collectWidgetUsage } from './src/widget-usage.js';
+import { PUBLIC_STATIC_OPTIONS, setNoCacheHeader } from './src/static-cache.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -453,6 +454,10 @@ function widgetFolderAlias(req, _res, next) {
 }
 
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
+function sendLockedPage(res) {
+  setNoCacheHeader(res);
+  return res.sendFile(lockedPage);
+}
 function billingAllows(fn, fallback) {
   try {
     return fn();
@@ -461,7 +466,7 @@ function billingAllows(fn, fallback) {
     return fallback;
   }
 }
-const tenantStatic = express.static(PUBLIC);
+const tenantStatic = express.static(PUBLIC, PUBLIC_STATIC_OPTIONS);
 app.use('/t/:key', (req, res, next) => {
   const found = tenants.byKey(req.params.key);
   if (!found) return res.status(404).type('text/plain; charset=utf-8').send('この URL は使えません（管理者に確認してください）');
@@ -492,8 +497,8 @@ app.use('/t/:key', (req, res, next) => {
   // 停止中、またはプランに含まれないウィジェットは、何も出さないページにする（配信画面にエラーは出さない）
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
   const feature = page && featureOfPage(page);
-  if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return res.sendFile(lockedPage);
-  if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
+  if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return sendLockedPage(res);
+  if (feature && !tenants.entitled(tenant.id, feature)) return sendLockedPage(res);
   const rt = tenants.runtime(tenant.id);
   widgetFolderAlias(req, res, () => tenantStatic(req, res, () => rt.router(req, res, next)));
 });
@@ -503,14 +508,14 @@ app.use('/t/:key', (req, res, next) => {
 if (local) {
   app.get('/', (_req, res) => res.redirect('/dashboard/'));
   app.use(widgetFolderAlias);
-  app.use(express.static(PUBLIC));
+  app.use(express.static(PUBLIC, PUBLIC_STATIC_OPTIONS));
   app.use(local.router);
 } else {
   app.get('/', (_req, res) => res.redirect('/admin/'));
-  app.use('/admin', express.static(path.join(PUBLIC, 'admin')));
-  app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'))); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
-  app.use('/widgets', (req, res, next) => { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { req.url = `/${m[1]}/index.html${q}`; } else { const j = /^\/([A-Za-z0-9_-]+)\.js$/.exec(req.path); if (j && fs.existsSync(widgetFolderJs(j[1]))) req.url = `/${j[1]}/${j[1]}.js${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets')));
-  app.use('/help', express.static(path.join(PUBLIC, 'help'))); // 配信者向け使い方（鍵なしで開ける）
+  app.use('/admin', express.static(path.join(PUBLIC, 'admin'), PUBLIC_STATIC_OPTIONS));
+  app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'), PUBLIC_STATIC_OPTIONS)); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
+  app.use('/widgets', (req, res, next) => { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { req.url = `/${m[1]}/index.html${q}`; } else { const j = /^\/([A-Za-z0-9_-]+)\.js$/.exec(req.path); if (j && fs.existsSync(widgetFolderJs(j[1]))) req.url = `/${j[1]}/${j[1]}.js${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets'), PUBLIC_STATIC_OPTIONS));
+  app.use('/help', express.static(path.join(PUBLIC, 'help'), PUBLIC_STATIC_OPTIONS)); // 配信者向け使い方（鍵なしで開ける）
 }
 
 // --- WebSocket（ウィジェットへの配信） ---
