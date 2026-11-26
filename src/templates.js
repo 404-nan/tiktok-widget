@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import * as cfg from './config.js';
 import { SECTIONS } from './schema.js';
 import { checkChanges } from './ai.js';
+import { recordError } from './error-log.js';
 
 const directory = path.join(path.dirname(fileURLToPath(import.meta.url)), 'templates');
 
@@ -44,6 +45,7 @@ export function loadTemplates() {
       out[template.id] = template;
     } catch (error) {
       console.warn(`[templates] ${error.message}`);
+      recordError(error, { kind: 'config.invalid', level: 'warn', context: { op: 'templates.load' } });
     }
   }
   return out;

@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultsFor } from './schema.js';
 import { giftMatches } from './gifts.js';
+import { recordError } from './error-log.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DOORS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'doors.json');
@@ -277,6 +278,7 @@ export class DoorEngine {
         fs.renameSync(tmp, this.file);
       } catch (err) {
         console.warn('[door] 保存できませんでした:', err.message);
+        recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'door.save' } });
       }
     };
     if (now) return write();

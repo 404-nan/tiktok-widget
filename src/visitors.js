@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { recordError } from './error-log.js';
 
 const KINDS = new Set(['member', 'chat', 'gift', 'follow', 'share', 'like']);
 const DAY = 24 * 60 * 60 * 1000;
@@ -145,6 +146,7 @@ export class VisitorLog {
       return this.key;
     } catch (error) {
       console.error(`[visitors] 秘密鍵を読めないため記録を止めます: ${error.message}`);
+      recordError(error, { kind: 'store.read', level: 'error', context: { op: 'visitors.key' } });
       this.stopped = true;
       return null;
     }
@@ -158,6 +160,7 @@ export class VisitorLog {
       this.removeExpired();
     } catch (error) {
       console.warn(`[visitors] 記録を読めません: ${error.message}`);
+      recordError(error, { kind: 'store.read', level: 'warn', context: { op: 'visitors.load' } });
     }
   }
 
@@ -192,6 +195,7 @@ export class VisitorLog {
       return true;
     } catch (error) {
       console.warn(`[visitors] 記録を書けません: ${error.message}`);
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'visitors.save' } });
       try { fs.rmSync(temp, { force: true }); } catch { /* 次の保存で再試行する */ }
       return false;
     }
@@ -203,7 +207,10 @@ export class VisitorLog {
     this.dirty = false;
     this.key = null;
     for (const file of [this.file, this.keyFile]) {
-      try { fs.rmSync(file, { force: true }); } catch (error) { console.warn(`[visitors] ${file} を消せません: ${error.message}`); }
+      try { fs.rmSync(file, { force: true }); } catch (error) {
+        console.warn(`[visitors] ${file} を消せません: ${error.message}`);
+        recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'visitors.clear' } });
+      }
     }
     return true;
   }

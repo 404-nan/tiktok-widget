@@ -15,6 +15,32 @@ if (BASE && typeof window !== 'undefined' && !window.__twBase) {
 /** 設定に書いた画像（media/... や URL）を、表示できる URL にする */
 export const mediaUrl = (src) => (/^(https?:|data:|blob:)/.test(src) ? src : src.startsWith('/') ? BASE + src : `${BASE}/${src.replace(/^\.?\//, '')}`);
 
+
+// 画面で起きた JavaScript のエラーを、同じ文は1回だけ・1画面10件までサーバーへ知らせる。
+// 送りすぎて配信画面やサーバーを埋めないための上限。記録の形に整えるだけで、画面の動きは変えない。
+export function createClientErrorReporter({ widget = '', send } = {}) {
+  const seen = new Set();
+  let count = 0;
+  const cut = (value, length) => String(value ?? '').slice(0, length);
+  const numberOrNull = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+  return {
+    report(detail = {}) {
+      if (count >= 10 || typeof send !== 'function') return false;
+      const reason = detail.reason ?? detail.error ?? {};
+      const message = cut(detail.message || reason.message || reason || 'unknown error', 300);
+      const source = cut(detail.source || detail.filename || '', 200);
+      const line = numberOrNull(detail.line ?? detail.lineno);
+      const col = numberOrNull(detail.col ?? detail.colno);
+      const key = [message, source, line, col].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      count += 1;
+      send({ type: 'clientError', widget: cut(widget, 200), message, source, line, col });
+      return true;
+    },
+  };
+}
+
 // --- 設定（config.yaml） ---
 
 let configSelector = null; // 設定のどこが変わったら読み込み直すか
@@ -358,6 +384,19 @@ export function connect(handlers) {
   const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${query ? `?${query}` : ''}`;
   let ws;
   let latestState = null;
+  const folder = location.pathname.match(/\/widgets\/([A-Za-z0-9._-]+?)(?:\.html)?(?:\/|$)/)?.[1] ?? '';
+  const reporter = createClientErrorReporter({
+    widget: window.__twWidgetSection ?? folder ?? 'widget',
+    send: (msg) => {
+      // 新しい口は作らず、今つないでいる WebSocket から送る。切れているときは次のエラーを待つ。
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
+    },
+  });
+  if (!window.__twClientErrorReporting) {
+    window.__twClientErrorReporting = true;
+    window.addEventListener('error', (event) => reporter.report(event));
+    window.addEventListener('unhandledrejection', (event) => reporter.report({ message: event.reason?.message ?? event.reason, source: folder }));
+  }
   const open = () => {
     ws = new WebSocket(url);
     ws.onmessage = (m) => {

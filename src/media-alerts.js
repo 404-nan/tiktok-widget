@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { giftDisplayName, giftMatches } from './gifts.js';
+import { recordError } from './error-log.js';
 
 export const MEDIA_LIMITS = {
   video: 32 * 1024 * 1024,
@@ -248,6 +249,7 @@ export class MediaAlerts {
       fs.writeFileSync(this.catalogFile, JSON.stringify({ items }, null, 2));
     } catch (err) {
       console.warn('[media-alerts] 保存できませんでした:', err.message);
+      recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'mediaAlerts.saveCatalog' } });
     }
   }
 }

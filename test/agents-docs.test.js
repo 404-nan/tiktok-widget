@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const knowledgeDir = path.join(root, 'docs', 'knowledge');
-const expected = ['README.md', 'architecture.md', 'environments.md', 'dev-flow.md', 'operating.md', 'minecraft.md', 'design.md', 'decisions.md', 'performance.md'];
+const expected = ['README.md', 'architecture.md', 'environments.md', 'dev-flow.md', 'operating.md', 'minecraft.md', 'design.md', 'decisions.md', 'performance.md', 'errors.md'];
 
 function markdownFiles() {
   return ['AGENTS.md', ...expected.map((name) => path.join('docs', 'knowledge', name))];
@@ -30,7 +30,7 @@ test('AGENTS.md は短く、知識文書の相対リンクは実在する', () =
   }
 });
 
-test('知識文書は8ファイルある', () => {
+test('知識文書は9ファイルある', () => {
   assert.deepEqual(fs.readdirSync(knowledgeDir).filter((name) => name.endsWith('.md')).sort(), [...expected].sort());
 });
 

@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultsFor } from './schema.js';
 import { giftMatches, giftDisplayName } from './gifts.js';
+import { recordError } from './error-log.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BOSS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'boss.json');
@@ -629,6 +630,7 @@ export class BossEngine {
         fs.writeFileSync(this.file, JSON.stringify(this.states, null, 2));
       } catch (err) {
         console.warn('[boss] 保存できませんでした:', err.message);
+        recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'boss.save' } });
       }
     };
     if (now) return write();
