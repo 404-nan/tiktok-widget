@@ -271,3 +271,71 @@
 @media (max-width: 600px) {
   .field-row { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
 }
+
+/* API 使用量: 上限メーターと内訳表 */
+.usage-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--card-gap); min-width: 0; }
+.usage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.usage-toolbar .hint { margin: 0; }
+.usage-actions { display: flex; align-items: center; gap: var(--s-2); }
+.usage-range { min-height: 36px; }
+.usage-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--card-gap); }
+.usage-card, .usage-panel {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: var(--card-pad-y) var(--card-pad-x);
+}
+.usage-card { display: grid; gap: var(--s-2); align-content: start; }
+.usage-card.warning { border-color: color-mix(in srgb, var(--warning) 55%, var(--border)); }
+.usage-card.danger { border-color: color-mix(in srgb, var(--error) 60%, var(--border)); }
+.usage-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.usage-card h3, .usage-panel h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; }
+.usage-percent { font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; }
+.usage-main { font-size: 25px; font-weight: 650; line-height: 1.15; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.usage-card .hint { margin: 0; line-height: 1.55; }
+.usage-progress { height: 7px; overflow: hidden; border-radius: var(--r-pill); background: var(--fill-tertiary); }
+.usage-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.usage-progress.warning i { background: var(--warning); }
+.usage-progress.danger i { background: var(--error); }
+.usage-alert-list { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 14px; line-height: 1.55; }
+.usage-alert-list .warning { color: var(--warning); }
+.usage-alert-list .danger { color: var(--error); }
+.usage-panel { display: grid; gap: var(--s-3); overflow: hidden; }
+.usage-chart-wrap { display: grid; gap: 6px; min-width: 0; }
+.usage-chart { display: flex; align-items: end; gap: 2px; height: 104px; min-width: 0; padding-top: 8px; border-bottom: 1px solid var(--border); }
+.usage-bar { flex: 1 1 0; min-width: 2px; height: 100%; display: flex; flex-direction: column-reverse; border-radius: 2px 2px 0 0; overflow: hidden; }
+.usage-bar i { display: block; width: 100%; min-height: 0; }
+.usage-bar .good { background: color-mix(in srgb, var(--success) 70%, transparent); }
+.usage-bar .bad { background: var(--error); }
+.usage-chart-wrap .hint { margin: 0; }
+.usage-table-wrap { overflow-x: auto; margin: 0 calc(var(--card-pad-x) * -1) calc(var(--card-pad-y) * -1); }
+.usage-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.usage-table th, .usage-table td { padding: 9px 10px; border-top: 1px solid var(--border); text-align: right; vertical-align: middle; }
+.usage-table th:first-child, .usage-table td:first-child { text-align: left; padding-left: var(--card-pad-x); }
+.usage-table th:last-child, .usage-table td:last-child { padding-right: var(--card-pad-x); }
+.usage-table th { padding-top: 0; border-top: 0; color: var(--text-tertiary); font-weight: 500; white-space: nowrap; }
+.usage-table th .chip { min-height: 28px; padding: 0 6px; font-size: 13px; }
+.usage-table tbody tr { cursor: pointer; }
+.usage-table tbody tr:hover { background: var(--hover-wash); }
+.usage-table tbody tr.selected { background: var(--accent-fill); }
+.usage-table td strong { display: block; font-weight: 600; }
+.usage-table td.bad { color: var(--error); font-weight: 650; }
+.usage-table .detail-row:hover { background: transparent; }
+.usage-table .detail-row td { cursor: default; text-align: left; background: var(--fill-tertiary); }
+.usage-tenant-detail { display: grid; gap: 8px; }
+.usage-op-grid { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text-secondary); }
+.usage-tenant-detail .hint { margin: 0; }
+
+@media (max-width: 1120px) {
+  .usage-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .usage-cards { grid-template-columns: minmax(0, 1fr); }
+  .usage-toolbar { align-items: stretch; }
+  .usage-actions { width: 100%; }
+  .usage-actions .usage-range { flex: 1; }
+  .usage-main { font-size: 22px; }
+}
+.usage-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.usage-panel-head .usage-range { max-width: 220px; }

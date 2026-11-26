@@ -9,6 +9,7 @@ import { initList, renderKpis, renderFilters, renderRows, setupListEvents } from
 import { initDetail, tenantDetail, bulkDetail, signKeyGroup, aiGroup, globalDetail, singlePage, lulDetail } from './admin-detail.js';
 import { initBilling, notesDetail, billingDetail } from './admin-billing.js';
 import { initKeys, keysDetail, aiTokensDetail } from './admin-keys.js';
+import { initUsage, usageDetail } from './admin-usage.js';
 
 setupPanels();
 setupTheme();
@@ -29,7 +30,7 @@ detailBody.className = 'detail-body';
 $('detail').append(detailBody);
 
 // カードを縦に並べるページ（見出しはカードの外、中の項目は線で区切った行）
-const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'ai-tokens'];
+const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'ai-tokens', 'usage'];
 
 // --- 遅延バインディングの初期化 ---
 
@@ -88,6 +89,16 @@ initKeys({
   renderDetail,
 });
 
+initUsage({
+  openTenant: (id) => {
+    page = 'tenants';
+    store.set('adminPage', page);
+    selected = id;
+    checked.clear();
+    renderDetail(true);
+  },
+});
+
 setupAuth();
 setupListEvents();
 
@@ -135,6 +146,10 @@ function renderDetail(force = false) {
   }
   if (page === 'ai-tokens') {
     detailBody.replaceChildren(...aiTokensDetail());
+    return;
+  }
+  if (page === 'usage') {
+    detailBody.replaceChildren(...usageDetail());
     return;
   }
   if (page === 'billing') {

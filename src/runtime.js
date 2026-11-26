@@ -72,7 +72,7 @@ export { FEATURES, PREMIUM, featureOfPage, OBS_ALLOWED } from './runtime-feature
  * store: 設定ファイル（cfg.createStore）、dataDir: 記録などを置く場所、mediaDirs: 画像の場所（前のほうが優先）
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, apiUsage = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
   const hub = new Hub();
   const preparation = new PreparationStore(path.join(dataDir, 'preparation.json'), now);
   const infoFeed = new InfoFeed(hub);
@@ -109,10 +109,25 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const ingest = new Ingest(hub, { dataDir, connectionAllowed: () => mayConnect(streamLive()), onKeyChange: onIngestKeyChange });
   const giftCatalog = new GiftCatalog(path.join(dataDir, 'gifts.json'));
   const eulerUsage = new EulerUsage(path.join(dataDir, 'euler-usage.json'));
+  const usage = {
+    record: (username, kind) => eulerUsage.record(username, kind),
+    recordResult: (username, kind, result) => {
+      apiUsage?.record({
+        tenant: id,
+        service: 'euler',
+        operation: kind,
+        units: 1,
+        ok: result?.ok !== false,
+        status: Number.isFinite(result?.status) ? result.status : undefined,
+        source: result?.source,
+        handle: username,
+      });
+    },
+  };
   // 配信者ごと(hosted)は、配信していないあいだ OBS のウィジェットが開いているときだけ接続を試す。
   // 使っていない配信者のぶんまで1分ごとに試すと、接続の費用(署名の回数)がかさむため。1人用(local)は今までどおり
   const waitAllowed = () => id === 'local' || streamLive() || hub.hasClient('obs');
-  const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()), waitAllowed, usage: eulerUsage });
+  const tiktok = new TikTokSource(hub, giftCatalog, { connectionAllowed: () => mayConnect(streamLive()), waitAllowed, usage });
   hub.on('client', (ws) => { if (ws.role === 'obs') tiktok.wake(); });
   hub.on('clientChange', ({ role, connected }) => {
     if (role !== 'obs') return;

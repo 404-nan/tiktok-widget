@@ -95,7 +95,7 @@ export class TikTokSource {
     }));
     this.createConnection = createConnection ?? ((username, signApiKey) => {
       if (signApiKey) SignConfig.apiKey = signApiKey;
-      return new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, this.usage) });
+      return new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, this.usage, { source: 'connect' }) });
     });
   }
 
@@ -386,16 +386,41 @@ function noEulerClient() {
   const reject = async () => { throw new Error('Euler fallback disabled for live probing'); };
   return { anchors: { retrieveRoomId: reject }, rooms: { fetchWebcastURL: reject } };
 }
-function trackedEulerClient(client, username, usage) {
+export function trackedEulerClient(client, username, usage, { source = 'connect' } = {}) {
   if (!usage) return client;
   const kinds = { fetchWebcastURL: 'connect', retrieveRoomId: 'roomId', retrieveRoomGifts: 'gifts', signTikTokUrl: 'signature' };
+  const statusOf = (err) => err?.status ?? err?.response?.status ?? err?.statusCode ?? null;
+  const report = (kind, result) => {
+    if (!kind || typeof usage.recordResult !== 'function') return;
+    try { usage.recordResult(username, kind, { ...result, source }); } catch {}
+  };
   const wrap = (value) => {
     if (!value || typeof value !== 'object') return value;
     return new Proxy(value, { get(target, key) {
       const original = target[key];
       if (typeof original !== 'function') return wrap(original);
       const kind = kinds[key];
-      return (...args) => { if (kind) usage.record(username, kind); return original.apply(target, args); };
+      return (...args) => {
+        if (kind) usage.record(username, kind);
+        let out;
+        try {
+          out = original.apply(target, args);
+        } catch (err) {
+          report(kind, { ok: false, status: statusOf(err) });
+          throw err;
+        }
+        if (!out || typeof out.then !== 'function') {
+          report(kind, { ok: true, status: Number.isFinite(out?.status) ? out.status : null });
+          return out;
+        }
+        return out.then((result) => {
+          report(kind, { ok: true, status: Number.isFinite(result?.status) ? result.status : null });
+          return result;
+        }, (err) => {
+          report(kind, { ok: false, status: statusOf(err) });
+          throw err;
+        });
+      };
     } });
   };
   return wrap(client);
@@ -403,7 +428,7 @@ function trackedEulerClient(client, username, usage) {
 
 async function fetchGifts(username, roomId, signApiKey, language, usage) {
   if (signApiKey) SignConfig.apiKey = signApiKey;
-  const conn = new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, usage) });
+  const conn = new TikTokLiveConnection(username, { ...connectionOptions(signApiKey), eulerApiInstance: trackedEulerClient(createEulerClient(), username, usage, { source: 'gifts' }) });
   conn.webClient.roomId = roomId;
   if (language === 'ja') {
     Object.assign(conn.webClient.clientParams, {

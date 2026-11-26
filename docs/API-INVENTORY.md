@@ -110,6 +110,11 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
 | GET /admin/api/lul | 全テナントの概要 |
 | GET /admin/api/widget-usage | ウィジェットの利用状況 |
+| GET /admin/api/usage/summary | 外部 API 使用量の集計と Euler の上限比 |
+| GET /admin/api/usage/tenants | 配信者別の外部 API 使用量 |
+| GET /admin/api/usage/timeseries | 時間別・日別の外部 API 使用量 |
+| GET /admin/api/usage/euler/limits | Euler の公式 rate limits（キャッシュ） |
+| POST /admin/api/usage/euler/refresh | Euler の公式 rate limits の手動更新 |
 | GET /admin/api/deploy-status | 投入の状態 |
 | GET /admin/api/keys | 鍵の一覧（値は出さない） |
 | POST /admin/api/keys | 鍵の発行 |

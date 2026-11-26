@@ -24,6 +24,9 @@ import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 import { healthz } from './src/healthz.js';
 import { collectWidgetUsage } from './src/widget-usage.js';
+import { ApiUsage, migrateLegacyUsage } from './src/api-usage.js';
+import { EulerLimits } from './src/euler-limits.js';
+import { bindAdminUsageRoutes } from './src/admin-usage-routes.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -47,19 +50,27 @@ if (vault) await vault.restore();
 
 const notes = new NotesStore({ dir: DATA_DIR });
 
+// 外部 API の使用量（Euler・AI）。中身や鍵は書かず、回数・成否・token だけを残す
+const apiUsage = new ApiUsage({ dir: DATA_DIR });
+migrateLegacyUsage({ dir: DATA_DIR, apiUsage });
+apiUsage.persistSummary();
+const apiUsageSummaryTimer = setInterval(() => apiUsage.persistSummary(), 5 * 60 * 1000);
+apiUsageSummaryTimer.unref?.();
+
 // 「AI にたのむ」（キーは管理画面で入れたものが data/ai.json、または環境変数 TW_AI_KEY）
-const ai = createAi({ dir: DATA_DIR });
+const ai = createAi({ dir: DATA_DIR, apiUsage });
 
 // --- 1人で使うとき（今までどおり config.yaml と data/ を使う） ---
 const local = HOSTED
   ? null
-  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes });
+  : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes, apiUsage });
 
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants({ ai, notes });
+const tenants = new Tenants({ ai, notes, apiUsage });
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
+const eulerLimits = new EulerLimits({ file: path.join(DATA_DIR, 'euler-limits.json'), key: () => process.env.TIKTOK_SIGN_API_KEY });
 const apiKeys = new ApiKeyStore({ dir: DATA_DIR, signKey });
 
 // 管理画面の合言葉。TW_ADMIN_TOKEN がなければ作って data/admin-token.txt に残す
@@ -343,6 +354,23 @@ const aiControl = createAiControl({
   },
 });
 aiControl.mountAdmin(admin);
+bindAdminUsageRoutes(admin, {
+  apiUsage,
+  limits: eulerLimits,
+  tenantInfo(id) {
+    const tenant = tenants.get(id);
+    if (!tenant) return {};
+    const runtime = tenants.runtimes.get(id);
+    return {
+      name: tenant.name,
+      tiktokId: tenant.tiktokId ?? '',
+      enabled: tenant.enabled,
+      statusMode: runtime?.hub.status.mode ?? 'idle',
+      planLabel: tenants.billing.adminView(id)?.planLabel ?? '',
+      billingStatus: tenants.billing.adminView(id)?.status ?? '',
+    };
+  },
+});
 app.use('/admin/api', admin);
 
 // 外部の AI（Bearer トークン）。接続・切断・再起動・トークン発行・配信者の削除はここには無い。
