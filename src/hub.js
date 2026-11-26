@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { publicConfig } from './config.js';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
+import { dedupeKey, eventKey, rowDedupeKey } from './event-journal.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
@@ -45,7 +46,7 @@ function isTestMessage(msg) {
 }
 
 export class Hub extends EventEmitter {
-  constructor() {
+  constructor({ journal = null } = {}) {
     super();
     // 購読は組み立て時に固定で付く（出来事19件・テスト出来事13件・リセット11件が設計上の数）。
     // 既定の上限10では設計どおりでも警告が出るため、余裕を持たせて32にする。無制限にはしない（本物の漏れに気づけるように）。
@@ -60,6 +61,15 @@ export class Hub extends EventEmitter {
     this.seq = 0;
     this.epoch = randomUUID();
     this.replayRing = [];
+    this.journal = journal;
+    this.seenEventKeys = new Set();
+    const latestJournalEpoch = journal?.latestEpoch() ?? null;
+    if (latestJournalEpoch) this.epoch = latestJournalEpoch;
+    for (const row of journal?.rows ?? []) {
+      if (row.epoch !== latestJournalEpoch) continue;
+      const key = rowDedupeKey(row);
+      if (key) this.seenEventKeys.add(key);
+    }
     this.config = null;
   this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
     this.testDirty = false; // テストやデモで数が増えているか
@@ -150,12 +160,19 @@ export class Hub extends EventEmitter {
 
   /** 正規化済みイベントを集計に反映して配信する */
   publish(event) {
-    if (!event) return;
+    if (!event) return { accepted: false, reason: 'empty' };
+    const key = eventKey(event);
+    const keyForDedupe = key ? dedupeKey(this.epoch, event) : null;
+    if (keyForDedupe && this.seenEventKeys.has(keyForDedupe)) {
+      this.emit('duplicateEvent', event);
+      return { accepted: false, duplicate: true, key };
+    }
+    const id = this.seq + 1;
     const e = {
       ...event,
-      id: ++this.seq,
+      id,
       ts: event.ts ?? Date.now(),
-      key: event.msgId ?? event.eventId ?? null,
+      key,
     };
     // 配る前に、サーバー側の仕組みがイベントへ共有用の印を付けられるようにする。
     try {
@@ -170,14 +187,19 @@ export class Hub extends EventEmitter {
       e.giftCountBefore = before?.gifts ?? 0;
       e.giftCoinsBefore = before?.diamonds ?? 0;
     }
+    const visualOnly = e.test && this.status.mode === 'live';
+    // 集計・演出・記録より先に残す。ここで落ちた場合は、送り手が同じキーで再送できる。
+    this.journal?.append({ seq: id, epoch: this.epoch, event: e, visualOnly, roomId: this.status.roomId ?? null });
+    this.seq = id;
+    if (keyForDedupe) this.seenEventKeys.add(keyForDedupe);
     // テスト送信（test: true）は、本番の数を汚さない:
     // - 配信中（TikTok につないでいる間）は画面に出すだけ。集計・ランキングは変えず、
     //   ほかの仕組み（WIN数・タイマー・ボス・ルーレット・Minecraft・記録）にも渡さない
     // - つなぐ前に試した分は数えるが、つながったときに 0 に戻す（setStatus）
-    if (e.test && this.status.mode === 'live') {
+    if (visualOnly) {
       this.broadcast({ type: 'event', event: e, state: this.state });
       this.emit('testEvent', e); // ルーレットだけは画面で回す（結果は記録・Minecraft に渡さない）
-      return;
+      return { accepted: true, visualOnly: true, event: e };
     }
     if (e.test) this.testDirty = true;
     this.#apply(e);
@@ -185,6 +207,26 @@ export class Hub extends EventEmitter {
     this.recent.length = Math.min(this.recent.length, 50);
     this.broadcast({ type: 'event', event: e, state: this.state });
     this.emit('event', e);
+    return { accepted: true, event: e };
+  }
+
+  // 起動時の復元専用。日誌に残ったイベントを、画面や機能へ再配信せずに集計と再送リングへ戻す。
+  restoreJournalRow(row) {
+    if (!row?.event || !Number.isSafeInteger(row.seq)) return false;
+    const e = {
+      ...row.event,
+      id: row.seq,
+      key: row.key ?? eventKey(row.event),
+    };
+    this.seq = Math.max(this.seq, row.seq);
+    if (!row.visualOnly) {
+      if (e.test) this.testDirty = true;
+      this.#apply(e);
+      this.recent.unshift(e);
+      this.recent.length = Math.min(this.recent.length, 50);
+    }
+    this.broadcast({ type: 'event', event: e, state: this.state });
+    return true;
   }
 
   control(target, action, data = {}) {
@@ -203,11 +245,18 @@ export class Hub extends EventEmitter {
   }
 
   reset() {
+    const nextEpoch = randomUUID();
+    // 新しいイベントが来る前に落ちても、前の配信の日誌へ戻らないように区切りを残す。
+    this.journal?.append({ seq: 0, epoch: nextEpoch, event: { kind: 'reset', at: Date.now() }, visualOnly: true, roomId: this.status.roomId ?? null });
     this.state = emptyState();
     this.gifters.clear();
     this.likers.clear();
     this.recent = [];
     this.recentChats = [];
+    this.seq = 0;
+    this.epoch = nextEpoch;
+    this.replayRing = [];
+    this.seenEventKeys.clear();
     this.testDirty = false;
     this.broadcast({ type: 'state', state: this.state });
     this.control('all', 'reset');

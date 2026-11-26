@@ -8,6 +8,7 @@ import { Hub } from '../src/hub.js';
 import { Ingest } from '../src/ingest.js';
 import { IngestKeyStore } from '../src/ingest-keys.js';
 import { Tenants } from '../src/tenants.js';
+import { EventJournal } from '../src/event-journal.js';
 
 const roots = [];
 after(() => {
@@ -165,4 +166,24 @@ test('test=trueのeventIdは本番イベントの同じIDを塞がない', async
   await ingest.handle(request(JSON.stringify({ kind: 'follow', userId: 'real', eventId: 'same-1' })), liveResponse, 'twin_test');
 
   assert.deepEqual(liveResponse.body, { ok: true });
+});
+
+test('日誌へ残ったeventIdの再送は、再起動後も duplicate として数える', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-ingest-journal-'));
+  roots.push(dir);
+  const journalFile = path.join(dir, 'live-event-journal.jsonl');
+  const body = JSON.stringify({ kind: 'follow', userId: 'external', eventId: 'restart-1' });
+  const first = new Ingest(new Hub({ journal: new EventJournal(journalFile) }), { keyStore: keyStore() });
+  const firstResponse = response();
+  await first.handle(request(body), firstResponse, 'twin_test');
+  assert.deepEqual(firstResponse.body, { ok: true });
+
+  // ingest 側の10分メモリが消えても、hub の日誌が同じキーを止める。
+  const second = new Ingest(new Hub({ journal: new EventJournal(journalFile) }), { keyStore: keyStore() });
+  const secondResponse = response();
+  await second.handle(request(body), secondResponse, 'twin_test');
+
+  assert.deepEqual(secondResponse.body, { ok: true, duplicate: true });
+  assert.equal(second.stateData.duplicates, 1);
+  assert.equal(second.stateData.accepted, 0);
 });

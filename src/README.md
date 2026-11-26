@@ -28,6 +28,7 @@
 | `demo.js` | `member` を含むテスト用イベントを作る |
 | `env.js` | 開発環境と本番環境を判定する |
 | `events.js` | イベント名と配信時刻を整える |
+| `event-journal.js` | 配信イベントを処理前に JSONL へ同期追記し、epoch ごとのキー重複判定と再起動後の積み直しに使う |
 | `gacha-viewers.js` | ガチャの本物の視聴者ごとの無料回・有料回を数えて保存し、コメントで回す。デモとテストは数えない |
 | `gacha.js` | ガチャ・おみくじの抽選と状態を管理する。おみくじは棒の番号を選ぶ段階(送った人のコメント / 配信者のボタン / 時間切れ)を持つ。まとめ引き(10連)の回数は設定 tenCount(既定10)から読む(elevenGifts の指定ギフトは tenCount に関係なく11連)。天井は全体の数えと、引いた人ごとの数え（個人の天井 pityPersonal）の両方を持ち、どちらか届いたら確定する。luckBoost が有効なら、視聴者ごとの配信内コインと滞在の区切りで大吉の重みだけを上げる。設定は luckUnitCoins / luckStepPct / luckMaxSteps / luckStayUnits。滞在の材料は runtime が setStaySource で渡す（points の stayUnitsFor が、滞在中の区切りの個数を返す）。おみくじは大きな演出の間、舞台の順番待ち（stage-queue.js）で抽選を待たせる。おみくじはいいね・シェアでも引ける（likeDrawEvery / shareDrawEvery：視聴者ごとに数え、倍数に届くたび通常の抽選の道で1回。順番待ちに入らなかった分は権利として保持し空いたら消化、保持の上限は1人あたり stageQueueMax と同数で超えた分は omikuji.like-dropped に残して捨てる）。全員のいいねの合計が likeBoostTotal に届くと、配信の残りずっと大吉の重みに likeBoostTimes 倍が掛かる（luckBoost の％のあとに掛ける。天井には関係しない）。いいねの数え・総いいね数・未消化の権利は天井と同じファイルに版4で保存し、再起動でも権利が消えず設定の反映時に消化を再開する |
 | `stage-queue.js` | 舞台の順番待ち。配信者ごとに大きな演出の持ち主を1つだけ管理し、終わったら待っている側へ知らせる。持ち主はおみくじの抽選と結果表示、カードめくりの開示。他の部品は acquire / release の口だけ使えば持ち主になれる |
@@ -42,7 +43,7 @@
 | `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える |
 | `history.js` | 配信履歴を一定間隔または終了時に JSON 保存し、OBS ウィジェットの利用時間と接続回数も記録する |
 | `session-details.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットを、誰が・いつ・何を、で全部残す)。読み出しは種類で絞ってページ単位 |
-| `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる |
+| `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。処理前に event-journal へ残し、同じ epoch のキー付き再送は二重に流さない。配信の区切りでは epoch・連番・再送履歴を新しくする。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる |
 | `info-feed.js` | フォロー・ギフト・シェアの最近の一覧をメモリに持ち、ウィジェットへ渡す |
 | `ingest-keys.js` | 外部イベント受け口の鍵を保存・照合する |
 | `ingest.js` | 外部ツールからイベントを受け、重複・直接接続との競合を整理してhubへ流す |
@@ -64,7 +65,7 @@
 | `relay-stop.js` | 既存スロットの固定結果、3本の停止順、送信者、10秒の自動停止、待機列をサーバーで管理する |
 | `rental.js` | 貸し出し枠と自動接続の条件を判定する |
 | `roulette.js` | ルーレットを抽選し、結果を配る |
-| `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定し、ライブ状態を `data/live-state.json` または `data/tenants/<id>/live-state.json` に保存・復元する |
+| `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定し、ライブ状態を `data/live-state.json` または `data/tenants/<id>/live-state.json` に保存・復元する。状態保存が日誌より古いときは `live-event-journal.jsonl` から同じ epoch の出来事を積み直す |
 | `rush.js` | RUSH の突入、延長、終了を管理する |
 | `schema.js` | `pushButtons`、カットインの段階ごとの声・メディア種類、コメントスライドのきっかけの言葉と出す言葉を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |
@@ -87,7 +88,7 @@
 
 ## つながり
 
-- イベントの流れ: `server.js` → `tenants.js`(配信者ごと) → `runtime.js` → `hub.js` → 各機能。外部ツールの受け口は `ingest.js` → `normalize.js` → `hub.js`
+- イベントの流れ: `server.js` → `tenants.js`(配信者ごと) → `runtime.js` → `hub.js` → 各機能。外部ツールの受け口は `ingest.js` → `normalize.js` → `hub.js`。`hub.js` は集計・配信より先に `event-journal.js` へ残し、再起動後は同じ epoch の日誌から抜けを積み直す
 - 設定の形は `schema.js`、検証は `config.js`。記録は各機能のストアが `config.yaml` / `data/` に書く
 - 公開画面へ渡す形は、各エンジンの `snapshot()` と、`hub.js` の配信
 - CLI は `bin/tw.js`、MCP は `mcp/server.js`、外部 AI は `ai-api.js` / `ai-mcp.js` から、`admin.js` などを通して呼ぶ
@@ -99,4 +100,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

@@ -54,6 +54,7 @@ import { VisitorLog } from './visitors.js';
 import { Points } from './points.js';
 import { Presets } from './presets.js';
 import { PreparationStore } from './preparation.js';
+import { EventJournal } from './event-journal.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE_RECONNECT_GRACE_MS = 15 * 60 * 1000;
@@ -67,18 +68,34 @@ function readLiveState(file) {
 }
 
 function restoreLiveState(hub, snapshot) {
+  const journal = hub.journal;
+  const latestJournalEpoch = journal?.latestEpoch() ?? null;
   const saved = snapshot?.hub;
-  if (!saved || typeof saved !== 'object') return;
-  if (saved.state && typeof saved.state === 'object') hub.state = saved.state;
-  if (Array.isArray(saved.gifters)) hub.gifters = new Map(saved.gifters);
-  if (Array.isArray(saved.likers)) hub.likers = new Map(saved.likers);
-  if (Array.isArray(saved.recentChats)) hub.recentChats = saved.recentChats;
-  if (Number.isSafeInteger(saved.seq) && saved.seq >= 0) hub.seq = saved.seq;
-  if (typeof saved.epoch === 'string' && saved.epoch) hub.epoch = saved.epoch;
-  if (Array.isArray(saved.replayRing)) {
-    hub.replayRing = saved.replayRing
-      .filter((message) => message?.type === 'event' && Number.isSafeInteger(message.event?.id))
-      .slice(-REPLAY_SIZE);
+  const savedEpoch = typeof saved?.epoch === 'string' && saved.epoch ? saved.epoch : null;
+  const canUseSnapshot = saved && typeof saved === 'object' && (!latestJournalEpoch || (savedEpoch && savedEpoch === latestJournalEpoch));
+
+  if (canUseSnapshot) {
+    if (saved.state && typeof saved.state === 'object') hub.state = saved.state;
+    if (Array.isArray(saved.gifters)) hub.gifters = new Map(saved.gifters);
+    if (Array.isArray(saved.likers)) hub.likers = new Map(saved.likers);
+    if (Array.isArray(saved.recentChats)) hub.recentChats = saved.recentChats;
+    if (saved.testDirty === true) hub.testDirty = true;
+    if (Number.isSafeInteger(saved.seq) && saved.seq >= 0) hub.seq = saved.seq;
+    if (savedEpoch) hub.epoch = savedEpoch;
+    if (Array.isArray(saved.replayRing)) {
+      hub.replayRing = saved.replayRing
+        .filter((message) => message?.type === 'event' && Number.isSafeInteger(message.event?.id))
+        .slice(-REPLAY_SIZE);
+    }
+  } else if (latestJournalEpoch) {
+    // 状態保存が間に合わなかったときは、日誌の epoch を引き継いで1件目から積み直す。
+    hub.epoch = latestJournalEpoch;
+  }
+
+  if (!journal) return;
+  const baseSeq = canUseSnapshot ? hub.seq : 0;
+  for (const row of journal.rowsForEpoch(hub.epoch)) {
+    if (row.seq > baseSeq) hub.restoreJournalRow(row);
   }
 }
 
@@ -98,10 +115,11 @@ export { FEATURES, PREMIUM, featureOfPage, OBS_ALLOWED } from './runtime-feature
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  */
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
-  const hub = new Hub();
+  const journal = new EventJournal(path.join(dataDir, 'live-event-journal.jsonl'));
+  const hub = new Hub({ journal });
   const liveStateFile = path.join(dataDir, 'live-state.json');
   const restoredLiveState = readLiveState(liveStateFile);
-  if (restoredLiveState) restoreLiveState(hub, restoredLiveState);
+  restoreLiveState(hub, restoredLiveState);
   let liveStateTimer = null;
   let checkedRestoredRoom = false;
   const flushLiveState = () => {
@@ -114,6 +132,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         gifters: [...hub.gifters],
         likers: [...hub.likers],
         recentChats: hub.recentChats,
+        testDirty: hub.testDirty,
         seq: hub.seq,
         epoch: hub.epoch,
         replayRing: hub.replayRing,
@@ -140,7 +159,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   hub.on('status', (status) => {
     if (status?.mode === 'live' && !checkedRestoredRoom) {
       checkedRestoredRoom = true;
-      if (restoredLiveState && status.roomId !== restoredLiveState.status?.roomId) hub.reset();
+      const restoredRoomId = restoredLiveState?.status?.roomId ?? journal.latestRoomId();
+      if (restoredRoomId && status.roomId !== restoredRoomId) hub.reset();
     }
     scheduleLiveState();
   });
