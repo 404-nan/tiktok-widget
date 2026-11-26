@@ -199,7 +199,20 @@ export class Hub extends EventEmitter {
     this.emit('status', this.status, prev);
     // 配信が始まったら、その前のテストやデモで増えた数と前の配信の数を 0 に戻す（同じ配信につなぎ直したときは戻さない）
     const newRoom = prev.roomId && this.status.roomId && prev.roomId !== this.status.roomId;
-    if (this.status.mode === 'live' && prev.mode !== 'live' && (this.testDirty || newRoom)) this.reset();
+    if (this.status.mode === 'live' && prev.mode !== 'live') {
+      if (newRoom) this.startNewLive();
+      else if (this.testDirty) this.reset();
+    }
+  }
+
+  /** 別の配信として始める。集計だけでなく、再接続の目印も新しい配信のものにする */
+  startNewLive() {
+    this.reset();
+    // 連番は配信ごとに 0 から始める。epoch を新しくする以上古い連番は再送されないが、
+    // 0 に戻すと保存した状態と hello が「今の配信の何件目か」をそのまま示す。
+    this.seq = 0;
+    this.epoch = randomUUID();
+    this.replayRing = [];
   }
 
   reset() {

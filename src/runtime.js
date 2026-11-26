@@ -140,7 +140,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   hub.on('status', (status) => {
     if (status?.mode === 'live' && !checkedRestoredRoom) {
       checkedRestoredRoom = true;
-      if (restoredLiveState && status.roomId !== restoredLiveState.status?.roomId) hub.reset();
+      if (restoredLiveState && status.roomId !== restoredLiveState.status?.roomId) hub.startNewLive();
     }
     scheduleLiveState();
   });

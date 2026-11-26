@@ -8,9 +8,100 @@ import path from 'node:path';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
 import { WebSocket } from 'ws';
+import { createStore } from '../src/config.js';
+import { createRuntime } from '../src/runtime.js';
+import { emptyState } from '../src/hub.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function writeSavedLiveState(dir, { roomId, epoch = 'saved-epoch' }) {
+  const state = emptyState();
+  state.follows = 1;
+  const message = {
+    type: 'event',
+    event: { id: 1, kind: 'follow', key: 'saved-event', ts: 1 },
+    state,
+  };
+  fs.writeFileSync(path.join(dir, 'live-state.json'), JSON.stringify({
+    hub: {
+      state,
+      gifters: [],
+      likers: [],
+      recentChats: [],
+      seq: 1,
+      epoch,
+      replayRing: [message],
+    },
+    status: { roomId },
+  }));
+}
+
+function fakeSocket() {
+  const sent = [];
+  return {
+    readyState: 1,
+    sent,
+    role: 'obs',
+    send(text) { sent.push(JSON.parse(text)); },
+    on() {},
+  };
+}
+
+function makeRuntime(dir) {
+  return createRuntime({
+    id: 'room-check',
+    store: createStore(path.join(dir, 'config.yaml')),
+    dataDir: dir,
+    mediaDirs: [dir],
+  });
+}
+
+test('保存時と違う room ID で live になったら、前の配信を再送しない', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-live-room-new-'));
+  writeSavedLiveState(dir, { roomId: 'room-old' });
+  const runtime = makeRuntime(dir);
+  try {
+    assert.equal(runtime.hub.epoch, 'saved-epoch');
+    runtime.hub.setStatus({ mode: 'live', roomId: 'room-new' });
+    assert.notEqual(runtime.hub.epoch, 'saved-epoch');
+    assert.equal(runtime.hub.seq, 0);
+    assert.deepEqual(runtime.hub.replayRing, []);
+    assert.equal(runtime.hub.state.follows, 0);
+
+    const ws = fakeSocket();
+    runtime.hub.addClient(ws, { since: 0, epoch: 'saved-epoch' });
+    assert.equal(ws.sent[0].gap, true);
+    assert.deepEqual(ws.sent.filter((message) => message.type === 'event'), []);
+  } finally {
+    await runtime.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('保存時と同じ room ID で live になったら、続きから再送する', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-live-room-same-'));
+  writeSavedLiveState(dir, { roomId: 'room-same' });
+  const runtime = makeRuntime(dir);
+  try {
+    runtime.hub.setStatus({ mode: 'live', roomId: 'room-same' });
+    assert.equal(runtime.hub.epoch, 'saved-epoch');
+    assert.equal(runtime.hub.seq, 1);
+    assert.equal(runtime.hub.replayRing.length, 1);
+    assert.equal(runtime.hub.state.follows, 1);
+
+    const ws = fakeSocket();
+    runtime.hub.addClient(ws, { since: 0, epoch: 'saved-epoch' });
+    assert.equal(ws.sent[0].gap, false);
+    const replayed = ws.sent.filter((message) => message.type === 'event');
+    assert.equal(replayed.length, 1);
+    assert.equal(replayed[0].event.key, 'saved-event');
+    assert.equal(replayed[0].replay, true);
+  } finally {
+    await runtime.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test('実サーバーは1000件を再送し、SIGTERM 後も集計・seq・epoch を復元する', { timeout: 60_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-live-state-'));

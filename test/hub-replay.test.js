@@ -91,3 +91,29 @@ test('live と replay は compact・preview・allowMessage・quiet の同じ規�
   hub.addClient(blocked, { since: 0, epoch: hub.epoch });
   assert.deepEqual(events(blocked), []);
 });
+
+test('別の room の配信では epoch と再送履歴を新しくし、同じ room では続きを再送する', () => {
+  const hub = new Hub();
+  hub.setStatus({ mode: 'live', roomId: 'room-1' });
+  hub.publish({ kind: 'follow', eventId: 'room-1-event' });
+  const firstEpoch = hub.epoch;
+  assert.equal(hub.seq, 1);
+  assert.equal(hub.replayRing.length, 1);
+
+  hub.setStatus({ mode: 'ended' });
+  hub.setStatus({ mode: 'live', roomId: 'room-1' });
+  assert.equal(hub.epoch, firstEpoch);
+  assert.equal(hub.seq, 1);
+  assert.equal(hub.replayRing.length, 1);
+
+  hub.setStatus({ mode: 'ended' });
+  hub.setStatus({ mode: 'live', roomId: 'room-2' });
+  assert.notEqual(hub.epoch, firstEpoch);
+  assert.equal(hub.seq, 0);
+  assert.deepEqual(hub.replayRing, []);
+
+  const ws = socket();
+  hub.addClient(ws, { since: 0, epoch: firstEpoch });
+  assert.equal(ws.sent[0].gap, true);
+  assert.deepEqual(events(ws), []);
+});
