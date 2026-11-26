@@ -110,6 +110,10 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
 | GET /admin/api/lul | 全テナントの概要 |
 | GET /admin/api/widget-usage | ウィジェットの利用状況 |
+| GET /admin/api/handoff/status | 重ね引き継ぎの古い側・新しい側の状態 |
+| POST /admin/api/handoff/begin | 引き継ぎ開始。以後のイベントを適用せずため、P2状態・直近10分の鍵・最後のseqを返す |
+| GET /admin/api/handoff/stream | 引き継ぎ用 WebSocket。begin 後に古い側へ届いたイベントを流す |
+| POST /admin/api/handoff/finish | 画面へ moved を送って閉じ、TikTok を切り、stream を終了する |
 | GET /admin/api/deploy-status | 投入の状態 |
 | GET /admin/api/keys | 鍵の一覧（値は出さない） |
 | POST /admin/api/keys | 鍵の発行 |

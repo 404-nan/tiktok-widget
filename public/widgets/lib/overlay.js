@@ -358,7 +358,9 @@ export function connect(handlers, { reconnectDelay = 2000 } = {}) {
   const cursor = new ReplayCursor();
   let ws;
   let latestState = null;
+  let moved = false;
   const open = () => {
+    moved = false;
     const query = new URLSearchParams();
     if (compact) query.set('compact', '1');
     if (preview) query.set('preview', '1');
@@ -387,11 +389,12 @@ export function connect(handlers, { reconnectDelay = 2000 } = {}) {
       else if (msg.type === 'config') handlers.config?.(msg.config);
       else if (msg.type === 'sample') { window.__twSampleShow?.(Boolean(msg.on)); handlers.sample?.(Boolean(msg.on), msg); }
       else if (msg.type === 'configError') handlers.configError?.(msg.errors);
+      else if (msg.type === 'moved') { moved = true; handlers.moved?.(msg); }
       // 豪華な演出のオン/オフが変わった: ウィジェットは読み込み直す（使えなくなったら何も出さないページになる）
       else if (msg.type === 'entitlements' && !handlers.entitlements) location.reload();
       else handlers[msg.type]?.(msg); // roulette / rouletteResult / minecraft など
     };
-    ws.onclose = () => setTimeout(open, reconnectDelay);
+    ws.onclose = () => setTimeout(open, moved ? 0 : reconnectDelay);
   };
   open();
 }

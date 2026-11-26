@@ -24,6 +24,7 @@ import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 import { healthz } from './src/healthz.js';
 import { collectWidgetUsage } from './src/widget-usage.js';
+import { HandoffManager } from './src/handoff.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -55,8 +56,16 @@ const local = HOSTED
   ? null
   : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes });
 
+// --- P3 の重ね引き継ぎ ---
+const handoff = new HandoffManager({ local, env: process.env });
+if (local) handoff.registerRuntime(local);
+
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants({ ai, notes });
+const tenantEnv = handoff.target.enabled
+  ? { ...process.env, TW_RESUME_CONNECT: '0', TW_RENTAL_AUTOCONNECT: '0' }
+  : process.env;
+const tenants = new Tenants({ ai, notes, env: tenantEnv, runtimeCreated: (runtime) => handoff.registerRuntime(runtime) });
+handoff.tenants = tenants;
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
@@ -133,6 +142,21 @@ function tenantView(req, t) {
     },
   };
 }
+admin.get('/handoff/status', (_req, res) => res.json(handoff.status()));
+admin.post('/handoff/begin', (_req, res) => {
+  try {
+    res.json(handoff.begin());
+  } catch (err) {
+    res.status(err.statusCode ?? 500).json({ error: err.message });
+  }
+});
+admin.post('/handoff/finish', async (_req, res) => {
+  try {
+    res.json(await handoff.finish());
+  } catch (err) {
+    res.status(err.statusCode ?? 500).json({ error: err.message });
+  }
+});
 admin.get('/widget-usage', (_req, res) => res.json(collectWidgetUsage({ local, tenants })));
 admin.get('/tenants', (req, res) => {
   res.json({
@@ -520,6 +544,20 @@ const wss = new WebSocketServer({ noServer: true });
 server.on('upgrade', (req, socket, head) => {
   const requestUrl = new URL(req.url, 'http://x');
   const { pathname } = requestUrl;
+  if (pathname === '/admin/api/handoff/stream') {
+    const actual = req.headers['x-admin-token'];
+    const ok = typeof actual === 'string' && actual.length === ADMIN_TOKEN.length && crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(ADMIN_TOKEN));
+    if (!ok) {
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      ws.isAlive = true;
+      ws.on('pong', () => (ws.isAlive = true));
+      handoff.attachStream(ws);
+    });
+    return;
+  }
   let rt = null;
   let role = 'owner';
   let tenantId = null;
@@ -585,6 +623,7 @@ async function shutdown() {
   const serverClosed = new Promise((resolve) => server.close(resolve));
   for (const ws of wss.clients) ws.terminate();
   wsHeartbeat?.unref?.();
+  handoff.close();
   await Promise.all([
     local?.close().catch(() => {}),
     ...[...tenants.runtimes.keys()].map((id) => tenants.close(id)),
@@ -602,11 +641,15 @@ server.listen(PORT, HOST, () => {
   if (local) console.log(`  ダッシュボード  ${base}/dashboard/`);
   console.log(`  管理画面        ${base}/admin/  （合言葉: ${process.env.TW_ADMIN_TOKEN ? '環境変数 TW_ADMIN_TOKEN' : ADMIN_TOKEN_FILE}）\n`);
 
+  if (handoff.target.enabled) {
+    handoff.startTarget().catch((error) => console.warn(`[handoff] 引き継ぎの準備に失敗: ${error.message}`));
+  }
+
   if (!local) return;
   if (process.argv.includes('--demo')) {
     local.demo.start();
     local.hub.setStatus({ mode: 'demo', message: 'デモモードでイベントを流しています' });
-  } else if (process.env.TIKTOK_USERNAME) {
+  } else if (process.env.TIKTOK_USERNAME && !handoff.target.enabled) {
     local.tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => console.warn(`[tiktok] ${err.message}`));
   }
 });

@@ -29,6 +29,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |
 | 外部イベント受け口 `ingest` | TikFinity・Streamer.bot などから、配信者ごとの鍵付きHTTP受け口でギフト・いいね・フォロー・コメント・シェアを受け、既存の正規化と配信へ流す | できた | - |
 | 受け口の状態表示・外部ツール案内 | ダッシュボードで TikTok / 外部ツールの状態、最後に届いた時刻、受信数を確認し、鍵と貼り付け用 URL を作る。使い方画面に TikFinity の例と Streamer.bot の準備中案内を表示 | できた | - |
+| P3 の重ね引き継ぎ | 新しい側を先に起動し、古い側の P2状態・直近10分の鍵・最後の seq と、begin 後のイベント stream を受けて引き継ぐ。key つきイベントは両側で重複しない。finish で画面へ moved を送り、ウィジェットは同じ URL へすぐつなぎ直す | できた | `src/handoff.js`、`server.js`、`test/handoff.test.js` |
 | Minecraft ゴール接近警報 | - | できた（50m・20m・5mの段階警報、1m以内の到達判定、ボスバー作成、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`src/minecraft.js`、`public/widgets/goal-alert.html` |
 | 名前入りMinecraft妨害 | - | できた（安全なコマンド生成、状態保存、再起動時の片付け、カットイン配線） | `src/minecraft-name.js`、`src/minecraft.js` |
 | ウィジェット表示 | TikTok LIVE のギフト・コメント・集計を画面に出す | できた | `public/widgets/` |
@@ -208,6 +209,9 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 | `TW_CONFIG` | 設定ファイルの場所（既定はこのフォルダの config.yaml） |
 | `TW_SERVER` | MCP / CLI から見たサーバーの URL（既定 http://127.0.0.1:3939） |
 | `TW_DATA` | 配信の記録を置く場所（既定はこのフォルダの data/） |
+| `TW_HANDOFF_FROM` | P3 の新しい側として起動するときの古い側の URL。指定すると自動で begin・復元・stream 受信を行う |
+| `TW_HANDOFF_TOKEN` | 古い側の管理合言葉（無いときは `TW_ADMIN_TOKEN` を使う） |
+| `TW_HANDOFF_SETTLE_MS` | 新しい側が先つなぎしてから begin まで待つ時間（既定250ミリ秒。テスト用） |
 | `TW_AI_PROVIDER` | 「AI にたのむ」で使う AI（claude / spacebunny / openai。既定 claude） |
 | `TW_AI_KEY` | その AI の API キー（管理画面で入れたキーのほうが先） |
 | `TW_AI_MODEL` | モデル（Claude の既定は claude-opus-5-5） |
@@ -473,6 +477,7 @@ src/vote.js            コメントの番号投票を1人1票で集計し、結�
 src/quiz.js            クイズの出題・制限時間・正解判定を持ち、最初の正解者を配る（支払いは runtime のポイントへ）
 src/cheer.js           いいね応援ゲージをメモリで集計し、満タンと状態を配る
 src/runtime.js         配信者1人分の仕組み（TikTok の接続・集計・ルーレット・RUSH・WIN数・ボス討伐・記録・設定の API）
+src/handoff.js         P3 の重ね引き継ぎ（begin/stream/finish、新しい側の状態復元と key 重複除外）
 src/ootori.js          ラスト10分の席、大トリ、参加者、エンドロールをサーバーで管理
 src/templates.js       配信テンプレートの読み込み・検証・差分計算
 src/templates/         妨害マイクラ・罰ゲーム雑談・耐久・目標配信のテンプレートデータ

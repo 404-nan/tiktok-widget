@@ -10,6 +10,12 @@ import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
 export const REPLAY_SIZE = 500;
+export const HANDOFF_KEY_WINDOW_MS = 10 * 60 * 1000;
+
+export function eventKeyOf(event) {
+  const key = event?.msgId ?? event?.eventId ?? null;
+  return key == null || key === '' ? null : String(key);
+}
 
 export function emptyState() {
   return {
@@ -61,6 +67,9 @@ export class Hub extends EventEmitter {
     this.epoch = randomUUID();
     this.replayRing = [];
     this.config = null;
+    this.publishInterceptor = null;
+    this.handoffWritesPaused = false;
+    this.appliedKeys = new Map(); // key → 適用した時刻（引き継ぎの重複除去用）
   this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
     this.testDirty = false; // テストやデモで数が増えているか
     this.sample = { on: false, until: null };
@@ -148,15 +157,27 @@ export class Hub extends EventEmitter {
     this.emit('config', config);
   }
 
+  // 引き継ぎ中だけ、イベントを集計へ入れず外側へ受け渡す。
+  setPublishInterceptor(interceptor) {
+    this.publishInterceptor = typeof interceptor === 'function' ? interceptor : null;
+  }
+
+  appliedKeysSince(cutoff) {
+    this.#pruneAppliedKeys();
+    return [...this.appliedKeys.entries()].filter(([, at]) => at >= cutoff).map(([key]) => key);
+  }
+
   /** 正規化済みイベントを集計に反映して配信する */
-  publish(event) {
-    if (!event) return;
+  publish(event, { bypassInterceptor = false } = {}) {
+    if (!event) return false;
+    if (!bypassInterceptor && this.publishInterceptor?.(event) === true) return false;
     const e = {
       ...event,
       id: ++this.seq,
       ts: event.ts ?? Date.now(),
-      key: event.msgId ?? event.eventId ?? null,
+      key: eventKeyOf(event),
     };
+    this.#rememberAppliedKey(e.key);
     // 配る前に、サーバー側の仕組みがイベントへ共有用の印を付けられるようにする。
     try {
       this.emit('prepare', e);
@@ -177,7 +198,7 @@ export class Hub extends EventEmitter {
     if (e.test && this.status.mode === 'live') {
       this.broadcast({ type: 'event', event: e, state: this.state });
       this.emit('testEvent', e); // ルーレットだけは画面で回す（結果は記録・Minecraft に渡さない）
-      return;
+      return true;
     }
     if (e.test) this.testDirty = true;
     this.#apply(e);
@@ -185,6 +206,18 @@ export class Hub extends EventEmitter {
     this.recent.length = Math.min(this.recent.length, 50);
     this.broadcast({ type: 'event', event: e, state: this.state });
     this.emit('event', e);
+    return true;
+  }
+
+  #rememberAppliedKey(key) {
+    if (!key) return;
+    this.#pruneAppliedKeys();
+    this.appliedKeys.set(key, Date.now());
+  }
+
+  #pruneAppliedKeys() {
+    const cutoff = Date.now() - HANDOFF_KEY_WINDOW_MS;
+    for (const [key, at] of this.appliedKeys) if (at < cutoff) this.appliedKeys.delete(key);
   }
 
   control(target, action, data = {}) {
