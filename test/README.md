@@ -29,6 +29,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `acceptance/pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューの回帰条件を確認する |
 | `acceptance/ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界を確認する |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
+| `helpers/tmp-cleanup.mjs` | テストプロセスとそこから起きた node の子プロセスが `os.tmpdir()` の下に `mkdtemp` で作ったフォルダを覚え、終了時に消す前読み込み |
 | `static-cache.test.js` | `public/` の静的ファイルの `no-cache`、ETag の 304、`/vendor/` のフォントの長いキャッシュを実サーバーで確かめる |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
@@ -88,6 +89,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `preparation.test.js` | 配信準備の印を重複なく保存し、再起動後に読み戻せるか |
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
+| `tmp-cleanup.test.js` | 一時フォルダの前読み込みが、子プロセスで作ったフォルダだけを消し、`TW_KEEP_TEST_TMP=1` で残すこと、テストが捕まえられる import 形だけを使うことを確認する |
 | `gift-streaks.test.js` | 連打ギフトが途中で切れても数え落とさない・二重に数えないか |
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
@@ -103,7 +105,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 ## つながり
 
-テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
+テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。`os.tmpdir()` の下に `mkdtemp` で作った一時フォルダは、テストプロセスが終わるときに自動で消えます。調べたいときは `TW_KEEP_TEST_TMP=1 npm test` のように付けると残ります。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
 最後に直した日: 2026-11-27
 

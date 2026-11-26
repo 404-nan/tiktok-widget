@@ -56,14 +56,21 @@ test('何も起きなかった配信は残さない', () => {
 test('視聴者数は分ごとに上がり下がりする', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
   const hub = new Hub();
-  const history = new History(hub, dir);
+  let wall = 1_700_000_000_000;
+  let mono = 0;
+  const history = new History(hub, dir, { now: () => wall, monotonicNow: () => mono });
   clearInterval(history.timer);
   hub.setStatus({ mode: 'demo' });
   const t0 = history.current.startedAt;
-  hub.publish({ kind: 'viewers', viewers: 100, ts: t0 + 1000 });
-  hub.publish({ kind: 'viewers', viewers: 120, ts: t0 + 2000 });
-  hub.publish({ kind: 'viewers', viewers: 80, ts: t0 + 61_000 });
-  hub.publish({ kind: 'like', user: { id: 'a' }, count: 1, total: 0, ts: t0 + 125_000 });
+  const publishAt = (ms, event) => {
+    mono = ms;
+    wall = t0 + ms;
+    hub.publish({ ...event, ts: wall });
+  };
+  publishAt(1000, { kind: 'viewers', viewers: 100 });
+  publishAt(2000, { kind: 'viewers', viewers: 120 });
+  publishAt(61_000, { kind: 'viewers', viewers: 80 });
+  publishAt(125_000, { kind: 'like', user: { id: 'a' }, count: 1, total: 0 });
   assert.deepEqual(history.current.timeline.map((m) => m.viewers), [120, 80, 80]);
 });
 
@@ -153,11 +160,11 @@ test('遅れて届いたルーレットは、集計も前の配信に入り、�
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
   const hub = new Hub();
   let t = 1_700_000_000_000;
-  const history = new History(hub, dir, { now: () => t });
+  const history = new History(hub, dir, { now: () => t, monotonicNow: () => t });
   clearInterval(history.timer);
 
   hub.setStatus({ mode: 'live', username: 'sakura' });
-  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1 });
+  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1, ts: t });
   const aId = history.current.id;
   const aStartedAt = history.current.startedAt;
   hub.setStatus({ mode: 'idle' });
@@ -179,19 +186,19 @@ test('配信を2回切り替えた後に届いた結果も、元の配信に入�
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
   const hub = new Hub();
   let t = 1_700_000_000_000;
-  const history = new History(hub, dir, { now: () => t });
+  const history = new History(hub, dir, { now: () => t, monotonicNow: () => t });
   clearInterval(history.timer);
   const giftFromA = { kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1 };
 
   hub.setStatus({ mode: 'live', username: 'sakura' });
-  hub.publish(giftFromA);
+  hub.publish({ ...giftFromA, ts: t });
   const aId = history.current.id;
   const aStartedAt = history.current.startedAt;
   hub.setStatus({ mode: 'idle' });
 
   t += 120_000;
   hub.setStatus({ mode: 'live', username: 'sakura' });
-  hub.publish(giftFromA);
+  hub.publish({ ...giftFromA, ts: t });
   hub.setStatus({ mode: 'idle' });
 
   t += 120_000;
@@ -205,5 +212,53 @@ test('配信を2回切り替えた後に届いた結果も、元の配信に入�
   const details = history.details.read(aId, { kind: 'roulette' });
   assert.equal(details.total, 1, '1件ごとの記録も元の配信に入る');
   hub.setStatus({ mode: 'idle' });
+  clearInterval(history.details.timer);
+});
+
+test('配信の進んだ時間より先の分は、1分ごとの記録に作らない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  let wall = 1_700_000_000_000;
+  let mono = 0;
+  const history = new History(hub, dir, { now: () => wall, monotonicNow: () => mono });
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  // 事故の再現: Hub は実際の現在時刻を ts に付けるが、配信開始の壁時計だけが古い。
+  // 未来の分を先に作らず、届いた時点まで進んだ配信時間の中へ記録するべき。
+  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1 });
+  wall += 120_000;
+  mono += 120_000;
+  hub.setStatus({ mode: 'idle' });
+
+  const file = fs.readdirSync(dir).find((name) => name.endsWith('.json'));
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+  assert.equal(saved.durationMs, 120_000);
+  assert.equal(saved.timeline.length, 1);
+  assert.equal(saved.timeline[0].coins, 1);
+  assert.ok(fs.statSync(path.join(dir, file)).size < 1024 * 1024, 'テスト用の配信の記録1件は1MB未満');
+  clearInterval(history.details.timer);
+});
+
+test('時計が将来へ飛んでも、配信時間と1分ごとの記録は実際に進んだ分だけにする', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-history-'));
+  const hub = new Hub();
+  let wall = 1_700_000_000_000;
+  let mono = 0;
+  const history = new History(hub, dir, { now: () => wall, monotonicNow: () => mono });
+  clearInterval(history.timer);
+
+  hub.setStatus({ mode: 'live', username: 'sakura' });
+  mono += 1_000;
+  wall += 3 * 365 * 24 * 60 * 60 * 1000;
+  hub.publish({ kind: 'gift', user: { id: 'u1', name: 'A' }, gift: { name: 'Rose', id: '1', count: 1, diamonds: 1 }, totalDiamonds: 1, ts: wall });
+  hub.setStatus({ mode: 'idle' });
+
+  const file = fs.readdirSync(dir).find((name) => name.endsWith('.json'));
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+  assert.equal(saved.durationMs, 1_000);
+  assert.equal(saved.timeline.length, 1);
+  assert.equal(saved.timeline[0].coins, 1);
+  assert.ok(fs.statSync(path.join(dir, file)).size < 1024 * 1024, '時計が飛んだ配信の記録1件は1MB未満');
   clearInterval(history.details.timer);
 });

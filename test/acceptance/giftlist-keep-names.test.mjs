@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import fs, { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -40,7 +40,7 @@ globalThis.fetch = async (url) => {
 
 // 一時の場所を作り、giftlist.js を動かして結果を返す。api が null なら「日本語が1件も返らない」状態にする。
 function run({ sameAsEn = false, api = API_NAMES, apiCoins = API_COINS } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'giftlist-keep-names-'));
+  const dir = fs.mkdtempSync(join(tmpdir(), 'giftlist-keep-names-'));
   try {
     cpSync(root + 'scripts', join(dir, 'scripts'), { recursive: true });
     mkdirSync(join(dir, 'src'));
