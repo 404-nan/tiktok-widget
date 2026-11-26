@@ -2,6 +2,7 @@
 # 台帳にある、いちばん新しい「確かめ済み」の投入の from へ戻す道具（2026-11-22）。LuLServer の ~/tiktok-widget で回す。
 # 使い方: bash scripts/rollback-release.sh
 # 未保存の変更は退避→復帰で守る。戻したあとは /healthz の commit を確かめ、結果を台帳に残す。
+# 移行前の古いサーバーが commit を返さない時だけ、応答と木のコミットを合わせた移行用の確認に落とす。
 set -u
 cd "$(dirname "$0")/.." || exit 2
 
@@ -108,10 +109,18 @@ if ! bash -c "$RESTART_CMD"; then
 fi
 
 LAST_HEALTH_COMMIT=""
+VERIFY_MODE="healthz-commit"
 health_matches() {
   local body
   body=$(curl -sf "$HEALTHZ_URL" 2>/dev/null) || return 1
-  LAST_HEALTH_COMMIT=$(json_string_field "$body" commit)
+  LAST_HEALTH_COMMIT=$(printf '%s' "$body" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);process.stdout.write(Object.prototype.hasOwnProperty.call(j,"commit")?String(j.commit??""):"__missing__")}catch{}})')
+  if [ "$LAST_HEALTH_COMMIT" = "__missing__" ]; then
+    # この変更より前のサーバーは commit を返せない。移行の間だけ、起きている応答と木の両方を見る。
+    [ "$(git rev-parse HEAD)" = "$FROM" ] || return 1
+    VERIFY_MODE="legacy-healthz-and-tree"
+    return 0
+  fi
+  VERIFY_MODE="healthz-commit"
   [ "$LAST_HEALTH_COMMIT" = "$FROM" ]
 }
 
@@ -126,5 +135,5 @@ if ! health_matches; then
   echo "戻したあとの確認で失敗（応答 commit: ${LAST_HEALTH_COMMIT:-不明} / 期待: $FROM）"
   exit 1
 fi
-ledger_event rolled-back from "$NOW" to "$FROM" commit "$FROM"
+ledger_event rolled-back from "$NOW" to "$FROM" commit "$FROM" verification "$VERIFY_MODE"
 echo "戻し完了: $NOW → $FROM"

@@ -335,3 +335,28 @@ test('rollback は event の無い前の形の台帳を確かめ済みの投入�
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
+
+test('rollback は version と commit を返さない古いサーバーへ戻る時だけ、応答と木の両方で確かめる', async () => {
+  const { repo, base } = createFakeRepo();
+  const second = addCommit(repo, 'legacy-healthz-second', { 'internal.txt': 'second\n' });
+  git(repo, ['merge', '--ff-only', '-q', 'legacy-healthz-second']);
+  const harness = await setupHarness({ live: 0 });
+  try {
+    fs.writeFileSync(harness.ledger, JSON.stringify({ ts: 't1', from: base, to: second, version: '1.0.0', branch: 'legacy-healthz-second' }) + '\n');
+    const restartCmd = makeRestartCommand({
+      countFile: harness.countFile,
+      stateFile: harness.stateFile,
+      state: { live: 0 },
+    });
+    const run = await runScript(repo, 'rollback-release.sh', [], { ...harness, restartCmd });
+    assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
+    assert.equal(git(repo, ['rev-parse', 'HEAD']), base);
+    const last = ledgerEvents(harness.ledger).at(-1);
+    assert.equal(last.event, 'rolled-back');
+    assert.equal(last.verification, 'legacy-healthz-and-tree');
+  } finally {
+    await harness.close();
+    fs.rmSync(harness.dir, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});

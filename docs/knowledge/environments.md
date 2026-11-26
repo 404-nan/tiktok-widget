@@ -25,7 +25,7 @@
 
 - 自動反映（`deploy/server/auto-deploy.sh` と `tiktok-widget-deploy.timer`）は 2026-11-18 ごろから止めてあると記録されている（2026-11-27 の棚卸し）。動かし直すかはオーナーが決める。
 - 今の反映は手で回す `scripts/deploy-release.sh <入れる枝>`。配信者がいない時に、オーナーの許可を取って回す。入れる側の一時 worktree で `scripts/release-check.mjs` の速い関門を通し（`--with-tests` を付けた時だけ全体テストも）、早送り・再起動のあと `/healthz` の `version` と `commit` が入れた物と同じになるまで確かめる。
-- 戻すときは `scripts/rollback-release.sh`。台帳の失敗した投入ではなく、いちばん新しい `verified` の投入の `from` へ戻し、戻したあとも `/healthz` の `commit` で確かめる。
+- 戻すときは `scripts/rollback-release.sh`。台帳の失敗した投入ではなく、いちばん新しい `verified` の投入の `from` へ戻し、戻したあとも `/healthz` の `commit` で確かめる。版とコミットを返せない古いサーバーへ戻す時だけ、応答と木のコミットを合わせる移行用の確認になる。
 - 切断直後の誤再起動を防ぐため、`/healthz` は最後に `live` だった時刻から15分未満の `connecting` / `error` も配信中に数える。
 - 外部取り込み用のリポジトリ（raikone-widgets）の main へは、取り込みの定期処理を止めるまでマージしない（本番の部品が古い版へ巻き戻るおそれ。2026-11-27 の棚卸し）。
 
