@@ -74,7 +74,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `session-details.test.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットの全件保存と読み出し)のテスト |
 | `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
 | `hub.test.js` | イベント集計と配信のテスト（プレビューへ本番の演出を流さない確認を含む） |
-| `hub-replay.test.js` | 直近500件の再送、epoch・gap、gap を返した回数、compact・preview・quiet・allowMessage の再送時フィルター |
+| `hub-replay.test.js` | 直近500件の再送、epoch・gap、gap を返した回数、compact・preview・quiet・allowMessage の再送時フィルター、room が変わったとき接続中の画面へ送る新しい hello |
 | `replay-cursor.test.js` | 公開ウィジェットの再接続連番と重複除外 |
 | `live-state-replay.test.js` | 一時データで実サーバーの1000件再接続と SIGTERM 再起動後の復元、保存時の room ID と違う配信での再送防止、gap 警告を確認する |
 | `alert-style.test.js` | 通知の型（style）の後方互換・保持・定義データの検証 |

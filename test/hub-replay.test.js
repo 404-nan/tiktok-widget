@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Hub, REPLAY_SIZE } from '../src/hub.js';
+import { ReplayCursor } from '../public/widgets/lib/replay-cursor.js';
 
 function socket(options = {}) {
   const sent = [];
@@ -141,4 +142,41 @@ test('since 付きで gap を返した接続だけを数えて hub から読め�
   hub.addClient(staleAgain, { since: 0, epoch: 'another-process' });
   assert.equal(staleAgain.sent[0].gap, true);
   assert.equal(hub.replayGapCount, 2);
+});
+
+
+test('別の room の開始をつながっている画面へ知らせ、新しい配信だけ再送できる', () => {
+  const hub = new Hub();
+  hub.setStatus({ mode: 'live', roomId: 'room-1' });
+  const first = socket();
+  hub.addClient(first);
+  const cursor = new ReplayCursor();
+  const feed = () => {
+    for (const message of first.sent) {
+      if (message.type === 'hello') cursor.hello(message);
+      else if (message.type === 'event') cursor.accept(message);
+    }
+  };
+
+  hub.publish({ kind: 'follow', eventId: 'room-1-event' });
+  feed();
+  hub.setStatus({ mode: 'ended' });
+  hub.setStatus({ mode: 'live', roomId: 'room-2' });
+
+  const hellos = first.sent.filter((message) => message.type === 'hello');
+  assert.equal(hellos.length, 2, 'room が変わったら接続中の画面にも新しい hello を送る');
+  assert.equal(hellos[1].epoch, hub.epoch);
+  assert.equal(hellos[1].seq, 0);
+  feed();
+  assert.equal(cursor.epoch, hub.epoch);
+  assert.equal(cursor.lastSeq, 0);
+
+  // ここで画面が切れたとみなし、新しい配信の1件目はカーソルへ入れない。
+  hub.publish({ kind: 'follow', eventId: 'room-2-event' });
+  const second = socket();
+  hub.addClient(second, { since: cursor.lastSeq, epoch: cursor.epoch });
+  assert.equal(second.sent[0].gap, false);
+  assert.deepEqual(events(second).map((message) => [message.event.id, message.event.key, message.replay]), [
+    [1, 'room-2-event', true],
+  ]);
 });

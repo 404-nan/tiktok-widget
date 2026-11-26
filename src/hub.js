@@ -88,34 +88,9 @@ export class Hub extends EventEmitter {
     ws.on('close', () => {
       if (!this.hasClient(ws.role)) this.emit('clientChange', { role: ws.role, connected: false, at: Date.now() });
     });
-    // 未払いの配信画面には、中身もエラー文も出さない
-    if (ws.quiet) {
-      this.#send(ws, {
-        type: 'hello',
-        status: { mode: 'idle', message: '' },
-        state: emptyState(),
-        sample: { on: false, until: null },
-        config: null,
-        recentChats: [],
-        epoch: this.epoch,
-        seq: this.seq,
-        gap,
-      });
-      return;
-    }
-    // ウィジェットにはパスワードなどを抜いた設定を配る
-    // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
-    this.#send(ws, {
-      type: 'hello',
-      status: this.status,
-      state: this.state,
-      sample: this.sampleState(),
-      config: publicConfig(this.config),
-      recentChats: this.recentChats,
-      epoch: this.epoch,
-      seq: this.seq,
-      gap,
-    });
+    this.#send(ws, this.#helloMessage(ws, gap));
+    // 未払いの配信画面には、中身もエラー文も出さない（再送もしない）
+    if (ws.quiet) return;
     if (epochMatches && hasSince) {
       for (const msg of this.replayRing) {
         if (msg.event.id > parsedSince) this.#sendForClient(ws, { ...msg, replay: true });
@@ -218,6 +193,11 @@ export class Hub extends EventEmitter {
     this.seq = 0;
     this.epoch = randomUUID();
     this.replayRing = [];
+    // 接続中の画面は古い epoch のカーソルを持ったままなので、新しい hello を送り直す。
+    // 送らないと、後で切れてつなぎ直したときに古い epoch で来て、新しい配信の出来事が1件も再送されない。
+    for (const ws of this.clients) {
+      if (ws.readyState === 1) this.#send(ws, this.#helloMessage(ws, false));
+    }
   }
 
   reset() {
@@ -249,6 +229,37 @@ export class Hub extends EventEmitter {
     if (!row) map.set(key, (row = { key, user, ...init }));
     row.user = user;
     return row;
+  }
+
+  // 接続時と配信の切り替わりに送る最初の知らせ。
+  // ウィジェットにはパスワードなどを抜いた設定を配る。
+  // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように。
+  // 未払いの配信画面には、中身もエラー文も出さない。
+  #helloMessage(ws, gap) {
+    if (ws.quiet) {
+      return {
+        type: 'hello',
+        status: { mode: 'idle', message: '' },
+        state: emptyState(),
+        sample: { on: false, until: null },
+        config: null,
+        recentChats: [],
+        epoch: this.epoch,
+        seq: this.seq,
+        gap,
+      };
+    }
+    return {
+      type: 'hello',
+      status: this.status,
+      state: this.state,
+      sample: this.sampleState(),
+      config: publicConfig(this.config),
+      recentChats: this.recentChats,
+      epoch: this.epoch,
+      seq: this.seq,
+      gap,
+    };
   }
 
   #send(ws, msg) {
