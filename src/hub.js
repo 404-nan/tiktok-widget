@@ -60,8 +60,9 @@ export class Hub extends EventEmitter {
     this.seq = 0;
     this.epoch = randomUUID();
     this.replayRing = [];
+    this.replayGapCount = 0;
     this.config = null;
-  this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
+    this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
     this.testDirty = false; // テストやデモで数が増えているか
     this.sample = { on: false, until: null };
     this.sampleTimer = null;
@@ -75,6 +76,10 @@ export class Hub extends EventEmitter {
     const gap = !epochMatches || (hasSince && (
       oldestSeq == null ? parsedSince < this.seq : parsedSince < oldestSeq - 1
     ));
+    if (hasSince && gap) {
+      this.replayGapCount += 1;
+      this.emit('replayGap', { count: this.replayGapCount });
+    }
     const wasConnected = this.hasClient(ws.role);
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));

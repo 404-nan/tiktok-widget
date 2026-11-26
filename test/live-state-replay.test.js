@@ -57,6 +57,28 @@ function makeRuntime(dir) {
   });
 }
 
+test('since 付きで gap を返したら、内部 ID と件数だけを警告に残す', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-replay-gap-log-'));
+  const runtime = createRuntime({
+    id: 'tenant-internal',
+    store: createStore(path.join(dir, 'config.yaml')),
+    dataDir: dir,
+    mediaDirs: [dir],
+  });
+  const originalWarn = console.warn;
+  const lines = [];
+  console.warn = (...args) => lines.push(args.join(' '));
+  try {
+    runtime.hub.addClient(fakeSocket(), { since: 0, epoch: 'another-process' });
+    assert.equal(runtime.hub.replayGapCount, 1);
+    assert.deepEqual(lines, ['[replay-gap] tenant=tenant-internal count=1']);
+  } finally {
+    console.warn = originalWarn;
+    await runtime.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('保存時と違う room ID で live になったら、前の配信を再送しない', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-live-room-new-'));
   writeSavedLiveState(dir, { roomId: 'room-old' });
@@ -70,7 +92,13 @@ test('保存時と違う room ID で live になったら、前の配信を再�
     assert.equal(runtime.hub.state.follows, 0);
 
     const ws = fakeSocket();
-    runtime.hub.addClient(ws, { since: 0, epoch: 'saved-epoch' });
+    const originalWarn = console.warn;
+    console.warn = () => {};
+    try {
+      runtime.hub.addClient(ws, { since: 0, epoch: 'saved-epoch' });
+    } finally {
+      console.warn = originalWarn;
+    }
     assert.equal(ws.sent[0].gap, true);
     assert.deepEqual(ws.sent.filter((message) => message.type === 'event'), []);
   } finally {

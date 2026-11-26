@@ -137,6 +137,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   };
   hub.on('prepare', scheduleLiveState);
   hub.on('reset', scheduleLiveState);
+  hub.on('replayGap', ({ count }) => {
+    // 配信者名や接続鍵はログに出さず、どの内部 ID で何回起きたかだけ残す。
+    console.warn(`[replay-gap] tenant=${id} count=${count}`);
+  });
   hub.on('status', (status) => {
     if (status?.mode === 'live' && !checkedRestoredRoom) {
       checkedRestoredRoom = true;

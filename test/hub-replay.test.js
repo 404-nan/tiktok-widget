@@ -117,3 +117,28 @@ test('別の room の配信では epoch と再送履歴を新しくし、同じ 
   assert.equal(ws.sent[0].gap, true);
   assert.deepEqual(events(ws), []);
 });
+
+test('since 付きで gap を返した接続だけを数えて hub から読める', () => {
+  const hub = new Hub();
+  assert.equal(hub.replayGapCount, 0);
+
+  const noGap = socket();
+  hub.addClient(noGap, { since: 0, epoch: hub.epoch });
+  assert.equal(noGap.sent[0].gap, false);
+  assert.equal(hub.replayGapCount, 0);
+
+  const withoutSince = socket();
+  hub.addClient(withoutSince, { epoch: 'another-process' });
+  assert.equal(withoutSince.sent[0].gap, true);
+  assert.equal(hub.replayGapCount, 0, 'since が無い初回接続は数えない');
+
+  const stale = socket();
+  hub.addClient(stale, { since: 0, epoch: 'another-process' });
+  assert.equal(stale.sent[0].gap, true);
+  assert.equal(hub.replayGapCount, 1);
+
+  const staleAgain = socket();
+  hub.addClient(staleAgain, { since: 0, epoch: 'another-process' });
+  assert.equal(staleAgain.sent[0].gap, true);
+  assert.equal(hub.replayGapCount, 2);
+});
