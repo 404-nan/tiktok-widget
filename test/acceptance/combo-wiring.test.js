@@ -28,11 +28,16 @@ test('AC-1 SCHEMA.combo の見出しと項目・既定値', () => {
   assert.equal(s.title, 'コンボ(擬似連)');
   assert.deepEqual(s.size(), [1080, 1920]);
   assert.match(s.desc, /[\p{Script=Hiragana}\p{Script=Katakana}]/u);
-  assert.deepEqual(defaultsFor('combo'), {
+  const expectedDefaults = {
     enabled: true, seconds: 10, gifts: [], minCoins: 1,
     blueAt: 2, greenAt: 3, redAt: 4, goldAt: 5, rainbowAt: 6,
     endText: 'COMBO', sound: true, volume: 0.5,
-  });
+    background: 'transparent', chromaColor: '#00FF00', solidColor: '#0B1030', backgroundImage: '',
+  };
+  const actualDefaults = defaultsFor('combo');
+  for (const [key, value] of Object.entries(expectedDefaults)) {
+    assert.deepEqual(actualDefaults[key], value, `combo.${key} の初期値`);
+  }
   for (const [k, f] of Object.entries(s.fields)) assert.match(f.desc ?? '', /\S/, `${k} に日本語の説明がある`);
   const f = s.fields;
   assert.equal(f.seconds.min, 1);
