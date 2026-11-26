@@ -228,7 +228,9 @@ export class TikTokSource {
         fetchGifts: (language) => fetchGifts(username, state.roomId, this.signApiKey, language, this.usage),
       });
       if (this.connection !== conn || !this.stay) return;
-      if (giftResult?.error) console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message);
+      if (giftResult?.attempted && giftResult?.error) {
+        console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message, '次に試すのは 24 時間後です。ギフト名は同梱の対応表で表示します');
+      }
       this.retry = 0;
       this.offlineSince = null;
       this.connected = true;

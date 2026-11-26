@@ -139,3 +139,140 @@ test('対応表は GiftID → [英語名, 日本語名] の形で、日本語名
     assert.ok(pair[1] && pair[1] !== pair[0], `${id} の日本語名`);
   }
 });
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+test('取り直しの判定は updatedAt と attemptedAt の新しい方から24時間で見る', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  const now = 10_000_000_000;
+  catalog.updatedAt = now - 2 * DAY_MS;
+  catalog.attemptedAt = now - 1000;
+  assert.equal(catalog.stale(now), false);
+  catalog.attemptedAt = now - DAY_MS;
+  assert.equal(catalog.stale(now), true);
+});
+
+test('ギフト一覧の取り直しに失敗した直後は、24時間以内に再取得しない', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  let calls = 0;
+  const fail = async () => { calls += 1; throw new Error('denied'); };
+  const first = await catalog.refresh({ fetchGifts: fail });
+  assert.equal(first.refreshed, false);
+  assert.equal(calls, 2);
+  const second = await catalog.refresh({ fetchGifts: fail });
+  assert.equal(second.refreshed, false);
+  assert.equal(calls, 2);
+});
+
+test('ギフト一覧の取り直しに失敗しても、24時間たつとまた試す', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] });
+  t.mock.timers.setTime(10_000_000_000);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  let calls = 0;
+  const fail = async () => { calls += 1; throw new Error('denied'); };
+  await catalog.refresh({ fetchGifts: fail });
+  assert.equal(calls, 2);
+  await catalog.refresh({ fetchGifts: fail });
+  assert.equal(calls, 2);
+  t.mock.timers.setTime(10_000_000_000 + DAY_MS);
+  await catalog.refresh({ fetchGifts: fail });
+  assert.equal(calls, 4);
+});
+
+test('ギフト一覧の取得が時間切れでも、試した時刻を残して24時間は再取得しない', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  const result = await catalog.refresh({
+    timeoutMs: 5,
+    fetchGifts: () => new Promise(() => {}),
+  });
+  assert.equal(result.refreshed, false);
+  assert.ok(catalog.attemptedAt > 0);
+  let calls = 0;
+  await catalog.refresh({ fetchGifts: async () => { calls += 1; return []; } });
+  assert.equal(calls, 0);
+});
+
+test('ギフト一覧の取得に成功したときは、24時間以内に再取得しない', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  let calls = 0;
+  const fetchGifts = async (language) => {
+    calls += 1;
+    return language === 'en' ? [{ id: 5655, name: 'Rose', diamond_count: 1 }] : [{ id: 5655, name: 'ローズ', diamond_count: 1 }];
+  };
+  const first = await catalog.refresh({ fetchGifts });
+  assert.equal(first.refreshed, true);
+  assert.equal(calls, 2);
+  await catalog.refresh({ fetchGifts });
+  assert.equal(calls, 2);
+  assert.equal(catalog.find('5655').nameJa, 'ローズ');
+});
+
+test('前の形のギフト一覧ファイルを読むと、attemptedAt は updatedAt と同じとみなす', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const file = path.join(dir, 'gifts.json');
+  fs.writeFileSync(file, JSON.stringify({ updatedAt: 123456, gifts: [{ id: '1', name: 'Rose', nameJa: 'ローズ', diamonds: 1, image: null }] }));
+  const catalog = new GiftCatalog(file);
+  assert.equal(catalog.updatedAt, 123456);
+  assert.equal(catalog.attemptedAt, 123456);
+  assert.equal(catalog.lastError, null);
+});
+
+test('失敗した時刻と短い理由を新しい形で保存して、読み直せる', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const file = path.join(dir, 'gifts.json');
+  const first = new GiftCatalog(file);
+  await first.refresh({ fetchGifts: async () => { throw new Error('denied'); } });
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.ok(saved.attemptedAt > 0);
+  assert.equal(saved.lastError, 'denied');
+  const second = new GiftCatalog(file);
+  assert.equal(second.attemptedAt, saved.attemptedAt);
+  assert.equal(second.lastError, 'denied');
+});
+
+test('force: true なら、24時間たっていなくてもギフト一覧を取り直す', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const catalog = new GiftCatalog(path.join(dir, 'gifts.json'));
+  let calls = 0;
+  const fetchGifts = async (language) => {
+    calls += 1;
+    return language === 'en' ? [{ id: 5655, name: 'Rose', diamond_count: 1 }] : [{ id: 5655, name: 'ローズ', diamond_count: 1 }];
+  };
+  await catalog.refresh({ fetchGifts });
+  assert.equal(calls, 2);
+  const forced = await catalog.refresh({ fetchGifts, force: true });
+  assert.equal(forced.refreshed, true);
+  assert.equal(calls, 4);
+});
+
+test('lastError に鍵らしい文字列や URL を残さない', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const file = path.join(dir, 'gifts.json');
+  const catalog = new GiftCatalog(file);
+  const secret = 'sk-live-1234567890abcdef';
+  const url = `https://example.invalid/webcast/gift/list/?apiKey=${secret}&signature=abcdef1234567890abcdef1234567890`;
+  await catalog.refresh({ fetchGifts: async () => { throw new Error(`signTikTokUrl failed ${url} token ${secret}`); } });
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.ok(saved.lastError);
+  assert.equal(saved.lastError.includes(secret), false);
+  assert.equal(saved.lastError.includes(url), false);
+  assert.equal(saved.lastError.includes('https://'), false);
+  assert.ok(saved.lastError.length <= 120);
+});
+
+test('lastError に署名済みらしい長い文字列を残さない', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-gifts-'));
+  const file = path.join(dir, 'gifts.json');
+  const catalog = new GiftCatalog(file);
+  const signed = 'sign=webcast%2Fgift%2Flist%3FapiKey%3Dsecret%26signature%3Dabcdef1234567890abcdef1234567890';
+  await catalog.refresh({ fetchGifts: async () => { throw new Error(`signTikTokUrl failed ${signed}`); } });
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(saved.lastError.includes('webcast%2F'), false);
+  assert.equal(saved.lastError.includes('apiKey'), false);
+  assert.equal(saved.lastError.includes('abcdef1234567890'), false);
+});
