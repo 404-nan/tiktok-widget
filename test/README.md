@@ -91,6 +91,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
 | `tmp-cleanup.test.js` | 一時フォルダの前読み込みが、子プロセスで作ったフォルダだけを消し、`TW_KEEP_TEST_TMP=1` で残すこと、テストが捕まえられる import 形だけを使うことを確認する |
+| `health-watch.test.js` | 死活の見張りの通知、診断の束、状態ファイル、限定つき自動復帰を一時サーバーと偽コマンドで確かめる |
 | `gift-streaks.test.js` | 連打ギフトが途中で切れても数え落とさない・二重に数えないか |
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
