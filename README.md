@@ -259,6 +259,7 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 いまは LuLServer で動かし、`https://widget.lul.works` で公開しています。
 - サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。更新は自動です。このフォルダに新しいコミットが入ると、誰も配信していないときに `npm test` を通してから再起動します（`deploy/server/`）。TikTok との接続が切れて `connecting` / `error` になっても、最後に `live` だった時刻から15分未満は配信中として扱い、再起動を待ちます
 - トンネル: `~/.config/systemd/user/tiktok-widget-tunnel.service`（設定は `~/.cloudflared/tiktok-widget.yml`、`widget.lul.works` → `http://127.0.0.1:3939`）
+- `public/` の静的ファイルは `Cache-Control: no-cache` で配る。本番は Cloudflare を通るので、反映後に `curl -sI https://widget.lul.works/widgets/lib/overlay.js` で `max-age=14400` が消えたことを確かめる。消えていなければ Cloudflare 側の「ブラウザーのキャッシュ時間」を「元のサーバーに従う」にする必要がある（オーナーの許可が要る）
 - 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
 - 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
 
