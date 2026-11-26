@@ -4,6 +4,7 @@
 
 | ファイル / フォルダ | 役目 |
 | --- | --- |
+| `dev/` | 開発環境の共通ツール（lint・format・pre-commit・開発起動） |
 | `build-gift-names.js` | ギフト名の対応表を生成する |
 | `giftlist.js` | TikTok の gift/list API からギフト一覧を取り込む（既存の名前は残し、コインを更新してブラウザ用の表も作り直す） |
 | `fixtures/` | リハーサル用の設定・記録データ |

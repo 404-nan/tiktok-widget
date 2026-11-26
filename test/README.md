@@ -29,6 +29,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `acceptance/pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューの回帰条件を確認する |
 | `acceptance/ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界を確認する |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
+| `error-logger.test.js` | 構造化エラーログの cause・場所・文脈・伏せ字のテスト |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
@@ -102,7 +103,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 ## つながり
 
-テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
+テストは `npm test`（test/ 直下の安定した単体テスト）で実行します。受け入れテストまで含めるときは `npm run test:all` です。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
 最後に直した日: 2026-11-22
 

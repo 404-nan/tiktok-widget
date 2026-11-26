@@ -8,3 +8,11 @@ data/
 .wrangler/
 .dev.vars
 media/uploads/
+
+# devprep local files
+node_modules/
+.env.*
+!.env.example
+.dev/
+__pycache__/
+*.pyc

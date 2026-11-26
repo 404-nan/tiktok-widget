@@ -6,6 +6,19 @@
 
 TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio の「ブラウザ」ソースに URL を入れるだけで使えます。
 
+## 開発（devprep）
+
+Node は本番と同じ **v25.4.0**（`.nvmrc`）を使います。
+
+```bash
+npm run setup   # 依存と pre-commit hook を用意（初回だけ）
+npm run dev     # 開発用の起動・確認
+npm test        # テスト
+npm run lint    # 文法・秘密混入・機密ファイルの検査
+```
+
+整形は `npm run format`、確認だけなら `npm run format:check`。環境変数は値を書かない `.env.example` を見て、値は `.env` や systemd / vault にだけ入れます。エラー記録の土台は `docs/error-logging.md` にあります。
+
 ## 機能の状態
 
 ダッシュボードの左の列は、項目名を折り返して最後まで読めます。幅390pxの「見本を出す」も44×26pxのスイッチで表示します。

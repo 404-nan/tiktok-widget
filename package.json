@@ -10,7 +10,14 @@
     "demo": "node server.js --demo",
     "tw": "node bin/tw.js",
     "mcp": "node mcp/server.js",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "setup": "node scripts/dev/toolkit.mjs setup",
+    "lint": "node scripts/dev/toolkit.mjs lint",
+    "format": "node scripts/dev/toolkit.mjs format",
+    "format:check": "node scripts/dev/toolkit.mjs format-check",
+    "dev": "node scripts/dev/start-dev.mjs",
+    "test:all": "node --test --test-concurrency=1",
+    "test:acceptance": "node --test --test-concurrency=1 test/acceptance/*.test.js test/acceptance/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
