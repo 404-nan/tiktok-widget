@@ -502,7 +502,7 @@ export function bindRoutes(r, ctx) {
       // そのまま当てたらどうなるかを確かめながら、案を作ってもらう（ファイルには書かない）
       const availableWidgets = Object.entries(FEATURES).filter(([key]) => entitled(key)).map(([, feature]) => feature.label);
       const allowedSections = SECTIONS.filter((section) => section === 'theme' || entitled(section));
-      const out = await ai.ask({ text, config: hub.config, focus, gifts: knownGifts(), availableWidgets, allowedSections, check: (changes) => cfg.applyChanges(store.readText(), changes) });
+      const out = await ai.ask({ tenant: id, text, config: hub.config, focus, gifts: knownGifts(), availableWidgets, allowedSections, check: (changes) => cfg.applyChanges(store.readText(), changes) });
       if (!out.changes.length && out.ignored) out.reply = 'それはこのツールではできません。';
       res.json({ ok: true, reply: out.reply, changes: out.changes, errors: out.errors, warnings: out.warnings, state: aiState() });
     } catch (err) {

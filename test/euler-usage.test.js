@@ -20,3 +20,16 @@ test('Euler の利用数を日付・配信者・種類ごとに保存する', ()
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test('互換記録を書けなくても、呼び出し側へ例外を返さない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'euler-usage-blocked-'));
+  try {
+    const blocked = path.join(dir, 'blocked');
+    fs.writeFileSync(blocked, 'file');
+    const usage = new EulerUsage(path.join(blocked, 'euler-usage.json'));
+    assert.doesNotThrow(() => usage.record('alice', 'connect'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

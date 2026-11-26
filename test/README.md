@@ -32,7 +32,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
-| `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
+| `ai.test.js` / `ai-control.test.js` / `ai-api-usage.test.js` | AI設定と操作制御のテスト。使ったトークンの記録と中央 API 使用量も確かめる |
 | `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能（手動開始・ミッションを含む）と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
@@ -98,12 +98,13 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `widget-background.test.js` | 背景の項目が全ウィジェットに行き渡っていることと、値の検証、前面の適用の形 |
 | `release-gates.test.js` | 出す前の関門：設定の届き方（object 型の節を setupWidget で読まない）・お知らせの形（種別必須）・外部読み込みの許可リスト |
 | `api-inventory.test.js` | 口の地図（docs/API-INVENTORY.md）に、登録された経路と AI の道具が全部載っていること |
+| `api-usage.test.js` / `api-usage-migration.test.js` / `admin-usage-api.test.js` / `admin-usage-ui.test.js` | 中央 API 使用量の記録・集計・移行・管理 API・管理画面の配線を確かめる |
 | `wins.test.js` | WIN数のテスト |
 
 ## つながり
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

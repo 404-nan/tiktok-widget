@@ -42,10 +42,11 @@ function migrate(holder) {
 }
 
 export class Tenants {
-  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env } = {}) {
+  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, apiUsage = null, env = process.env } = {}) {
     this.dir = dir;
     this.ai = ai; // 「AI にたのむ」（全員で同じキーを使う）
     this.notes = notes;
+    this.apiUsage = apiUsage;
     this.billing = new BillingStore({ dir, env });
     this.file = path.join(dir, 'tenants.json');
     this.onChange = onChange;
@@ -472,6 +473,7 @@ export class Tenants {
       widgetBase: (origin) => `${origin}/t/${this.get(id)?.obsKey}`,
       ai: this.ai,
       notes: this.notes,
+      apiUsage: this.apiUsage,
       connectionAllowed: ({ live } = {}) => this.billing.allowsConnection(id, { live }),
       onIngestKeyChange: () => this.refreshIngestKey(id),
     });

@@ -16,6 +16,8 @@
 | `ai-tokens.js` | 管理者用トークンと、テナント固定で10件までの配信者用トークンを発行・照合・失効する |
 | `ai.js` | AI の案を検証し、設定変更の形にする。使ったトークンは `data/ai-usage.jsonl` に残す(中身は書かない) |
 | `api-keys.js` | 管理画面の API キーを保存・伏せ字表示する |
+| `api-usage.js` | Euler・AI の呼び出しを `data/api-usage.jsonl` に集め、日本時間で集計する。古い利用記録は初回だけ移す |
+| `admin-usage-routes.js` | 管理画面の API 使用量ページへ集計・配信者別・時間別・Euler 上限を返す |
 | `billing.js` | 利用期限・プラン・課金状態を判定する |
 | `boss.js` | ボスの HP、ダメージ、討伐、手動開始とミッションを管理する |
 | `cheer.js` | いいねをため、満タンと次の目標を WebSocket で配る（記録しない） |
@@ -39,7 +41,8 @@
 | `gifts.js` | ギフト一覧を読み込み、条件検索する |
 | `healthz.js` | 稼働確認と、配信中または15分未満の再接続中の人数だけの応答を作る |
 | `effect-log.js` | ギフト・フォロー・シェアとサーバー側演出を匿名で記録し(消さずに全部残す)、`gifts.js` の `eventCoinTotal` で配信合計と同じコインを使った配信後レポートを作る |
-| `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える |
+| `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える（互換用。中央記録は `api-usage.js`） |
+| `euler-limits.js` | Euler Stream の公式 rate limits を読み、上限だけをキャッシュする |
 | `history.js` | 配信履歴を一定間隔または終了時に JSON 保存し、OBS ウィジェットの利用時間と接続回数も記録する |
 | `session-details.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットを、誰が・いつ・何を、で全部残す)。読み出しは種類で絞ってページ単位 |
 | `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる |
@@ -99,4 +102,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

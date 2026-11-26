@@ -15,8 +15,13 @@ export class EulerUsage {
     this.data[day] ??= {};
     this.data[day][name] ??= {};
     this.data[day][name][kind] = (this.data[day][name][kind] ?? 0) + 1;
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, `${JSON.stringify(this.data, null, 2)}\n`, { mode: 0o600 });
+    // 互換のための二重書き。書けなくても接続を止めない（中央記録 api-usage.js も同じ考え）
+    try {
+      fs.mkdirSync(path.dirname(this.file), { recursive: true });
+      fs.writeFileSync(this.file, `${JSON.stringify(this.data, null, 2)}\n`, { mode: 0o600 });
+    } catch (err) {
+      console.warn(`[euler-usage] 記録を書けません: ${err?.message ?? err}`);
+    }
   }
   snapshot() { return this.data; }
 }
