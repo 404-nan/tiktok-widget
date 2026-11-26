@@ -46,6 +46,8 @@ test('AC-3/9: 席の差し替えと再接続用状態をサーバーから返し
   assert.equal(result.visualOnly, true);
   assert.deepEqual(engine.snapshot().seat, before.seat);
   assert.equal(sent.at(-1).event, 'testEvent');
+  assert.equal(sent.at(-1).state, undefined, '再送で集計の state と混ぜないため大トリの状態は専用の入れ物に入れる');
+  assert.ok(sent.at(-1).ootori?.seat, '大トリの状態は ootori に入る');
   assert.equal(sent.at(-1).test, true);
   assert.equal(engine.snapshot().seatChangedMs, 350);
 });

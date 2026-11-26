@@ -5,8 +5,8 @@
 | ファイル | 役目 |
 | --- | --- |
 | `overlay.js` | WebSocket接続、再接続時の連番送信と重複除外、設定、URLパラメータ、イベントとcompact差分の状態復元、数値表示を担当する |
-| `replay-cursor.js` | `overlay.js` の再接続用 epoch・連番の保持と重複除外 |
-| `replay-socket.js` | `overlay.js` を使わない ES5 ウィジェットの WebSocket 再接続・イベント再送・重複除外 |
+| `replay-cursor.js` | `overlay.js` の再接続用 epoch・配信連番の保持と、生の出来事・派生の知らせの重複除外 |
+| `replay-socket.js` | `overlay.js` を使わない ES5 ウィジェットの WebSocket 再接続・生の出来事と派生の知らせの再送・重複除外 |
 | `overlay.css` | ウィジェット共通のデザイン（色・文字・チップ） |
 | `fonts.css` | 和文と数字のローカルフォント定義 |
 | `fonts.js` | 書体の設定（font / customFont）の共通の引き方。プリセット（丸ゴシック・明朝・ポップ）は配信側の環境にある書体名の積み重ねで当て、書体の実体は外部から読み込まない。`overlay.js` の `applyBaseFont` が共通の設定（テーマ）の基本フォントを全画面に効かせ、個別の書体設定がある画面は個別が優先する |

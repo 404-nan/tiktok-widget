@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { Hub, REPLAY_SIZE } from './hub.js';
+import { Hub, REPLAY_SIZE, EFFECT_TYPES } from './hub.js';
 import { TikTokSource } from './tiktok.js';
 import { DemoSource } from './demo.js';
 import * as cfg from './config.js';
@@ -77,7 +77,17 @@ function restoreLiveState(hub, snapshot) {
   if (typeof saved.epoch === 'string' && saved.epoch) hub.epoch = saved.epoch;
   if (Array.isArray(saved.replayRing)) {
     hub.replayRing = saved.replayRing
-      .filter((message) => message?.type === 'event' && Number.isSafeInteger(message.event?.id))
+      .map((message) => {
+        if (!EFFECT_TYPES.has(message?.type)) return null;
+        const seq = Number.isSafeInteger(message.seq) ? message.seq : message.event?.id;
+        if (!Number.isSafeInteger(seq)) return null;
+        // 前の形（event.id だけ）の保存も読む。集計は再送に乗せない。
+        const restored = { ...message, seq };
+        delete restored.state;
+        delete restored.statePatch;
+        return restored;
+      })
+      .filter(Boolean)
       .slice(-REPLAY_SIZE);
   }
 }

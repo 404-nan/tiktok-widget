@@ -84,7 +84,7 @@ export class OotoriEngine {
   }
 
   testEvent(event) {
-    this.broadcast({ type: 'ootori', event: 'testEvent', test: true, gift: clone(event ?? {}), state: this.snapshot() });
+    this.broadcast({ type: 'ootori', event: 'testEvent', test: true, gift: clone(event ?? {}), ootori: this.snapshot() });
     return { ...this.snapshot(), visualOnly: true };
   }
 
@@ -157,7 +157,7 @@ export class OotoriEngine {
   }
 
   #emit(event) {
-    this.broadcast({ type: 'ootori', event, state: this.snapshot() });
+    this.broadcast({ type: 'ootori', event, ootori: this.snapshot() });
   }
 }
 

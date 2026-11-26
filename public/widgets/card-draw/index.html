@@ -118,7 +118,9 @@ function show(msg) {
   document.body.classList.toggle('on', msg.phase !== 'idle' && !!round);
   clearInterval(timer);
   if (!round) return;
-  if (msg.seq !== seq || !cards.length) { seq = msg.seq; build(round); resultEl.className = 'result'; }
+  // WebSocket の一番上の seq は配信全体の連番。抽選ごとの番号は effectSeq（API では seq）で見る。
+  const drawSeq = msg.effectSeq ?? msg.seq;
+  if (drawSeq !== seq || !cards.length) { seq = drawSeq; build(round); resultEl.className = 'result'; }
   stage.style.setProperty('--done', `${(round.durations?.doneMs ?? 1200) / 1000}s`);
   const name = round.user?.name ?? '';
   const who = !name ? 'ギフトを送った人' : /(さん|ちゃん|くん|様|さま)$/.test(name) ? name : `${name}さん`;

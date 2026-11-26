@@ -28,3 +28,9 @@ test('公開ウィジェットは日本語、WebSocket、WebAudio、ES5、外部
   assert.doesNotMatch(html, /https?:\/\//);
   assert.match(html, /textContent/);
 });
+
+
+test('大トリ画面は再送で state が外れても専用の ootori から状態を読む', () => {
+  const html = read('public/widgets/ootori/index.html');
+  assert.match(html, /d\.ootori/);
+});

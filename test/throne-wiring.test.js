@@ -17,3 +17,9 @@ test('王座が必要な入口と公開画面へつながっている', () => {
   assert.match(widget, /AudioContext/);
   assert.doesNotMatch(widget, /https?:\/\//);
 });
+
+
+test('王座画面は再送で state が外れても専用の throne から状態を読む', () => {
+  const widget = fs.readFileSync(new URL('../public/widgets/throne/index.html', import.meta.url), 'utf8');
+  assert.match(widget, /d\.throne/);
+});

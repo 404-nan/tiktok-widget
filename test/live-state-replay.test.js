@@ -11,6 +11,7 @@ import { WebSocket } from 'ws';
 import { createStore } from '../src/config.js';
 import { createRuntime } from '../src/runtime.js';
 import { emptyState } from '../src/hub.js';
+import { ReplayCursor } from '../public/widgets/lib/replay-cursor.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -87,8 +88,8 @@ test('保存時と違う room ID で live になったら、前の配信を再�
     assert.equal(runtime.hub.epoch, 'saved-epoch');
     runtime.hub.setStatus({ mode: 'live', roomId: 'room-new' });
     assert.notEqual(runtime.hub.epoch, 'saved-epoch');
-    assert.equal(runtime.hub.seq, 0);
-    assert.deepEqual(runtime.hub.replayRing, []);
+    assert.ok(runtime.hub.seq >= 0, '連番は新しい配信のものだけを数える');
+    assert.equal(runtime.hub.replayRing.some((message) => message.event?.key === 'saved-event'), false);
     assert.equal(runtime.hub.state.follows, 0);
 
     const ws = fakeSocket();
@@ -114,8 +115,8 @@ test('保存時と同じ room ID で live になったら、続きから再送�
   try {
     runtime.hub.setStatus({ mode: 'live', roomId: 'room-same' });
     assert.equal(runtime.hub.epoch, 'saved-epoch');
-    assert.equal(runtime.hub.seq, 1);
-    assert.equal(runtime.hub.replayRing.length, 1);
+    assert.ok(runtime.hub.seq >= 1);
+    assert.equal(runtime.hub.replayRing[0].seq, 1, '前の形の保存ファイルは event.id を seq として読む');
     assert.equal(runtime.hub.state.follows, 1);
 
     const ws = fakeSocket();
@@ -184,11 +185,11 @@ test('実サーバーは1000件を再送し、SIGTERM 後も集計・seq・epoch
           lastHello = message;
           resolve(message);
         }
+        if (Number.isSafeInteger(message.seq)) cursor = Math.max(cursor, message.seq);
         if (message.type === 'event') {
           const key = message.event.key;
           received.set(key, (received.get(key) ?? 0) + 1);
           if (message.replay) replayed.add(key);
-          cursor = Math.max(cursor, message.event.id);
         }
       });
       socket.once('error', reject);
@@ -252,7 +253,7 @@ test('実サーバーは1000件を再送し、SIGTERM 後も集計・seq・epoch
     base = await start();
     client = await connect(base, cursor);
     assert.equal(lastHello.epoch, epoch);
-    assert.equal(lastHello.seq, 1010);
+    assert.ok(lastHello.seq >= 1010, '連番は生の出来事と派生の知らせを合わせて進む');
     await waitForReceived(1010);
     for (let i = 1010; i < 1015; i++) await publish(base, i);
     await waitForReceived(1015);
@@ -260,7 +261,7 @@ test('実サーバーは1000件を再送し、SIGTERM 後も集計・seq・epoch
     client.close();
     await once(client, 'close');
     client = await connect(base, cursor);
-    assert.equal(lastHello.seq, 1015);
+    assert.ok(lastHello.seq >= 1015, '追加送信ぶんも同じ連番で進む');
     assert.deepEqual([...received.values()].filter((count) => count !== 1), []);
     const expectedCoins = Array.from({ length: 1015 }, (_, i) => i % 3 + 1).reduce((sum, value) => sum + value, 0);
     assert.equal(lastHello.state.diamonds, expectedCoins);
@@ -279,7 +280,7 @@ test('実サーバーは1000件を再送し、SIGTERM 後も集計・seq・epoch
     const stateFile = path.join(dataDir, 'live-state.json');
     assert.equal(fs.statSync(stateFile).mode & 0o777, 0o600);
     const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-    assert.equal(saved.hub.seq, 1015);
+    assert.equal(saved.hub.seq, lastHello.seq);
     assert.equal(saved.hub.epoch, epoch);
   } finally {
     client?.terminate();
@@ -287,6 +288,196 @@ test('実サーバーは1000件を再送し、SIGTERM 後も集計・seq・epoch
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test('派生の知らせもライブ状態へ保存し、再起動後に seq つきで再送する', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-live-derived-replay-'));
+  let runtime = makeRuntime(dir);
+  try {
+    runtime.hub.publish({ kind: 'follow', eventId: 'before-derived' });
+    runtime.hub.broadcast({ type: 'combo', combo: { active: [], last: null }, event: { id: 'combo-missed', kind: 'hit' } });
+    const comboSeq = runtime.hub.replayRing.find((message) => message.type === 'combo')?.seq;
+    assert.ok(Number.isSafeInteger(comboSeq));
+    await runtime.close();
+
+    runtime = makeRuntime(dir);
+    const restored = runtime.hub.replayRing.find((message) => message.type === 'combo');
+    assert.equal(restored?.seq, comboSeq);
+
+    const ws = fakeSocket();
+    runtime.hub.addClient(ws, { since: comboSeq - 1, epoch: runtime.hub.epoch });
+    const replayed = ws.sent.filter((message) => message.type === 'combo');
+    assert.equal(replayed.length, 1);
+    assert.equal(replayed[0].seq, comboSeq);
+    assert.equal(replayed[0].replay, true);
+  } finally {
+    await runtime.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('画面役は切断を繰り返しても派生の知らせをちょうど1回ずつ受ける', { timeout: 60_000 }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-derived-exactly-once-'));
+  const dataDir = path.join(dir, 'data');
+  const configFile = path.join(dir, 'config.yaml');
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.copyFileSync(path.join(root, 'config.example.yaml'), configFile);
+  const port = await freePort();
+  const env = {
+    ...process.env,
+    HOST: '127.0.0.1',
+    PORT: String(port),
+    TW_DATA: dataDir,
+    TW_CONFIG: configFile,
+    TW_HOSTED: '0',
+    TW_ADMIN_TOKEN: 'test-only-token',
+  };
+  let child;
+  let monitor;
+  let screen;
+  const watched = new Set(['combo', 'stepup', 'swarm']);
+  const monitorSeen = new Map();
+  const screenSeen = new Map();
+  const cursor = new ReplayCursor();
+  let randomSeed = 42;
+  const random = () => {
+    randomSeed = (randomSeed * 1103515245 + 12345) >>> 0;
+    return randomSeed / 0x100000000;
+  };
+
+  function remember(map, message) {
+    if (!watched.has(message.type) || !Number.isSafeInteger(message.seq)) return;
+    const key = `${message.type}:${message.seq}`;
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+
+  async function start() {
+    child = spawn(process.execPath, ['server.js'], { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
+    let errors = '';
+    child.stderr.on('data', (data) => { errors += String(data); });
+    const base = `http://127.0.0.1:${port}`;
+    for (let attempt = 0; attempt < 300; attempt++) {
+      if (child.exitCode != null) throw new Error(`server exited: ${errors}`);
+      try {
+        if ((await fetch(`${base}/healthz`)).ok) return base;
+      } catch {}
+      await wait(50);
+    }
+    throw new Error(`server did not start: ${errors}`);
+  }
+
+  async function connectMonitor(base) {
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+    const opened = new Promise((resolve, reject) => {
+      socket.on('message', (raw) => {
+        const message = JSON.parse(String(raw));
+        if (message.type === 'hello') resolve();
+        remember(monitorSeen, message);
+      });
+      socket.once('error', reject);
+    });
+    await opened;
+    return socket;
+  }
+
+  async function connectScreen(base) {
+    const params = new URLSearchParams();
+    if (cursor.epoch && cursor.lastSeq != null) {
+      params.set('since', String(cursor.lastSeq));
+      params.set('epoch', cursor.epoch);
+    }
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/ws${params.size ? `?${params}` : ''}`);
+    const opened = new Promise((resolve, reject) => {
+      socket.on('message', (raw) => {
+        const message = JSON.parse(String(raw));
+        if (message.type === 'hello') {
+          cursor.hello(message);
+          resolve();
+          return;
+        }
+        if (!cursor.accept(message)) return;
+        remember(screenSeen, message);
+      });
+      socket.once('error', reject);
+    });
+    await opened;
+    return socket;
+  }
+
+  async function closeScreen() {
+    if (!screen || screen.readyState === WebSocket.CLOSED) return;
+    const closed = once(screen, 'close');
+    screen.close();
+    await closed;
+  }
+
+  async function publish(base, index) {
+    const response = await fetch(`${base}/api/simulate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'gift',
+        giftName: 'Replay test gift',
+        diamonds: 5,
+        count: 1,
+        senderName: 'Replay viewer',
+        eventId: `derived-${index}`,
+      }),
+    });
+    assert.equal(response.status, 200);
+  }
+
+  async function stop() {
+    if (!child || child.exitCode != null) return;
+    const exited = once(child, 'exit');
+    child.kill('SIGTERM');
+    await exited;
+    child = null;
+  }
+
+  try {
+    const base = await start();
+    monitor = await connectMonitor(base);
+    screen = await connectScreen(base);
+    let connected = true;
+    let untilDisconnect = 5 + Math.floor(random() * 8);
+    let disconnectedFor = 0;
+    for (let i = 0; i < 300; i++) {
+      await publish(base, i);
+      if (connected) {
+        untilDisconnect -= 1;
+        if (untilDisconnect === 0) {
+          await closeScreen();
+          connected = false;
+          disconnectedFor = 2 + Math.floor(random() * 5);
+        }
+      } else {
+        disconnectedFor -= 1;
+        if (disconnectedFor === 0) {
+          screen = await connectScreen(base);
+          connected = true;
+          untilDisconnect = 5 + Math.floor(random() * 8);
+        }
+      }
+      if (i % 25 === 0) await wait(5);
+    }
+    if (!connected) screen = await connectScreen(base);
+    await wait(300);
+
+    for (const type of watched) {
+      assert.ok([...monitorSeen.keys()].some((key) => key.startsWith(`${type}:`)), `${type} が出ている`);
+    }
+    assert.deepEqual([...monitorSeen.entries()].filter(([, count]) => count !== 1), [], '基準側が重複なく受ける');
+    assert.deepEqual([...screenSeen.entries()].filter(([, count]) => count !== 1), [], '画面役が同じ seq を重複して受けない');
+    assert.deepEqual([...screenSeen.keys()].sort((a, b) => a - b), [...monitorSeen.keys()].sort((a, b) => a - b), '画面役が受けた派生の知らせはサーバーが出したものと一致する');
+  } finally {
+    screen?.terminate();
+    monitor?.terminate();
+    await stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 
 async function freePort() {
   const server = createServer();

@@ -9,7 +9,7 @@ import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
-export const REPLAY_SIZE = 500;
+export const REPLAY_SIZE = 2000;
 
 export function emptyState() {
   return {
@@ -26,7 +26,7 @@ export function emptyState() {
 }
 
 // 演出を起こす知らせの種類。プレビューへは本番ぶんを流さない対象
-const EFFECT_TYPES = new Set([
+export const EFFECT_TYPES = new Set([
   'event', 'roulette', 'rouletteResult', 'omikuji', 'gacha', 'puchun',
   'boss', 'cheer', 'combo', 'ootori', 'peka', 'push', 'rush', 'slot',
   'cardDraw', 'goalAlert', 'stepup', 'swarm', 'throne', 'timer', 'vote', 'quiz',
@@ -72,7 +72,7 @@ export class Hub extends EventEmitter {
     const parsedSince = since == null || since === '' ? null : Number(since);
     const hasSince = Number.isSafeInteger(parsedSince) && parsedSince >= 0;
     const epochMatches = epoch === this.epoch;
-    const oldestSeq = this.replayRing[0]?.event?.id;
+    const oldestSeq = this.replayRing[0]?.seq;
     const gap = !epochMatches || (hasSince && (
       oldestSeq == null ? parsedSince < this.seq : parsedSince < oldestSeq - 1
     ));
@@ -93,7 +93,7 @@ export class Hub extends EventEmitter {
     if (ws.quiet) return;
     if (epochMatches && hasSince) {
       for (const msg of this.replayRing) {
-        if (msg.event.id > parsedSince) this.#sendForClient(ws, { ...msg, replay: true });
+        if (msg.seq > parsedSince) this.#sendForClient(ws, { ...msg, replay: true });
       }
     }
   }
@@ -213,12 +213,26 @@ export class Hub extends EventEmitter {
   }
 
   broadcast(msg) {
-    if (msg.type === 'event') {
-      this.replayRing.push(JSON.parse(JSON.stringify(msg)));
+    let out = msg;
+    if (EFFECT_TYPES.has(msg.type)) {
+      out = { ...msg };
+      // cardDraw・slot などが使う抽選ごとの番号を残し、一番上の seq は配信全体の連番に使う。
+      if (out.effectSeq == null && Number.isSafeInteger(out.seq)) out.effectSeq = out.seq;
+      if (out.type === 'event') {
+        if (!Number.isSafeInteger(out.event?.id)) out.event = { ...(out.event ?? {}), id: ++this.seq };
+        out.seq = out.event.id;
+      } else {
+        out.seq = ++this.seq;
+      }
+      // 再送分に集計を持たせない。古い集計で画面の数字が巻き戻るのを防ぐ。
+      const replay = JSON.parse(JSON.stringify(out));
+      delete replay.state;
+      delete replay.statePatch;
+      this.replayRing.push(replay);
       if (this.replayRing.length > REPLAY_SIZE) this.replayRing.shift();
     }
     for (const ws of this.clients) {
-      this.#sendForClient(ws, msg);
+      this.#sendForClient(ws, out);
     }
   }
 
@@ -278,7 +292,9 @@ export class Hub extends EventEmitter {
       const compact = {
         type: 'event',
         event: msg.event,
-        statePatch: statePatch(msg.event, msg.state),
+        ...(msg.seq != null ? { seq: msg.seq } : {}),
+        ...(msg.effectSeq != null ? { effectSeq: msg.effectSeq } : {}),
+        ...(msg.state ? { statePatch: statePatch(msg.event, msg.state) } : {}),
         ...(msg.replay === true ? { replay: true } : {}),
       };
       ws.send(JSON.stringify(compact));

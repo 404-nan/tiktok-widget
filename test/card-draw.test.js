@@ -1,6 +1,7 @@
 // カードめくり: 見せる当たりの枚数は確率に合わせる(確率とは別に並びに出す設定もある)。番号はギフトを送った本人のコメントだけで決まる。結果は裏の設定（確率、または実際に当たるカードの枚数）だけで決まる。
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { CardDraw, deckOf, pickNumber, realsOf } from '../src/card-draw.js';
 import { defaultsFor } from '../src/schema.js';
 
@@ -210,4 +211,10 @@ test('結果の段階で渡す並びは実際に当たるカードの方（実�
   assert.deepEqual(last.round.result, { win: true, label: '大吉' });
   assert.deepEqual(last.round.faces, draw.round.reals, '結果の段階の並びは実際に当たるカードの並びそのもの');
   draw.close();
+});
+
+
+test('カードめくり画面は配信連番ではなく effectSeq で抽選ごとの並べ直しを判定する', () => {
+  const html = fs.readFileSync(new URL('../public/widgets/card-draw/index.html', import.meta.url), 'utf8');
+  assert.match(html, /effectSeq/);
 });

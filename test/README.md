@@ -74,9 +74,9 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `session-details.test.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットの全件保存と読み出し)のテスト |
 | `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
 | `hub.test.js` | イベント集計と配信のテスト（プレビューへ本番の演出を流さない確認を含む） |
-| `hub-replay.test.js` | 直近500件の再送、epoch・gap、gap を返した回数、compact・preview・quiet・allowMessage の再送時フィルター、room が変わったとき接続中の画面へ送る新しい hello |
+| `hub-replay.test.js` | 直近2,000件の生の出来事と派生の知らせの再送、epoch・gap、gap を返した回数、compact・preview・quiet・allowMessage の再送時フィルター、room が変わったとき接続中の画面へ送る新しい hello |
 | `replay-cursor.test.js` | 公開ウィジェットの再接続連番と重複除外 |
-| `live-state-replay.test.js` | 一時データで実サーバーの1000件再接続と SIGTERM 再起動後の復元、保存時の room ID と違う配信での再送防止、gap 警告を確認する |
+| `live-state-replay.test.js` | 一時データで実サーバーの再接続と SIGTERM 再起動後の復元、派生の知らせの復元、切断を繰り返す画面役のちょうど1回受信、保存時の room ID と違う配信での再送防止、gap 警告を確認する |
 | `alert-style.test.js` | 通知の型（style）の後方互換・保持・定義データの検証 |
 | `alert-step3.test.js` | 通知の人の軸の材料（hub の刻み・テスト発火でも状態を変えない）と条件キーの保持、順番待ちの優先（従来互換・並び替え・上限で捨てる対象） |
 | `alert-style-step2.test.js` | 通知の型の保存の往復と、テンプレート適用差分への乗り |
