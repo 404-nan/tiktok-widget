@@ -49,3 +49,43 @@ test('公開判定が読めないときは一度だけ止めて、Euler の接�
   assert.equal(source.publicProbeBlocked, true);
   await source.disconnect();
 });
+
+function connectedConnection() {
+  return {
+    on() {}, emit() {}, removeAllListeners() {}, disconnect: async () => {},
+    connect: async () => ({ roomId: 'room-1' }),
+  };
+}
+
+async function warningsFromConnect(gifts) {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.map((x) => String(x)).join(' '));
+  try {
+    const source = new TikTokSource(hub(), gifts, {
+      probeLive: false,
+      createConnection: connectedConnection,
+    });
+    await source.connect('alice', { signApiKey: 'key' });
+    await source.disconnect();
+  } finally {
+    console.warn = originalWarn;
+  }
+  return warnings;
+}
+
+test('ギフト一覧を実際に試して失敗したときだけ、次は24時間後と警告する', async () => {
+  const warnings = await warningsFromConnect({
+    refresh: async () => ({ attempted: true, refreshed: false, gifts: [], error: new Error('denied') }),
+  });
+  const line = warnings.find((x) => x.includes('ギフト一覧を取得できませんでした'));
+  assert.ok(line);
+  assert.match(line, /次に試すのは 24 時間後です。ギフト名は同梱の対応表で表示します/);
+});
+
+test('ギフト一覧を試さなかったときは、取得失敗の警告を出さない', async () => {
+  const warnings = await warningsFromConnect({
+    refresh: async () => ({ attempted: false, refreshed: false, gifts: [], error: new Error('denied') }),
+  });
+  assert.equal(warnings.some((x) => x.includes('ギフト一覧を取得できませんでした')), false);
+});

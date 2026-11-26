@@ -5,6 +5,19 @@ import path from 'node:path';
 import { bundledGiftList, giftDisplayName, lookupGiftJa } from './gift-display.js';
 
 const DAY = 24 * 60 * 60 * 1000;
+const ERROR_TEXT_MAX = 120;
+
+// 失敗の理由は保存ファイルに残るので、署名済みURLや鍵らしい値は伏せる
+function shortError(error) {
+  const raw = String(error?.message ?? error ?? '不明なエラー').replace(/\s+/g, ' ').trim();
+  return raw
+    .replace(/https?:\/\/\S+/gi, '[URL]')
+    .replace(/\b(?:api[-_]?key|access[-_]?token|token|secret|signature|sign|sessionid|ttwid)=[^\s,;]+/gi, '[伏字]')
+    .replace(/\S{24,}/g, (token) => (/http|sign/i.test(token) ? '[伏字]' : token))
+    .replace(/\b(?:sk|pk|tok|jwt|key|sig|sign|session)[-_][A-Za-z0-9_=-]{8,}\b/gi, '[伏字]')
+    .replace(/\b[A-Za-z0-9_=-]{32,}\b/g, '[伏字]')
+    .slice(0, ERROR_TEXT_MAX);
+}
 
 export { giftDisplayName };
 
@@ -146,6 +159,8 @@ export class GiftCatalog {
     this.file = file;
     this.records = new Map();
     this.updatedAt = 0;
+    this.attemptedAt = 0;
+    this.lastError = null;
     this.loggedPairs = false;
     this.load();
   }
@@ -154,6 +169,8 @@ export class GiftCatalog {
     try {
       const saved = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       this.updatedAt = Number(saved.updatedAt) || 0;
+      this.attemptedAt = Number(saved.attemptedAt ?? saved.updatedAt) || 0;
+      this.lastError = typeof saved.lastError === 'string' && saved.lastError ? saved.lastError : null;
       for (const item of saved.gifts ?? []) {
         const gift = normalizeGiftRecord(item);
         if (gift) this.records.set(gift.id, gift);
@@ -163,11 +180,20 @@ export class GiftCatalog {
   }
 
   list() { return [...this.records.values()]; }
-  stale(now = Date.now()) { return now - this.updatedAt >= DAY; }
+  stale(now = Date.now()) { return now - Math.max(this.updatedAt, this.attemptedAt) >= DAY; }
 
   save() {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, `${JSON.stringify({ updatedAt: this.updatedAt, gifts: this.list() }, null, 2)}\n`);
+    fs.writeFileSync(this.file, `${JSON.stringify({ updatedAt: this.updatedAt, attemptedAt: this.attemptedAt, lastError: this.lastError, gifts: this.list() }, null, 2)}\n`);
+  }
+
+  // 保存に失敗しても配信への接続自体は止めない
+  saveQuietly() {
+    try {
+      this.save();
+    } catch (error) {
+      console.warn('[gifts] ギフト一覧を保存できませんでした:', error?.code ?? '保存エラー');
+    }
   }
 
   import(list, now = Date.now()) {
@@ -195,8 +221,9 @@ export class GiftCatalog {
     return known ? { ...gift, nameJa: known.nameJa ?? bundledNameJa(gift) } : { ...gift, nameJa: bundledNameJa(gift) };
   }
 
-  async refresh({ fetchGifts, timeoutMs = 10_000 }) {
-    if (!this.stale()) return { refreshed: false, gifts: this.list() };
+  async refresh({ fetchGifts, timeoutMs = 10_000, force = false }) {
+    if (!force && !this.stale()) return { attempted: false, refreshed: false, gifts: this.list() };
+    this.attemptedAt = Date.now();
     let timeoutTimer;
     try {
       const deadline = Date.now() + timeoutMs;
@@ -214,17 +241,20 @@ export class GiftCatalog {
         return { ...gift, nameJa: japaneseName && japaneseName !== text(gift?.name ?? gift?.giftName) ? japaneseName : (bundledNameJa(gift) ?? null) };
       });
       const imported = this.import(paired, Date.now());
+      this.lastError = null;
       if (imported.count && !this.loggedPairs) {
         this.loggedPairs = true;
         for (const gift of paired.slice(0, 8)) {
           console.info(`[gifts] ${gift.id ?? gift.giftId} ${gift.name ?? gift.giftName} → ${text(gift.nameJa) || text(gift.name ?? gift.giftName)}`);
         }
       }
-      return { refreshed: true, ...imported };
+      return { attempted: true, refreshed: true, ...imported };
     } catch (error) {
-      return { refreshed: false, gifts: this.list(), error };
+      this.lastError = shortError(error);
+      return { attempted: true, refreshed: false, gifts: this.list(), error };
     } finally {
       clearTimeout(timeoutTimer);
+      this.saveQuietly();
     }
   }
 }
