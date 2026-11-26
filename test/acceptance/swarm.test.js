@@ -237,8 +237,20 @@ test('AC-7: 初期値・config.example.yaml・ウィジェット URL・かんた
   });
 
   const source = fs.readFileSync(path.join(process.cwd(), 'public/dashboard/simple.js'), 'utf8');
-  const fields = Object.keys(SCHEMA.swarm.fields);
-  for (const field of fields) assert.match(source, new RegExp(`['"]swarm\\.${field}['"]\\s*:`));
+  const schemaFields = new Set(Object.keys(SCHEMA.swarm.fields));
+  const simpleFields = ['enabled', 'windowSeconds', 'scale', 'threshold', 'cooldownSeconds', 'text', 'maxIcons', 'sound', 'volume'];
+  for (const field of simpleFields) {
+    assert.ok(schemaFields.has(field), `${field} が schema にありません`);
+    assert.match(source, new RegExp(`['"]swarm\\.${field}['"]\\s*:`));
+  }
+  const sharedBackgroundFields = ['background', 'chromaColor', 'solidColor', 'backgroundImage'];
+  for (const field of sharedBackgroundFields) {
+    assert.ok(schemaFields.has(field), `${field} が schema にありません`);
+  }
+  const editor = fs.readFileSync(path.join(process.cwd(), 'public/dashboard/editor.js'), 'utf8');
+  assert.match(editor, /Object\.keys\(def\.fields\)\.filter/, 'まとまりに入っていない項目を拾う共通の仕組みが必要');
+  assert.match(editor, /もっと細かく/, '共通の背景項目を畳んで出す場所が必要');
+  assert.match(editor, /fieldFor\(key, def\.fields\[key\], values\[key\]\)/, '畳んだ項目を設定の入力欄にする必要');
   assert.match(source, /swarm:\s*\{[\s\S]*?options:\s*\[[\s\S]*?小さめ[\s\S]*?ふつう[\s\S]*?大きい/);
   assert.match(source, /'swarm\.enabled':\s*'[^']+'/);
 });

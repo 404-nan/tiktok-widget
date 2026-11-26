@@ -312,7 +312,14 @@ test('テスト進行中に本物が来たら、テストは打ち切られて�
   const { server, port } = await listen(runtime);
   try {
     // おみくじ：テスト開始の直後に本物の開始を入れると、本物が割り込む
-    const omikujiSet = runtime.setConfig(['omikuji'], { ...defaultsFor('omikuji'), enabled: true, pickMode: 'random', tempo: 'slow' });
+    // 大吉が出ると天井の数えが0に戻るので、割り込みの確認では外れだけが出る形に固定する
+    const omikujiSet = runtime.setConfig(['omikuji'], {
+      ...defaultsFor('omikuji'),
+      enabled: true,
+      pickMode: 'random',
+      tempo: 'slow',
+      tiers: [{ id: 'chukichi', label: '中吉', weight: 1, pity: false }],
+    });
     assert.equal(omikujiSet.ok, true, (omikujiSet.errors || []).join('\n'));
     const omiBefore = await getJson(port, '/api/omikuji');
     const testStart = await postJson(port, '/api/control', { target: 'omikuji', action: 'start', data: { user: 'テスト視聴者' } });
