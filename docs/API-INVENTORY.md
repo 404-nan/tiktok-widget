@@ -109,6 +109,14 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/tenants/:id/referral | 紹介 |
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
 | GET /admin/api/lul | 全テナントの概要 |
+| POST /admin/api/ledger/sync | 集金台帳へ貸出の発生・訂正差分を同期 |
+| GET /admin/api/ledger/summary | 集金台帳の人ごとの残高と今月の集計 |
+| GET /admin/api/ledger/streamers/:id | 集金台帳の1人の詳細 |
+| GET /admin/api/ledger/streamers/:id/sales | 1人の月次売上推移 |
+| GET /admin/api/ledger/streamers/:id/entries | 1人の台帳の行 |
+| POST /admin/api/ledger/collections | 集金を記録 |
+| POST /admin/api/ledger/adjustments | 訂正・値引きを記録 |
+| POST /admin/api/ledger/entries/:id/reversal | 台帳の行を取り消す |
 | GET /admin/api/widget-usage | ウィジェットの利用状況 |
 | GET /admin/api/deploy-status | 投入の状態 |
 | GET /admin/api/keys | 鍵の一覧（値は出さない） |

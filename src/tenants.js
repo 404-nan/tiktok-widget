@@ -553,6 +553,8 @@ export function backupData(dir, keep = 20) {
   const list = path.join(dir, 'tenants.json');
   if (fs.existsSync(list)) files.push('tenants.json');
   if (fs.existsSync(path.join(dir, 'billing.json'))) files.push('billing.json');
+  if (fs.existsSync(path.join(dir, 'ledger', 'entries.jsonl'))) files.push(path.join('ledger', 'entries.jsonl'));
+  if (fs.existsSync(path.join(dir, 'ledger', 'import-state.json'))) files.push(path.join('ledger', 'import-state.json'));
   const tdir = path.join(dir, 'tenants');
   if (fs.existsSync(tdir)) {
     for (const id of fs.readdirSync(tdir)) {

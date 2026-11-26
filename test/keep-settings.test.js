@@ -39,6 +39,12 @@ test('起動のたびに data/backups/ に設定を写す', () => {
   assert.ok(again.backupDir);
   assert.ok(fs.existsSync(path.join(again.backupDir, 'tenants.json')));
   assert.match(fs.readFileSync(path.join(again.backupDir, 'tenants', a.id, 'config.yaml'), 'utf8'), /duration: 9/);
+  fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'ledger', 'entries.jsonl'), '{"seq":1}\n');
+  fs.writeFileSync(path.join(dir, 'ledger', 'import-state.json'), '{}\n');
+  const withLedger = new Tenants({ dir });
+  assert.equal(fs.readFileSync(path.join(withLedger.backupDir, 'ledger', 'entries.jsonl'), 'utf8'), '{"seq":1}\n');
+  assert.ok(fs.existsSync(path.join(withLedger.backupDir, 'ledger', 'import-state.json')));
 });
 
 test('設定の置き場（data/・config.yaml）は Git に入らない', () => {

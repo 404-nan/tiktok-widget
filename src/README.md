@@ -45,6 +45,10 @@
 | `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる |
 | `info-feed.js` | フォロー・ギフト・シェアの最近の一覧をメモリに持ち、ウィジェットへ渡す |
 | `ingest-keys.js` | 外部イベント受け口の鍵を保存・照合する |
+| `ledger.js` | 利用者ごとの金額台帳。entries.jsonl への追記、残高、FIFO集金配分、二重送信防止、取り消しを行う |
+| `ledger-sources.js` | streamers.json、貸出 state、ライコネ配信履歴を読み、月次売上と貸出発生候補を作る（書かない） |
+| `ledger-sync.js` | 貸出の申告売上10%と訂正差分だけを台帳へ同期し、retry の二重計上を防ぐ |
+| `ledger-service.js` | 管理画面向けに人ごとの残高・前回集金から・売上推移をまとめる |
 | `ingest.js` | 外部ツールからイベントを受け、重複・直接接続との競合を整理してhubへ流す |
 | `mc-goal-alert.js` | Minecraftのゴール距離、警報段階、再通知、ゴール到達をサーバーで管理する |
 | `media-alerts.js` | 画像・動画・音声の通知を管理する |
@@ -99,4 +103,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

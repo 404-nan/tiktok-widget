@@ -9,6 +9,7 @@ import { initList, renderKpis, renderFilters, renderRows, setupListEvents } from
 import { initDetail, tenantDetail, bulkDetail, signKeyGroup, aiGroup, globalDetail, singlePage, lulDetail } from './admin-detail.js';
 import { initBilling, notesDetail, billingDetail } from './admin-billing.js';
 import { initKeys, keysDetail, aiTokensDetail } from './admin-keys.js';
+import { ledgerDetail } from './admin-ledger.js';
 
 setupPanels();
 setupTheme();
@@ -29,7 +30,7 @@ detailBody.className = 'detail-body';
 $('detail').append(detailBody);
 
 // カードを縦に並べるページ（見出しはカードの外、中の項目は線で区切った行）
-const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'ai-tokens'];
+const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'ai-tokens', 'ledger'];
 
 // --- 遅延バインディングの初期化 ---
 
@@ -139,6 +140,10 @@ function renderDetail(force = false) {
   }
   if (page === 'billing') {
     detailBody.replaceChildren(...billingDetail());
+    return;
+  }
+  if (page === 'ledger') {
+    detailBody.replaceChildren(...ledgerDetail());
     return;
   }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));
