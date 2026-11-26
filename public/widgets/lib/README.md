@@ -1,10 +1,11 @@
 # public/widgets/lib/
 
-複数の公開ウィジェットから使うブラウザ側の共通 JavaScript と CSS です。公開側は ES5、外部 CDN なしで動かします。
+複数の公開ウィジェットから使うブラウザ側の共通 JavaScript と CSS です。公開側は Chromium 103 で動く ES2022 まで、外部 CDN なしで動かします。
 
 | ファイル | 役目 |
 | --- | --- |
 | `overlay.js` | WebSocket接続、設定、URLパラメータ、イベントとcompact差分の状態復元、数値表示を担当する |
+| `widget-runtime.js` | 新しい標準ウィジェットの入口。1ページ1本の共有 WebSocket、map/object の設定選択、見本、音、宣言バインド（`data-text` / `data-show` / `data-if` / `data-each`）、複雑な画面向けの `defineWidget` を持つ。ウィジェット側に独自 WebSocket や個別の状態 API は書かない |
 | `overlay.css` | ウィジェット共通のデザイン（色・文字・チップ） |
 | `fonts.css` | 和文と数字のローカルフォント定義 |
 | `fonts.js` | 書体の設定（font / customFont）の共通の引き方。プリセット（丸ゴシック・明朝・ポップ）は配信側の環境にある書体名の積み重ねで当て、書体の実体は外部から読み込まない。`overlay.js` の `applyBaseFont` が共通の設定（テーマ）の基本フォントを全画面に効かせ、個別の書体設定がある画面は個別が優先する |
@@ -34,4 +35,4 @@
 
 各ウィジェットの HTML から読み込まれ、サーバー（`server.js` / `src/`）とは WebSocket と `/api/` でつながります。`test/public-js.test.js` で、公開 JavaScript が Chromium 103 で動く書き方か(ES2022 まで)を確かめます。
 
-最後に直した日: 2026-10-21
+最後に直した日: 2026-11-27

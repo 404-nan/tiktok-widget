@@ -75,16 +75,24 @@ export async function loadConfig() {
 }
 
 /**
- * ウィジェットの設定を作る。初期値 ← config.yaml の該当する名前（?id=、なければ default）← URL パラメータ の順に上書き。
- * テーマも当てて、設定ファイルのこの部分が変わったら自動で読み込み直す。
+ * ウィジェットの設定と初期画面を用意する。初期値 ← config.yaml の該当する名前（?id=、なければ default）← URL パラメータ の順に上書き。
+ * setupWidget は従来どおり合体済みの値だけを返し、widget-runtime は config 全体と id も使う。
  */
-export async function setupWidget(section, fallback = {}) {
+export async function prepareWidget(section, fallback = {}, { kind = 'map' } = {}) {
   const { config, defaults } = await loadConfig();
   applyTheme(config?.theme);
   setupPage();
   const queryId = new URLSearchParams(location.search).get('id');
-  const names = Object.keys(config?.[section] ?? {});
-  const id = queryId ?? (names.includes(config?.active?.[section]) ? config.active[section] : names.includes('default') ? 'default' : names[0] ?? 'default');
+  let id = 'default';
+  let entry = {};
+  if (kind === 'object') {
+    id = queryId ?? 'default';
+    entry = config?.[section] ?? {};
+  } else {
+    const names = Object.keys(config?.[section] ?? {});
+    id = queryId ?? (names.includes(config?.active?.[section]) ? config.active[section] : names.includes('default') ? 'default' : names[0] ?? 'default');
+    entry = config?.[section]?.[id] ?? {};
+  }
   window.__twWidgetId = id;
   window.__twWidgetSection = section;
   // 部分更新: 自分の部品のファイルが変わったら、待機のときだけ読み直す
@@ -94,13 +102,22 @@ export async function setupWidget(section, fallback = {}) {
       .then((m) => m.startVersionWatch(folderId, { isIdle: () => (typeof window.__twIsIdle === 'function' ? Boolean(window.__twIsIdle()) : null) }))
       .catch(() => {});
   }
-  const entry = config?.[section]?.[id] ?? {};
   applyPageBackground({ ...defaults[section], ...entry });
   applyBaseFont(config, entry, config?.[section]);
-  reloadOnConfigChange((c) => [c?.theme, c?.active?.[section], c?.[section]?.[id], queryId]);
-  configSnapshot = JSON.stringify([config?.theme, config?.active?.[section], config?.[section]?.[id], queryId]);
+  const watchKeys = kind === 'object'
+    ? (c) => [c?.theme, c?.[section], queryId]
+    : (c) => [c?.theme, c?.active?.[section], c?.[section]?.[id], queryId];
+  reloadOnConfigChange(watchKeys);
+  configSnapshot = JSON.stringify(watchKeys(config));
   setupSample(section, id);
-  return params({ ...fallback, ...defaults[section], ...entry });
+  const values = params({ ...fallback, ...defaults[section], ...entry });
+  return { id, kind, config, defaults, entry, values };
+}
+
+/** 従来の地図型ウィジェット向けの簡単な入口。object 型は widget-runtime か loadConfig から節そのものを読む。 */
+export async function setupWidget(section, fallback = {}) {
+  const prepared = await prepareWidget(section, fallback, { kind: 'map' });
+  return prepared.values;
 }
 
 const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', doors: '扉の確率ゲーム', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット', tts: '読み上げ' };

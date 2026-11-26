@@ -30,6 +30,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | Minecraft ゴール接近警報 | - | できた（50m・20m・5mの段階警報、1m以内の到達判定、ボスバー作成、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`src/minecraft.js`、`public/widgets/goal-alert.html` |
 | 名前入りMinecraft妨害 | - | できた（安全なコマンド生成、状態保存、再起動時の片付け、カットイン配線） | `src/minecraft-name.js`、`src/minecraft.js` |
 | ウィジェット表示 | TikTok LIVE のギフト・コメント・集計を画面に出す | できた | `public/widgets/` |
+| 標準ウィジェットランタイムと雛形 | 新しい表示専用ウィジェットを HTML/CSS 中心で作れるように、1ページ1本の共有 WebSocket・設定・状態・見本・音・宣言バインドを `lib/widget-runtime.js` にまとめる。`counter` を見本として移行済みで、ほかは順次移す | できた（第1段） | `public/widgets/lib/widget-runtime.js`、`public/widgets/_template/`、`public/widgets/counter/` |
 | 読み上げ | コメント・ギフト・フォロー・入室を、端末の日本語の声で読み上げる独立ウィジェット。声の型（読むたびに変わる random 含む）と声の名前、読む範囲、ギフトでの解錠、間隔・最大文字数・待ち行列の上限を設定できる。テスト送信は読まない | できた | `public/widgets/tts/`、`public/widgets/lib/tts.js` |
 | 開発用ウィジェット撮影 | テナントの一覧から選んだウィジェットへテスト送信し、待って画像を返す | できた（既存のPuppeteer環境が必要） | `src/ai-screenshot.js`, `src/ai-mcp.js` |
 | 配信者自身のAI接続 | 自分のテナント限定のトークンを10件まで発行し、読み取り・設定提案・開発テスト送信を行う。期限状態を表示し、値は発行直後だけ表示 | できた | `src/ai-tokens.js`, `src/ai-api.js`, `public/dashboard/ai-streamer.js` |
@@ -96,6 +97,8 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 初見さん・常連さん `visitors`（作りかけ・本番前の見た目確認待ち） | 配信ごとの匿名記録で初見・おかえり・常連を迎える。名前とユーザー ID は保存しない | 760 × 160 |
 | コメントスライド `comment-slide`（できた） | 決めたコメントが流れたら、決めた言葉を画面の右端から横にスライドして出す（表示だけ）。組み合わせは固定枠5組（きっかけ1・言葉1 … きっかけ5・言葉5）と表示秒数（既定4秒）。含む判定で上から最初の1つだけを出し、同時に来た分は待ち行列に最大3つまで（超えた分は捨てる） | 640 × 120 |
 | コンボ `combo` | 同じ人が一定時間内に続けてギフトを送ると ×2、×3…と数え、送信者・回数・段階・合計を受信順に表示する。背景は透明、終了カード・リセット・開発用テスト表示・WebAudio に対応（状態: できた） | 1080 × 1920（`public/widgets/combo/index.html`） |
+
+新しい表示専用ウィジェットは `public/widgets/_template/index.html` を写して作ります。テンプレートは `<body data-tw-widget>` の宣言と `data-text` / `data-show` / `data-if` / `data-each` だけで、共有 WebSocket から届く状態と設定を表示します。複雑な演出が要るものだけ `defineWidget` を使い、ウィジェット側に独自の WebSocket や個別の状態 API は書きません。
 
 配信テンプレートは、ダッシュボードの「かんたん」→「配信テンプレート」から使います。CLI は `npm run tw -- templates`、MCP は `list_templates` / `preview_template` / `apply_template` です。
 

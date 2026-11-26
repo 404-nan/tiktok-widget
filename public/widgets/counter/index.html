@@ -54,13 +54,7 @@
 <body>
 <div class="board" id="board"></div>
 <script type="module">
-  import { setupWidget, list, connect, odometer, icon, resolveColor } from './lib/overlay.js';
-
-  // 設定は config.yaml の counters.<id>（?id= がなければ default）。URL パラメータでも上書きできる
-  const p = await setupWidget('counters', { show: ['likes', 'viewers'], layout: 'row', align: 'left', labels: true, hearts: true, color: 'accent' });
-  document.body.style.setProperty('--signal', resolveColor(p.color));
-  document.body.classList.add(`layout-${p.layout}`, `align-${p.align}`);
-  if (!p.labels) document.body.classList.add('no-labels');
+  import { defineWidget, list, odometer, icon, resolveColor } from './lib/widget-runtime.js';
 
   const META = {
     likes: { icon: 'heart', label: 'いいね' },
@@ -72,25 +66,38 @@
     comments: { icon: 'message-circle', label: 'コメント' },
   };
   const board = document.getElementById('board');
-  const cells = {};
-  for (const key of list(p.show).filter((k) => META[k])) {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    const label = document.createElement('div');
-    label.className = 'label';
-    const text = document.createElement('span');
-    text.textContent = META[key].label;
-    label.append(icon(META[key].icon), text);
-    const value = document.createElement('div');
-    value.className = 'value num';
-    cell.append(label, value);
-    board.append(cell);
-    cells[key] = { cell, value, last: null };
+  let cells = {};
+
+  function applyConfig(ctx) {
+    const p = ctx.config;
+    document.body.style.setProperty('--signal', resolveColor(p.color));
+    for (const cls of [...document.body.classList]) {
+      if (/^(?:layout|align)-/.test(cls) || cls === 'no-labels') document.body.classList.remove(cls);
+    }
+    document.body.classList.add(`layout-${p.layout}`, `align-${p.align}`);
+    if (!p.labels) document.body.classList.add('no-labels');
+
+    board.replaceChildren();
+    cells = {};
+    for (const key of list(p.show).filter((k) => META[k])) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const label = document.createElement('div');
+      label.className = 'label';
+      const text = document.createElement('span');
+      text.textContent = META[key].label;
+      label.append(icon(META[key].icon), text);
+      const value = document.createElement('div');
+      value.className = 'value num';
+      cell.append(label, value);
+      board.append(cell);
+      cells[key] = { cell, value, last: null };
+    }
   }
 
-  function render(state) {
+  function renderState(state) {
     for (const [key, c] of Object.entries(cells)) {
-      const v = state[key] ?? 0;
+      const v = state?.[key] ?? 0;
       if (v === c.last) continue;
       if (c.last != null && v > c.last) {
         c.cell.classList.remove('hit');
@@ -119,17 +126,22 @@
     }, 2000);
   }
 
-  connect({
-    hello: (_status, state) => render(state),
-    state: render,
-    event(e, state) {
-      render(state);
-      if (p.hearts && e.kind === 'like') {
+  defineWidget({
+    section: 'counters',
+    kind: 'map',
+    defaults: { show: ['likes', 'viewers'], layout: 'row', align: 'left', labels: true, hearts: true, color: 'accent' },
+    setup: applyConfig,
+    onConfig: (_config, ctx) => applyConfig(ctx),
+    render: (ctx) => renderState(ctx.state),
+    onEvent(e, ctx) {
+      if (ctx.config.hearts && e.kind === 'like') {
         const n = Math.min(3, Math.ceil(e.count / 8));
         for (let i = 0; i < n; i++) setTimeout(heart, i * 140);
       }
     },
+    isIdle: () => floating === 0,
   });
 </script>
+
 </body>
 </html>

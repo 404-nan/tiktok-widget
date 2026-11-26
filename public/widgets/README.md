@@ -1,6 +1,6 @@
 # public/widgets/
 
-OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェットです。外部 CDN や外部素材は使わず、公開 JavaScript は ES5 で書きます。
+OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェットです。外部 CDN や外部素材は使わず、公開 JavaScript は Chromium 103 で動く ES2022 までで書きます。
 
 | ファイル | 何をするか |
 | --- | --- |
@@ -10,7 +10,8 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `door.html` | 扉の確率ゲーム（左右の扉・段階・当たり外れの演出）を表示する |
 | `chat.html` | コメントを表示する |
 | `combo.html` | コンボ状態を送信者中心に表示し、背景透明で受信順に表示する |
-| `counter.html` | いいね・視聴者数などを表示する |
+| `counter.html` | いいね・視聴者数などを表示する。`lib/widget-runtime.js` の `defineWidget` を使う見本 |
+| `_template/index.html` | 新しい表示専用ウィジェットの標準テンプレート。HTML/CSS と `data-tw-widget` 宣言で作り、接続・設定・見本は `lib/widget-runtime.js` に任せる |
 | `cutin.html` | 通常カットインを表示する |
 | `gacha.html` / `gacha.js` | ガチャ画面と状態表示を行う。`gacha.js` はおみくじと共通で、番号を選ぶ段階の札(`li[data-n] > b`)と残り秒、だれの番(`pickWho`)と選び方(`pickHow`)、選ばれた札を筒へ落とす印(`chosen`)、まとめ引きの段階表示(実際の件数で「◯連」)も出す。おみくじでは、いいねの進み具合の知らせ（event: 'progress'）でゲージと倍率の札だけを直し、設定の受信では共通の基本フォントのフック（`window.__twApplyFont`、画面側が用意する）を呼ぶ |
 | `gift-alert.html` | ギフト・フォロー・シェアの通知を表示する |
@@ -52,7 +53,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 
 `obs-bridge.html` は `src/schema.js` の設定と `/ws` のイベントを使い、`lib/sha256.js` で OBS WebSocket 認証を行います。新しい公開 JavaScript は ES5、外部 CDN なしで作ります。既存ウィジェットの一覧は一番上の [`README.md`](../../README.md) を見てください。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 - WebSocket を開くウィジェットは、URL に `preview=1` または `preview=live` があるとき `/ws?preview=1` でつなぐ。サーバーはこれを配信ソフトからの接続(obs)として数えない(準備の印と自動でつなぐのため)。`test/preview-ws.test.js` で確かめている
 - `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す
