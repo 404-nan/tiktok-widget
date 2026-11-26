@@ -11,7 +11,7 @@ const root = process.cwd();
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 const SKIP_DIRS = new Set([
   '.git', 'node_modules', '.next', 'dist', 'build', 'coverage', '.venv', 'venv', '__pycache__',
-  '.pytest_cache', '.mypy_cache', '.ruff_cache', '.dev', '.wrangler', '.sync-state', '.turbo',
+  '.pytest_cache', '.mypy_cache', '.ruff_cache', '.dev', '.wrangler', '.sync-state', '.turbo', 'state', 'data',
 ]);
 const TEXT_EXTENSIONS = new Set([
   '.cjs', '.css', '.html', '.ini', '.js', '.json', '.jsonl', '.lane-impl', '.mako', '.mcfunction', '.mcmeta',
