@@ -38,6 +38,8 @@
 | `gift-streaks.js` | 連打ギフトの終わりの合図が来ないまま切れても、投げた分を数え落とさない（`tiktok.js` から使う） |
 | `gifts.js` | ギフト一覧を読み込み、条件検索する |
 | `healthz.js` | 稼働確認と、配信中または15分未満の再接続中の人数だけの応答を作る |
+| `error-log.js` | エラーを原因・場所・文脈つきで JSON Lines に残し、同じ種類を集計する |
+| `error-fixes.js` | 直したエラーの印（docs/error-fixes.json）を読み書きし、再発防止テストの対応を検査する |
 | `effect-log.js` | ギフト・フォロー・シェアとサーバー側演出を匿名で記録し(消さずに全部残す)、`gifts.js` の `eventCoinTotal` で配信合計と同じコインを使った配信後レポートを作る |
 | `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える |
 | `history.js` | 配信履歴を一定間隔または終了時に JSON 保存し、OBS ウィジェットの利用時間と接続回数も記録する |
@@ -99,4 +101,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

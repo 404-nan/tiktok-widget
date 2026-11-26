@@ -53,6 +53,7 @@ import { VisitorLog } from './visitors.js';
 import { Points } from './points.js';
 import { Presets } from './presets.js';
 import { PreparationStore } from './preparation.js';
+import { recordError } from './error-log.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE_RECONNECT_GRACE_MS = 15 * 60 * 1000;
@@ -103,6 +104,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       return connectionAllowed({ live: Boolean(live) }) !== false;
     } catch (err) {
       console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
+      recordError(err, { kind: 'billing.check', level: 'warn', context: { tenant: id, op: 'billing.connection' } });
       return true;
     }
   };
@@ -120,7 +122,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       preparation.mark('widgetAt');
       const handle = info().tiktokId;
       if (preparation.snapshot().autoConnect !== false && handle && !tiktok.username) {
-        tiktok.connect(handle).catch((error) => console.warn(`[tiktok] ${id}: 自動接続に失敗: ${error.message}`));
+        tiktok.connect(handle).catch((error) => {
+          console.warn(`[tiktok] ${id}: 自動接続に失敗: ${error.message}`);
+          recordError(error, { kind: 'tiktok.connect', level: 'warn', context: { tenant: id, op: 'tiktok.autoConnect' } });
+        });
       }
     }
   });
@@ -334,6 +339,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       lastIssues = { errors: result.errors, warnings: result.warnings };
       hub.broadcast({ type: 'configError', errors: result.errors });
       console.warn(`[config:${id}] 設定ファイルにエラーがあるため反映していません:\n  ${result.errors.join('\n  ')}`);
+      recordError(new Error(result.errors.join('\n')), { kind: 'config.invalid', level: 'warn', context: { tenant: id, op: 'config.watch' } });
       return;
     }
     lastIssues = { errors: [], warnings: result.warnings };
@@ -407,7 +413,10 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       state.lastAttempt = now;
       currentAutoId.value = slot.id;
       console.log(`[rental] ${id}: TikTok @${handle} への自動接続を試します（${state.attempts}/40）`);
-      tiktok.connect(handle).catch((err) => console.warn(`[rental] ${id}: 自動接続に失敗: ${err.message}`));
+      tiktok.connect(handle).catch((err) => {
+        console.warn(`[rental] ${id}: 自動接続に失敗: ${err.message}`);
+        recordError(err, { kind: 'tiktok.connect', level: 'warn', context: { tenant: id, op: 'rental.autoConnect' } });
+      });
       return true;
     },
     router: r,

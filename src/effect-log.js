@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { eventCoinTotal } from './gifts.js';
+import { recordError } from './error-log.js';
 
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 
@@ -78,7 +79,10 @@ export class EffectLog {
     const file = path.join(this.dir, `${session.id}.events.jsonl`);
     const count = this.queue.length;
     const lines = this.queue.map((event) => JSON.stringify(event)).join('\n') + '\n';
-    try { fs.mkdirSync(this.dir, { recursive: true }); fs.appendFileSync(file, lines); this.queue.splice(0, count); } catch (error) { console.warn(`[effect-log] 記録を書けませんでした: ${error.message}`); }
+    try { fs.mkdirSync(this.dir, { recursive: true }); fs.appendFileSync(file, lines); this.queue.splice(0, count); } catch (error) {
+      console.warn(`[effect-log] 記録を書けませんでした: ${error.message}`);
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'effectLog.flush' } });
+    }
   }
 
   end(endedAt = this.now()) {
@@ -90,7 +94,10 @@ export class EffectLog {
     let events = [];
     try { events = fs.readFileSync(eventsFile, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line)); } catch {}
     if (events.length) {
-      try { fs.writeFileSync(path.join(this.dir, `${session.id}.report.json`), JSON.stringify(makeEffectReport(events, session))); } catch (error) { console.warn(`[effect-log] 報告を書けませんでした: ${error.message}`); }
+      try { fs.writeFileSync(path.join(this.dir, `${session.id}.report.json`), JSON.stringify(makeEffectReport(events, session))); } catch (error) {
+        console.warn(`[effect-log] 報告を書けませんでした: ${error.message}`);
+        recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'effectLog.report' } });
+      }
     }
     this.session = null;
   }

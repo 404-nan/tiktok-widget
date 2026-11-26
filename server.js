@@ -24,6 +24,8 @@ import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 import { healthz } from './src/healthz.js';
 import { collectWidgetUsage } from './src/widget-usage.js';
+import { createErrorLog, recordError, setActiveErrorLog } from './src/error-log.js';
+import { PRODUCT_VERSION } from './src/version.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -39,7 +41,30 @@ function logWsRejected(reason) {
   if (now - (wsRejectionLoggedAt.get(reason) ?? -Infinity) < WS_REJECTION_LOG_INTERVAL_MS) return;
   wsRejectionLoggedAt.set(reason, now);
   console.log(`ws rejected: ${reason}`);
+  errorLog.record(new Error(`WebSocket の接続を断りました: ${reason}`), { kind: 'ws.reject', level: 'warn', context: { op: 'ws.upgrade' } });
 }
+
+// エラーは JSON Lines に残す。記録に失敗しても本体を止めない（src/error-log.js）。
+const errorLog = createErrorLog({
+  dir: process.env.TW_ERROR_DIR || path.join(DATA_DIR, 'errors'),
+  env: process.env.TW_ENV || 'prod',
+  version: PRODUCT_VERSION,
+});
+setActiveErrorLog(errorLog); // 深い部品はこの1本へ記録する
+
+// Node 25 の既定は uncaughtException と unhandledRejection の両方で致命的なエラーを出し、終了コード1で終わる。
+// 記録だけして生き続けず、同じ終わり方にする（systemd が起こし直す）。出力は既定より簡単だが、終了動作は変えない。
+process.on('uncaughtException', (err) => {
+  errorLog.record(err, { kind: 'process.uncaught', context: { op: 'process' } });
+  console.error(err?.stack ?? err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(reason && typeof reason === 'object' && reason.message ? String(reason.message) : String(reason ?? 'unhandled rejection'));
+  errorLog.record(err, { kind: 'process.rejection', context: { op: 'process' } });
+  console.error(err.stack ?? err);
+  process.exit(1);
+});
 
 // Cloudflare などで動かすとき（TW_VAULT あり）: data/ を置き場から戻してから始める
 const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
@@ -342,6 +367,20 @@ const aiControl = createAiControl({
     return tenants.updateBilling(tenant, patch);
   },
 });
+admin.get('/errors', (req, res) => {
+  const ranges = { '24h': 24 * 3600_000, '7d': 7 * 24 * 3600_000, '30d': 30 * 24 * 3600_000 };
+  const range = ranges[req.query.range] ? req.query.range : '24h';
+  const rank = (status) => (status === 'regressed' ? 0 : status === 'open' ? 1 : 2);
+  const groups = errorLog.groups({ sinceMs: Date.now() - ranges[range] })
+    .sort((a, b) => (rank(a.status) - rank(b.status)) || (Date.parse(b.lastTs) - Date.parse(a.lastTs)));
+  res.json({ groups, total: groups.reduce((sum, group) => sum + group.count, 0), groupCount: groups.length, generatedAt: new Date().toISOString() });
+});
+admin.get('/errors/:fingerprint', (req, res) => {
+  const limit = Math.max(1, Number(req.query.limit) || 50);
+  const fingerprint = String(req.params.fingerprint ?? '');
+  const rows = errorLog.recent({ sinceMs: 0 }).filter((row) => row.fingerprint === fingerprint).slice(0, limit);
+  res.json({ rows });
+});
 aiControl.mountAdmin(admin);
 app.use('/admin/api', admin);
 
@@ -458,6 +497,7 @@ function billingAllows(fn, fallback) {
     return fn();
   } catch (err) {
     console.warn(`[billing] 判定に失敗したので通します: ${err?.message ?? err}`);
+    recordError(err, { kind: 'billing.check', level: 'warn', context: { op: 'billing.overlay' } });
     return fallback;
   }
 }
@@ -513,6 +553,15 @@ if (local) {
   app.use('/help', express.static(path.join(PUBLIC, 'help'))); // 配信者向け使い方（鍵なしで開ける）
 }
 
+// Express のエラーは記録してから、今までどおり Express 既定の応答に任せる。
+app.use((err, req, res, next) => {
+  errorLog.record(err, {
+    kind: 'http.handler',
+    context: { tenant: req.tenant?.id, route: `${req.method} ${req.baseUrl || ''}${req.path || ''}` },
+  });
+  next(err);
+});
+
 // --- WebSocket（ウィジェットへの配信） ---
 
 const server = createServer(app);
@@ -559,6 +608,23 @@ server.on('upgrade', (req, socket, head) => {
     const keyRole = role === 'preview' ? 'obs' : role;
     ws.quiet = keyRole === 'obs' && overlayBlocked();
     ws.allowMessage = (msg) => overlayMessageAllowed({ role: keyRole, blocked: overlayBlocked(), type: msg?.type });
+    ws.on('message', (raw) => {
+      // 画面から来る文字は信じない。OBS 用の鍵の接続だけ、長さを切って記録する。
+      if (role !== 'obs') return;
+      let msg;
+      try { msg = JSON.parse(String(raw)); } catch { return; }
+      if (msg?.type !== 'clientError') return;
+      const cut = (value, length) => String(value ?? '').slice(0, length);
+      const widget = cut(msg.widget, 200) || 'widget';
+      const message = cut(msg.message, 300) || 'unknown error';
+      const source = cut(msg.source, 200);
+      const line = Number.isFinite(Number(msg.line)) ? Number(msg.line) : null;
+      errorLog.record(new Error(message), {
+        kind: 'widget.client',
+        where: { file: source || 'widget', fn: widget, line },
+        context: { tenant: tenantId, widget },
+      });
+    });
     rt.hub.addClient(ws);
   });
 });
@@ -587,6 +653,9 @@ server.listen(PORT, HOST, () => {
     local.demo.start();
     local.hub.setStatus({ mode: 'demo', message: 'デモモードでイベントを流しています' });
   } else if (process.env.TIKTOK_USERNAME) {
-    local.tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => console.warn(`[tiktok] ${err.message}`));
+    local.tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => {
+      console.warn(`[tiktok] ${err.message}`);
+      recordError(err, { kind: 'tiktok.connect', level: 'warn', context: { op: 'tiktok.connect.env' } });
+    });
   }
 });

@@ -5,6 +5,7 @@
 import { defaultsFor } from './schema.js';
 import { parseAction } from './actions.js';
 import { eventCoinTotal, giftMatches } from './gifts.js';
+import { recordError } from './error-log.js';
 
 export const TRIGGER_KINDS = ['gift', 'chat', 'like', 'follow', 'share', 'member'];
 const ID_RE = /^[A-Za-z0-9_-]+$/;
@@ -207,6 +208,7 @@ export class Presets {
         // 動作の実行で全体を止めない。失敗は記録だけ残す
         this.lastError = { at: now, error: error?.message ?? String(error) };
         console.warn(`[presets] 動作の実行に失敗しました: ${this.lastError.error}`);
+        recordError(error, { kind: 'engine.presets', level: 'warn', context: { op: 'presets.fire' } });
       }
     };
     for (const wrapped of this.base) fire(wrapped, '');
