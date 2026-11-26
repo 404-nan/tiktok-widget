@@ -5,6 +5,7 @@
 import { EventEmitter } from 'node:events';
 import { publicConfig } from './config.js';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
+import { recordError } from './error-log.js';
 
 const RANKING_SIZE = 20; // ウィジェットに渡すランキングの件数
 const RECENT_CHATS = 30; // 読み込み直したコメント欄に渡す、最近のコメントの件数
@@ -122,6 +123,7 @@ export class Hub extends EventEmitter {
     } catch (error) {
       // 共有入口の補助機能が壊れても、集計と画面配信は続ける。
       console.warn(`[hub] prepare の処理に失敗しました: ${error?.message ?? error}`);
+      recordError(error, { kind: 'engine.hub', level: 'warn', context: { op: 'hub.prepare' } });
     }
     // 通知の人の軸の材料: このギフトより前に同じ人が投げた回数とコインを刻む（読むだけ。数は変えない）
     if (e.kind === 'gift') {

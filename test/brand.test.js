@@ -51,7 +51,15 @@ test('配信者向けの表示と説明はライコネになっている', () =>
 test('ローマ字ブランド名を追加せず、内部名はtiktok-widgetのままにする', () => {
   const files = allFiles(root).filter((file) => {
     const relativePath = path.relative(root, file).replaceAll('\\', '/');
-    return !relativePath.startsWith('docs/cards/') && relativePath !== 'test/brand.test.js';
+    // エラー記録の service だけは、機械が読む識別子として指示どおり raikone を使う。
+    // 配信者に見せる名前一覧ではないので、ここだけ例外的に許可する。
+    const errorLogServiceFiles = new Set([
+      'src/error-log.js',
+      'test/error-log.test.js',
+      'test/error-admin-api.test.js',
+      'test/errors-digest.test.js',
+    ]);
+    return !relativePath.startsWith('docs/cards/') && relativePath !== 'test/brand.test.js' && !errorLogServiceFiles.has(relativePath);
   });
   for (const file of files) {
     // raikone-widgets は製品名ではなく外部取り込み用リポジトリの名前なので、その語だけ除いて見る。

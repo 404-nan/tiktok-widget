@@ -10,5 +10,6 @@
 - [design.md](design.md): デザイン方針と既存の設計資料の使い分け。
 - [decisions.md](decisions.md): 技術・製品の決定を新しい順に記録。
 - [performance.md](performance.md): 一時環境でウィジェットとサーバーの性能を測る方法・上限・結果。
+- [errors.md](errors.md): エラー記録の形、直した印、再発防止テスト、AI 向け要約の作り方。
 
-最後に直した日: 2026-10-21
+最後に直した日: 2026-11-27

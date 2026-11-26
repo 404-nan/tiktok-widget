@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { bundledGiftList, giftDisplayName, lookupGiftJa } from './gift-display.js';
+import { recordError } from './error-log.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const ERROR_TEXT_MAX = 120;
@@ -193,6 +194,7 @@ export class GiftCatalog {
       this.save();
     } catch (error) {
       console.warn('[gifts] ギフト一覧を保存できませんでした:', error?.code ?? '保存エラー');
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'gifts.save' } });
     }
   }
 

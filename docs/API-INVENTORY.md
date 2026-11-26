@@ -118,6 +118,8 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | GET /admin/api/notes | 運営メモ |
 | POST /admin/api/notes | 運営メモの追加 |
 | GET /admin/api/ai-tokens | AI トークンの一覧（値は出さない） |
+| GET /admin/api/errors | 期間内のエラーを種類ごとに集計して返す |
+| GET /admin/api/errors/:fingerprint | 1種類のエラーの新しい記録（stack と context）を返す |
 | POST /admin/api/ai-tokens | AI トークンの発行 |
 | GET /admin/api/ai-audit | AI の監査記録 |
 | GET /admin/api/ai-approvals | AI の承認待ち |

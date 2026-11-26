@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ruleMatches } from './minecraft.js';
 import { giftDisplayName } from './gifts.js';
+import { recordError } from './error-log.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const WINS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'wins.json');
@@ -196,6 +197,7 @@ export class WinsEngine {
       fs.writeFileSync(this.file, JSON.stringify(this.counts, null, 2));
     } catch (err) {
       console.warn('[wins] 保存できませんでした:', err.message);
+      recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'wins.save' } });
     }
   }
 }

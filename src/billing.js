@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { isDevEnv } from './env.js';
+import { recordError } from './error-log.js';
 
 export const PLANS = [
   { id: 'pct5', label: '5%プラン', price: null },
@@ -69,6 +70,7 @@ export function safely(label, fn, fallback) {
     return fn();
   } catch (err) {
     console.warn(`[billing] ${label}に失敗したので通します: ${err?.message ?? err}`);
+    recordError(err, { kind: 'billing.check', level: 'warn', context: { op: `billing.${label}` } });
     return fallback;
   }
 }

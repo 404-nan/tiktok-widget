@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { defaultsFor } from './schema.js';
 import { eventCoinTotal } from './gifts.js';
+import { recordError } from './error-log.js';
 
 const isDemo = (event) => event?.test === true || String(event?.user?.id ?? '').startsWith('demo_');
 const keyOf = (user) => String(user?.id || user?.name || '').trim();
@@ -323,7 +324,10 @@ export class Points {
         for (const [key, value] of Object.entries(saved.users)) this.users[String(key)] = cleanUser(value);
       }
     } catch (error) {
-      if (fs.existsSync(this.file)) console.warn(`[points] 記録を読めません: ${error.message}`);
+      if (fs.existsSync(this.file)) {
+        console.warn(`[points] 記録を読めません: ${error.message}`);
+        recordError(error, { kind: 'store.read', level: 'warn', context: { op: 'points.load' } });
+      }
     }
   }
 
@@ -347,6 +351,7 @@ export class Points {
       return true;
     } catch (error) {
       console.warn(`[points] 記録を書けません: ${error.message}`);
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'points.save' } });
       try { fs.rmSync(temp, { force: true }); } catch {}
       return false;
     }
@@ -359,6 +364,7 @@ export class Points {
       fs.appendFileSync(this.logFile, `${JSON.stringify({ ts: this.now(), user: userId, delta, reason, balance })}\n`);
     } catch (error) {
       console.warn(`[points] 履歴を書けません: ${error.message}`);
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'points.appendLog' } });
     }
   }
 

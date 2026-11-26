@@ -13,6 +13,7 @@ import { createRuntime, FEATURES } from './runtime.js';
 import { RentalState, rentalForHandle } from './rental.js';
 import { BillingStore } from './billing.js';
 import { IngestKeyStore } from './ingest-keys.js';
+import { recordError } from './error-log.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.TW_DATA || path.join(root, 'data'));
@@ -78,7 +79,10 @@ export class Tenants {
       const timer = setTimeout(() => {
         const cur = this.get(t.id);
         if (!cur?.enabled || !cur.stayConnected) return;
-        this.runtime(cur.id).tiktok.connect(cur.stayConnected).catch((err) => console.warn(`[tiktok] ${cur.id}: 接続を戻せませんでした（再試行します）: ${err.message}`));
+        this.runtime(cur.id).tiktok.connect(cur.stayConnected).catch((err) => {
+          console.warn(`[tiktok] ${cur.id}: 接続を戻せませんでした（再試行します）: ${err.message}`);
+          recordError(err, { kind: 'tiktok.connect', level: 'warn', context: { tenant: cur.id, op: 'tiktok.resume' } });
+        });
       }, wait);
       timer.unref?.();
     });
@@ -572,6 +576,7 @@ export function backupData(dir, keep = 20) {
     return to;
   } catch (err) {
     console.warn(`[backup] 写せませんでした: ${err.message}`);
+    recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'backup.write' } });
     return null;
   }
 }

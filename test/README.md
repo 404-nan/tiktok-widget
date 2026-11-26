@@ -91,6 +91,12 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `hub-clients.test.js` | ハブが、つながっている画面の役目(obs)を答え、つながったことを知らせるか |
 | `preparation.test.js` | 配信準備の印を重複なく保存し、再起動後に読み戻せるか |
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
+| `error-log.test.js` | エラー記録の形、伏せ字、1分に1行のまとめ、集計、fixed/regressed、0600、記録失敗で止まらないこと |
+| `error-fixes.test.js` | 直したエラーの印に必要な欄と同じ名前の再発防止テストがあること |
+| `error-admin-api.test.js` | 管理 API のエラー集計と fingerprint ごとの詳細 |
+| `errors-digest.test.js` | AI の共通の記憶へ載せるエラー要約の Markdown、60行、伏せ字 |
+| `widget-client-error.test.js` | 配信画面からの clientError の重複防止・10件上限とサーバー側の受け口 |
+| `error-recording-wiring.test.js` | console.warn/error の場所が JSONL のエラー記録にもつながっていること |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
 | `tmp-cleanup.test.js` | 一時フォルダの前読み込みが、子プロセスで作ったフォルダだけを消し、`TW_KEEP_TEST_TMP=1` で残すこと、テストが捕まえられる import 形だけを使うことを確認する |
 | `health-watch.test.js` | 死活の見張りの通知、診断の束、状態ファイル、限定つき自動復帰を一時サーバーと偽コマンドで確かめる |

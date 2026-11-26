@@ -6,6 +6,7 @@
 | --- | --- |
 | `build-gift-names.js` | ギフト名の対応表を生成する |
 | `giftlist.js` | TikTok の gift/list API からギフト一覧を取り込む（既存の名前は残し、コインを更新してブラウザ用の表も作り直す） |
+| `errors-digest.mjs` | エラー記録と「直した印」から、AI の共通の記憶へ載せる短い Markdown を標準出力に作る。`node scripts/errors-digest.mjs [--dir <置き場>] [--days 7] [--max 20]` |
 | `fixtures/` | リハーサル用の設定・記録データ |
 | `perf/` | 本番・開発サーバーから隔離して性能を測る道具 |
 | `rehearse*.mjs` / `rehearse.sh` | リハーサルの収集と報告を行う |

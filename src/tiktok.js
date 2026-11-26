@@ -11,6 +11,7 @@ import {
   normalizeViewers,
 } from './normalize.js';
 import { GiftStreaks } from './gift-streaks.js';
+import { recordError } from './error-log.js';
 
 const log = (msg) => console.log(`[tiktok] ${new Date().toISOString()} ${msg}`);
 const RETRY_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000];
@@ -135,6 +136,7 @@ export class TikTokSource {
       return this.connectionAllowed() !== false;
     } catch (err) {
       console.warn(`[billing] 接続の判定に失敗したので通します: ${err?.message ?? err}`);
+      recordError(err, { kind: 'billing.check', level: 'warn', context: { op: 'tiktok.connectionAllowed' } });
       return true;
     }
   }
@@ -230,6 +232,7 @@ export class TikTokSource {
       if (this.connection !== conn || !this.stay) return;
       if (giftResult?.attempted && giftResult?.error) {
         console.warn('[tiktok] ギフト一覧を取得できませんでした:', giftResult.error.message, '次に試すのは 24 時間後です。ギフト名は同梱の対応表で表示します');
+        recordError(giftResult.error, { kind: 'tiktok.connect', level: 'warn', context: { op: 'gifts.refresh' } });
       }
       this.retry = 0;
       this.offlineSince = null;
@@ -272,6 +275,7 @@ export class TikTokSource {
         this.hub.publish({ ...fn(data), source: 'tiktok' });
       } catch (err) {
         console.warn('[tiktok] イベントの変換に失敗:', err);
+        recordError(err, { kind: 'tiktok.event', level: 'warn', context: { op: 'tiktok.event' } });
       }
     };
     conn.on(WebcastEvent.GIFT, (data) => {
@@ -281,6 +285,7 @@ export class TikTokSource {
         if (done) this.#publishGift(done);
       } catch (err) {
         console.warn('[tiktok] イベントの変換に失敗:', err);
+        recordError(err, { kind: 'tiktok.event', level: 'warn', context: { op: 'tiktok.giftEvent' } });
       }
     });
     conn.on(WebcastEvent.LIKE, pub(normalizeLike));
@@ -300,7 +305,10 @@ export class TikTokSource {
       this.hub.setStatus({ mode: 'ended', message: '配信が終了しました' });
       if (this.stay) this.#scheduleRetry('配信終了');
     });
-    conn.on(ControlEvent.ERROR, (err) => console.warn('[tiktok] error:', err?.info ?? err));
+    conn.on(ControlEvent.ERROR, (err) => {
+      console.warn('[tiktok] error:', err?.info ?? err);
+      recordError(err?.info ?? err, { kind: 'tiktok.event', level: 'warn', context: { op: 'tiktok.controlError' } });
+    });
     conn.on(ControlEvent.DISCONNECTED, (reason) => {
       if (this.connection !== conn) return; // 自分で切ったか、配信終了
       this.connection = null;
@@ -319,6 +327,7 @@ export class TikTokSource {
       if (event) this.hub.publish({ ...event, source: 'tiktok' });
     } catch (err) {
       console.warn('[tiktok] イベントの変換に失敗:', err);
+      recordError(err, { kind: 'tiktok.event', level: 'warn', context: { op: 'tiktok.streakGift' } });
     }
   }
 
