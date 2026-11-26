@@ -312,7 +312,10 @@ test('テスト進行中に本物が来たら、テストは打ち切られて�
   const { server, port } = await listen(runtime);
   try {
     // おみくじ：テスト開始の直後に本物の開始を入れると、本物が割り込む
-    const omikujiSet = runtime.setConfig(['omikuji'], { ...defaultsFor('omikuji'), enabled: true, pickMode: 'random', tempo: 'slow' });
+    const omikujiDefaults = defaultsFor('omikuji');
+    // 天井の数えだけを見るので、大吉が偶然出て数えが戻らないようにする
+    const omikujiTiers = omikujiDefaults.tiers.map((tier) => tier.id === 'daikichi' ? { ...tier, weight: 0 } : tier);
+    const omikujiSet = runtime.setConfig(['omikuji'], { ...omikujiDefaults, enabled: true, pickMode: 'random', tempo: 'slow', tiers: omikujiTiers });
     assert.equal(omikujiSet.ok, true, (omikujiSet.errors || []).join('\n'));
     const omiBefore = await getJson(port, '/api/omikuji');
     const testStart = await postJson(port, '/api/control', { target: 'omikuji', action: 'start', data: { user: 'テスト視聴者' } });
