@@ -44,6 +44,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
 | `env.test.js` | 環境判定のテスト |
 | `public-js.test.js` | 公開ウィジェットとダッシュボードの JavaScript が Chromium 103 で動く書き方か(ES2022 まで、新しすぎる関数と外部 CDN なし) |
+| `widget-replay-socket-loading.test.js` | 公開ウィジェットの HTML が `twReplaySocket` を使うスクリプトより先に `lib/replay-socket.js` を読むこと |
 | `quiz.test.js` | クイズの出題・正解判定（番号・全角半角）・制限時間・問題集の順番と、HTTP 経由の出題とポイントの支払い（テスト送信では払わない） |
 | `widget-tenant-paths.test.js` | overlay.js を使わない公開ウィジェットが、配信者ごとの URL の下の API と WebSocket を使うか |
 | `gacha-viewers.test.js` | ガチャの視聴者ごとの無料回・有料回、リセット、コメントで回す |
@@ -107,6 +108,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

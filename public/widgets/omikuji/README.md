@@ -13,9 +13,9 @@
 
 ## つながり
 
-- 段階と運勢の文字: `../gacha.js` が `#stage` の `data-phase` / `data-tier` / `data-display` と文字を入れる
+- 段階と運勢の文字: `../gacha.js` が `#stage` の `data-phase` / `data-tier` / `data-display` と文字を入れる。再接続時の再送を受けるため、`index.html` は `gacha.js` の前に `lib/replay-socket.js` を読む
 - 大吉の後光・輪・粉: `index.html` が `./omikuji/daikichi-fx.js` を読む（ページの住所は `/widgets/omikuji.html` なので、`omikuji/` から書く）。描く板は body の直下に画面いっぱいで置く。描けたときだけ `.stage.fx-3d` を付けて CSS 版を消し、周りの沈み込み（`.fx-dim`）を外側へ溶ける形に広げる。WebGL が無い・three が読めない・破裂に読み込みが間に合わないときは付けない（CSS 版のまま）。動きを減らす設定のときも付けず、CSS 版の後光・輪・粉も出さない
 - 版の更新: `../lib/version-watch.js`
 - テスト: `test/omikuji-*.test.js`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
