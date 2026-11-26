@@ -42,8 +42,10 @@ function migrate(holder) {
 }
 
 export class Tenants {
-  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env } = {}) {
+  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env, runtimeCreated = null } = {}) {
     this.dir = dir;
+    this.env = env;
+    this.runtimeCreated = runtimeCreated;
     this.ai = ai; // 「AI にたのむ」（全員で同じキーを使う）
     this.notes = notes;
     this.billing = new BillingStore({ dir, env });
@@ -69,7 +71,7 @@ export class Tenants {
 
   // 再起動前につないでいた配信者に、もう一度つなぐ。一度にたくさん開かないよう、2秒ずつずらす
   #resumeConnections() {
-    if (process.env.TW_RESUME_CONNECT === '0') return;
+    if (this.env.TW_RESUME_CONNECT === '0') return;
     const due = this.data.tenants.filter((t) => t.enabled && t.stayConnected);
     due.forEach((t, i) => {
       const wait = i * 2_000;
@@ -476,6 +478,7 @@ export class Tenants {
       onIngestKeyChange: () => this.refreshIngestKey(id),
     });
     this.runtimes.set(id, rt);
+    this.runtimeCreated?.(rt);
     return rt;
   }
 
@@ -499,7 +502,7 @@ export class Tenants {
   }
 
   #autoConnectRentals() {
-    if (process.env.TW_RENTAL_AUTOCONNECT === '0') return;
+    if (this.env.TW_RENTAL_AUTOCONNECT === '0') return;
     const now = Date.now();
     for (const t of this.data.tenants) {
       if (!t.enabled || !t.tiktokId) continue;

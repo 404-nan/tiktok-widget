@@ -16,6 +16,7 @@
     var socket = null;
     var retry = null;
     var stopped = false;
+    var moved = false;
     var delay = reconnectDelay == null ? 2000 : reconnectDelay;
 
     function clearSeen() {
@@ -44,6 +45,8 @@
         } else if (message.gap) clearSeen();
         else if (lastSeq === null) lastSeq = sequence(message.seq);
         epoch = message.epoch || null;
+      } else if (message.type === 'moved') {
+        moved = true;
       } else if (message.type === 'event' && message.event) {
         var seq = sequence(message.event.id);
         if (seq !== null) {
@@ -59,6 +62,7 @@
 
     function open() {
       if (stopped) return;
+      moved = false;
       try {
         socket = new WebSocket(cursorUrl());
       } catch (error) {
@@ -69,7 +73,7 @@
       socket.onmessage = receive;
       socket.onclose = function () {
         if (onClose) onClose();
-        if (!stopped) retry = setTimeout(open, delay);
+        if (!stopped) retry = setTimeout(open, moved ? 0 : delay);
       };
       socket.onerror = function () {
         try { socket.close(); } catch (error) {}

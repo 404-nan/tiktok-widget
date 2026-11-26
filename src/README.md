@@ -37,6 +37,7 @@
 | `gift-sounds.js` | ギフトに対応する音の待ち列を管理する |
 | `gift-streaks.js` | 連打ギフトの終わりの合図が来ないまま切れても、投げた分を数え落とさない（`tiktok.js` から使う） |
 | `gifts.js` | ギフト一覧を読み込み、条件検索する |
+| `handoff.js` | P3 の重ね引き継ぎ。古い側の begin/stream/finish と、新しい側の P2状態復元・到着順の適用・key 重複除外を管理する |
 | `healthz.js` | 稼働確認と、配信中または15分未満の再接続中の人数だけの応答を作る |
 | `effect-log.js` | ギフト・フォロー・シェアとサーバー側演出を匿名で記録し(消さずに全部残す)、`gifts.js` の `eventCoinTotal` で配信合計と同じコインを使った配信後レポートを作る |
 | `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える |

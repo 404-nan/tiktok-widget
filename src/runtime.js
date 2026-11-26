@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { Hub, REPLAY_SIZE } from './hub.js';
+import { Hub, REPLAY_SIZE, HANDOFF_KEY_WINDOW_MS } from './hub.js';
 import { TikTokSource } from './tiktok.js';
 import { DemoSource } from './demo.js';
 import * as cfg from './config.js';
@@ -66,7 +66,7 @@ function readLiveState(file) {
   }
 }
 
-function restoreLiveState(hub, snapshot) {
+export function restoreLiveState(hub, snapshot) {
   const saved = snapshot?.hub;
   if (!saved || typeof saved !== 'object') return;
   if (saved.state && typeof saved.state === 'object') hub.state = saved.state;
@@ -79,6 +79,10 @@ function restoreLiveState(hub, snapshot) {
     hub.replayRing = saved.replayRing
       .filter((message) => message?.type === 'event' && Number.isSafeInteger(message.event?.id))
       .slice(-REPLAY_SIZE);
+  }
+  if (Array.isArray(saved.appliedKeys)) {
+    const cutoff = Date.now() - HANDOFF_KEY_WINDOW_MS;
+    hub.appliedKeys = new Map(saved.appliedKeys.filter(([key, at]) => key && Number.isFinite(at) && at >= cutoff));
   }
 }
 
@@ -107,6 +111,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   const flushLiveState = () => {
     clearTimeout(liveStateTimer);
     liveStateTimer = null;
+    if (hub.handoffWritesPaused) return;
     const tempFile = `${liveStateFile}.tmp-${process.pid}`;
     const snapshot = {
       hub: {
@@ -117,6 +122,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
         seq: hub.seq,
         epoch: hub.epoch,
         replayRing: hub.replayRing,
+        appliedKeys: [...hub.appliedKeys],
       },
       status: { roomId: hub.status.roomId ?? restoredLiveState?.status?.roomId ?? null },
     };
@@ -132,6 +138,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   };
   const scheduleLiveState = () => {
     clearTimeout(liveStateTimer);
+    liveStateTimer = null;
+    if (hub.handoffWritesPaused) return;
     liveStateTimer = setTimeout(flushLiveState, 500);
     liveStateTimer.unref?.();
   };
@@ -547,6 +555,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     performControl,
     simulateEvent,
     aiLive,
+    flushLiveState,
     /** 豪華な演出のオン/オフが変わったとき: 仕組みに反映し、開いている画面に読み込み直してもらう */
     entitlementsChanged() {
       if (hub.config) applyEngines(hub.config);
