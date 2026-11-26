@@ -87,6 +87,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `preparation.test.js` | 配信準備の印を重複なく保存し、再起動後に読み戻せるか |
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
+| `health-watch.test.js` | 死活の見張りの通知、診断の束、状態ファイル、限定つき自動復帰を一時サーバーと偽コマンドで確かめる |
 | `gift-streaks.test.js` | 連打ギフトが途中で切れても数え落とさない・二重に数えないか |
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
@@ -104,6 +105,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。
