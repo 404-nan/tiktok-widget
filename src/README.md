@@ -42,7 +42,7 @@
 | `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える |
 | `history.js` | 配信履歴を一定間隔または終了時に JSON 保存し、OBS ウィジェットの利用時間と接続回数も記録する |
 | `session-details.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットを、誰が・いつ・何を、で全部残す)。読み出しは種類で絞ってページ単位 |
-| `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる |
+| `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる。別の room の配信では集計に加えて epoch と再送履歴も新しくし、接続中の画面へ新しい hello を送り直す。取り戻せない再送の抜け（gap）を返した回数を持つ |
 | `info-feed.js` | フォロー・ギフト・シェアの最近の一覧をメモリに持ち、ウィジェットへ渡す |
 | `ingest-keys.js` | 外部イベント受け口の鍵を保存・照合する |
 | `ingest.js` | 外部ツールからイベントを受け、重複・直接接続との競合を整理してhubへ流す |
@@ -64,7 +64,7 @@
 | `relay-stop.js` | 既存スロットの固定結果、3本の停止順、送信者、10秒の自動停止、待機列をサーバーで管理する |
 | `rental.js` | 貸し出し枠と自動接続の条件を判定する |
 | `roulette.js` | ルーレットを抽選し、結果を配る |
-| `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定し、ライブ状態を `data/live-state.json` または `data/tenants/<id>/live-state.json` に保存・復元する |
+| `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定し、ライブ状態を `data/live-state.json` または `data/tenants/<id>/live-state.json` に保存・復元する。復元した保存の room ID と違う配信では、集計・epoch・再送履歴を新しい配信のものにする。再送の抜け（gap）が起きたときは、配信者名や鍵を出さずに内部 ID と件数だけを警告ログへ残す |
 | `rush.js` | RUSH の突入、延長、終了を管理する |
 | `schema.js` | `pushButtons`、カットインの段階ごとの声・メディア種類、コメントスライドのきっかけの言葉と出す言葉を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |
@@ -99,4 +99,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

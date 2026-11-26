@@ -60,8 +60,9 @@ export class Hub extends EventEmitter {
     this.seq = 0;
     this.epoch = randomUUID();
     this.replayRing = [];
+    this.replayGapCount = 0;
     this.config = null;
-  this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
+    this.seenGifts = new Map(); // 配信中に届いたギフト（ID → TikTok の名前）
     this.testDirty = false; // テストやデモで数が増えているか
     this.sample = { on: false, until: null };
     this.sampleTimer = null;
@@ -75,6 +76,10 @@ export class Hub extends EventEmitter {
     const gap = !epochMatches || (hasSince && (
       oldestSeq == null ? parsedSince < this.seq : parsedSince < oldestSeq - 1
     ));
+    if (hasSince && gap) {
+      this.replayGapCount += 1;
+      this.emit('replayGap', { count: this.replayGapCount });
+    }
     const wasConnected = this.hasClient(ws.role);
     this.clients.add(ws);
     ws.on('close', () => this.clients.delete(ws));
@@ -83,34 +88,9 @@ export class Hub extends EventEmitter {
     ws.on('close', () => {
       if (!this.hasClient(ws.role)) this.emit('clientChange', { role: ws.role, connected: false, at: Date.now() });
     });
-    // 未払いの配信画面には、中身もエラー文も出さない
-    if (ws.quiet) {
-      this.#send(ws, {
-        type: 'hello',
-        status: { mode: 'idle', message: '' },
-        state: emptyState(),
-        sample: { on: false, until: null },
-        config: null,
-        recentChats: [],
-        epoch: this.epoch,
-        seq: this.seq,
-        gap,
-      });
-      return;
-    }
-    // ウィジェットにはパスワードなどを抜いた設定を配る
-    // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように
-    this.#send(ws, {
-      type: 'hello',
-      status: this.status,
-      state: this.state,
-      sample: this.sampleState(),
-      config: publicConfig(this.config),
-      recentChats: this.recentChats,
-      epoch: this.epoch,
-      seq: this.seq,
-      gap,
-    });
+    this.#send(ws, this.#helloMessage(ws, gap));
+    // 未払いの配信画面には、中身もエラー文も出さない（再送もしない）
+    if (ws.quiet) return;
     if (epochMatches && hasSince) {
       for (const msg of this.replayRing) {
         if (msg.event.id > parsedSince) this.#sendForClient(ws, { ...msg, replay: true });
@@ -199,7 +179,25 @@ export class Hub extends EventEmitter {
     this.emit('status', this.status, prev);
     // 配信が始まったら、その前のテストやデモで増えた数と前の配信の数を 0 に戻す（同じ配信につなぎ直したときは戻さない）
     const newRoom = prev.roomId && this.status.roomId && prev.roomId !== this.status.roomId;
-    if (this.status.mode === 'live' && prev.mode !== 'live' && (this.testDirty || newRoom)) this.reset();
+    if (this.status.mode === 'live' && prev.mode !== 'live') {
+      if (newRoom) this.startNewLive();
+      else if (this.testDirty) this.reset();
+    }
+  }
+
+  /** 別の配信として始める。集計だけでなく、再接続の目印も新しい配信のものにする */
+  startNewLive() {
+    this.reset();
+    // 連番は配信ごとに 0 から始める。epoch を新しくする以上古い連番は再送されないが、
+    // 0 に戻すと保存した状態と hello が「今の配信の何件目か」をそのまま示す。
+    this.seq = 0;
+    this.epoch = randomUUID();
+    this.replayRing = [];
+    // 接続中の画面は古い epoch のカーソルを持ったままなので、新しい hello を送り直す。
+    // 送らないと、後で切れてつなぎ直したときに古い epoch で来て、新しい配信の出来事が1件も再送されない。
+    for (const ws of this.clients) {
+      if (ws.readyState === 1) this.#send(ws, this.#helloMessage(ws, false));
+    }
   }
 
   reset() {
@@ -231,6 +229,37 @@ export class Hub extends EventEmitter {
     if (!row) map.set(key, (row = { key, user, ...init }));
     row.user = user;
     return row;
+  }
+
+  // 接続時と配信の切り替わりに送る最初の知らせ。
+  // ウィジェットにはパスワードなどを抜いた設定を配る。
+  // recentChats: OBS を読み込み直しても、コメント欄が続きから出せるように。
+  // 未払いの配信画面には、中身もエラー文も出さない。
+  #helloMessage(ws, gap) {
+    if (ws.quiet) {
+      return {
+        type: 'hello',
+        status: { mode: 'idle', message: '' },
+        state: emptyState(),
+        sample: { on: false, until: null },
+        config: null,
+        recentChats: [],
+        epoch: this.epoch,
+        seq: this.seq,
+        gap,
+      };
+    }
+    return {
+      type: 'hello',
+      status: this.status,
+      state: this.state,
+      sample: this.sampleState(),
+      config: publicConfig(this.config),
+      recentChats: this.recentChats,
+      epoch: this.epoch,
+      seq: this.seq,
+      gap,
+    };
   }
 
   #send(ws, msg) {
