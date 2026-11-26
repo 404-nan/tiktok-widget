@@ -2,10 +2,11 @@
 // 1人で使うときは1つだけ、配信者ごとに分けるときは配信者の数だけ作る（src/tenants.js）。
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { Hub } from './hub.js';
+import { Hub, REPLAY_SIZE } from './hub.js';
 import { TikTokSource } from './tiktok.js';
 import { DemoSource } from './demo.js';
 import * as cfg from './config.js';
@@ -57,6 +58,30 @@ import { PreparationStore } from './preparation.js';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE_RECONNECT_GRACE_MS = 15 * 60 * 1000;
 
+function readLiveState(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function restoreLiveState(hub, snapshot) {
+  const saved = snapshot?.hub;
+  if (!saved || typeof saved !== 'object') return;
+  if (saved.state && typeof saved.state === 'object') hub.state = saved.state;
+  if (Array.isArray(saved.gifters)) hub.gifters = new Map(saved.gifters);
+  if (Array.isArray(saved.likers)) hub.likers = new Map(saved.likers);
+  if (Array.isArray(saved.recentChats)) hub.recentChats = saved.recentChats;
+  if (Number.isSafeInteger(saved.seq) && saved.seq >= 0) hub.seq = saved.seq;
+  if (typeof saved.epoch === 'string' && saved.epoch) hub.epoch = saved.epoch;
+  if (Array.isArray(saved.replayRing)) {
+    hub.replayRing = saved.replayRing
+      .filter((message) => message?.type === 'event' && Number.isSafeInteger(message.event?.id))
+      .slice(-REPLAY_SIZE);
+  }
+}
+
 // 延長タイマーの秒数は seconds・minutes・value（秒）のどれでも受ける
 const timerSeconds = (o) => {
   const pick = (v) => (v == null || v === '' ? null : Number(v));
@@ -74,6 +99,51 @@ export { FEATURES, PREMIUM, featureOfPage, OBS_ALLOWED } from './runtime-feature
  */
 export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
   const hub = new Hub();
+  const liveStateFile = path.join(dataDir, 'live-state.json');
+  const restoredLiveState = readLiveState(liveStateFile);
+  if (restoredLiveState) restoreLiveState(hub, restoredLiveState);
+  let liveStateTimer = null;
+  let checkedRestoredRoom = false;
+  const flushLiveState = () => {
+    clearTimeout(liveStateTimer);
+    liveStateTimer = null;
+    const tempFile = `${liveStateFile}.tmp-${process.pid}`;
+    const snapshot = {
+      hub: {
+        state: hub.state,
+        gifters: [...hub.gifters],
+        likers: [...hub.likers],
+        recentChats: hub.recentChats,
+        seq: hub.seq,
+        epoch: hub.epoch,
+        replayRing: hub.replayRing,
+      },
+      status: { roomId: hub.status.roomId ?? restoredLiveState?.status?.roomId ?? null },
+    };
+    try {
+      fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(tempFile, JSON.stringify(snapshot), { mode: 0o600 });
+      fs.renameSync(tempFile, liveStateFile);
+      fs.chmodSync(liveStateFile, 0o600);
+    } catch (error) {
+      console.warn(`[runtime:${id}] ライブ状態を保存できませんでした: ${error.message}`);
+      try { fs.rmSync(tempFile, { force: true }); } catch {}
+    }
+  };
+  const scheduleLiveState = () => {
+    clearTimeout(liveStateTimer);
+    liveStateTimer = setTimeout(flushLiveState, 500);
+    liveStateTimer.unref?.();
+  };
+  hub.on('prepare', scheduleLiveState);
+  hub.on('reset', scheduleLiveState);
+  hub.on('status', (status) => {
+    if (status?.mode === 'live' && !checkedRestoredRoom) {
+      checkedRestoredRoom = true;
+      if (restoredLiveState && status.roomId !== restoredLiveState.status?.roomId) hub.reset();
+    }
+    scheduleLiveState();
+  });
   const preparation = new PreparationStore(path.join(dataDir, 'preparation.json'), now);
   const infoFeed = new InfoFeed(hub);
   const visitors = new VisitorLog(hub, { dir: dataDir });
@@ -513,6 +583,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       boss.flush();
       infoFeed.close();
       visitors.close();
+      flushLiveState();
     },
   };
 }

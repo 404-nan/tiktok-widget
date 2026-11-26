@@ -559,12 +559,15 @@ server.on('upgrade', (req, socket, head) => {
     const keyRole = role === 'preview' ? 'obs' : role;
     ws.quiet = keyRole === 'obs' && overlayBlocked();
     ws.allowMessage = (msg) => overlayMessageAllowed({ role: keyRole, blocked: overlayBlocked(), type: msg?.type });
-    rt.hub.addClient(ws);
+    rt.hub.addClient(ws, {
+      since: requestUrl.searchParams.get('since'),
+      epoch: requestUrl.searchParams.get('epoch'),
+    });
   });
 });
 
 // 切れた接続を掃除する
-setInterval(() => {
+const wsHeartbeat = setInterval(() => {
   for (const ws of wss.clients) {
     if (ws.isAlive === false) {
       ws.terminate();
@@ -574,6 +577,23 @@ setInterval(() => {
     ws.ping();
   }
 }, 30_000).unref();
+
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const serverClosed = new Promise((resolve) => server.close(resolve));
+  for (const ws of wss.clients) ws.terminate();
+  wsHeartbeat?.unref?.();
+  await Promise.all([
+    local?.close().catch(() => {}),
+    ...[...tenants.runtimes.keys()].map((id) => tenants.close(id)),
+  ]);
+  wss.close();
+  await serverClosed;
+}
+process.once('SIGTERM', () => { shutdown().catch((error) => console.error(`[shutdown] ${error.message}`)); });
+process.once('SIGINT', () => { shutdown().catch((error) => console.error(`[shutdown] ${error.message}`)); });
 
 server.listen(PORT, HOST, () => {
   vault?.start();
