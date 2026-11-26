@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>標準ウィジェットテンプレート</title>
+<link rel="stylesheet" href="lib/overlay.css">
+<script type="module" src="lib/widget-runtime.js"></script>
+<style>
+  /* コピーして使う標準形。見た目はここだけ直し、接続や設定のコードは書かない */
+  body { display: flex; align-items: flex-end; padding: 28px; }
+  .panel {
+    min-width: 360px;
+    padding: 14px 22px 16px 18px;
+    background: var(--surface);
+    border-left: 6px solid var(--signal);
+    border-radius: var(--r);
+    box-shadow: var(--lift);
+  }
+  .title { margin: 0 0 10px; font-size: 17px; font-weight: 900; letter-spacing: .03em; }
+  .metrics { display: flex; gap: 18px; }
+  .metric { display: grid; gap: 3px; min-width: 104px; }
+  .metric + .metric { padding-left: 18px; box-shadow: inset 1px 0 0 var(--rule); }
+  .label { font-size: 12px; font-weight: 700; color: var(--on-surface-dim); letter-spacing: .08em; }
+  .value { font-size: 46px; line-height: 1; font-weight: 600; }
+  .people { margin-top: 12px; padding-top: 10px; box-shadow: inset 0 1px 0 var(--rule); font-size: 13px; }
+  .person { display: flex; justify-content: space-between; gap: 18px; padding: 2px 0; }
+  .person b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .person span { font-family: var(--font-num); font-size: 16px; }
+  .empty { margin: 0; color: var(--on-surface-dim); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body
+  data-tw-widget
+  data-section="counters"
+  data-config-kind="map"
+  data-state="socket"
+  data-defaults='{"show":["likes","viewers"],"layout":"row","align":"left","labels":true,"hearts":true,"color":"accent","title":"標準テンプレート"}'
+  data-sample='{"state":{"likes":12345,"viewers":87,"topGifters":[{"user":{"name":"見本さん"},"diamonds":120},{"user":{"name":"配信の妖精"},"diamonds":45}]},"config":{"title":"標準テンプレート"}}'
+>
+  <main class="panel" aria-live="polite">
+    <h1 class="title" data-text="config.title"></h1>
+    <div class="metrics">
+      <div class="metric" data-show="config.show | contains:likes">
+        <span class="label">いいね</span>
+        <span class="value num" data-text="state.likes | number"></span>
+      </div>
+      <div class="metric" data-show="config.show | contains:viewers">
+        <span class="label">視聴者</span>
+        <span class="value num" data-text="state.viewers | number"></span>
+      </div>
+      <div class="metric" data-show="config.show | contains:follows">
+        <span class="label">フォロー</span>
+        <span class="value num" data-text="state.follows | number"></span>
+      </div>
+    </div>
+    <div class="people">
+      <p class="empty" data-show="state.topGifters | empty">上位のギフトはまだいません</p>
+      <template data-each="state.topGifters | slice:3">
+        <div class="person">
+          <b data-text="$item.user.name"></b>
+          <span data-text="$item.diamonds | number"></span>
+        </div>
+      </template>
+    </div>
+  </main>
+</body>
+</html>
