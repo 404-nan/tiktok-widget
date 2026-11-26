@@ -71,6 +71,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
 | `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |
+| `quiet-hours.test.js` | 配信の静かな時間帯の計算と、読み取り専用道具の絞り込み・出力・無改変を確かめるテスト |
 | `effect-log.test.js` | 効果ログの匿名化と配信後レポートのテスト |
 | `session-details.test.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットの全件保存と読み出し)のテスト |
 | `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
