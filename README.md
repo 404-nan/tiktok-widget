@@ -22,7 +22,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 配信の1件ごとの記録 | ギフト・フォロー・シェア・ルーレットを「誰が・いつ・何を」で配信ごとに全部残し、配信単位で種類を絞って全件をページ単位で読める | できた（開発側） | `src/session-details.js`、`src/history.js`、`src/runtime-routes.js` |
 | テスト送信（本番の数を汚さない） | 開発時の確認と、本番では所有者の管理画面からの確認に使う。配信画面用の鍵では使えない | できた | - |
 | プレビューで発火させない | ダッシュボードの見本と単独モードのプレビューには、本番の演出（出来事と、派生の知らせ全部。ダレ場・名前入り妨害・動画と音・リレー停止・スロット結果・来場を含む）を流さない。テスト送信と状態の同期は届く | できた | `src/hub.js` |
-| `/healthz`（稼働確認と配信中人数） | 稼働状態を確認する | できた | - |
+| `/healthz`（稼働確認・配信中人数・起動した版とコミット） | 稼働状態と、実際に動いている版を確認する | できた | `src/healthz.js`、`src/build-info.js` |
 | 死活の見張りと緊急通知 | healthz が3回続けて返らない時に診断を残し、設定した知らせ口へ落ちたことと復帰を1回ずつ送る。自動復帰は既定で切ってあり、動かす機械側で入れた時だけ、同じ障害で1回・15分に1回まで試す | できた（知らせ口と自動復帰は機械側の設定が必要） | `scripts/health-watch.sh` |
 | Euler Stream の利用数記録 | 日別・配信者別・種類別に数え、`tw euler-usage` で確認する | できた | `src/euler-usage.js` |
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |
@@ -262,7 +262,7 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 ### いまの公開先（widget.lul.works）
 
 いまは LuLServer で動かし、`https://widget.lul.works` で公開しています。
-- サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。更新は自動です。このフォルダに新しいコミットが入ると、誰も配信していないときに `npm test` を通してから再起動します（`deploy/server/`）。TikTok との接続が切れて `connecting` / `error` になっても、最後に `live` だった時刻から15分未満は配信中として扱い、再起動を待ちます
+- サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。自動反映のタイマーは止まっていると記録されています（2026-11-27 の棚卸し）。今は、誰も配信していない時にオーナーの許可を取って `scripts/deploy-release.sh` を手で回して入れます。TikTok との接続が切れて `connecting` / `error` になっても、最後に `live` だった時刻から15分未満は配信中として扱い、再起動を待ちます
 - トンネル: `~/.config/systemd/user/tiktok-widget-tunnel.service`（設定は `~/.cloudflared/tiktok-widget.yml`、`widget.lul.works` → `http://127.0.0.1:3939`）
 - `public/` の静的ファイルは `Cache-Control: no-cache` で配る。本番は Cloudflare を通るので、反映後に `curl -sI https://widget.lul.works/widgets/lib/overlay.js` で `max-age=14400` が消えたことを確かめる。消えていなければ Cloudflare 側の「ブラウザーのキャッシュ時間」を「元のサーバーに従う」にする必要がある（オーナーの許可が要る）
 - 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
@@ -499,7 +499,8 @@ src/mc-goal-alert.js   ゴール距離の段階警報と到達判定
 src/rcon.js            RCON クライアント
 src/superstream.js     マイクラ側の演出プロフィールを読む（演出の一覧）
 src/history.js         配信ごとの記録（data/sessions/）
-src/healthz.js         稼働確認と、配信中またはつなぎ直し中の人数を返す
+src/build-info.js      起動した時の版数とコミットを .git のファイルから読む
+src/healthz.js         稼働確認と、配信中またはつなぎ直し中の人数・起動した版とコミットを返す
 mcp/server.js          MCP サーバー
 src/ai-screenshot.js   開発用ウィジェットのテスト送信後撮影
 bin/tw.js              CLI
@@ -542,7 +543,7 @@ cloudflare/            Cloudflare（有料）に置くための入り口（worke
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
-deploy/server/          lulserver の本番を、配信していないときに自動で新しくする（1分ごと）
+deploy/server/          lulserver の本番反映に関わる部品（自動反映のタイマーは停止中。今は scripts/deploy-release.sh を手で回す）
 ```
 
 `src/` の各ファイルの役目とつながりは [src/README.md](src/README.md) にまとめています。
