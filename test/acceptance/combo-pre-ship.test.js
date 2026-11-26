@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const page = fs.readFileSync(path.join(root, 'public/widgets/combo/index.html'), 'utf8');
+const replaySocket = fs.readFileSync(path.join(root, 'public/widgets/lib/replay-socket.js'), 'utf8');
 const script = [...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].at(-1)[1];
 
 function element() {
@@ -46,6 +47,7 @@ async function browser() {
     Date,
   };
   context.window = context;
+  vm.runInNewContext(replaySocket, context, { filename: 'public/widgets/lib/replay-socket.js' });
   vm.runInNewContext(script, context, { filename: 'public/widgets/combo/index.html' });
   await Promise.resolve();
   await Promise.resolve();

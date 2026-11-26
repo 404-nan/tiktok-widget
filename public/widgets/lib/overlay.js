@@ -366,7 +366,7 @@ export function connect(handlers, { reconnectDelay = 2000 } = {}) {
       query.set('since', String(cursor.lastSeq));
       query.set('epoch', cursor.epoch);
     }
-    const suffix = query.size ? `?${query}` : '';
+    const suffix = query.toString() ? `?${query}` : '';
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/ws${suffix}`;
     ws = new WebSocket(url);
     ws.onmessage = (m) => {

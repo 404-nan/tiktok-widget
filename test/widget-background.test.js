@@ -62,7 +62,7 @@ test('前面の対応表（フォルダ→節）が設定の定義と一致す�
 test('独自の受け取り方をするページにも背景を読む経路がある', () => {
   const cardDraw = readFileSync(new URL('../public/widgets/card-draw/index.html', import.meta.url), 'utf8');
   assert.ok(cardDraw.includes('applyPageBackground'), 'カードめくりが背景を当てる');
-  assert.ok(cardDraw.includes("msg.type === 'config'"), 'カードめくりが設定の変更にも追随する');
+  assert.match(cardDraw, /config\(config\) \{ applyPageBackground\(config\?\.cardDraw\); \}/, 'カードめくりが設定の変更にも追随する');
   const dareba = readFileSync(new URL('../public/widgets/dareba/index.html', import.meta.url), 'utf8');
   assert.ok(dareba.includes('function applyBg'), 'ダレバが背景を当てる');
   assert.ok(dareba.includes("'/api/config'"), 'ダレバが設定を読む');

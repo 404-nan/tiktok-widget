@@ -172,6 +172,8 @@ function loadOmikujiFront() {
     addEventListener() {},
     innerWidth: 640, innerHeight: 500,
   };
+  sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(new URL('../public/widgets/lib/replay-socket.js', import.meta.url), 'utf8'), sandbox);
   vm.runInNewContext(fs.readFileSync(new URL('../public/widgets/gacha.js', import.meta.url), 'utf8'), sandbox);
   const ws = sockets[sockets.length - 1];
   const send = (data) => ws.onmessage({ data: JSON.stringify({ type: 'omikuji', ...data }) });

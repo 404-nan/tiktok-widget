@@ -7,10 +7,12 @@ test('王座が必要な入口と公開画面へつながっている', () => {
   const files = ['src/runtime.js', 'src/schema.js', 'src/admin.js', 'mcp/server.js', 'bin/tw.js', 'public/dashboard/simple.js'];
   const text = files.map((file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')).join('\n');
   const widget = fs.readFileSync(new URL('../public/widgets/throne/index.html', import.meta.url), 'utf8');
+  const replaySocket = fs.readFileSync(new URL('../public/widgets/lib/replay-socket.js', import.meta.url), 'utf8');
   assert.match(text, /throne/);
   assert.match(text, /testEvent/);
   assert.match(text, /reset/);
-  assert.match(widget, /WebSocket/);
+  assert.match(widget, /twReplaySocket\.connect/);
+  assert.match(replaySocket, /new WebSocket/);
   assert.match(widget, /api\/throne/);
   assert.match(widget, /AudioContext/);
   assert.doesNotMatch(widget, /https?:\/\//);

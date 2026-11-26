@@ -117,7 +117,7 @@ function loadFront() {
     return elements.get(id);
   };
   let socket;
-  vm.runInNewContext(FRONT, {
+  const sandbox = {
     document: {
       body: { getAttribute: () => 'omikuji', classList: { add() {}, remove() {} } },
       getElementById: element,
@@ -129,7 +129,10 @@ function loadFront() {
     XMLHttpRequest: class { open() {} send() {} },
     setInterval: () => 0,
     clearInterval() {},
-  });
+  };
+  sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(new URL('../public/widgets/lib/replay-socket.js', import.meta.url), 'utf8'), sandbox);
+  vm.runInNewContext(FRONT, sandbox);
   return { phase: element('phase'), who: element('drawWho'), send: (data) => socket.onmessage({ data: JSON.stringify(data) }) };
 }
 

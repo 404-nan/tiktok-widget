@@ -72,6 +72,8 @@ function loadWidget() {
     addEventListener() {},
     innerWidth: 640, innerHeight: 500,
   };
+  sandbox.window = sandbox;
+  vm.runInNewContext(read('public/widgets/lib/replay-socket.js'), sandbox);
   vm.runInNewContext(read('public/widgets/gacha.js'), sandbox);
   const ws = sockets[sockets.length - 1];
   const send = (data) => ws.onmessage({ data: JSON.stringify({ type: 'omikuji', durations: { rollMs: 0, revealMs: 6000, doneMs: 1200 }, ...data }) });

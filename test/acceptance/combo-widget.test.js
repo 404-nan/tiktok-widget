@@ -8,11 +8,14 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const page = fs.readFileSync(path.join(root, 'public/widgets/combo/index.html'), 'utf8');
+const replaySocket = fs.readFileSync(path.join(root, 'public/widgets/lib/replay-socket.js'), 'utf8');
 const scripts = [...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join('\n');
 
 test('AC-1/7 combo は初回 API と WebSocket を使い、サーバー時刻で同期する', () => {
   assert.match(page, /\/api\/combo/);
-  assert.match(scripts, /new WebSocket/);
+  assert.match(page, /lib\/replay-socket\.js/);
+  assert.match(scripts, /twReplaySocket\.connect/);
+  assert.match(replaySocket, /new WebSocket/);
   assert.match(scripts, /active/);
   assert.match(scripts, /last/);
   assert.match(scripts, /expiresAt/);

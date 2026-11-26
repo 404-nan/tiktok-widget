@@ -21,7 +21,8 @@ test('大トリの設定と実行経路が登録されている', () => {
 test('公開ウィジェットは日本語、WebSocket、WebAudio、ES5、外部CDNなし', () => {
   const html = read('public/widgets/ootori/index.html');
   assert.match(html, /大トリ/);
-  assert.match(html, /WebSocket/);
+  assert.match(html, /twReplaySocket\.connect/);
+  assert.match(read('public/widgets/lib/replay-socket.js'), /new WebSocket/);
   assert.match(html, /AudioContext/);
   assert.doesNotMatch(html, /=>|\b(let|const)\b|`/);
   assert.doesNotMatch(html, /https?:\/\//);

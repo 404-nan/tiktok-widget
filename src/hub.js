@@ -154,7 +154,7 @@ export class Hub extends EventEmitter {
     const e = {
       ...event,
       id: ++this.seq,
-      ts: Date.now(),
+      ts: event.ts ?? Date.now(),
       key: event.msgId ?? event.eventId ?? null,
     };
     // 配る前に、サーバー側の仕組みがイベントへ共有用の印を付けられるようにする。
@@ -238,7 +238,7 @@ export class Hub extends EventEmitter {
   }
 
   #sendForClient(ws, msg) {
-    if (ws.readyState !== 1 || ws.quiet) return false;
+    if (ws.readyState !== 1) return false;
     // プレビュー（ダッシュボードの中の見本）には、本番の演出を流さない。
     // 見ているだけの場所で発火させないため（2026-11-10 本人の指示）。
     // 出来事そのものだけでなく、出来事から派生した演出の知らせも止める。

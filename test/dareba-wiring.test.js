@@ -17,7 +17,9 @@ test('ダレ場が設定・機能一覧・かんたん設定に登録されて�
 
 test('公開ウィジェットは外部素材なしのHTMLとして存在する', () => {
   const html = fs.readFileSync('public/widgets/dareba/index.html', 'utf8');
-  assert.match(html, /WebSocket/);
+  const replaySocket = fs.readFileSync('public/widgets/lib/replay-socket.js', 'utf8');
+  assert.match(html, /twReplaySocket\.connect/);
+  assert.match(replaySocket, /new WebSocket/);
   assert.doesNotMatch(html, /https?:\/\//);
   assert.match(html, /日本語|事件|ライコネ/);
 });

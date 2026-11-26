@@ -39,6 +39,8 @@ function loadOmikuji() {
     setInterval: () => 0,
     clearInterval() {},
   };
+  sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(new URL('../public/widgets/lib/replay-socket.js', import.meta.url), 'utf8'), sandbox);
   vm.runInNewContext(code, sandbox);
   return {
     badge: el('pityBadge'),
