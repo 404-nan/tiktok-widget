@@ -9,6 +9,7 @@ import { createStore } from '../src/config.js';
 import { createRuntime } from '../src/runtime.js';
 import { Tenants } from '../src/tenants.js';
 import { healthz } from '../src/healthz.js';
+import { PRODUCT_VERSION } from '../src/version.js';
 
 const temporaryDirectory = (prefix) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
@@ -18,7 +19,15 @@ async function listen(app) {
   return { server, port: server.address().port };
 }
 
-test('/healthz は配信中と、切断後15分以内の再接続中だけ数える', async () => {
+function assertHealth(body, live) {
+  assert.equal(body.ok, true);
+  assert.equal(body.live, live);
+  assert.equal(body.version, PRODUCT_VERSION);
+  assert.equal(Object.prototype.hasOwnProperty.call(body, 'commit'), true);
+  assert.deepEqual(Object.keys(body).sort(), ['commit', 'live', 'ok', 'version']);
+}
+
+test('/healthz は配信中と、切断後15分以内の再接続中だけ数え、起動時の版とコミットを返す', async () => {
   let now = 1_000_000;
   const localDir = temporaryDirectory('tw-healthz-local-');
   const local = createRuntime({
@@ -37,26 +46,26 @@ test('/healthz は配信中と、切断後15分以内の再接続中だけ数え
 
   const getHealth = async () => (await fetch(`http://127.0.0.1:${port}/healthz`)).json();
   try {
-    assert.deepEqual(await getHealth(), { ok: true, live: 0 });
+    assertHealth(await getHealth(), 0);
 
     local.hub.setStatus({ mode: 'connecting' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 0 });
+    assertHealth(await getHealth(), 0);
 
     local.hub.setStatus({ mode: 'live', username: '秘密の名前' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 1 });
+    assertHealth(await getHealth(), 1);
 
     tenantRuntime.hub.setStatus({ mode: 'live', username: '別の秘密' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
+    assertHealth(await getHealth(), 2);
 
     tenantRuntime.hub.setStatus({ mode: 'connecting' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
+    assertHealth(await getHealth(), 2);
 
     tenantRuntime.hub.setStatus({ mode: 'error' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 2 });
+    assertHealth(await getHealth(), 2);
 
     local.hub.setStatus({ mode: 'ended' });
     tenantRuntime.hub.setStatus({ mode: 'idle' });
-    assert.deepEqual(await getHealth(), { ok: true, live: 0 });
+    assertHealth(await getHealth(), 0);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     clearInterval(tenants.timer);

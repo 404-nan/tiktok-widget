@@ -26,7 +26,10 @@ try {
 if (!skipTests) {
   const tmp = join(process.env.TMPDIR || '/tmp', 'release-gates-tmp');
   mkdirSync(tmp, { recursive: true });
-  const run = spawnSync('node', ['--test', ...readdirSync(join(root, 'test')).filter((f) => f.endsWith('.test.js')).map((f) => join('test', f))], { cwd: root, encoding: 'utf8', env: { ...process.env, TMPDIR: tmp }, timeout: 15 * 60 * 1000 });
+  const testEnv = { ...process.env, TMPDIR: tmp };
+  // release-check 自体をテストの中から呼んだとき、内側の node --test が「入れ子」と誤解して何も走らないことがある。
+  delete testEnv.NODE_TEST_CONTEXT;
+  const run = spawnSync('node', ['--test', ...readdirSync(join(root, 'test')).filter((f) => f.endsWith('.test.js')).map((f) => join('test', f))], { cwd: root, encoding: 'utf8', env: testEnv, timeout: 15 * 60 * 1000 });
   const timedOut = run.error?.code === 'ETIMEDOUT';
   const counts = timedOut ? null : (run.stdout + run.stderr).match(/ℹ tests (\d+)[\s\S]*?ℹ pass (\d+)[\s\S]*?ℹ fail (\d+)/);
   rmSync(tmp, { recursive: true, force: true });
