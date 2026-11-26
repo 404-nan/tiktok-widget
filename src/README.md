@@ -27,6 +27,7 @@
 | `door.js` | 扉の確率ゲームの進行（段階・選んだ扉・当たり外れ）を管理する |
 | `demo.js` | `member` を含むテスト用イベントを作る |
 | `env.js` | 開発環境と本番環境を判定する |
+| `error-logger.js` | 原因・場所・文脈つきの構造化エラーログの土台 |
 | `events.js` | イベント名と配信時刻を整える |
 | `gacha-viewers.js` | ガチャの本物の視聴者ごとの無料回・有料回を数えて保存し、コメントで回す。デモとテストは数えない |
 | `gacha.js` | ガチャ・おみくじの抽選と状態を管理する。おみくじは棒の番号を選ぶ段階(送った人のコメント / 配信者のボタン / 時間切れ)を持つ。まとめ引き(10連)の回数は設定 tenCount(既定10)から読む(elevenGifts の指定ギフトは tenCount に関係なく11連)。天井は全体の数えと、引いた人ごとの数え（個人の天井 pityPersonal）の両方を持ち、どちらか届いたら確定する。luckBoost が有効なら、視聴者ごとの配信内コインと滞在の区切りで大吉の重みだけを上げる。設定は luckUnitCoins / luckStepPct / luckMaxSteps / luckStayUnits。滞在の材料は runtime が setStaySource で渡す（points の stayUnitsFor が、滞在中の区切りの個数を返す）。おみくじは大きな演出の間、舞台の順番待ち（stage-queue.js）で抽選を待たせる。おみくじはいいね・シェアでも引ける（likeDrawEvery / shareDrawEvery：視聴者ごとに数え、倍数に届くたび通常の抽選の道で1回。順番待ちに入らなかった分は権利として保持し空いたら消化、保持の上限は1人あたり stageQueueMax と同数で超えた分は omikuji.like-dropped に残して捨てる）。全員のいいねの合計が likeBoostTotal に届くと、配信の残りずっと大吉の重みに likeBoostTimes 倍が掛かる（luckBoost の％のあとに掛ける。天井には関係しない）。いいねの数え・総いいね数・未消化の権利は天井と同じファイルに版4で保存し、再起動でも権利が消えず設定の反映時に消化を再開する |
