@@ -1,6 +1,6 @@
 {
   "name": "tiktok-widget",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "description": "TikTok LIVE 配信用のオーバーレイウィジェット集（OBS / TikTok LIVE Studio のブラウザソース向け）",
   "type": "module",
