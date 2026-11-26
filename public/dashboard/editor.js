@@ -551,7 +551,7 @@ export function createEditor({ api, setMessage }) {
     card.append(
       Object.assign(document.createElement('h2'), { textContent: '配信画面にライコネが出ていません' }),
       Object.assign(document.createElement('p'), { textContent: '配信ソフトに URL を入れると出ます。わざと使っていないなら、閉じてかまいません' }),
-      Object.assign(document.createElement('p'), { textContent: '一瞬切れても直近500件の出来事は再接続時に届きます。それより前の出来事は受け取れないことがあります' }),
+      Object.assign(document.createElement('p'), { textContent: '一瞬切れても、画面は直近500件の出来事を受け取り直します。ただし演出によってはまだ映らないことがあり、それより前の分は受け取れないことがあります' }),
     );
     const actions = Object.assign(document.createElement('div'), { className: 'row wrap' });
     const guide = Object.assign(document.createElement('button'), { type: 'button', className: 'btn primary pressable', textContent: '入れ方を見る' });
