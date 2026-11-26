@@ -377,7 +377,7 @@ export function connect(handlers, { reconnectDelay = 2000 } = {}) {
         return;
       }
       if (msg.type === 'hello') cursor.hello(msg);
-      else if (msg.type === 'event' && !cursor.accept(msg)) return;
+      else if (!cursor.accept(msg)) return;
       if (msg.type === 'hello' || msg.type === 'config') { handleConfig(msg.config); applyBackgroundFromSocket(msg.config); applyFontFromSocket(msg.config); }
       if (msg.type === 'hello') { latestState = msg.state; handlers.hello?.(msg.status, latestState, msg); window.__twSampleShow?.(Boolean(msg.sample?.on)); handlers.sample?.(Boolean(msg.sample?.on), msg.sample); }
       else if (msg.type === 'event') { latestState = mergeStatePatch(latestState, msg.state, msg.statePatch); handlers.event?.(msg.event, latestState, msg); }

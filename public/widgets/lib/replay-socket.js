@@ -44,8 +44,9 @@
         } else if (message.gap) clearSeen();
         else if (lastSeq === null) lastSeq = sequence(message.seq);
         epoch = message.epoch || null;
-      } else if (message.type === 'event' && message.event) {
-        var seq = sequence(message.event.id);
+      } else {
+        var seq = sequence(message.seq);
+        if (seq === null && message.event) seq = sequence(message.event.id);
         if (seq !== null) {
           if (seen[seq] || (lastSeq !== null && seq <= lastSeq)) return;
           seen[seq] = true;

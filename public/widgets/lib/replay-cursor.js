@@ -25,7 +25,7 @@ export class ReplayCursor {
   }
 
   accept(message) {
-    const sequence = sequenceOf(message.event?.id);
+    const sequence = sequenceOf(message.seq ?? message.event?.id);
     if (sequence == null) return true;
     if (this.sequences.has(sequence) || (this.lastSeq != null && sequence <= this.lastSeq)) return false;
     this.sequences.add(sequence);

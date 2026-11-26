@@ -275,6 +275,11 @@
     setCall(label, 'slam');
   }
 
+  // WebSocket の一番上の seq は配信全体の連番。start/done の対は抽選ごとの effectSeq（API では seq）で見る。
+  function drawSeq(data) {
+    return Number(data && (data.effectSeq == null ? data.seq : data.effectSeq)) || 0;
+  }
+
   function play(data) {
     var result = data.result;
     var payout = data.payout;
@@ -284,7 +289,8 @@
     current = data;
     holdUntil = now() + t.holdUntil;
     // サーバーの done がもう来ている（待たせていた回）ならすぐ、来なくても余裕を見て筐体を戻す
-    scheduleRetract(data.seq && data.seq <= doneSeq ? 1200 : t.holdUntil + SAFETY_MS);
+    var seq = drawSeq(data);
+    scheduleRetract(seq && seq <= doneSeq ? 1200 : t.holdUntil + SAFETY_MS);
 
     setState('is-spin');
     setCall('回転！', '');
@@ -377,9 +383,10 @@
   }
 
   function onDone(data) {
-    if (data.seq) doneSeq = Math.max(doneSeq, Number(data.seq) || 0);
+    var seq = drawSeq(data);
+    if (seq) doneSeq = Math.max(doneSeq, seq);
     if (queue.length || !active || !current) return;
-    if (data.seq && current.seq && Number(current.seq) > Number(data.seq)) return;
+    if (seq && drawSeq(current) > seq) return;
     scheduleRetract(1200);
   }
 

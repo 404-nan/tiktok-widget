@@ -73,6 +73,8 @@ test('AC-4/8/10: VSの段階、色、状態を画面へ同期できる', () => {
   engine.onEvent(gift('b', 85));
   const versus = sent.at(-1);
   assert.equal(versus.event, 'versus');
+  assert.equal(versus.state, undefined, '再送で集計の state と混ぜないため王座の状態は専用の入れ物に入れる');
+  assert.ok(versus.throne?.versus, '王座の状態は throne に入る');
   assert.equal(versus.color, 'green');
   assert.equal(versus.timeline.enterMs, 600);
   assert.equal(versus.timeline.vsAtMs, 900);

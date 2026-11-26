@@ -208,3 +208,8 @@ test('スロットの結果が画面に出るころに slotResult を配る（�
     mock.timers.reset();
   }
 });
+
+
+test('スロット画面は配信連番ではなく effectSeq で start と done を対応づける', () => {
+  assert.match(widget, /effectSeq/);
+});

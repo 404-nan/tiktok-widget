@@ -55,14 +55,14 @@ export class ThroneEngine {
       lastKing: this.leader ? this.#person(this.leader.key) : null,
     };
     this.state = 'finished';
-    this.broadcast({ type: 'throne', event: 'finished', titles: clone(this.titles), state: this.snapshot() });
+    this.broadcast({ type: 'throne', event: 'finished', titles: clone(this.titles), throne: this.snapshot() });
     return this.snapshot();
   }
 
   stopEffects() {
     this.effectsStopped = true;
     this.versus = null;
-    this.broadcast({ type: 'throne', event: 'effectsStopped', state: this.snapshot() });
+    this.broadcast({ type: 'throne', event: 'effectsStopped', throne: this.snapshot() });
     return this.snapshot();
   }
 
@@ -77,7 +77,7 @@ export class ThroneEngine {
     this.titles = { greatestKing: null, lastKing: null };
     this.moveCount = 0;
     this.effectsStopped = false;
-    this.broadcast({ type: 'throne', event: 'reset', state: this.snapshot() });
+    this.broadcast({ type: 'throne', event: 'reset', throne: this.snapshot() });
     return this.snapshot();
   }
 
@@ -169,7 +169,7 @@ export class ThroneEngine {
       timeline: { enterMs: 600, peakMs: 2000, exitMs: 2800, vsAtMs: 900, holdMs: 80 },
     };
     this.versus = versus;
-    this.broadcast({ type: 'throne', event: 'versus', ...clone(versus), state: this.snapshot() });
+    this.broadcast({ type: 'throne', event: 'versus', ...clone(versus), throne: this.snapshot() });
   }
 }
 
