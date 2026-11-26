@@ -1,0 +1,33 @@
+# 単体テストだけを回す。自動デプロイはしない。secrets は使わない。
+# Playwright が要る受け入れ試験は、リポの package.json に Playwright が無いのでここでは回さない。
+name: 単体テスト
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: 単体テスト
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Node.js を用意
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: 依存パッケージを入れる
+        run: npm ci
+
+      - name: 単体テストを回す
+        run: node --test --test-concurrency=1 test/*.test.js
