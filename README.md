@@ -36,6 +36,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 本番撮影 | 本番配信中の画面を撮影する | まだ（安全のため作らない） | - |
 | ウィジェットとサーバーの性能計測 | - | できた | `scripts/perf/` |
 | 性能の上限判定とJSON出力 | - | できた | `scripts/perf/lib/` |
+| 配信の静かな時間帯の集計 | 過去の配信記録から曜日×時間の配信があった週数と、本番作業に向く時間帯を読み取り専用で出す | できた | `scripts/quiet-hours.mjs`、`src/quiet-hours.js` |
 | 性能改善（perf-fix） | compact の明示接続・履歴保存・復元テストはできた。画面性能とサーバー p95/RSS は未達。`src/hub.js`、`public/widgets/lib/overlay.js`、`test/acceptance/` | 作りかけ | - |
 | カットインのプレミア柄・昇格・RUSH格上げ・段階写真・段階ごとの声 | - | できた | `src/cutin-draw.js`、`public/widgets/lib/cutin-premium.js`、`public/widgets/lib/cutin.js` |
 | カットインの画面撮影と本番反映 | - | 作りかけ（オーナー確認前） | `docs/cards/cutin-premium.md` |
@@ -504,6 +505,7 @@ src/ws-mode.js         WebSocket の compact 指定を判定
 src/demo.js            デモ・テスト用のイベント
 scripts/               ギフト表・リハーサル・性能計測の補助スクリプト
 scripts/perf/           一時サーバーとChrome headlessで性能を測る道具
+scripts/quiet-hours.mjs 配信者がいない時間帯を記録から出す読み取り専用の道具
 test/                   node --test のテスト（性能・互換性・各機能）
 docs/knowledge/         エージェント向けの構成・運用・性能の知識
 public/admin/          管理画面（配信者の追加・ウィジェットごとの ON / OFF）
