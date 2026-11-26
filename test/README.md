@@ -40,8 +40,10 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `coins-nan.test.js` | コイン値の異常系テスト |
 | `config.test.js` / `keep-settings.test.js` | 設定読み書きと保持のテスト |
 | `bundle.test.js` | リンクまとめの設定の検証と、一覧への URL 追加のテスト |
+| `build-info.test.js` | 起動した時のコミットを `.git`・`TW_COMMIT` から読む部品のテスト |
 | `cutin-style.test.js` | カットイン設定のテスト |
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
+| `deploy-release.test.js` | 作り物の git リポジトリ・healthz・再起動命令で、本番投入の関門・台帳・応答確認と rollback の戻し先を確かめるテスト |
 | `env.test.js` | 環境判定のテスト |
 | `public-js.test.js` | 公開ウィジェットとダッシュボードの JavaScript が Chromium 103 で動く書き方か(ES2022 まで、新しすぎる関数と外部 CDN なし) |
 | `quiz.test.js` | クイズの出題・正解判定（番号・全角半角）・制限時間・問題集の順番と、HTTP 経由の出題とポイントの支払い（テスト送信では払わない） |
@@ -104,6 +106,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。
