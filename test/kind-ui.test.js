@@ -46,3 +46,22 @@ test('サイドバーの行き先は配信者ごとの場所(BASE)から作る',
   assert.doesNotMatch(editor, /location\.href = '\/(monitor|history)\//);
   assert.doesNotMatch(editor, /window\.open\('\/help\//);
 });
+
+test('配信ソフトに入れる URL と配信テンプレートは、押すとその画面へ行く項目がメニューにある', () => {
+  const editor = read('public/dashboard/editor.js');
+  assert.match(editor, /item\('link', '配信ソフトに入れる', view === 'obs', goTo\('obs'\), '', '配信ソフトに入れる URL'\)/);
+  assert.match(editor, /item\('layout-template', '配信テンプレート', view === 'templates', goTo\('templates'\)\)/);
+  assert.match(editor, /\['link', '配信ソフトに入れる URL', goTo\('obs'\)\]/);
+  assert.match(editor, /\['layout-template', '配信テンプレート', goTo\('templates'\)\]/);
+  const obsInMore = editor.indexOf("['link', '配信ソフトに入れる URL', goTo('obs')]");
+  const settingsInMore = editor.indexOf("['settings', '設定', goTo('settings')]");
+  assert.ok(obsInMore >= 0 && settingsInMore >= 0 && obsInMore < settingsInMore, 'スマホの「その他」では配信ソフトに入れる URL がいちばん上に要ります');
+});
+
+test('設定のいちばん下から設定ファイルを開ける', () => {
+  const html = read('public/dashboard/index.html');
+  const editor = read('public/dashboard/editor.js');
+  assert.match(html, /id="filesLink"/);
+  assert.match(html, /くわしい人向け: 設定ファイルを直接見る/);
+  assert.match(editor, /\$\('filesLink'\)\.addEventListener\('click', goTo\('files'\)\)/);
+});
