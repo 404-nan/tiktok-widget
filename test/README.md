@@ -76,6 +76,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `hub-replay.test.js` | 直近500件の再送、epoch・gap、compact・preview・quiet・allowMessage の再送時フィルター |
 | `replay-cursor.test.js` | 公開ウィジェットの再接続連番と重複除外 |
 | `live-state-replay.test.js` | 一時データで実サーバーの1000件再接続と SIGTERM 再起動後の復元を確認する |
+| `event-journal.test.js` | 先書き日誌のキー重複除去と、配信の区切り後に前の配信を数え直さないことを確認する |
+| `gift-exactly-once.test.js` | キー付きギフト1000件を画面再接続・サーバー再起動・2台移行の途中で流し、ちょうど1回の配送とコイン・ランキングの一致を確認する |
 | `alert-style.test.js` | 通知の型（style）の後方互換・保持・定義データの検証 |
 | `alert-step3.test.js` | 通知の人の軸の材料（hub の刻み・テスト発火でも状態を変えない）と条件キーの保持、順番待ちの優先（従来互換・並び替え・上限で捨てる対象） |
 | `alert-style-step2.test.js` | 通知の型の保存の往復と、テンプレート適用差分への乗り |
@@ -107,6 +109,6 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

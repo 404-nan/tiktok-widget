@@ -128,12 +128,13 @@ export class Ingest {
     const fingerprint = this.fingerprint(kind, event);
     if (kind === 'like' && this.stateData.direct.lastEventAt != null && this.now() - this.stateData.direct.lastEventAt <= 20_000) return this.duplicate(res);
     if (kind !== 'like' && this.events.get(fingerprint)?.source === 'direct' && this.now() - this.events.get(fingerprint).at <= 15_000) return this.duplicate(res);
-    this.hub.publish({
+    const published = this.hub.publish({
       ...event,
       ...(eventId ? { eventId } : {}),
       source: 'ingest',
       ...(test ? { test: true } : {}),
     });
+    if (published?.duplicate) return this.duplicate(res);
     if (eventId) this.rememberEvent(eventId, test);
     this.stateData.accepted++;
     this.stateData.lastEventAt = this.now();
