@@ -155,6 +155,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | クイズの問題集の進み方 | 問題集の件数ぶん順に出す | 最後まで行くと最初に戻る（問題は捨てない） | `src/quiz.js` |
 | 死活の見張りの自動復帰 | 同じ障害で1回だけ、かつ15分に1回まで（既定は切。healthz が 200 の時は行わない） | それより多くは再起動しない | `scripts/health-watch.sh` |
 | 自動復帰後の復帰確認 | 最大15秒 | 戻らなければ「戻りませんでした」と知らせる | `scripts/health-watch.sh` |
+| 新しい配信者のお試し | 作った日（日本時間）から `src/plans.json` の `trialDays`（14日）。そのあいだは Pro として全部使える。今いる配信者には付けない | 終わる `trialNoticeDays`（3日）前から、ダッシュボードに「あと○日でカットイン・RUSHなどの有料機能が使えなくなります（基本機能はそのまま無料で続けられます）」と出す。期限を過ぎて払っていなければ**停止にせず無料に落とす**（基本機能はそのまま）。配信中（live）の接続は切らない | `src/billing.js`、`src/tenants.js` |
 
 ## 使い方
 
@@ -245,14 +246,17 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 | Plus | 2,980円 | 全部のウィジェットと豪華な演出。編集の機能なし |
 | Pro | 4,980円 | 全部のウィジェットと豪華な演出、「AI にたのむ」、編集の機能（画像を上げる・カットイン画像の切り抜き・配信画面の配置・くわしい設定と設定ファイル・AI にたのむ） |
 
-- お試しは 14日、終わりのお知らせは 3日前、支払い待ちの猶予は 7日（`trialDays`・`trialNoticeDays`・`graceDays`）。支払いの案内文は `paymentNote`（仮の文。差し替えてよい）。お試しの日数とお知らせの日数は、まだ判定にはつないでいません（次の変更で使う）
+- お試しは 14日、終わりのお知らせは 3日前、支払い待ちの猶予は 7日（`trialDays`・`trialNoticeDays`・`graceDays`）。支払いの案内文は `paymentNote`（仮の文。差し替えてよい）
+- **お試しは新しく作った配信者だけ自動で始まります**（管理画面の「配信者を追加」で `status: 'trial'`・`trialEndsAt: 日本時間の今日 + trialDays` を入れる）。お試しのあいだはプランを Pro として扱い、確認スイッチがオフでも豪華な演出と編集の機能が最初から全部使えます。前からいる配信者の記録には触りません（期限の無いお試しのまま、今までと同じ見え方）
+- お知らせは、お試しの終わりの日の `trialNoticeDays` 日前（日本時間の日付）から出します。文は「あと○日でカットイン・RUSHなどの有料機能が使えなくなります（基本機能はそのまま無料で続けられます）」（`plan.trialMessage`）
+- お試しの期限を過ぎて払っていない人は、状態を「無料（お試し終了）」（`free`）にして無料のプランで続けます。**停止にはしません**（配信画面・接続はそのまま、配信中の接続も切りません）。豪華な演出と編集の機能だけが閉じます。払った記録（`status: 'active'` と `paidUntil`）を入れれば、そのプランに戻ります
 - 昔のプラン名はそのまま読めます: `flat5000`（5000円プラン）は Pro、`flat2000`（2000円プラン）と `pct5`（5%プラン）は Plus として判定します。保存されている名前と、紹介の割引・月額に使う値段は昔のまま変えません
 - **確認スイッチ（支払いの確認）がオフ（本番の初期値）**: Pro（と昔の5000円プラン）の人だけ、手動スイッチ無しで豪華な演出と「AI にたのむ」が開きます。ほかの人の見え方は今までと同じで、編集の機能も全員そのまま使えます
 - **確認スイッチがオン**: プランの既定どおりに開きます。編集の書き込み（`POST /api/media`、切り抜き・配置を変える `PATCH /api/config`、`PUT /api/config`、`POST /api/ai/ask`・`/api/ai/apply`）は、Pro でないと 403 と `{ error, requiredPlan: 'pro', capability: 'edit.…' }` を返し、エラーの記録（`plan.capability`）に残します。プランが入っていない記録は、今までどおりプランでは限りません
 - `src/plans.json` が壊れているときは、原因と場所をエラーの記録（`plans.load`）に残し、読み込みません
 - 問い合わせ先のリンクは `contactUrl`（空なら `paymentNote` の文だけ出す）。環境変数 `TW_PLAN_CONTACT_URL` で差し替えられます。http(s) の URL でないときは使わず、`plans.load` に残します
 - **配信者のダッシュボードのホームには、プランの情報をいつも出します**（無料・お試し・Plus・Pro・支払い待ち・停止のどれでも）。いまのプランと月額（仮の値段なら「仮の値段」）、状態、期限と残り日数、上のプランで使えるもの、案内（`contactUrl` があればリンク、無ければ `paymentNote`）。停止のときは連絡の案内も出します
-- `GET /api/me` は、使えるもの `features`（今までどおり）に加えて、使えないもの `locked: [{ key, kind: 'feature' | 'capability', label, requiredPlan, requiredPlanLabel, reason: 'plan' | 'stopped' | 'switch', pages }]`、編集の操作 `capabilities: { 'edit.media': true, ... }`、いまのプラン `plan: { id, label, description, priceYen, draft, legacy, status, statusLabel, paidUntil, trialEndsAt, graceUntil, daysLeft, trialNotice, enforcementOn, contactUrl, contactNote }` を返します（管理者のメモ・紹介の履歴は返しません。1人で使うときは `locked: []`・`plan: null`）
+- `GET /api/me` は、使えるもの `features`（今までどおり）に加えて、使えないもの `locked: [{ key, kind: 'feature' | 'capability', label, requiredPlan, requiredPlanLabel, reason: 'plan' | 'stopped' | 'switch', pages }]`、編集の操作 `capabilities: { 'edit.media': true, ... }`、いまのプラン `plan: { id, label, description, priceYen, draft, legacy, status, statusLabel, paidUntil, trialEndsAt, graceUntil, daysLeft, trialNotice, trialMessage, enforcementOn, contactUrl, contactNote }` を返します（管理者のメモ・紹介の履歴は返しません。1人で使うときは `locked: []`・`plan: null`）
 - 編集の操作をプランで断られたとき（403 と `requiredPlan`）は、ダッシュボードが「「画像を上げる」は Pro プランで使えます。いまのプランはホームの「プラン」で確かめられます」と出します
 
 管理画面は、配信者が増えても伸びないように、左に1人1行の一覧（名前で探す・「配信中 / 豪華オン / 止めている」で絞り込む・豪華な演出の状態は4つの点）、右にその設定を出します。

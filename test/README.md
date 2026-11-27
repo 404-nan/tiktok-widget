@@ -29,13 +29,14 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `acceptance/pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューの回帰条件を確認する |
 | `acceptance/ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界を確認する |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
+| `helpers/existing-tenant.js` | お試しを自動で始める前からいる配信者（支払いの記録なし）を作るテストヘルパー |
 | `helpers/tmp-cleanup.mjs` | テストプロセスとそこから起きた node の子プロセスが `os.tmpdir()` の下に `mkdtemp` で作ったフォルダを覚え、終了時に消す前読み込み |
 | `static-cache.test.js` | `public/` の静的ファイルの `no-cache`、ETag の 304、`/vendor/` のフォントの長いキャッシュを実サーバーで確かめる |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
 | `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
-| `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
+| `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト。お試し中は Pro、期限後は停止でなく無料、配信中は切らない、お知らせの境目は日本時間の日付 |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能（手動開始・ミッションを含む）と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
 | `comment-slide.test.js` | コメントスライド(きっかけの含む判定・上から最初の1つだけ・待ち行列の上限3と捨てる・カタログへの登録)のテスト |
@@ -108,7 +109,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
 | `slot.test.js` / `timer.test.js` / `timer-length.test.js` | スロットとタイマーのテスト |
-| `tenants.test.js` | 配信者管理のテスト。Pro なら手動スイッチ無しで豪華演出が開き、手動の OFF がプランより強いこと |
+| `tenants.test.js` | 配信者管理のテスト。Pro なら手動スイッチ無しで豪華演出が開き、手動の OFF がプランより強いこと。新しく作った配信者だけお試しが入り、今いる配信者の記録は変わらないこと |
 | `tiktok.test.js` | TikTok接続のテスト |
 | `vault.test.js` | データ退避のテスト |
 | `weight.test.js` | 重み付き抽選のテスト |

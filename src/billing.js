@@ -5,12 +5,14 @@
 // いちばん上のプラン（Pro）だけの機能を限るのも、スイッチがオンのときだけ。
 // プランの名前・値段・使える機能は src/plans.json（src/plans.js）だけで決める。昔の名前（pct5・flat2000・flat5000）もそのまま読める。
 // 状態の計算、管理画面の表示、有料化のお知らせ、支払い待ちの案内は、スイッチがオフでも今までどおり出す。
+// お試し（期限 trialEndsAt のあるもの）のあいだは Pro として扱う。期限を過ぎて払っていなければ停止にせず無料（free）に落とす。
 // 支払いファイルが壊れていてスイッチがオンのときだけ止める。ファイルが無いときと、判定が例外のときは通す。
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { isDevEnv } from './env.js';
 import { recordError } from './error-log.js';
+import { FEATURES } from './runtime-features.js';
 import {
   defaultPlanId, describeStoredPlan, getPlan, normalizePlanId, planAllowsCapability, planAllowsFeature, planContact, planTimings,
   selectablePlans, storedPlanId, topPlanId,
@@ -19,13 +21,15 @@ import {
 const STATUS_IDS = new Set(['trial', 'active', 'past_due', 'suspended']);
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const GRACE_MS = planTimings().graceDays * DAY_MS;
-export const TRIAL_NOTICE_MS = 30 * 24 * 60 * 60 * 1000;
+// お試しの日数と、終わる何日前から知らせるか（日本時間の日付で数える）。plans.json の trialDays・trialNoticeDays
+const { trialDays: TRIAL_DAYS, trialNoticeDays: TRIAL_NOTICE_DAYS } = planTimings();
+export const TRIAL_NOTICE_MS = TRIAL_NOTICE_DAYS * DAY_MS;
 export const STATUS_LABEL = {
   trial: 'お試し',
   active: '支払い済み',
   past_due: '支払い待ち',
   suspended: '停止',
-  free: '無料提供',
+  free: '無料（お試し終了）',
   unpaid: '未払い',
 };
 const HISTORY_FIELDS = ['status', 'trialEndsAt', 'paidUntil', 'plan', 'note'];
@@ -107,18 +111,19 @@ export function normalizeDate(value) {
 
 /**
  * trial: お試し（記録が無い人もここ。止めない）
+ * free: お試しの期限（trialEndsAt）を過ぎて、まだ払っていない。停止にはせず、無料のプランで続ける
  * active: 支払った日までが来ていない
  * past_due: 期限を過ぎてから7日以内
  * suspended: 手で停止、または支払い待ちの7日が過ぎた
- * 状態を手で入れているときはそれが優先。無料提供（free）は、状態が空の古い記録だけお試しにする。
- * お試しの期限を過ぎても、自動では止めない。
+ * 状態を手で入れているときはそれが優先。無料提供（free フラグ）は、状態が空の古い記録だけお試しにする（期限で落とさない）。
+ * お試しの期限を過ぎても、自動では止めない（ピーク・エンド: 終わり方を「止まる」にしない）。
  */
 export function computeStatus(entry, now = Date.now()) {
   if (!entry || typeof entry !== 'object') return 'trial';
   const explicit = canonicalStatus(entry.status);
   if (explicit === 'suspended') return 'suspended';
   if (entry.free === true && explicit == null) return 'trial';
-  if (explicit === 'trial') return 'trial';
+  if (explicit === 'trial') return trialOrFree(entry, now);
 
   const paidEnd = paidUntilEnd(entry.paidUntil);
   if (explicit === 'past_due') {
@@ -130,7 +135,30 @@ export function computeStatus(entry, now = Date.now()) {
     if (paidEnd == null || paidEnd >= now) return 'active';
     return now < paidEnd + GRACE_MS ? 'past_due' : 'suspended';
   }
-  return 'trial';
+  return trialOrFree(entry, now);
+}
+
+/** お試しの期限（その日の終わり、日本時間）を過ぎていれば free。無料提供や期限が無いお試しは終わらない（今いる配信者を落とさない） */
+function trialOrFree(entry, now) {
+  if (entry?.free === true) return 'trial';
+  const end = paidUntilEnd(entry?.trialEndsAt);
+  return end != null && now > end ? 'free' : 'trial';
+}
+
+/** 新しく作る配信者のお試しの終わり（日本時間の今日 + trialDays、YYYY-MM-DD） */
+export function trialEndDay(now = Date.now(), days = TRIAL_DAYS) {
+  return DAY_FMT.format(new Date(now + days * DAY_MS));
+}
+
+/**
+ * 判定に使うプラン（free / plus / pro）。期限つきのお試しのあいだは Pro（最初から全部使える）、
+ * お試しが終わって払っていなければ無料。それ以外は記録のプラン（無ければ null）。
+ */
+export function effectivePlanId(entry, now = Date.now()) {
+  const status = computeStatus(entry, now);
+  if (status === 'free') return defaultPlanId();
+  if (status === 'trial' && entry?.free !== true && paidUntilEnd(entry?.trialEndsAt) != null) return topPlanId();
+  return catalogPlan(entry?.plan);
 }
 
 export const effectiveStatus = computeStatus;
@@ -145,14 +173,39 @@ function graceStart(entry, paidEnd = paidUntilEnd(entry?.paidUntil)) {
   return null;
 }
 
-/** お試し終了の30日前から、お試しのあいだ出す */
+/** お試しの終わりの trialNoticeDays 日前（日本時間の日付）から、お試しのあいだ出す */
 export function trialNotice(entry, now = Date.now()) {
   return safely('有料化のお知らせの判定', () => {
-    if (computeStatus(entry, now) !== 'trial') return false;
-    const end = paidUntilEnd(entry?.trialEndsAt);
-    if (end == null) return false;
-    return now >= end - TRIAL_NOTICE_MS;
+    if (entry?.free === true || computeStatus(entry, now) !== 'trial') return false;
+    const left = daysUntil(paidUntilEnd(entry?.trialEndsAt), now);
+    return left != null && left <= TRIAL_NOTICE_DAYS;
   }, false);
+}
+
+/** お試しが終わると使えなくなる機能の名前（Pro にあって無料に無いもの）。カットインと RUSH を先に出す */
+function trialLostLabels(limit = 2) {
+  const free = new Set(getPlan(defaultPlanId())?.features ?? []);
+  const lost = (getPlan(topPlanId())?.features ?? []).filter((key) => !free.has(key));
+  const first = ['cutins', 'rush'].filter((key) => lost.includes(key));
+  return [...first, ...lost.filter((key) => !first.includes(key))]
+    .slice(0, limit)
+    .map((key) => FEATURES[key]?.label ?? key);
+}
+
+/**
+ * お試しの終わりの案内。失うものの名前と、基本機能は無料で続くことを書く（損失回避とピーク・エンド）。
+ * お知らせの時期でも、お試しが終わった後でもないときは ''。
+ */
+export function trialMessage(entry, now = Date.now()) {
+  return safely('お試しの案内', () => {
+    const status = computeStatus(entry, now);
+    const names = `${trialLostLabels().join('・')}などの有料機能`;
+    if (status === 'free') return `お試しが終わりました。${names}はお休みしています（基本機能はそのまま無料で使えます）`;
+    if (!trialNotice(entry, now)) return '';
+    const left = daysUntil(paidUntilEnd(entry?.trialEndsAt), now);
+    if (left === 0) return `お試しは今日までです。明日から${names}が使えなくなります（基本機能はそのまま無料で続けられます）`;
+    return `あと${left}日で${names}が使えなくなります（基本機能はそのまま無料で続けられます）`;
+  }, '');
 }
 
 function graceUntilDay(entry, now = Date.now()) {
@@ -239,8 +292,9 @@ export function allowsFeature(entry, feature, { enforcement = false, premiumFeat
     if (!enforcement) return true;
     if (computeStatus(entry, now) === 'suspended') return false;
     if (!isPremiumOnly(feature, premiumFeatures)) return true;
-    if (!entry?.plan) return true;
-    return catalogPlan(entry.plan) === topPlanId();
+    const plan = effectivePlanId(entry, now);
+    if (!plan) return true;
+    return plan === topPlanId();
   }, true);
 }
 
@@ -248,10 +302,11 @@ export function allowsFeature(entry, feature, { enforcement = false, premiumFeat
  * プランの既定で機能を開くか。答えないときは null（手動の設定も無ければ、初めの状態になる）。
  * スイッチがオンなら記録のプランと管理画面の「最上位プラン限定」設定（premiumFeatures）・停止状態に合わせて答える。
  * オフでも、いちばん上のプラン（Pro）を入れた人には開く（Pro を払ったのに管理者が手で開けるまで豪華な演出が使えなかったため）。
+ * お試しのあいだは Pro、お試しが終わって払っていなければ無料として答える（effectivePlanId）。
  */
 export function planFeatureDefault(entry, feature, { enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
   return safely('プランの既定の判定', () => {
-    const plan = catalogPlan(entry?.plan);
+    const plan = effectivePlanId(entry, now);
     if (!plan) return null;
     if (!enforcement && plan !== topPlanId()) return null;
     if (enforcement) {
@@ -270,8 +325,9 @@ export function allowsCapability(entry, capability, { enforcement = false, now =
   return safely('編集の操作の判定', () => {
     if (!enforcement) return true;
     if (computeStatus(entry, now) === 'suspended') return false;
-    if (!entry?.plan) return true;
-    return planAllowsCapability(catalogPlan(entry.plan), capability);
+    const plan = effectivePlanId(entry, now);
+    if (!plan) return true;
+    return planAllowsCapability(plan, capability);
   }, true);
 }
 
@@ -308,12 +364,14 @@ function daysUntil(end, now) {
  * 配信者のダッシュボードに出す、いまのプランのまとめ（/api/me の plan）。
  * 手で入れたメモ・紹介コード・履歴は入れない。プランの記録が無い人は無料（plans.json の defaultPlan）として見せる。
  * daysLeft は、お試しならお試しの終わり、支払い済みなら支払った日、支払い待ちなら猶予の終わりまで。
+ * お試しのあいだは Pro、お試しが終わって払っていなければ無料として見せる。trialMessage はお試しの終わりの案内。
  */
 export function planSummary(entry, { now = Date.now(), enforcement = false } = {}) {
   const status = computeStatus(entry, now);
-  const planId = catalogPlan(entry?.plan) ?? defaultPlanId();
+  const planId = effectivePlanId(entry, now) ?? defaultPlanId();
   const plan = getPlan(planId);
-  const stored = describeStoredPlan(entry?.plan);
+  // 昔のプランの名前は、その記録のプランで判定しているときだけ見せる（お試し中・お試し終了後は出さない）
+  const stored = planId === catalogPlan(entry?.plan) ? describeStoredPlan(entry?.plan) : null;
   const trialEndsAt = typeof entry?.trialEndsAt === 'string' ? entry.trialEndsAt : '';
   const paidUntil = typeof entry?.paidUntil === 'string' ? entry.paidUntil : '';
   const graceUntil = entry ? graceUntilDay(entry, now) : '';
@@ -340,6 +398,7 @@ export function planSummary(entry, { now = Date.now(), enforcement = false } = {
     graceUntil,
     daysLeft: daysUntil(end, now),
     trialNotice: trialNotice(entry, now),
+    trialMessage: trialMessage(entry, now),
     enforcementOn: enforcement === true,
     contactUrl: contact.url,
     contactNote: contact.note,

@@ -28,3 +28,16 @@ test('待ちを捨てるコードは、README の「上限と飛ばすルール�
     .filter((rel) => !section.includes(`\`${rel}\``));
   assert.deepEqual(missing, [], '説明のない上限があります。README の表とダッシュボードの説明に書いてください');
 });
+
+test('お試しの日数・事前のお知らせ・期限後は無料に落ちること・配信中は切らないことが「上限と飛ばすルール」に書いてある', () => {
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  const section = readme.split('## 上限と飛ばすルール')[1]?.split('\n## ')[0] ?? '';
+  const plans = JSON.parse(fs.readFileSync(path.join(root, 'src/plans.json'), 'utf8'));
+  const row = section.split('\n').find((line) => line.startsWith('| 新しい配信者のお試し')) ?? '';
+  assert.ok(row, '「新しい配信者のお試し」の行がありません');
+  assert.ok(row.includes('`trialDays`') && row.includes(`${plans.trialDays}日`), 'お試しの日数');
+  assert.ok(row.includes('`trialNoticeDays`') && row.includes(`${plans.trialNoticeDays}日`), '事前のお知らせ');
+  assert.match(row, /停止にせず無料に落とす/);
+  assert.match(row, /配信中（live）の接続は切らない/);
+  assert.ok(row.includes('`src/billing.js`'));
+});

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createServer } from 'node:http';
 import express from 'express';
 import { Tenants } from '../src/tenants.js';
+import { createExistingTenant } from './helpers/existing-tenant.js';
 
 // 回帰テスト: PUT /api/me/widgets の返事に features が無かったため、
 // ダッシュボードが返事で me を入れ替えた途端に「使えるもの」の判定が全部ずれ、
@@ -13,7 +14,7 @@ import { Tenants } from '../src/tenants.js';
 const setup = async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-me-widgets-'));
   const tenants = new Tenants({ dir, env: {} });
-  const tenant = tenants.create({ name: 'ためし' });
+  const tenant = createExistingTenant(tenants, { name: 'ためし' });
   const rt = tenants.runtime(tenant.id);
   const app = express();
   app.use(express.json());

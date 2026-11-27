@@ -5,14 +5,30 @@
       "summary": "Proプランでも手動スイッチ無しで豪華演出・編集機能が開かない問題（プランの既定を access() の判定に入れた）",
       "fixedIn": "dev/plan-catalog-2026-11-28",
       "fixedAt": "2026-11-27",
-      "test": { "file": "test/tenants.test.js", "name": "Pro プランなら手動スイッチ無しで豪華演出と編集の操作が開き、手動の OFF がプランより強い" }
+      "test": {
+        "file": "test/tenants.test.js",
+        "name": "Pro プランなら手動スイッチ無しで豪華演出と編集の操作が開き、手動の OFF がプランより強い"
+      }
     },
     {
       "fingerprint": "94709f6bf482",
       "summary": "README は「ダッシュボードのプレビューには理由が出ます」と書いていたのに、locked.html はどこでも空白で理由が出なかった食い違い（?preview=1 のときだけ理由を出すようにした）",
       "fixedIn": "dev/plan-visible-2026-11-28",
       "fixedAt": "2026-11-27",
-      "test": { "file": "test/locked-page.test.js", "name": "locked.html は配信画面では透明な空白のまま、ダッシュボードの見本（?preview=1）でだけ理由を出す" }
+      "test": {
+        "file": "test/locked-page.test.js",
+        "name": "locked.html は配信画面では透明な空白のまま、ダッシュボードの見本（?preview=1）でだけ理由を出す"
+      }
+    },
+    {
+      "fingerprint": "65964fa8d165",
+      "summary": "新しく作った配信者に trialEndsAt が入らず、お試しがいつまでも終わらず終わりのお知らせも出なかった問題（create でお試しを始め、期限後は停止でなく無料に落とすようにした）",
+      "fixedIn": "dev/auto-trial-2026-11-28",
+      "fixedAt": "2026-11-27",
+      "test": {
+        "file": "test/tenants.test.js",
+        "name": "新しく作った配信者だけお試しの期限（trialEndsAt）が入り、今いる配信者の記録は変わらない"
+      }
     }
   ]
 }
