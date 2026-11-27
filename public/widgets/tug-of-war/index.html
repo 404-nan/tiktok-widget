@@ -13,7 +13,7 @@
     /* チームの色。濃い・明るい色は JS が設定の色から作る（Chromium 103 には color-mix が無いため） */
     --left: #FF3B5C; --left-dark: #8f1a30; --left-deep: #5c1a28; --left-light: #ff8da1;
     --right: #2F8CFF; --right-dark: #164d91; --right-deep: #1a3660; --right-light: #8cc0ff;
-    --display: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+    --display: "Zen Kaku Gothic New", sans-serif;
     --shift: 0px; /* 綱がどれだけ左右へ寄ったか（左が勝っているとマイナス） */
   }
   body { overflow: hidden; }
@@ -48,7 +48,7 @@
   #clock .label { position: absolute; top: 26px; left: 0; right: 0; font-size: 15px; letter-spacing: .18em; color: #ffd75e; }
   #clock .time { font-family: var(--font-num); font-size: 62px; font-weight: 700; line-height: 1; margin-top: 10px; font-variant-numeric: tabular-nums; }
   #clock .sub { position: absolute; bottom: 24px; left: 0; right: 0; font-size: 15px; color: rgba(255,255,255,.75); }
-  #clock.entry .time { font-family: var(--display); font-size: 30px; font-weight: 400; line-height: 1.15; }
+  #clock.entry .time { font-family: var(--display); font-size: 32px; font-weight: 900; line-height: 1.15; }
   #clock.low { border-color: #ff4b3a; animation: clock-pulse .5s ease-in-out infinite alternate; }
   #clock.low .time { color: #ff6b4a; }
   @keyframes clock-pulse { from { transform: scale(1); } to { transform: scale(1.07); } }
@@ -98,8 +98,8 @@
   .crown[hidden] { display: none; }
   .crown.left { left: 51px; } .crown.right { right: 51px; }
   @keyframes crown-bob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
-  .combo { position: absolute; top: 120px; z-index: 4; font-family: var(--display); font-size: 30px; line-height: 1; color: #fff; opacity: 0;
-    -webkit-text-stroke: 2px rgba(0,0,0,.55); text-shadow: 0 4px 0 rgba(0,0,0,.4); }
+  .combo { position: absolute; top: 120px; z-index: 4; font-family: var(--display); font-size: 28px; font-weight: 900; line-height: 1; color: #fff; opacity: 0;
+    text-shadow: 0 3px 12px rgba(0,0,0,.75), 0 2px 0 rgba(0,0,0,.5); }
   .combo.left { left: 140px; } .combo.right { right: 140px; text-align: right; }
   .combo.on { animation: combo-pop .9s ease-out forwards; }
   .combo b { font-size: 48px; color: #ffe066; }
@@ -155,48 +155,50 @@
   .spark { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c), 0 0 2px #fff;
     animation: spark .8s ease-out forwards; }
   @keyframes spark { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(.2); } }
-  .shout { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font-family: var(--display); font-size: 74px; line-height: 1.1; color: #fff;
-    -webkit-text-stroke: 4px #111; text-shadow: 0 8px 0 rgba(0,0,0,.45); animation: shout 1.4s cubic-bezier(.2,1.3,.4,1) forwards; }
-  .shout small { display: block; font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 28px; -webkit-text-stroke: 0; }
+  .shout { position: absolute; left: 0; right: 0; top: 158px; text-align: center; font-family: var(--display); font-size: 66px; font-weight: 900; line-height: 1.15; color: #fff;
+    letter-spacing: .04em; text-shadow: 0 4px 20px rgba(0,0,0,.85), 0 3px 0 rgba(0,0,0,.55); animation: shout 1.4s cubic-bezier(.2,1.3,.4,1) forwards; }
+  .shout small { display: inline-block; margin-top: 8px; padding: 4px 18px; border-radius: 999px; background: rgba(10,12,20,.78); font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 22px; letter-spacing: .04em; text-shadow: none; }
   @keyframes shout { 0% { opacity: 0; transform: scale(2.4); } 18% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
   .flash { position: absolute; inset: -40px; background: radial-gradient(circle, rgba(255,255,255,.85), transparent 70%); animation: flash .5s ease-out forwards; }
   @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
   #fit.shake { animation: shake .45s linear; }
   @keyframes shake { 0%,100% { margin-left: 0; } 20% { margin-left: -10px; margin-top: 4px; } 40% { margin-left: 9px; margin-top: -4px; } 60% { margin-left: -6px; } 80% { margin-left: 4px; margin-top: 2px; } }
-  /* 逆転の帯 */
-  .reverse { position: absolute; left: -10%; right: -10%; top: 196px; height: 170px; display: grid; place-items: center; z-index: 25;
-    background: repeating-linear-gradient(115deg, var(--c) 0 40px, var(--cd) 40px 80px);
-    border-top: 6px solid #fff; border-bottom: 6px solid #fff; animation: reverse 1.9s cubic-bezier(.7,0,.2,1) forwards; }
-  .reverse div { font-family: var(--display); font-size: 96px; color: #fff; -webkit-text-stroke: 5px #111; text-shadow: 0 8px 0 rgba(0,0,0,.5); letter-spacing: .08em; }
-  .reverse small { display: block; text-align: center; font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 30px; -webkit-text-stroke: 0; letter-spacing: 0; }
+  /* 逆転の帯（上の赤・青スコアボードと同じ色味・斜め縞・すっきりした白文字に統一） */
+  .reverse { position: absolute; left: 0; right: 0; top: 196px; height: 170px; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 25;
+    background: linear-gradient(100deg, var(--c) 0%, var(--cd) 100%);
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,.78), 0 18px 42px rgba(0,0,0,.55); animation: reverse 1.9s cubic-bezier(.7,0,.2,1) forwards; }
+  .reverse::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255,255,255,.07) 0 14px, transparent 14px 28px); pointer-events: none; }
+  .reverse div { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; font-family: var(--display); font-size: 68px; font-weight: 900; line-height: 1; color: #fff; text-shadow: 0 4px 16px rgba(0,0,0,.45), 0 3px 0 rgba(0,0,0,.3); letter-spacing: .06em; }
+  .reverse small { display: inline-block; padding: 5px 20px; border-radius: 999px; background: rgba(10,12,20,.72); border: 1px solid rgba(255,255,255,.22); font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 22px; line-height: 1.25; color: #fff; text-shadow: none; letter-spacing: .04em; }
   @keyframes reverse { 0% { clip-path: inset(0 100% 0 0); } 18% { clip-path: inset(0 0 0 0); } 80% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 0 0 100%); opacity: 1; } }
   /* 残り10秒の大きな数字 */
-  #big { position: absolute; left: 0; right: 0; top: 168px; text-align: center; font-family: var(--font-num); font-weight: 700; font-size: 220px; line-height: 1;
-    color: #fff; -webkit-text-stroke: 6px #ff3b2f; text-shadow: 0 10px 0 rgba(0,0,0,.4); opacity: 0; z-index: 22; pointer-events: none; }
+  #big { position: absolute; left: 0; right: 0; top: 168px; text-align: center; font-family: var(--font-num); font-weight: 700; font-size: 210px; line-height: 1;
+    color: #fff; text-shadow: 0 8px 28px rgba(255,59,47,.7), 0 6px 0 rgba(0,0,0,.55); opacity: 0; z-index: 22; pointer-events: none; }
   #big.tick { animation: big-tick .95s ease-out forwards; }
   @keyframes big-tick { 0% { opacity: .95; transform: scale(1.5); } 30% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(.85); } }
 
   /* 決着 */
-  #result { position: absolute; left: 40px; right: 40px; top: 160px; height: 380px; z-index: 30; display: none; border-radius: 26px; overflow: hidden;
-    background: radial-gradient(ellipse at 50% 0%, var(--cd) 0%, #0d0d12 75%);
-    border: 6px solid #ffe066; box-shadow: 0 0 0 6px rgba(0,0,0,.4), 0 30px 60px rgba(0,0,0,.6); text-align: center; }
-  #result.on { display: block; animation: result-in .7s cubic-bezier(.2,1.3,.4,1); }
-  @keyframes result-in { 0% { opacity: 0; transform: scale(.6) rotate(-3deg); } 100% { opacity: 1; transform: none; } }
-  #result .rays { position: absolute; left: 50%; top: 50%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; opacity: .18;
-    background: repeating-conic-gradient(from 0deg, #fff 0 8deg, transparent 8deg 20deg); animation: spin 14s linear infinite; }
+  #result { position: absolute; left: 40px; right: 40px; top: 164px; height: 372px; z-index: 30; display: none; border-radius: 24px; overflow: hidden;
+    background: linear-gradient(180deg, var(--cd) 0%, #10121b 54%, #0b0d14 100%);
+    border: 3px solid var(--c); box-shadow: 0 0 0 1px rgba(255,255,255,.15) inset, 0 26px 56px rgba(0,0,0,.65); text-align: center; }
+  #result.on { display: block; animation: result-in .55s cubic-bezier(.2,1.2,.4,1); }
+  @keyframes result-in { 0% { opacity: 0; transform: scale(.86); } 100% { opacity: 1; transform: none; } }
+  #result .rays { position: absolute; left: 50%; top: 50%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; opacity: .07;
+    background: repeating-conic-gradient(from 0deg, #fff 0 8deg, transparent 8deg 20deg); animation: spin 18s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #result .inner { position: relative; padding: 22px 30px; }
-  #resultReason { display: inline-block; padding: 3px 16px; border-radius: 999px; background: rgba(0,0,0,.45); font-size: 20px; color: #ffe066; }
-  #resultMain { margin-top: 8px; font-family: var(--display); font-size: 78px; line-height: 1.1; color: #fff; -webkit-text-stroke: 4px #111; text-shadow: 0 8px 0 rgba(0,0,0,.45); }
-  #resultScore { margin-top: 4px; font-family: var(--font-num); font-size: 40px; font-weight: 700; }
+  #result .inner { position: relative; height: 100%; box-sizing: border-box; padding: 24px 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  #resultReason { display: inline-block; padding: 4px 18px; border-radius: 999px; background: rgba(10,12,20,.6); border: 1px solid rgba(255,255,255,.18); font-size: 17px; letter-spacing: .1em; color: #ffd75e; }
+  #resultMain { font-family: var(--display); font-size: 62px; font-weight: 900; line-height: 1.15; letter-spacing: .04em; color: #fff; text-shadow: 0 4px 16px rgba(0,0,0,.55), 0 3px 0 rgba(0,0,0,.35); }
+  #resultScore { font-family: var(--font-num); font-size: 38px; font-weight: 700; line-height: 1.1; text-shadow: 0 2px 8px rgba(0,0,0,.45); }
   #resultScore .l { color: var(--left-light); } #resultScore .r { color: var(--right-light); }
-  #resultScore .vs { font-size: 26px; margin: 0 14px; opacity: .8; }
-  #mvp { margin: 14px auto 0; display: inline-flex; align-items: center; gap: 16px; padding: 10px 26px 10px 10px; border-radius: 999px;
-    background: linear-gradient(180deg, #ffe58a, #f2b01e); color: #2a1a00; box-shadow: 0 10px 24px rgba(0,0,0,.45); }
-  #mvp .avatar { --size: 68px; font-size: 28px; border: 4px solid #fff; }
-  #mvp .badge { font-family: var(--display); font-size: 34px; letter-spacing: .06em; }
-  #mvp .who { font-size: 30px; max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #mvp .pw { font-family: var(--font-num); font-size: 30px; font-weight: 700; }
+  #resultScore .vs { font-size: 22px; margin: 0 14px; color: rgba(255,255,255,.65); }
+  #mvpWrap { margin-top: 6px; }
+  #mvp { display: inline-flex; align-items: center; gap: 14px; padding: 8px 26px 8px 10px; border-radius: 999px;
+    background: rgba(10,12,20,.82); border: 2px solid rgba(255,215,94,.7); color: #fff; box-shadow: 0 10px 26px rgba(0,0,0,.45); }
+  #mvp .avatar { --size: 54px; font-size: 22px; border: 2px solid rgba(255,255,255,.85); }
+  #mvp .badge { padding: 3px 12px; border-radius: 999px; background: #ffd75e; color: #16140c; font-family: var(--display); font-size: 16px; font-weight: 900; letter-spacing: .08em; }
+  #mvp .who { font-size: 26px; font-weight: 900; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+  #mvp .pw { font-family: var(--font-num); font-size: 26px; font-weight: 700; color: #ffd75e; }
   .confetti { position: absolute; top: -20px; width: 12px; height: 20px; border-radius: 2px; z-index: 31; animation: confetti linear forwards; }
   @keyframes confetti { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--cx), 640px) rotate(var(--cr)); opacity: .9; } }
 
