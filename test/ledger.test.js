@@ -90,6 +90,18 @@ test('集金そのものを取り消すと、配分済みの発生も未集金�
   assert.equal(ledger.paymentBreakdown('s1').find((row) => row.id === original.id).status, 'unpaid');
 });
 
+test('集金を取り消しても、取り消した金額を前回集金からの増分には加えない', () => {
+  const ledger = new Ledger({ dir: tmp(), now: () => Date.parse('2026-11-14T00:00:00Z') });
+  charge(ledger, 1000);
+  const valid = ledger.recordCollection({ streamerId: 's1', amountYen: 200, collectedAt: '2026-11-11T00:00:00Z', clientRequestId: 'valid' });
+  ledger.recordAdjustment({ streamerId: 's1', signedAmountYen: 300, reason: '追加', at: '2026-11-12T00:00:00Z' });
+  const invalid = ledger.recordCollection({ streamerId: 's1', amountYen: 100, collectedAt: '2026-11-13T00:00:00Z', clientRequestId: 'invalid' });
+  ledger.reverseEntry(invalid.id, { reason: '誤記' });
+  assert.equal(ledger.balance('s1').lastCollection.id, valid.id);
+  assert.equal(ledger.balance('s1').sinceLastCollectionYen, 300);
+  assert.equal(ledger.balance('s1').balanceYen, 1100);
+});
+
 test('壊れた entries.jsonl は0円として読まず、同期停止のエラーにする', () => {
   const dir = tmp();
   const ledger = new Ledger({ dir });
