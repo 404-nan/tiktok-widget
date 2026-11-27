@@ -227,8 +227,7 @@ test('設定の検証: minutes は秒になり、書き間違いはエラー', (
 
 test("初めの時間を変えたらリセットなしで反映・上限なし（100時間）", async () => {
   const { TimerEngine } = await import("../src/timer.js");
-  const os = await import("node:os"); const fsm = await import("node:fs"); const pth = await import("node:path");
-  const file = pth.join(fsm.mkdtempSync(pth.join(os.tmpdir(), "tm-")), "timers.json");
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tm-")), "timers.json");
   const hub = { on() {}, broadcast() {}, emit() {} };
   const t = new TimerEngine(hub, file);
   t.setConfig({ default: { startMinutes: 60 } });

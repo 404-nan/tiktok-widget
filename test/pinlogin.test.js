@@ -12,7 +12,7 @@ const clock = () => {
   return { now: () => t, add: (ms) => (t += ms) };
 };
 
-test('配信者を追加すると短い ID と 4桁の数字ができ、作り直すと数字と版が変わる', () => {
+test('配信者を追加すると短い ID と 4桁の数字ができ、作り直すと数字と版が変わる', async () => {
   const t = new Tenants({ dir: tmp() });
   const a = t.create({ name: 'A' });
   assert.match(a.pin, /^\d{4}$/);
@@ -20,8 +20,10 @@ test('配信者を追加すると短い ID と 4桁の数字ができ、作り�
   assert.equal(t.byShortId(a.shortId).id, a.id);
   assert.equal(t.byShortId('nope'), null);
   const old = a.pinVer;
-  t.repin(a.id);
+  const oldPin = a.pin;
+  await t.repin(a.id);
   assert.equal(a.pinVer, old + 1);
+  assert.notEqual(a.pin, oldPin);
   const again = new Tenants({ dir: t.dir });
   assert.equal(again.get(a.id).pin, a.pin);
 });

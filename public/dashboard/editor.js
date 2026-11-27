@@ -368,6 +368,7 @@ export function createEditor({ api, setMessage }) {
       b.type = 'button';
       b.className = `side-item pressable ${cls}`;
       b.dataset.name = fullName ?? label;
+      b.title = b.dataset.name;
       b.setAttribute('aria-current', String(current));
       b.append(icon(iconName), Object.assign(document.createElement('span'), { textContent: label }));
       b.addEventListener('click', () => { closeMobileMenu(); onClick(); });
@@ -383,6 +384,8 @@ export function createEditor({ api, setMessage }) {
       // 左の細い列では短い名前(ギフト通知→ギフト、目標バー→目標)。全部の名前は押したあとの見出しに出る
       ...used.map((t) => item(INFO[t].icon, desktop ? railName(schema.sections[t].title) : schema.sections[t].title, onDetail(t), () => openCard(t), '', schema.sections[t].title)),
       item('plus', desktop ? 'その他' : 'その他のウィジェット', view === 'catalog', goTo('catalog'), '', 'その他のウィジェット'),
+      item('layout-template', desktop ? 'テンプレ' : '配信テンプレート', view === 'templates', goTo('templates'), '', '配信テンプレート'),
+      item('link', desktop ? 'URL' : '配信ソフトに入れる', view === 'obs', goTo('obs'), '', '配信ソフトに入れる URL'),
       item('chart-column', '配信の記録', view === 'history', goTo('history')),
     );
     // 設定は、PC ではサイドバーのいちばん左下に固定する
@@ -513,6 +516,8 @@ export function createEditor({ api, setMessage }) {
   function renderMore() {
     const list = Object.assign(document.createElement('div'), { className: 'more-list' });
     for (const [iconName, label, onClick] of [
+      ['link', '配信ソフトに入れる URL', goTo('obs')],
+      ['layout-template', '配信テンプレート', goTo('templates')],
       ['settings', '設定', goTo('settings')],
       ['book-open', '使い方', () => window.open(`${BASE}/help/`, '_blank', 'noopener')],
       ['plus', 'その他のウィジェット', goTo('catalog')],
@@ -1296,6 +1301,7 @@ export function createEditor({ api, setMessage }) {
         getYamlDirty: () => yamlDirty, setYamlDirty: (v) => { yamlDirty = v; },
       });
       new ResizeObserver(() => fitPreview()).observe($('preview'));
+      $('filesLink').addEventListener('click', goTo('files'));
       $('copyBtn').addEventListener('click', () => {
         const btn = $('copyBtn');
         copyText($('widgetUrl').value, $('widgetUrl'));

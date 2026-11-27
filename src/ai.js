@@ -10,6 +10,7 @@ import * as cfg from './config.js';
 import { SCHEMA, SECTIONS } from './schema.js';
 import { buildSystem } from './ai-prompt.js';
 import { giftDisplayName } from './gift-display.js';
+import { recordError } from './error-log.js';
 
 // 使える AI。kind: 'claude' は Anthropic の SDK、'openai' は OpenAI と同じ形の API（chat/completions）
 export const AI_PROVIDERS = {
@@ -144,6 +145,7 @@ export function recordUsage(dir, { provider, model, usage, now = Date.now() }) {
     fs.appendFileSync(path.join(dir, 'ai-usage.jsonl'), JSON.stringify(row) + '\n');
   } catch (err) {
     console.warn(`[ai] トークンの記録を書けませんでした: ${err.message}`);
+    recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'ai.recordUsage' } });
   }
 }
 
@@ -165,6 +167,7 @@ async function askClaude({ key, model, system, messages, makeClient, onUsage = (
     });
   } catch (err) {
     console.warn(`[ai] ${err?.status ?? ''} ${err?.message ?? err}`);
+    recordError(err, { kind: 'ai.request', level: 'warn', context: { op: 'ai.claude' } });
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) throw new Error('AI のキーが正しくないようです（管理者に伝えてください）');
     if (err instanceof Anthropic.RateLimitError) throw new Error('AI が混み合っています。少し待ってから、もう一度たのんでください');
     if (err instanceof Anthropic.BadRequestError || err instanceof Anthropic.NotFoundError) throw new Error(`AI への頼み方に問題がありました（管理者に伝えてください）: ${err.message}`);
@@ -198,6 +201,7 @@ async function askOpenAi({ key, model, baseUrl, system, messages, fetchImpl = fe
       });
     } catch (err) {
       console.warn(`[ai] ${err?.message ?? err}`);
+      recordError(err, { kind: 'ai.request', level: 'warn', context: { op: 'ai.openai.fetch' } });
       throw new Error('AI につながりませんでした。少し待ってから、もう一度たのんでください');
     }
     const data = await res.json().catch(() => ({}));
@@ -208,6 +212,7 @@ async function askOpenAi({ key, model, baseUrl, system, messages, fetchImpl = fe
   if (res.status === 400) ({ res, data } = await call(false));
   if (!res.ok) {
     console.warn(`[ai] ${res.status} ${JSON.stringify(data).slice(0, 300)}`);
+    recordError(new Error(`AI API ${res.status}: ${JSON.stringify(data).slice(0, 300)}`), { kind: 'ai.request', level: 'warn', context: { op: 'ai.openai.response' } });
     if (res.status === 401 || res.status === 403) throw new Error('AI のキーが正しくないようです（管理者に伝えてください）');
     if (res.status === 402) throw new Error('AI の残高が足りないようです（管理者に伝えてください）');
     if (res.status === 429) throw new Error('AI が混み合っています。少し待ってから、もう一度たのんでください');

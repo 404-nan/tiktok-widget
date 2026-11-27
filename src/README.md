@@ -18,6 +18,7 @@
 | `api-keys.js` | 管理画面の API キーを保存・伏せ字表示する |
 | `billing.js` | 利用期限・プラン・課金状態を判定する |
 | `boss.js` | ボスの HP、ダメージ、討伐、手動開始とミッションを管理する |
+| `build-info.js` | 起動した時の製品版数とコミットを、git コマンドを呼ばず `.git` のファイルから読む |
 | `cheer.js` | いいねをため、満タンと次の目標を WebSocket で配る（記録しない） |
 | `combo.js` | コンボの回数・段階・終了イベント・テスト用状態を管理し、Hubへ配る |
 | `config.js` | schema に沿って設定を検証し、初期値を補う |
@@ -36,11 +37,14 @@
 | `gift-names-ja.json` | GiftID ごとの日本語ギフト名を持つ |
 | `gift-sounds.js` | ギフトに対応する音の待ち列を管理する |
 | `gift-streaks.js` | 連打ギフトの終わりの合図が来ないまま切れても、投げた分を数え落とさない（`tiktok.js` から使う） |
-| `gifts.js` | ギフト一覧を読み込み、条件検索する |
-| `healthz.js` | 稼働確認と、配信中または15分未満の再接続中の人数だけの応答を作る |
+| `gifts.js` | ギフト一覧を読み込み、条件検索する。取り直しは失敗した時も24時間に1回まで |
+| `healthz.js` | 稼働確認、配信中または15分未満の再接続中の人数、起動した時の版数とコミットの応答を作る |
+| `error-log.js` | エラーを原因・場所・文脈つきで JSON Lines に残し、同じ種類を集計する |
+| `error-fixes.js` | 直したエラーの印（docs/error-fixes.json）を読み書きし、再発防止テストの対応を検査する |
 | `effect-log.js` | ギフト・フォロー・シェアとサーバー側演出を匿名で記録し(消さずに全部残す)、`gifts.js` の `eventCoinTotal` で配信合計と同じコインを使った配信後レポートを作る |
 | `euler-usage.js` | Euler Stream の呼び出しを配信者・種類・日ごとに数える |
-| `history.js` | 配信履歴を一定間隔または終了時に JSON 保存し、OBS ウィジェットの利用時間と接続回数も記録する |
+| `history.js` | 配信履歴を一定間隔または終了時に JSON 保存し、OBS ウィジェットの利用時間と接続回数も記録する。配信時間と1分ごとの記録は、壁時計の飛びに引っぱられない単調な時計で数える |
+| `quiet-hours.js` | 配信の記録から、曜日 × 時間ごとの配信があった週数と静かな時間帯を計算する（読み取りは `scripts/quiet-hours.mjs`） |
 | `session-details.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットを、誰が・いつ・何を、で全部残す)。読み出しは種類で絞ってページ単位 |
 | `hub.js` | イベントを集計し、通常形式または明示された compact 差分形式で WebSocket 配信する。プレビュー接続には本番の演出を流さず、テスト送信と状態同期だけを届ける。OBS 接続の増減も知らせる |
 | `info-feed.js` | フォロー・ギフト・シェアの最近の一覧をメモリに持ち、ウィジェットへ渡す |
@@ -68,6 +72,7 @@
 | `rush.js` | RUSH の突入、延長、終了を管理する |
 | `schema.js` | `pushButtons`、カットインの段階ごとの声・メディア種類、コメントスライドのきっかけの言葉と出す言葉を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |
+| `static-cache.js` | `public/` の静的ファイルに `Cache-Control: no-cache` を付け、ETag の 304 を残す |
 | `slot.js` | スロットの抽選と状態を管理する |
 | `stepup.js` | ステップアップ予告の合計・段階・冷却を管理する |
 | `superstream.js` | Minecraft 側の演出プロフィールを読む |
@@ -75,6 +80,7 @@
 | `templates` | フォルダ。中身はそのフォルダの README |
 | `templates.js` | 配信テンプレートを読み込み、検証し、プレビューを作る |
 | `tenants.js` | 配信者一覧と配信者ごとの runtime を管理する |
+| `tenant-revocations.js` | URL・PIN の変更と配信者の停止・削除を暗号化して別の台帳に記録し、古い同期データから起動するときに再適用する |
 | `throne.js` | 直近10分のギフト合計、王座の在位、接近VS、王冠移動、終了称号をサーバーで管理する |
 | `tiktok.js` | TikTok LIVE の配信前判定、接続と再接続を行う。配信前は非Euler判定を優先し、最初の30分は1分ごと、その後は5分ごとに試す |
 | `timer.js` | 延長タイマーの状態を管理する |
@@ -99,4 +105,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27

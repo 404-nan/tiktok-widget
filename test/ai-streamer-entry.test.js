@@ -101,7 +101,6 @@ test('失効後は同じBearer値を認証できない', () => {
 
 test('配信者の合言葉は「設定を変えてもらう」を選んだときだけ保存でき、お金の申請はどちらでもできない', async () => {
   const { AiTokenStore } = await import('../src/ai-tokens.js');
-  const fs = await import('node:fs'); const os = await import('node:os'); const path = await import('node:path');
   const tokens = new AiTokenStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'ai-w-')) });
   assert.deepEqual(tokens.issueStreamer({ tenantId: 'tenant-a', name: 'ふつう' }).token.scopes, ['read', 'suggest', 'test']);
   assert.deepEqual(tokens.issueStreamer({ tenantId: 'tenant-a', name: '変える', allowWrite: true }).token.scopes, ['read', 'suggest', 'test', 'write']);

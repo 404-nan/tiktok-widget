@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ruleMatches } from './minecraft.js';
+import { recordError } from './error-log.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const TIMERS_FILE = path.resolve(process.env.TW_DATA || path.join(root, 'data'), 'timers.json');
@@ -338,6 +339,7 @@ export class TimerEngine {
       fs.renameSync(tmp, this.file);
     } catch (err) {
       console.warn('[timer] 保存できませんでした:', err.message);
+      recordError(err, { kind: 'store.write', level: 'warn', context: { op: 'timer.save' } });
     }
   }
 }

@@ -11,7 +11,7 @@ function setup(id = 'tenant-a') {
   let now = 1_000_000;
   const hub = new Hub();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-widget-usage-'));
-  const history = new History(hub, dir, { id, now: () => now });
+  const history = new History(hub, dir, { id, now: () => now, monotonicNow: () => now });
   clearInterval(history.timer);
   return { hub, history, setNow: (value) => { now = value; } };
 }

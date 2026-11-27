@@ -3,6 +3,7 @@
 // 書き込みは1秒ごとにまとめて追記し、失敗しても配信は止めない。記録は消さない。
 import fs from 'node:fs';
 import path from 'node:path';
+import { recordError } from './error-log.js';
 
 export class SessionDetails {
   constructor(dir) {
@@ -35,6 +36,7 @@ export class SessionDetails {
       this.queue.splice(0, count);
     } catch (error) {
       console.warn(`[session-details] 記録を書けませんでした: ${error.message}`);
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'sessionDetails.flush' } });
     }
   }
 
@@ -47,6 +49,7 @@ export class SessionDetails {
       fs.appendFileSync(path.join(this.dir, `${path.basename(String(id))}.jsonl`), `${JSON.stringify(entry)}\n`);
     } catch (error) {
       console.warn(`[session-details] 記録を書けませんでした: ${error.message}`);
+      recordError(error, { kind: 'store.write', level: 'warn', context: { op: 'sessionDetails.recordTo' } });
     }
   }
 

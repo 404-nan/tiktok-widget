@@ -510,7 +510,7 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .draw-results-time { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
 .draw-results-user { font-size: 16px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
 .draw-results-result { font-size: 16px; line-height: 1.6; }
-.draw-results-result.is-win { color: var(--rk-acc, #f5d90a); font-weight: 700; }
+.draw-results-result.is-win { color: var(--rk-acc); font-weight: 700; }
 .draw-results-tag {
   font-size: 12px;
   line-height: 1.4;

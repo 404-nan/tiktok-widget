@@ -29,6 +29,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `acceptance/pre-ship-regressions.test.js` / `pre-ship-review.test.js` | 本番前レビューの回帰条件を確認する |
 | `acceptance/ai-screenshot.test.js` / `ai-streamer-entry.test.js` / `pre-ship-review-ai.test.js` | 開発用撮影と配信者専用AI入口の安全境界を確認する |
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
+| `helpers/tmp-cleanup.mjs` | テストプロセスとそこから起きた node の子プロセスが `os.tmpdir()` の下に `mkdtemp` で作ったフォルダを覚え、終了時に消す前読み込み |
+| `static-cache.test.js` | `public/` の静的ファイルの `no-cache`、ETag の 304、`/vendor/` のフォントの長いキャッシュを実サーバーで確かめる |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
@@ -40,8 +42,10 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `coins-nan.test.js` | コイン値の異常系テスト |
 | `config.test.js` / `keep-settings.test.js` | 設定読み書きと保持のテスト |
 | `bundle.test.js` | リンクまとめの設定の検証と、一覧への URL 追加のテスト |
+| `build-info.test.js` | 起動した時のコミットを `.git`・`TW_COMMIT` から読む部品のテスト |
 | `cutin-style.test.js` | カットイン設定のテスト |
 | `dev-trigger.test.js` | 開発用トリガーのテスト |
+| `deploy-release.test.js` | 作り物の git リポジトリ・healthz・再起動命令で、本番投入の関門・台帳・応答確認と rollback の戻し先を確かめるテスト |
 | `env.test.js` | 環境判定のテスト |
 | `public-js.test.js` | 公開ウィジェットとダッシュボードの JavaScript が Chromium 103 で動く書き方か(ES2022 まで、新しすぎる関数と外部 CDN なし) |
 | `quiz.test.js` | クイズの出題・正解判定（番号・全角半角）・制限時間・問題集の順番と、HTTP 経由の出題とポイントの支払い（テスト送信では払わない） |
@@ -69,6 +73,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `gift-display.test.js` / `gift-names.test.js` / `obs-gift-names.test.js` | ギフト表示名と対応表のテスト |
 | `gifts.test.js` / `gift-sounds.test.js` | ギフト処理と音のテスト |
 | `history.test.js` / `history-test-send.test.js` | 履歴保存とテスト送信のテスト |
+| `quiet-hours.test.js` | 配信の静かな時間帯の計算と、読み取り専用道具の絞り込み・出力・無改変を確かめるテスト |
 | `effect-log.test.js` | 効果ログの匿名化と配信後レポートのテスト |
 | `session-details.test.js` | 配信ごとの1件ごとの記録(ギフト・フォロー・シェア・ルーレットの全件保存と読み出し)のテスト |
 | `widget-usage.test.js` | OBS ウィジェット利用時間の合計・判定・表示のテスト |
@@ -86,7 +91,15 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `hub-clients.test.js` | ハブが、つながっている画面の役目(obs)を答え、つながったことを知らせるか |
 | `preparation.test.js` | 配信準備の印を重複なく保存し、再起動後に読み戻せるか |
 | `roulette-actions.test.js` / `roulette-trigger.test.js` | ルーレット操作と起動のテスト |
+| `error-log.test.js` | エラー記録の形、伏せ字、1分に1行のまとめ、集計、fixed/regressed、0600、記録失敗で止まらないこと |
+| `error-fixes.test.js` | 直したエラーの印に必要な欄と同じ名前の再発防止テストがあること |
+| `error-admin-api.test.js` | 管理 API のエラー集計と fingerprint ごとの詳細 |
+| `errors-digest.test.js` | AI の共通の記憶へ載せるエラー要約の Markdown、60行、伏せ字 |
+| `widget-client-error.test.js` | 配信画面からの clientError の重複防止・10件上限とサーバー側の受け口 |
+| `error-recording-wiring.test.js` | console.warn/error の場所が JSONL のエラー記録にもつながっていること |
 | `hidden-limits.test.js` | 待ちを捨てるコードが README の「上限と飛ばすルール」に全部書いてあるか |
+| `tmp-cleanup.test.js` | 一時フォルダの前読み込みが、子プロセスで作ったフォルダだけを消し、`TW_KEEP_TEST_TMP=1` で残すこと、テストが捕まえられる import 形だけを使うことを確認する |
+| `health-watch.test.js` | 死活の見張りの通知、診断の束、状態ファイル、限定つき自動復帰を一時サーバーと偽コマンドで確かめる |
 | `gift-streaks.test.js` | 連打ギフトが途中で切れても数え落とさない・二重に数えないか |
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
@@ -102,8 +115,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 
 ## つながり
 
-テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
+テストは `npm test` で実行します。受け入れテストは一時ディレクトリと一時ポートを使い、本番の `config.yaml` や `data/` は使いません。`os.tmpdir()` の下に `mkdtemp` で作った一時フォルダは、テストプロセスが終わるときに自動で消えます。調べたいときは `TW_KEEP_TEST_TMP=1 npm test` のように付けると残ります。OBS連携だけは `node --test test/acceptance/obs.test.js` でも実行できます。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-27
 
 `roulette-art.test.js` はカジノ・柔道の画像と、3本スロットの筐体画像・設定を確かめます。

@@ -3,4 +3,11 @@ Description=tiktok-widget 死活の見張り（healthz を確認し、落ちて�
 
 [Service]
 Type=oneshot
+# 変数を入れる時は、このファイルを直さず drop-in に書く。ここには例だけを残し、値は入れない。
+# 例: Environment=TW_HEALTH_NOTIFY_CMD=<知らせる命令>
+# 例: Environment=TW_HEALTH_AUTORESTART=<1>
+# 例: Environment=TW_RESTART_CMD=<再起動の命令>
+# 例: Environment=TW_HEALTHZ_URL=<healthz の URL>
+# 例: Environment=TW_HEALTH_STATE_DIR=<状態の置き場>
+# 例: Environment=TW_APP_DIR=<アプリの置き場>
 ExecStart=/bin/bash /home/lul/tiktok-widget/scripts/health-watch.sh

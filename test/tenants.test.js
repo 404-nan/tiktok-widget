@@ -8,7 +8,7 @@ import { featureOfPage } from '../src/runtime.js';
 
 const setup = () => new Tenants({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-')) });
 
-test('配信者を追加すると、ダッシュボード用と OBS 用の鍵ができ、鍵から役割がわかる', () => {
+test('配信者を追加すると、ダッシュボード用と OBS 用の鍵ができ、鍵から役割がわかる', async () => {
   const t = setup();
   const a = t.create({ name: 'りん' });
   assert.notEqual(a.key, a.obsKey);
@@ -17,7 +17,7 @@ test('配信者を追加すると、ダッシュボード用と OBS 用の鍵が
   assert.equal(t.byKey('nope'), null);
   // 鍵を作り直すと古い URL は使えない
   const old = a.key;
-  t.rekey(a.id);
+  await t.rekey(a.id);
   assert.equal(t.byKey(old), null);
   // ファイルに残る
   const again = new Tenants({ dir: t.dir });

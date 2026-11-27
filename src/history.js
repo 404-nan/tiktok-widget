@@ -3,6 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { addCoins, coinCount, eventCoinTotal } from './gifts.js';
 import { isDevEnv } from './env.js';
@@ -33,16 +34,19 @@ const pad = (n) => String(n).padStart(2, '0');
 const stamp = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 
 class Session {
-  constructor({ username, demo, trackWidget, widgetConnected, now = Date.now }) {
+  constructor({ username, demo, trackWidget, widgetConnected, now = Date.now, monotonicNow = () => performance.now() }) {
     const startedAt = now();
     this.now = now;
+    this.monotonicNow = monotonicNow;
     this.id = `${stamp(new Date(startedAt))}-${(username || (demo ? 'demo' : 'live')).replace(/[^\w-]/g, '')}`;
     this.username = username;
     this.demo = demo;
     this.startedAt = startedAt;
+    this.startedMono = monotonicNow();
     this.endedAt = null;
+    this.endedMono = null;
     this.widgetMs = trackWidget ? 0 : null;
-    this.widgetSince = trackWidget && widgetConnected ? startedAt : null;
+    this.widgetSince = trackWidget && widgetConnected ? this.startedMono : null;
     this.obsConnects = trackWidget && widgetConnected ? 1 : 0;
     this.totals = { coins: 0, gifts: 0, likes: 0, follows: 0, shares: 0, comments: 0, peakViewers: 0 };
     this.timeline = []; // 1分ごと
@@ -56,7 +60,14 @@ class Session {
   }
 
   #minute(ts) {
-    const t = Math.max(0, Math.floor((ts - this.startedAt) / 60_000));
+    // 分の計算には壁時計ではなく単調な時計を使う。壁時計が直ったときに、
+    // 進んでいない数年分の空の分を作らないため。未来の時刻は届いた時点の分へ寄せる。
+    const monoNow = this.monotonicNow();
+    const wallTs = Number(ts);
+    const monoTs = Number.isFinite(wallTs)
+      ? Math.min(monoNow, monoNow + wallTs - this.now())
+      : monoNow;
+    const t = Math.max(0, Math.floor((monoTs - this.startedMono) / 60_000));
     while (this.timeline.length <= t) {
       const prev = this.timeline.at(-1);
       this.timeline.push({ t: this.timeline.length, coins: 0, gifts: 0, likes: 0, follows: 0, comments: 0, viewers: prev?.viewers ?? 0 });
@@ -65,7 +76,7 @@ class Session {
   }
 
   record(e) {
-    const m = this.#minute(e.ts ?? Date.now());
+    const m = this.#minute(e.ts);
     const T = this.totals;
     const user = e.user ?? {};
     const key = user.id || user.name;
@@ -135,9 +146,10 @@ class Session {
   }
 
   summary() {
-    const at = this.endedAt ?? this.now();
-    const durationMs = at - this.startedAt;
-    const widgetMs = this.widgetMilliseconds(at);
+    const atMono = this.endedMono ?? this.monotonicNow();
+    const durationMs = Math.max(0, Math.round(atMono - this.startedMono));
+    const widgetMsRaw = this.widgetMilliseconds(atMono);
+    const widgetMs = widgetMsRaw == null ? null : Math.max(0, Math.round(widgetMsRaw));
     return {
       id: this.id,
       username: this.username,
@@ -153,23 +165,23 @@ class Session {
     };
   }
 
-  setWidgetConnection(connected, at) {
+  setWidgetConnection(connected, atMono) {
     if (this.widgetMs == null) return;
     if (connected) {
       this.obsConnects += 1;
-      if (this.widgetSince == null) this.widgetSince = Math.max(this.startedAt, at);
+      if (this.widgetSince == null) this.widgetSince = Math.max(this.startedMono, atMono);
       return;
     }
     if (this.widgetSince != null) {
-      this.widgetMs += Math.max(0, at - this.widgetSince);
+      this.widgetMs += Math.max(0, atMono - this.widgetSince);
       this.widgetSince = null;
       this.dirty = true;
     }
   }
 
-  widgetMilliseconds(at) {
+  widgetMilliseconds(atMono) {
     if (this.widgetMs == null) return null;
-    return this.widgetMs + (this.widgetSince == null ? 0 : Math.max(0, at - this.widgetSince));
+    return this.widgetMs + (this.widgetSince == null ? 0 : Math.max(0, atMono - this.widgetSince));
   }
 
   toJSON() {
@@ -196,6 +208,7 @@ export class History {
     this.writeFile = options.writeFile ?? fs.writeFileSync;
     this.id = options.id ?? 'local';
     this.now = options.now ?? (() => Date.now());
+    this.monotonicNow = options.monotonicNow ?? (() => performance.now());
     this.effectLog = options.effectLog ?? new EffectLog(path.join(dir, 'effects'), { now: this.now, secret: options.effectSecret });
     this.details = options.details ?? new SessionDetails(path.join(dir, 'details'));
     this.current = null;
@@ -204,12 +217,12 @@ export class History {
     fs.mkdirSync(dir, { recursive: true });
     hub.on('status', (status) => this.#onStatus(status));
     hub.on('clientChange', ({ role, connected }) => {
-      if (role === 'obs' && this.current) this.current.setWidgetConnection(connected, this.now());
+      if (role === 'obs' && this.current) this.current.setWidgetConnection(connected, this.monotonicNow());
     });
     hub.on('event', (e) => {
       // 開発環境で配信前に押したテスト送信は、デモの配信として記録する
       if (isDevEnv() && e.test && !this.current) {
-        this.current = new Session({ username: null, demo: true });
+        this.current = new Session({ username: null, demo: true, now: this.now, monotonicNow: this.monotonicNow });
         this.effectLog.start(this.current.id, this.current.startedAt);
         this.details.start(this.current.id);
       }
@@ -230,7 +243,7 @@ export class History {
     });
     hub.on('roulette', (r) => {
       if (isDevEnv() && r?.trigger?.test && !this.current) {
-        this.current = new Session({ username: null, demo: true });
+        this.current = new Session({ username: null, demo: true, now: this.now, monotonicNow: this.monotonicNow });
         this.effectLog.start(this.current.id, this.current.startedAt);
         this.details.start(this.current.id);
       }
@@ -262,7 +275,7 @@ export class History {
       if (this.current && (this.current.demo !== demo || this.current.username !== username)) this.end();
       if (!this.current) {
         const widgetConnected = this.id !== 'local' && !demo && this.hub.hasClient('obs');
-        this.current = new Session({ username, demo, trackWidget: this.id !== 'local' && !demo, widgetConnected, now: this.now });
+        this.current = new Session({ username, demo, trackWidget: this.id !== 'local' && !demo, widgetConnected, now: this.now, monotonicNow: this.monotonicNow });
         this.effectLog.start(this.current.id, this.current.startedAt);
         this.details.start(this.current.id);
       }
@@ -311,8 +324,9 @@ export class History {
   end() {
     if (!this.current) return;
     this.current.endedAt = this.now();
+    this.current.endedMono = this.monotonicNow();
     this.lastSession = this.current;
-    this.current.setWidgetConnection(false, this.current.endedAt);
+    this.current.setWidgetConnection(false, this.current.endedMono);
     this.current.dirty = true;
     this.save();
     this.effectLog.end(this.current.endedAt);

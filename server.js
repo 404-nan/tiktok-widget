@@ -10,6 +10,7 @@ import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
+import { openTenantRevocations, TenantRevocationError } from './src/tenant-revocations.js';
 import { overlayMessageAllowed } from './src/billing.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
@@ -24,6 +25,9 @@ import { compactRequested } from './src/ws-mode.js';
 import { createAiMcpHandler } from './src/ai-mcp.js';
 import { healthz } from './src/healthz.js';
 import { collectWidgetUsage } from './src/widget-usage.js';
+import { PUBLIC_STATIC_OPTIONS, setNoCacheHeader } from './src/static-cache.js';
+import { createErrorLog, recordError, setActiveErrorLog } from './src/error-log.js';
+import { PRODUCT_VERSION } from './src/version.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(root, 'public');
@@ -39,7 +43,30 @@ function logWsRejected(reason) {
   if (now - (wsRejectionLoggedAt.get(reason) ?? -Infinity) < WS_REJECTION_LOG_INTERVAL_MS) return;
   wsRejectionLoggedAt.set(reason, now);
   console.log(`ws rejected: ${reason}`);
+  errorLog.record(new Error(`WebSocket の接続を断りました: ${reason}`), { kind: 'ws.reject', level: 'warn', context: { op: 'ws.upgrade' } });
 }
+
+// エラーは JSON Lines に残す。記録に失敗しても本体を止めない（src/error-log.js）。
+const errorLog = createErrorLog({
+  dir: process.env.TW_ERROR_DIR || path.join(DATA_DIR, 'errors'),
+  env: process.env.TW_ENV || 'prod',
+  version: PRODUCT_VERSION,
+});
+setActiveErrorLog(errorLog); // 深い部品はこの1本へ記録する
+
+// Node 25 の既定は uncaughtException と unhandledRejection の両方で致命的なエラーを出し、終了コード1で終わる。
+// 記録だけして生き続けず、同じ終わり方にする（systemd が起こし直す）。出力は既定より簡単だが、終了動作は変えない。
+process.on('uncaughtException', (err) => {
+  errorLog.record(err, { kind: 'process.uncaught', context: { op: 'process' } });
+  console.error(err?.stack ?? err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(reason && typeof reason === 'object' && reason.message ? String(reason.message) : String(reason ?? 'unhandled rejection'));
+  errorLog.record(err, { kind: 'process.rejection', context: { op: 'process' } });
+  console.error(err.stack ?? err);
+  process.exit(1);
+});
 
 // Cloudflare などで動かすとき（TW_VAULT あり）: data/ を置き場から戻してから始める
 const vault = process.env.TW_VAULT ? createVault({ url: process.env.TW_VAULT, dir: DATA_DIR }) : null;
@@ -56,7 +83,11 @@ const local = HOSTED
   : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes });
 
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants({ ai, notes });
+const revocations = await openTenantRevocations(DATA_DIR).catch((error) => {
+  recordError(error, { kind: 'tenant.revocations', context: { op: 'tenant.revocations.startup' } });
+  throw error;
+});
+const tenants = new Tenants({ ai, notes, revocations });
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
@@ -162,11 +193,11 @@ admin.post('/tenants', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.patch('/tenants/:id', (req, res) => {
+admin.patch('/tenants/:id', async (req, res) => {
   try {
-    res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
+    res.json({ ok: true, tenant: tenantView(req, await tenants.updateFromAdmin(req.params.id, req.body ?? {})) });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(err instanceof TenantRevocationError ? 503 : 404).json({ error: err.message });
   }
 });
 admin.patch('/tenants/:id/settings', (req, res) => {
@@ -181,26 +212,31 @@ admin.patch('/tenants/:id/settings', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.post('/tenants/:id/rekey', (req, res) => {
+admin.post('/tenants/:id/rekey', async (req, res) => {
   try {
-    const t = tenants.rekey(req.params.id, req.body?.which);
+    const t = await tenants.rekey(req.params.id, req.body?.which);
     tenants.close(t.id);
     res.json({ ok: true, tenant: tenantView(req, t) });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(err instanceof TenantRevocationError ? 503 : 404).json({ error: err.message });
   }
 });
 // 4桁の数字を作り直す（前の数字で覚えた端末は入れ直し）
-admin.post('/tenants/:id/repin', (req, res) => {
+admin.post('/tenants/:id/repin', async (req, res) => {
   try {
-    res.json({ ok: true, tenant: tenantView(req, tenants.repin(req.params.id)) });
+    res.json({ ok: true, tenant: tenantView(req, await tenants.repin(req.params.id)) });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(err instanceof TenantRevocationError ? 503 : 404).json({ error: err.message });
   }
 });
 admin.delete('/tenants/:id', async (req, res) => {
-  await tenants.remove(req.params.id);
-  res.json({ ok: true });
+  try {
+    await tenants.remove(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    if (!(err instanceof TenantRevocationError)) throw err;
+    res.status(503).json({ error: err.message });
+  }
 });
 // 使える / 使えない: { target: 配信者の id | 'global' | 'everyone', feature: 名前 | 'all' | 'premium', on: true | false | null（初めに戻す）, hours: 0（ずっと）| 時間 }
 admin.put('/access', (req, res) => {
@@ -342,6 +378,20 @@ const aiControl = createAiControl({
     return tenants.updateBilling(tenant, patch);
   },
 });
+admin.get('/errors', (req, res) => {
+  const ranges = { '24h': 24 * 3600_000, '7d': 7 * 24 * 3600_000, '30d': 30 * 24 * 3600_000 };
+  const range = ranges[req.query.range] ? req.query.range : '24h';
+  const rank = (status) => (status === 'regressed' ? 0 : status === 'open' ? 1 : 2);
+  const groups = errorLog.groups({ sinceMs: Date.now() - ranges[range] })
+    .sort((a, b) => (rank(a.status) - rank(b.status)) || (Date.parse(b.lastTs) - Date.parse(a.lastTs)));
+  res.json({ groups, total: groups.reduce((sum, group) => sum + group.count, 0), groupCount: groups.length, generatedAt: new Date().toISOString() });
+});
+admin.get('/errors/:fingerprint', (req, res) => {
+  const limit = Math.max(1, Number(req.query.limit) || 50);
+  const fingerprint = String(req.params.fingerprint ?? '');
+  const rows = errorLog.recent({ sinceMs: 0 }).filter((row) => row.fingerprint === fingerprint).slice(0, limit);
+  res.json({ rows });
+});
 aiControl.mountAdmin(admin);
 app.use('/admin/api', admin);
 
@@ -453,15 +503,20 @@ function widgetFolderAlias(req, _res, next) {
 }
 
 const lockedPage = path.join(PUBLIC, 'widgets', 'locked.html');
+function sendLockedPage(res) {
+  setNoCacheHeader(res);
+  return res.sendFile(lockedPage);
+}
 function billingAllows(fn, fallback) {
   try {
     return fn();
   } catch (err) {
     console.warn(`[billing] 判定に失敗したので通します: ${err?.message ?? err}`);
+    recordError(err, { kind: 'billing.check', level: 'warn', context: { op: 'billing.overlay' } });
     return fallback;
   }
 }
-const tenantStatic = express.static(PUBLIC);
+const tenantStatic = express.static(PUBLIC, PUBLIC_STATIC_OPTIONS);
 app.use('/t/:key', (req, res, next) => {
   const found = tenants.byKey(req.params.key);
   if (!found) return res.status(404).type('text/plain; charset=utf-8').send('この URL は使えません（管理者に確認してください）');
@@ -492,8 +547,8 @@ app.use('/t/:key', (req, res, next) => {
   // 停止中、またはプランに含まれないウィジェットは、何も出さないページにする（配信画面にエラーは出さない）
   const page = p.startsWith('/widgets/') ? p.slice('/widgets/'.length) : null;
   const feature = page && featureOfPage(page);
-  if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return res.sendFile(lockedPage);
-  if (feature && !tenants.entitled(tenant.id, feature)) return res.sendFile(lockedPage);
+  if (page && /\.html$/i.test(page) && billingAllows(() => tenants.billing.widgetBlocked(tenant.id, feature), false)) return sendLockedPage(res);
+  if (feature && !tenants.entitled(tenant.id, feature)) return sendLockedPage(res);
   const rt = tenants.runtime(tenant.id);
   widgetFolderAlias(req, res, () => tenantStatic(req, res, () => rt.router(req, res, next)));
 });
@@ -503,15 +558,24 @@ app.use('/t/:key', (req, res, next) => {
 if (local) {
   app.get('/', (_req, res) => res.redirect('/dashboard/'));
   app.use(widgetFolderAlias);
-  app.use(express.static(PUBLIC));
+  app.use(express.static(PUBLIC, PUBLIC_STATIC_OPTIONS));
   app.use(local.router);
 } else {
   app.get('/', (_req, res) => res.redirect('/admin/'));
-  app.use('/admin', express.static(path.join(PUBLIC, 'admin')));
-  app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'))); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
-  app.use('/widgets', (req, res, next) => { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { req.url = `/${m[1]}/index.html${q}`; } else { const j = /^\/([A-Za-z0-9_-]+)\.js$/.exec(req.path); if (j && fs.existsSync(widgetFolderJs(j[1]))) req.url = `/${j[1]}/${j[1]}.js${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets')));
-  app.use('/help', express.static(path.join(PUBLIC, 'help'))); // 配信者向け使い方（鍵なしで開ける）
+  app.use('/admin', express.static(path.join(PUBLIC, 'admin'), PUBLIC_STATIC_OPTIONS));
+  app.use('/dashboard', express.static(path.join(PUBLIC, 'dashboard'), PUBLIC_STATIC_OPTIONS)); // 共通の CSS・部品だけ（API は /t/<鍵>/ の下）
+  app.use('/widgets', (req, res, next) => { const q = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''; const m = /^\/([A-Za-z0-9_-]+)\.html$/.exec(req.path); if (m && fs.existsSync(widgetFolderFile(m[1]))) { req.url = `/${m[1]}/index.html${q}`; } else { const j = /^\/([A-Za-z0-9_-]+)\.js$/.exec(req.path); if (j && fs.existsSync(widgetFolderJs(j[1]))) req.url = `/${j[1]}/${j[1]}.js${q}`; } next(); }, express.static(path.join(PUBLIC, 'widgets'), PUBLIC_STATIC_OPTIONS));
+  app.use('/help', express.static(path.join(PUBLIC, 'help'), PUBLIC_STATIC_OPTIONS)); // 配信者向け使い方（鍵なしで開ける）
 }
+
+// Express のエラーは記録してから、今までどおり Express 既定の応答に任せる。
+app.use((err, req, res, next) => {
+  errorLog.record(err, {
+    kind: 'http.handler',
+    context: { tenant: req.tenant?.id, route: `${req.method} ${req.baseUrl || ''}${req.path || ''}` },
+  });
+  next(err);
+});
 
 // --- WebSocket（ウィジェットへの配信） ---
 
@@ -559,6 +623,23 @@ server.on('upgrade', (req, socket, head) => {
     const keyRole = role === 'preview' ? 'obs' : role;
     ws.quiet = keyRole === 'obs' && overlayBlocked();
     ws.allowMessage = (msg) => overlayMessageAllowed({ role: keyRole, blocked: overlayBlocked(), type: msg?.type });
+    ws.on('message', (raw) => {
+      // 画面から来る文字は信じない。OBS 用の鍵の接続だけ、長さを切って記録する。
+      if (role !== 'obs') return;
+      let msg;
+      try { msg = JSON.parse(String(raw)); } catch { return; }
+      if (msg?.type !== 'clientError') return;
+      const cut = (value, length) => String(value ?? '').slice(0, length);
+      const widget = cut(msg.widget, 200) || 'widget';
+      const message = cut(msg.message, 300) || 'unknown error';
+      const source = cut(msg.source, 200);
+      const line = Number.isFinite(Number(msg.line)) ? Number(msg.line) : null;
+      errorLog.record(new Error(message), {
+        kind: 'widget.client',
+        where: { file: source || 'widget', fn: widget, line },
+        context: { tenant: tenantId, widget },
+      });
+    });
     rt.hub.addClient(ws);
   });
 });
@@ -587,6 +668,9 @@ server.listen(PORT, HOST, () => {
     local.demo.start();
     local.hub.setStatus({ mode: 'demo', message: 'デモモードでイベントを流しています' });
   } else if (process.env.TIKTOK_USERNAME) {
-    local.tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => console.warn(`[tiktok] ${err.message}`));
+    local.tiktok.connect(process.env.TIKTOK_USERNAME).catch((err) => {
+      console.warn(`[tiktok] ${err.message}`);
+      recordError(err, { kind: 'tiktok.connect', level: 'warn', context: { op: 'tiktok.connect.env' } });
+    });
   }
 });

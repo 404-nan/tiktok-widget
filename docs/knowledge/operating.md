@@ -28,9 +28,9 @@
 
 ## エージェント用の MCP(LuLServer)
 
-- LuLServer の Claude Code と Codex には `tiktok-widget-dev` が登録してある。中身は `~/.local/bin/tw-dev-mcp` で、`TW_SERVER=http://127.0.0.1:3940`(開発サーバー)に固定し、リモートモード(`/ai/v1`)で動く。
+- LuLServer の Claude Code と Codex には `tiktok-widget-dev` が登録してある。中身は `~/.local/bin/tw-dev-mcp` で、`TW_SERVER=http://127.0.0.1:3940`(開発サーバー)に固定し、リモートモード(`/ai/v1`)で動く。ただし開発サーバー 3940 は止まっていると記録されている（2026-11-27 の棚卸し）。再開するまでは専用の一時サーバーで確かめる。
 - トークンは `~/.config/tiktok-widget/dev-agent.env` に置く(開発の管理画面で、テスト用の配信者に発行したもの。権限 600)。無ければ起動せずに理由を出す。
-- 開発サーバーは `~/tiktok-widget-wt/dev`(本体のブランチの最新を detached で置いた worktree)から動く。データは `~/tiktok-widget-dev-data` で、本番とは別。
+- 開発サーバーは `~/tiktok-widget-wt/dev`(本体のブランチの最新を detached で置いた worktree)から動く。データは `~/tiktok-widget-dev-data` で、本番とは別。今は止まっていると記録されている（2026-11-27 の棚卸し）。
 
 ## 接続先と安全柵
 

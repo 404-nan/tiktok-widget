@@ -62,6 +62,7 @@ test('コイン合計・コイン/時・ランキングは、diamondCount が un
     assert.equal(Number.isNaN(minute.coins), false);
   }
   session.endedAt = session.startedAt + 3_600_000;
+  session.endedMono = session.startedMono + 3_600_000;
   const saved = session.toJSON();
   for (const row of saved.gifters) {
     assert.equal(Number.isFinite(row.coins), true, row.name);
