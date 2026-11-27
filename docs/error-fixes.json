@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "364e04b76a10",
+      "summary": "deploy/standby/standby.sh は昇格失敗後に復元データが期限切れになると再同期できなかった。未公開を確認した場合だけ復元データを退避し、再同期を許可する。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "未公開の切替データは退避して取り直せるが公開済みなら触らない" }
+    },
+    {
       "fingerprint": "37f413410657",
       "summary": "deploy/standby/setup.sh は失効台帳の設定パスを変更しても古い環境の本体を再利用した。読めないファイルは起動前に拒否し、パス変更時は本体を起動し直す。",
       "fixedIn": "PR #23",

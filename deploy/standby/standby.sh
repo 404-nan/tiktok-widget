@@ -112,6 +112,25 @@ watch_standby() {
   return "$result"
 }
 
+rearm() {
+  step=preflight
+  [[ $# == 1 && ${1:-} == --standby-unused ]] ||
+    fail '待機機が公開されず、本番の書き込みも受けていないことを確認してから --standby-unused を指定してください。'
+  [[ -f $base/promoted && -f $base/run.sh ]] || fail '退避する切替データがありません。'
+  local route archive entry
+  route=$(CF_API_TOKEN=$cf_token node "$here/standby-route.mjs" dns-target) ||
+    fail '現在の公開先を確認できません。'
+  [[ $route == primary ]] || fail '公開先が旧本番ではないため、待機機のデータは退避しません。'
+  step=stop
+  bash "$base/run.sh" stop 8>&- || fail '待機機を停止できません。データは退避しません。'
+  step=archive
+  archive=$(mktemp -d "$base/aborted.XXXXXXXX")
+  for entry in data config.yaml promoted; do
+    if [[ -e $base/$entry || -L $base/$entry ]]; then mv -T -- "$base/$entry" "$archive/$entry"; fi
+  done
+  log "未公開の切替データを $archive に退避しました。sync で取り直してください。"
+}
+
 promote() {
   step=fence
   [[ ${1:-} == --primary-fenced && $# == 1 ]] ||
@@ -147,7 +166,7 @@ promote() {
   if [[ $route == primary ]]; then
     step=freshness
     node "$here/standby-route.mjs" snapshot-age "$snapshot_timestamp" >/dev/null ||
-      fail '切替前の同期データが古いか、同期日時が不明です。'
+      fail '切替前の同期データが古いか、同期日時が不明です。未公開で本番の書き込みを受けていなければ rearm --standby-unused の後に sync を実行してください。'
   fi
   step=activate
   TUNNEL_TOKEN=$tunnel_token STANDBY_EXPECT_COMMIT=$expected_commit bash "$here/setup.sh" activate 8>&- ||
@@ -166,6 +185,7 @@ case $action in
     [[ -f $base/app/src/tenant-revocations.js ]] || fail '指定の版は失効台帳に対応していません。'
     ;;
   sync) sync_snapshot ;;
+  rearm) shift; rearm "$@" ;;
   watch) watch_standby ;;
   status)
     step=status
@@ -173,5 +193,5 @@ case $action in
     else snapshot_info; printf 'role=standby snapshot_age_seconds=%s commit=%s\n' "$snapshot_age" "$snapshot_commit"; fi
     ;;
   promote) shift; promote "$@" ;;
-  *) step=usage; fail '使い方: standby.sh [prepare|sync|watch|status|promote --primary-fenced]' ;;
+  *) step=usage; fail '使い方: standby.sh [prepare|sync|watch|status|promote --primary-fenced|rearm --standby-unused]' ;;
 esac

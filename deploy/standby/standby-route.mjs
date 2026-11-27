@@ -151,7 +151,12 @@ export function createRoute({ env = process.env, request = fetch, pause = delay 
     }
   }
 
-  return { health, preflight, switchRoute, checkOrigin: (marker) => checkOrigin(host, marker) };
+  async function dnsTarget() {
+    const cfg = routeConfig();
+    return (await dnsRecord(cfg)) === cfg.main ? 'primary' : 'standby';
+  }
+
+  return { health, preflight, switchRoute, dnsTarget, checkOrigin: (marker) => checkOrigin(host, marker) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -161,6 +166,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (command === 'validate') await validateSnapshot(arg, { requireRevocations: timestamp === '--require-revocations' });
     else if (command === 'health') await route.health();
     else if (command === 'preflight') console.log(await route.preflight());
+    else if (command === 'dns-target') console.log(await route.dnsTarget());
     else if (command === 'switch') await route.switchRoute(arg, timestamp);
     else if (command === 'snapshot-age') console.log(snapshotAge(arg, process.env));
     else if (command === 'origin') await route.checkOrigin(arg);

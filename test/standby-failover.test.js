@@ -150,7 +150,8 @@ test('初回以降も同期し、壊れた同期と古いデータで待機機�
         return new Response('unavailable', { status: 530, headers: { 'cf-ray': 'fixture' } });
       }
       return Response.json({ success: true, result: {
-        name: PUBLIC_HOST, id: CF_DNS_RECORD_ID, type: 'CNAME', proxied: true, content: '${tunnel(primary)}'
+        name: PUBLIC_HOST, id: CF_DNS_RECORD_ID, type: 'CNAME', proxied: true,
+        content: process.env.FIXTURE_TARGET === 'standby' ? '${tunnel(standby)}' : '${tunnel(primary)}'
       } });
     };
   `);
@@ -190,4 +191,24 @@ test('初回以降も同期し、壊れた同期と古いデータで待機機�
   verify(['promote'], 1);
   write(files('promoted'), `${marker} ${commit}\n`);
   assert.match(verify(['sync'], 0, { FIXTURE_TRANSFER_FAIL: '1' }), /旧本番からは同期しません/);
+  await t.test('未公開の切替データは退避して取り直せるが公開済みなら触らない', () => {
+    fs.mkdirSync(files('data'));
+    write(files('data/gift-log.txt'), 'preserve me');
+    write(files('config.yaml'), 'original: true');
+    write(files('run.sh'), '#!/bin/bash\n[[ $1 == stop ]] && touch "$STANDBY_DIR/stopped"\n');
+    verify(['rearm'], 1);
+    verify(['rearm', '--standby-unused'], 1, { FIXTURE_TARGET: 'standby' });
+    assert.ok(!fs.existsSync(files('stopped')));
+    assert.equal(fs.readFileSync(files('data/gift-log.txt'), 'utf8'), 'preserve me');
+    assert.match(verify(['rearm', '--standby-unused']), /取り直してください/);
+    assert.ok(fs.existsSync(files('stopped')));
+    assert.ok(!fs.existsSync(files('promoted')));
+    const archive = fs.readdirSync(base).find((name) => name.startsWith('aborted.'));
+    assert.equal(fs.readFileSync(files(archive, 'data/gift-log.txt'), 'utf8'), 'preserve me');
+    assert.equal(fs.readFileSync(files(archive, 'config.yaml'), 'utf8'), 'original: true');
+    write(sourceData('gift-log.txt'), 'fresh after failed cutover');
+    verify(['sync']);
+    verify(['status']);
+    assert.equal(fs.readFileSync(files('current/data/gift-log.txt'), 'utf8'), 'fresh after failed cutover');
+  });
 });
