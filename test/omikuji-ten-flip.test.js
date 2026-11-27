@@ -130,5 +130,9 @@ test('舞台側の決まり：横4:縦3と回転の動き、大吉だけ長く�
   assert.match(html, /\.stage\[data-ten="flip"\] \.ten \{ inset: 54px 10px 10px;/);
   // 大吉の札だけ：返る動きが通常（.55s）より長く、金の光の明滅が付く
   assert.match(html, /\.stage\[data-ten="flip"\] \.ten-slip\[data-tier="daikichi"\] \.flip \{ animation-duration: 1\.15s; \}/);
-  assert.match(html, /@keyframes tenglow/);
+  assert.match(html, /\.stage\[data-ten="flip"\] \.ten-slip\[data-tier="daikichi"\] \.face\.front \{ animation: tenglow 1\.6s ease-in-out infinite alternate; \}/);
+  assert.match(html, /@keyframes tenglow \{ from \{ box-shadow: 0 8px 18px rgba\(0, 0, 0, \.34\), 0 0 14px rgba\(255, 196, 0, \.35\); \} to \{ box-shadow: 0 8px 18px rgba\(0, 0, 0, \.34\), 0 0 34px rgba\(255, 196, 0, \.75\); \} \}/);
+  // 画面と説明を同じ形に保つ（2026-11-25 に本番ファイルでだけ消された分）
+  const widgetsReadme = read('public/widgets/README.md');
+  assert.match(widgetsReadme, /大吉の札だけ、返る動きと金の光を長くして見せる/);
 });
