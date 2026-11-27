@@ -27,6 +27,12 @@ function renderStatus(status) {
 function setMessage(text, isError = false) {
   $('message').textContent = text;
   $('message').classList.toggle('error', isError);
+  const toast = $('toast');
+  if (isError && text && toast && $('message').offsetParent === null) {
+    toast.textContent = text;
+    clearTimeout(setMessage.toastTimer);
+    setMessage.toastTimer = setTimeout(() => { if (toast.textContent === text) toast.textContent = ''; }, 5000);
+  }
 }
 
 async function setupConnect() {
