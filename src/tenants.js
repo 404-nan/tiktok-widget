@@ -1,7 +1,8 @@
 // 契約している配信者の一覧（data/tenants.json）と、ウィジェットごとの「使える / 使えない」。
 // 配信者ごとに、ダッシュボード用の鍵（key）と OBS 用の鍵（obsKey）を持つ。URL は /t/<鍵>/...
 // ウィジェットは、配信者ごと・全員まとめて、ON / OFF を「ずっと」か「○時間だけ」で決められる（管理画面 /admin）。
-// 期限が切れたら、初めの状態（豪華な演出は使えない、ほかは使える）に戻る。
+// 期限が切れたら、プランの既定か初めの状態（豪華な演出は使えない、ほかは使える）に戻る。
+// プランの既定は billing.js（src/plans.json）が答える。手動の ON / OFF はいつもプランより強い。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { createStore } from './config.js';
 import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
+import { EDIT_CAPABILITIES } from './runtime-features.js';
 import { RentalState, rentalForHandle } from './rental.js';
 import { BillingStore } from './billing.js';
 import { IngestKeyStore } from './ingest-keys.js';
@@ -283,8 +285,9 @@ export class Tenants {
   // --- 使える / 使えない ---
 
   /**
-   * そのウィジェット・演出の今の状態。配信者ごとの設定 → 全員の設定 → 初めの状態 の順に見る。
-   * { on, until（いつまでか。null はずっと）, source: 'own' | 'everyone' | 'default' }
+   * そのウィジェット・演出の今の状態。配信者ごとの設定 → 全員の設定 → プランの既定 → 初めの状態 の順に見る。
+   * プランの既定は、プランで分ける機能（豪華な演出と AI）だけ。確認スイッチがオンのときと、Pro を入れた人に効く。
+   * { on, until（いつまでか。null はずっと）, source: 'own' | 'everyone' | 'plan' | 'default' }
    */
   access(id, feature, now = Date.now()) {
     const def = FEATURES[feature];
@@ -292,7 +295,25 @@ export class Tenants {
     const all = this.data.global.access?.[feature];
     if (live(own, now)) return { on: own.on, until: own.until ?? null, source: 'own' };
     if (live(all, now)) return { on: all.on, until: all.until ?? null, source: 'everyone' };
+    if (def?.premium && this.get(id)) {
+      const byPlan = this.billing.planFeatureDefault(id, feature, now);
+      if (byPlan != null) return { on: byPlan, until: null, source: 'plan' };
+    }
     return { on: def ? !def.premium : true, until: null, source: 'default' };
+  }
+
+  /**
+   * 編集の操作（edit.media・edit.layout など）ができるか。確認スイッチがオフ（初期値）ならいつもできる。
+   * 手で開け閉めできる機能とつながった操作（edit.ai と「AI にたのむ」）は、手動の ON / OFF がプランより強い。
+   */
+  editAllowed(id, capability) {
+    if (!this.get(id)) return false;
+    const linked = EDIT_CAPABILITIES[capability]?.feature;
+    if (linked) {
+      const state = this.access(id, linked);
+      if (state.source === 'own' || state.source === 'everyone') return state.on;
+    }
+    return this.billing.isCapabilityAllowed(id, capability);
   }
 
   /** 使えるか（知らない名前は使える） */
@@ -516,6 +537,7 @@ export class Tenants {
       dataDir: dir,
       mediaDirs: [path.join(dir, 'media'), MEDIA_DIR],
       entitled: (f) => this.entitled(id, f),
+      editAllowed: (capability) => this.editAllowed(id, capability),
       info: () => this.info(id),
       setWidgets: (list) => this.update(id, { widgets: list }),
       setTemplate: (template) => this.setTemplate(id, template),

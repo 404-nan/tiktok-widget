@@ -2,7 +2,8 @@
 // 確認スイッチ（enforcement）は全体の非常停止。
 // オフ（初期値・未設定）: 状態や日付に関係なく、配信画面・新しい接続・機能・ウィジェットは全部許可する。停止と書いてあっても止めない。
 // オン: 停止（手で止めた、または支払い待ちが7日を過ぎた）のとき、新しい接続を始めず配信画面を出さない。配信中の接続は切らない。
-// 5000円プランだけの機能を限るのも、スイッチがオンのときだけ。
+// いちばん上のプラン（Pro）だけの機能を限るのも、スイッチがオンのときだけ。
+// プランの名前・値段・使える機能は src/plans.json（src/plans.js）だけで決める。昔の名前（pct5・flat2000・flat5000）もそのまま読める。
 // 状態の計算、管理画面の表示、有料化のお知らせ、支払い待ちの案内は、スイッチがオフでも今までどおり出す。
 // 支払いファイルが壊れていてスイッチがオンのときだけ止める。ファイルが無いときと、判定が例外のときは通す。
 import fs from 'node:fs';
@@ -10,23 +11,13 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { isDevEnv } from './env.js';
 import { recordError } from './error-log.js';
+import {
+  describeStoredPlan, normalizePlanId, planAllowsCapability, planAllowsFeature, planTimings, selectablePlans, storedPlanId, topPlanId,
+} from './plans.js';
 
-export const PLANS = [
-  { id: 'pct5', label: '5%プラン', price: null },
-  { id: 'flat2000', label: '2000円プラン', price: 2000 },
-  { id: 'flat5000', label: '5000円プラン', price: 5000 },
-];
-// 以前の保存名。読み込みでは新しい名前と同じものとして扱う（ファイルは読み込みでは書き換えない）
-const PLAN_ALIAS = {
-  pct5: 'pct5',
-  percent5: 'pct5',
-  flat2000: 'flat2000',
-  yen2000: 'flat2000',
-  flat5000: 'flat5000',
-  yen5000: 'flat5000',
-};
 const STATUS_IDS = new Set(['trial', 'active', 'past_due', 'suspended']);
-export const GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const GRACE_MS = planTimings().graceDays * DAY_MS;
 export const TRIAL_NOTICE_MS = 30 * 24 * 60 * 60 * 1000;
 export const STATUS_LABEL = {
   trial: 'お試し',
@@ -39,7 +30,7 @@ export const STATUS_LABEL = {
 const HISTORY_FIELDS = ['status', 'trialEndsAt', 'paidUntil', 'plan', 'note'];
 const DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 
-// 5000円プランだけにできる機能。管理画面の名前と、短い別名の両方を受ける
+// 管理画面で「いちばん上のプランだけ」にできる機能。管理画面の名前と、短い別名の両方を受ける
 const FLAG_GROUPS = [
   ['bosses', 'boss'],
   ['gacha'],
@@ -52,9 +43,14 @@ const FLAG_GROUPS = [
 ];
 const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
 
+/** 保存する名前にそろえる（yen5000 → flat5000、pro → pro）。知らない名前は null */
 export function canonicalPlan(value) {
-  const id = PLAN_ALIAS[String(value ?? '').trim()];
-  return id ?? null;
+  return storedPlanId(value);
+}
+
+/** 判定に使うプラン（free / plus / pro）。flat5000 は pro、flat2000 と pct5 は plus */
+export function catalogPlan(value) {
+  return normalizePlanId(value);
 }
 
 export function canonicalStatus(value) {
@@ -62,7 +58,7 @@ export function canonicalStatus(value) {
   return STATUS_IDS.has(status) ? status : null;
 }
 
-const planOf = (id) => PLANS.find((p) => p.id === canonicalPlan(id)) ?? null;
+const planOf = (id) => describeStoredPlan(id);
 
 /** 判定が落ちたら止めない。ログだけ残す */
 export function safely(label, fn, fallback) {
@@ -75,7 +71,7 @@ export function safely(label, fn, fallback) {
   }
 }
 
-/** 環境変数と管理画面のどちらで、5000円プランだけの機能を限るか */
+/** 環境変数と管理画面のどちらで、プランによる制限（停止・Pro だけの機能・編集の操作）を効かせるか */
 export function enforcementOn({ setting = null, env = process.env } = {}) {
   if (setting === true || setting === 'on') return true;
   if (setting === false || setting === 'off') return false;
@@ -165,14 +161,14 @@ function graceUntilDay(entry, now = Date.now()) {
   return DAY_FMT.format(new Date(since + GRACE_MS));
 }
 
-/** 紹介や割引に使う月額（円）。手入力がプランの金額より優先。5%プランは手入力が無いと 0 */
+/** 紹介や割引に使う月額（円）。手入力がプランの金額より優先。5%プランは手入力が無いと 0（昔のプランは昔の値段のまま） */
 export function monthlyPriceYen(entry) {
   if (!entry) return 0;
   if (entry.monthlyPrice != null && entry.monthlyPrice !== '') {
     const n = Number(entry.monthlyPrice);
     if (Number.isFinite(n) && n >= 0) return Math.round(n);
   }
-  return planOf(entry.plan)?.price ?? 0;
+  return planOf(entry.plan)?.priceYen ?? 0;
 }
 
 export function referralCreditYen(monthlyPrice, multiplier = 1.5) {
@@ -234,7 +230,8 @@ export function isPremiumOnly(feature, premiumFeatures = []) {
 
 /**
  * 機能を配信画面に出してよいか。オフ（初期値）のときは状態に関係なく許可。
- * オンで停止のときは、どの機能も出さない。5000円プランだけの機能は、オンのときだけ限る。
+ * オンで停止のときは、どの機能も出さない。管理画面で選んだ「いちばん上のプランだけ」の機能は、オンのときだけ限る。
+ * プランが無い記録は限らない（お試しのまま使っている人を止めない）。
  */
 export function allowsFeature(entry, feature, { enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
   return safely('機能の判定', () => {
@@ -242,7 +239,38 @@ export function allowsFeature(entry, feature, { enforcement = false, premiumFeat
     if (computeStatus(entry, now) === 'suspended') return false;
     if (!isPremiumOnly(feature, premiumFeatures)) return true;
     if (!entry?.plan) return true;
-    return canonicalPlan(entry.plan) === 'flat5000';
+    return catalogPlan(entry.plan) === topPlanId();
+  }, true);
+}
+
+/**
+ * プランの既定で機能を開くか。答えないときは null（手動の設定も無ければ、初めの状態になる）。
+ * スイッチがオンなら記録のプランと管理画面の「最上位プラン限定」設定（premiumFeatures）・停止状態に合わせて答える。
+ * オフでも、いちばん上のプラン（Pro）を入れた人には開く（Pro を払ったのに管理者が手で開けるまで豪華な演出が使えなかったため）。
+ */
+export function planFeatureDefault(entry, feature, { enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
+  return safely('プランの既定の判定', () => {
+    const plan = catalogPlan(entry?.plan);
+    if (!plan) return null;
+    if (!enforcement && plan !== topPlanId()) return null;
+    if (enforcement) {
+      if (computeStatus(entry, now) === 'suspended') return false;
+      if (isPremiumOnly(feature, premiumFeatures) && plan !== topPlanId()) return false;
+    }
+    return planAllowsFeature(plan, feature);
+  }, null);
+}
+
+/**
+ * 編集の操作（edit.media など）ができるか。オフ（初期値）のときはいつもできる。
+ * オンのときは記録のプランで決める。プランが無い記録は限らない（allowsFeature と同じ）。停止中はできない。
+ */
+export function allowsCapability(entry, capability, { enforcement = false, now = Date.now() } = {}) {
+  return safely('編集の操作の判定', () => {
+    if (!enforcement) return true;
+    if (computeStatus(entry, now) === 'suspended') return false;
+    if (!entry?.plan) return true;
+    return planAllowsCapability(catalogPlan(entry.plan), capability);
   }, true);
 }
 
@@ -353,7 +381,7 @@ export class BillingStore {
       effective: this.enforcement(),
       multiplier: this.data.multiplier === 2 ? 2 : 1.5,
       premiumFeatures: [...this.data.premiumFeatures],
-      plans: PLANS.map((p) => ({ ...p })),
+      plans: selectablePlans(),
     };
   }
 
@@ -364,6 +392,7 @@ export class BillingStore {
     return {
       plan: canonicalPlan(entry.plan),
       planLabel: plan?.label ?? '',
+      catalogPlan: catalogPlan(entry.plan),
       free: entry.free === true,
       paidUntil: typeof entry.paidUntil === 'string' ? entry.paidUntil : '',
       trialEndsAt: typeof entry.trialEndsAt === 'string' ? entry.trialEndsAt : '',
@@ -399,6 +428,7 @@ export class BillingStore {
         statusLabel: STATUS_LABEL[status] ?? '',
         plan: canonicalPlan(entry?.plan),
         planLabel: plan?.label ?? '',
+        catalogPlan: catalogPlan(entry?.plan),
         paidUntil: typeof entry?.paidUntil === 'string' ? entry.paidUntil : '',
         trialEndsAt: typeof entry?.trialEndsAt === 'string' ? entry.trialEndsAt : '',
         note: typeof entry?.note === 'string' ? entry.note : '',
@@ -416,6 +446,7 @@ export class BillingStore {
       statusLabel: STATUS_LABEL.trial,
       plan: null,
       planLabel: '',
+      catalogPlan: null,
       paidUntil: '',
       trialEndsAt: '',
       note: '',
@@ -457,6 +488,23 @@ export class BillingStore {
         premiumFeatures: this.data.premiumFeatures,
         now,
       });
+    }, true);
+  }
+
+  /** プランの既定（true / false）。答えないときは null。スイッチがオフでも Pro には答える */
+  planFeatureDefault(id, feature, now = Date.now()) {
+    return planFeatureDefault(this.account(id), feature, {
+      enforcement: this.enforcement(),
+      premiumFeatures: this.data.premiumFeatures,
+      now,
+    });
+  }
+
+  /** 編集の操作ができるか。スイッチがオンでファイルが壊れているときは、中身が読めないのでできない */
+  isCapabilityAllowed(id, capability, now = Date.now()) {
+    return safely('編集の操作の判定', () => {
+      if (this.#stoppedByFile()) return false;
+      return allowsCapability(this.account(id), capability, { enforcement: this.enforcement(), now });
     }, true);
   }
 
@@ -510,7 +558,7 @@ export class BillingStore {
       if (patch.plan == null || patch.plan === '') delete cur.plan;
       else {
         const plan = canonicalPlan(patch.plan);
-        if (!plan) throw new Error('プランは 5%プラン、2000円プラン、5000円プラン のどれかです');
+        if (!plan) throw new Error(`プランは ${selectablePlans().map((p) => p.label).join('、')} のどれかです`);
         cur.plan = plan;
       }
     }

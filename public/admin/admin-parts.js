@@ -97,7 +97,7 @@ export function accessRow(key, st, apply, { where = 'tenant', note = '' } = {}) 
   let detail = '';
   if (st) {
     if (own(st, where)) detail = st.until ? `${left(st.until)}で戻る` : where === 'tenant' ? 'この人だけ' : '全員';
-    else detail = st.source === 'everyone' ? '全員の設定' : '初め';
+    else detail = st.source === 'everyone' ? '全員の設定' : st.source === 'plan' ? 'プラン' : '初め';
   }
   const label = el(
     'div',
