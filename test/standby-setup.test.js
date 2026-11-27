@@ -3,38 +3,38 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const setup = path.resolve(import.meta.dirname, '../deploy/standby/setup.sh');
 
 test('一時起動は初回だけ復元し、再実行・再起動・停止でデータを失わない', async (t) => {
-  const root = mkdtempSync(path.join(tmpdir(), 'tw-standby-'));
+  const root = fs.mkdtempSync(path.join(tmpdir(), 'tw-standby-'));
   const app = path.join(root, 'source');
   const standby = path.join(root, 'standby');
   const bin = path.join(root, '.local', 'bin');
   const backup = path.join(root, 'backup.tar.gz');
   const run = (cmd, args, options) => execFileSync(cmd, args, { encoding: 'utf8', ...options });
-  const read = (file) => readFileSync(path.join(standby, file), 'utf8').trim();
+  const read = (file) => fs.readFileSync(path.join(standby, file), 'utf8').trim();
   const listen = createServer();
   await new Promise((resolve) => listen.listen(0, '127.0.0.1', resolve));
   const port = String(listen.address().port);
   await new Promise((resolve) => listen.close(resolve));
-  mkdirSync(app);
-  mkdirSync(bin, { recursive: true });
-  mkdirSync(path.join(root, 'backup', 'data'), { recursive: true });
-  writeFileSync(path.join(root, 'backup', 'data', 'admin-token.txt'), 'restored-fixture\n');
-  writeFileSync(path.join(root, 'backup', 'config.yaml'), 'restored: true\n');
+  fs.mkdirSync(app);
+  fs.mkdirSync(bin, { recursive: true });
+  fs.mkdirSync(path.join(root, 'backup', 'data'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'backup', 'data', 'admin-token.txt'), 'restored-fixture\n');
+  fs.writeFileSync(path.join(root, 'backup', 'config.yaml'), 'restored: true\n');
   run('tar', ['-czf', backup, '-C', path.join(root, 'backup'), 'data', 'config.yaml']);
 
-  writeFileSync(path.join(bin, 'npm'), '#!/bin/bash\nmkdir -p node_modules\n', { mode: 0o700 });
-  writeFileSync(path.join(bin, 'cloudflared'), `#!/bin/bash
+  fs.writeFileSync(path.join(bin, 'npm'), '#!/bin/bash\nmkdir -p node_modules\n', { mode: 0o700 });
+  fs.writeFileSync(path.join(bin, 'cloudflared'), `#!/bin/bash
 printf 'https://fixture.trycloudflare.com\\n'
 exec sleep 120
 `, { mode: 0o700 });
   const realCurl = run('sh', ['-c', 'command -v curl']).trim();
-  writeFileSync(path.join(bin, 'curl'), `#!/bin/bash
+  fs.writeFileSync(path.join(bin, 'curl'), `#!/bin/bash
 args=()
 for arg in "$@"; do
   if [[ $arg == https://fixture.trycloudflare.com/healthz ]]; then
@@ -46,7 +46,7 @@ for arg in "$@"; do
 done
 exec "${realCurl}" "\${args[@]}"
 `, { mode: 0o700 });
-  writeFileSync(path.join(app, 'server.js'), `
+  fs.writeFileSync(path.join(app, 'server.js'), `
 const { writeFileSync } = require('node:fs');
 const { createServer } = require('node:http');
 if (process.env.TW_HOSTED !== '1' || process.env.HOST !== '127.0.0.1') process.exit(1);
@@ -69,13 +69,13 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
     { env: { ...env, ...data }, timeout: 15_000 });
   const stop = (dir) => {
     const runner = path.join(dir, 'run.sh');
-    if (existsSync(runner)) run('bash', [runner, 'stop'], { env, timeout: 12_000 });
+    if (fs.existsSync(runner)) run('bash', [runner, 'stop'], { env, timeout: 12_000 });
   };
   const remote = path.join(root, 'remote');
   t.after(() => {
     stop(standby);
     stop(remote);
-    rmSync(root, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   });
   const output = start({ DATA_TARBALL: backup });
   assert.match(output, /公開 URL: https:\/\/fixture\.trycloudflare\.com/);
@@ -99,5 +99,5 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
   await assert.rejects(fetch(`http://127.0.0.1:${port}/healthz`));
   assert.equal(read('data/admin-token.txt'), 'restored-fixture');
   assert.match(start({ STANDBY_DIR: remote, DATA_URL: 'https://fixture.invalid/backup.tar.gz' }), /公開 URL:/);
-  assert.equal(readFileSync(path.join(remote, 'data', 'admin-token.txt'), 'utf8').trim(), 'restored-fixture');
+  assert.equal(fs.readFileSync(path.join(remote, 'data', 'admin-token.txt'), 'utf8').trim(), 'restored-fixture');
 });
