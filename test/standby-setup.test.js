@@ -141,7 +141,7 @@ import('./src/tenant-revocations.js').then(async ({ openTenantRevocations }) => 
     assert.equal(fs.readFileSync(path.join(remote, 'data', 'admin-token.txt'), 'utf8').trim(), 'restored-fixture');
   });
   stop(remote);
-  await t.test('準備した版を同期データで起動し、再実行でも昇格後の更新を残す', async () => {
+  await t.test('準備した版を同期データで起動し、再実行でも昇格後の更新を残す', async (t) => {
     const primary = '11111111-1111-1111-1111-111111111111';
     const target = '22222222-2222-2222-2222-222222222222';
     const state = path.join(root, 'dns-state');
@@ -209,7 +209,17 @@ import('./src/tenant-revocations.js').then(async ({ openTenantRevocations }) => 
     assert.throws(() => call('promote', '--primary-fenced'), /期限外/);
     assert.equal(fs.existsSync(state), false);
     fs.writeFileSync(promoted, promotion);
-    assert.doesNotMatch(call('promote', '--primary-fenced'), /fixture-dns|restored-fixture/);
+    await t.test('失効台帳の設定パスを訂正した再試行で本体を起動し直す', () => {
+      const runner = path.join(managed, 'server.pid');
+      const priorPid = fs.readFileSync(runner, 'utf8');
+      const nextConfig = path.join(root, 'corrected-ledger.json');
+      fs.renameSync(ledgerConfig, nextConfig);
+      assert.throws(() => call('promote', '--primary-fenced'), /失効台帳の設定が必要/);
+      assert.equal(fs.existsSync(state), false);
+      vars.TW_TENANT_REVOCATIONS_CONFIG = nextConfig;
+      assert.doesNotMatch(call('promote', '--primary-fenced'), /fixture-dns|restored-fixture/);
+      assert.notEqual(fs.readFileSync(runner, 'utf8'), priorPid);
+    });
     assert.equal(fs.readFileSync(state, 'utf8'), target);
     const url = `http://127.0.0.1:${port}/fixture-data`;
     assert.equal(await (await fetch(url)).text(), 'restored-fixture\n');

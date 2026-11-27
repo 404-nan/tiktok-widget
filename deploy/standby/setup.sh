@@ -253,7 +253,8 @@ main() {
       fail '待機機を昇格できません。準備済みの版と依存ライブラリが一致しません。'
     [[ -n ${STANDBY_EXPECT_COMMIT:-} && $(< "$base/deps.commit") == "$STANDBY_EXPECT_COMMIT" ]] ||
       fail '待機機を昇格できません。準備済みの版と復元データの版が一致しません。'
-    [[ -f $base/app/src/tenant-revocations.js && -n ${TW_TENANT_REVOCATIONS_CONFIG:-} ]] ||
+    [[ -f $base/app/src/tenant-revocations.js && ${TW_TENANT_REVOCATIONS_CONFIG:-} == /* &&
+       -r $TW_TENANT_REVOCATIONS_CONFIG && -f $TW_TENANT_REVOCATIONS_CONFIG ]] ||
       fail '待機機を昇格できません。失効台帳に対応する版と失効台帳の設定が必要です。'
     use_node && command -v cloudflared >/dev/null ||
       fail '待機機を昇格できません。Node.js または cloudflared がありません。'
@@ -304,8 +305,10 @@ main() {
 start_services() {
   local token=$1 mode tunnel_id url i
   local requires_revocations=${TW_REQUIRE_TENANT_REVOCATIONS:-0}
+  local revocation_config
+  revocation_config=$(printf '%s\n%s\n' "$requires_revocations" "${TW_TENANT_REVOCATIONS_CONFIG:-}" | sha256sum)
   if runner_pid server >/dev/null && { [[ $(cat "$base/server.port" 2>/dev/null) != "$PORT" ]] ||
-    [[ $(cat "$base/server.revocations" 2>/dev/null || printf 0) != "$requires_revocations" ]]; }; then
+    [[ $(cat "$base/server.revocations" 2>/dev/null) != "$revocation_config" ]]; }; then
     stop_runners
   fi
   if ! runner_pid server >/dev/null; then
@@ -313,7 +316,7 @@ start_services() {
       fail "ポート $PORT を開けません。ライコネは起動していません。"
     start_runner server
     printf '%s\n' "$PORT" > "$base/server.port"
-    printf '%s\n' "$requires_revocations" > "$base/server.revocations"
+    printf '%s\n' "$revocation_config" > "$base/server.revocations"
   fi
   wait_health "$origin" 30 || fail "ライコネが応答しません。$base/server.log を確認してください。"
 

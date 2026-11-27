@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "37f413410657",
+      "summary": "deploy/standby/setup.sh は失効台帳の設定パスを変更しても古い環境の本体を再利用した。読めないファイルは起動前に拒否し、パス変更時は本体を起動し直す。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-setup.test.js", "name": "失効台帳の設定パスを訂正した再試行で本体を起動し直す" }
+    },
+    {
       "fingerprint": "c732be07588a",
       "summary": "src/tenants.js の失効再適用で配信者だけ削除し、古い同期データの紹介コードが残った。削除済み配信者の請求情報も取り除く。",
       "fixedIn": "PR #23",
