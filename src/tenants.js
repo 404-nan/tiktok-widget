@@ -460,11 +460,12 @@ export class Tenants {
       const next = paidUntil || oneMonthLater(now);
       // もう一度有効にしたら、前の解約（次の更新をしない）は取り消す
       billing = this.updateBilling(id, { plan: current.plan, status: 'active', paidUntil: !paidUntil && typeof kept === 'string' && kept > next ? kept : next, cancelled: false });
-      // 古い解約や同格以下の確認中申し込みが残っていると後から誤って確定できるため自動で閉じる
+      // 今回の申し込みより前の解約や同格以下の確認中申し込みだけ自動で閉じる（後から出た解約は残す）
       for (const other of store.list()) {
         if (other.id === current.id || other.state !== 'pending') continue;
         const otherRank = other.type === 'upgrade' ? allPlans.findIndex((p) => p.id === other.plan) : -1;
-        if (other.type === 'cancel' || (other.type === 'upgrade' && otherRank >= 0 && otherRank <= targetRank)) {
+        const olderCancel = other.type === 'cancel' && String(other.createdAt ?? '') <= String(current.createdAt ?? '');
+        if (olderCancel || (other.type === 'upgrade' && otherRank >= 0 && otherRank <= targetRank)) {
           store.decide(other.id, 'rejected');
         }
       }
@@ -473,7 +474,7 @@ export class Tenants {
     if (action === 'approve' && current.type === 'cancel') {
       const acc = this.billing.account(id);
       if (acc?.paidUntil) billing = this.billing.setAccount(id, { cancelled: true });
-      else billing = this.updateBilling(id, { plan: defaultPlanId(), status: 'free', cancelled: false });
+      else billing = this.updateBilling(id, { plan: defaultPlanId(), status: '', paidUntil: '', cancelled: true });
     }
     const request = store.decide(current.id, action === 'approve' ? 'approved' : 'rejected');
     return { request: describeRequest(request), billing: billing ?? this.billing.adminView(id) };
