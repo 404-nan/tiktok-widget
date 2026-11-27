@@ -196,8 +196,10 @@ export function bindRoutes(r, ctx) {
       error = err.message;
     }
     const paidNow = plan?.status === 'active' || plan?.status === 'past_due';
-    const options = listPlans()
-      .filter((p) => p.id !== defaultPlanId() && !(paidNow && p.id === plan?.id))
+    const allPlans = listPlans();
+    const curRank = paidNow ? allPlans.findIndex((p) => p.id === plan?.id) : -1;
+    const options = allPlans
+      .filter((p, idx) => p.id !== defaultPlanId() && idx > curRank)
       .map(({ id: planId, label, description, priceYen, draft }) => ({ id: planId, label, description, priceYen, draft }));
     return { pending, options, canCancel: paidNow && plan?.id !== defaultPlanId() && plan?.cancelled !== true, paymentNote: planContact().note, error };
   }

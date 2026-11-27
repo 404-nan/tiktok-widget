@@ -13,7 +13,8 @@ import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
 import { EDIT_CAPABILITIES } from './runtime-features.js';
 import { RentalState, rentalForHandle } from './rental.js';
-import { BillingStore, trialEndDay } from './billing.js';
+import { BillingStore, trialEndDay, computeStatus, effectivePlanId } from './billing.js';
+import { listPlans, defaultPlanId } from './plans.js';
 import { PlanRequests, PlanRequestError, describeRequest, oneMonthLater } from './plan-requests.js';
 import { IngestKeyStore } from './ingest-keys.js';
 import { recordError } from './error-log.js';
@@ -447,14 +448,33 @@ export class Tenants {
     if (current.state !== 'pending') throw new PlanRequestError('その申し込みはもう処理しました', { status: 409 });
     let billing = null;
     if (action === 'approve' && current.type === 'upgrade') {
-      const kept = this.billing.account(id)?.paidUntil;
+      const acc = this.billing.account(id);
+      const curStatus = computeStatus(acc, now);
+      const allPlans = listPlans();
+      const curRank = (curStatus === 'active' || curStatus === 'past_due') ? allPlans.findIndex((p) => p.id === effectivePlanId(acc, now)) : -1;
+      const targetRank = allPlans.findIndex((p) => p.id === current.plan);
+      if (curRank >= 0 && targetRank >= 0 && targetRank <= curRank) {
+        throw new PlanRequestError('いまのプランと同じか下のプランには切り替えできません', { status: 409 });
+      }
+      const kept = acc?.paidUntil;
       const next = paidUntil || oneMonthLater(now);
       // もう一度有効にしたら、前の解約（次の更新をしない）は取り消す
       billing = this.updateBilling(id, { plan: current.plan, status: 'active', paidUntil: !paidUntil && typeof kept === 'string' && kept > next ? kept : next, cancelled: false });
+      // 古い解約や同格以下の確認中申し込みが残っていると後から誤って確定できるため自動で閉じる
+      for (const other of store.list()) {
+        if (other.id === current.id || other.state !== 'pending') continue;
+        const otherRank = other.type === 'upgrade' ? allPlans.findIndex((p) => p.id === other.plan) : -1;
+        if (other.type === 'cancel' || (other.type === 'upgrade' && otherRank >= 0 && otherRank <= targetRank)) {
+          store.decide(other.id, 'rejected');
+        }
+      }
     }
-    // 解約は今使えるものを変えないので、配信画面へ知らせない（知らせると OBS のウィジェットが読み込み直しになる）。
-    // 支払った日を過ぎて無料に落ちたときは、期限の見回り（#checkExpiry）が知らせる
-    if (action === 'approve' && current.type === 'cancel') billing = this.billing.setAccount(id, { cancelled: true });
+    // 解約は期限つきなら今使えるものを変えず、期限後に無料へ落とす。期限未設定ならその場で無料へ移す
+    if (action === 'approve' && current.type === 'cancel') {
+      const acc = this.billing.account(id);
+      if (acc?.paidUntil) billing = this.billing.setAccount(id, { cancelled: true });
+      else billing = this.updateBilling(id, { plan: defaultPlanId(), status: 'free', cancelled: false });
+    }
     const request = store.decide(current.id, action === 'approve' ? 'approved' : 'rejected');
     return { request: describeRequest(request), billing: billing ?? this.billing.adminView(id) };
   }
