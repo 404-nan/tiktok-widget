@@ -92,6 +92,12 @@ export function createEditor({ api, setMessage }) {
         });
         const data = await res.json().catch(() => ({}));
         if (data.config) payload = data;
+        if (!res.ok) {
+          const errors = data.errors?.length ? data.errors : [data.error || '保存できませんでした'];
+          showIssues(errors, data.warnings, null);
+          if (payload) render();
+          return;
+        }
         // WIN数・延長タイマー・ボス討伐の「試す」ボタンは設定で変わる
         if (data.config && (tab === 'wins' || tab === 'timers' || tab === 'bosses' || tab === 'doors')) renderActions();
         showIssues(data.errors, data.warnings, data.ok ? '保存しました' : null);
