@@ -333,10 +333,10 @@ admin.get('/money', adminBillingAction('GET /admin/api/money', () => ({
   ...ledgerService.ledger.subscriptionCash(), referrals: tenants.billing.referrals(), draftPlans: tenants.billing.draftPlans,
 })));
 admin.post('/money/payments', adminBillingAction('POST /admin/api/money/payments', (req) => {
-  const { tenantId, amount, reference, confirmed } = req.body ?? {};
+  const { tenantId, amount, reference, paidOn, confirmed } = req.body ?? {};
   if (!tenants.get(tenantId)) throw new Error('その配信者は見つかりません');
   const referrerId = tenants.billing.referrerOf(tenantId);
-  return { ok: true, payment: ledgerService.ledger.recordSubscriptionPayment({ tenantId, referrerId, amount, reference, confirmed }) };
+  return { ok: true, payment: ledgerService.ledger.recordSubscriptionPayment({ tenantId, referrerId, amount, reference, paidOn, confirmed }) };
 }));
 admin.post('/money/payments/:id/correction', adminBillingAction('POST /admin/api/money/payments/:id/correction', (req) => ({
   ok: true, payment: ledgerService.ledger.correctSubscriptionPayment(req.params.id, req.body ?? {}),

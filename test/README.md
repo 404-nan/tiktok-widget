@@ -36,7 +36,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
 | `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
 | `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金と支払い設定を保存できない場合のテスト |
-| `ledger.test.js` / `ledger-sources.test.js` | 集金台帳の残高・FIFO・取り消し・壊れたJSONL、貸出同期、月額入金の再登録順と紹介報酬・残高保護のテスト |
+| `ledger.test.js` / `ledger-sources.test.js` | 集金台帳の残高・FIFO・取り消し・壊れたJSONL、貸出同期、月額入金日による初回報酬の計算と残高保護のテスト |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能（手動開始・ミッションを含む）と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
 | `comment-slide.test.js` | コメントスライド(きっかけの含む判定・上から最初の1つだけ・待ち行列の上限3と捨てる・カタログへの登録)のテスト |

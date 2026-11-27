@@ -119,7 +119,7 @@ test('確認済みの初回入金と報酬は既存の集金と同じ JSONL に1
   const ledger = new Ledger({ dir });
   charge(ledger, 1000);
   ledger.recordCollection({ streamerId: 's1', amountYen: 400, clientRequestId: 'one' });
-  const form = { tenantId: 'b', referrerId: 'a', amount: 2981, reference: 'one', confirmed: true };
+  const form = { tenantId: 'b', referrerId: 'a', amount: 2981, reference: 'one', paidOn: '2026-10-01', confirmed: true };
   assert.deepEqual(cashTotals(ledger.subscriptionCash()), [0, 0, 0, 0]);
   assert.throws(() => ledger.recordSubscriptionPayment({ ...form, confirmed: false }), /確認して/);
   for (const amount of [0, -1, 1.5, '2981', Infinity, 100_000_001]) {
@@ -141,7 +141,7 @@ test('確認済みの初回入金と報酬は既存の集金と同じ JSONL に1
 
 test('残高不足または台帳ロック中の支払いは追記しない', () => {
   const ledger = new Ledger({ dir: tmp() });
-  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', confirmed: true };
+  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true };
   const first = ledger.recordSubscriptionPayment(form);
   const pending = ledger.recordSubscriptionPayment({ ...form, tenantId: 'c', reference: 'pending' });
   ledger.recordReferralPayout(first.id, 500);
@@ -161,9 +161,9 @@ test('入金の訂正と取り消しを追記し、報酬を再計算して照�
   const dir = tmp();
   const ledger = new Ledger({ dir });
   charge(ledger);
-  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', confirmed: true };
+  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true };
   const first = ledger.recordSubscriptionPayment(form);
-  const second = ledger.recordSubscriptionPayment({ ...form, amount: 2000, reference: 'second' });
+  const second = ledger.recordSubscriptionPayment({ ...form, amount: 2000, reference: 'second', paidOn: '2026-11-01' });
   const reason = '記録した金額が違った';
   assert.throws(() => ledger.voidSubscriptionPayment(first.id, {}), /理由が必要/);
   assert.throws(() => ledger.correctSubscriptionPayment(first.id, { amount: 0, reason }), /整数/);
@@ -188,12 +188,12 @@ test('入金の訂正と取り消しを追記し、報酬を再計算して照�
   assert.equal(reloaded.recordSubscriptionPayment(form).reward.amount, 500);
 });
 
-test('初回入金を同じ照合番号で再登録しても、初回の順番と支払い済み報酬を引き継ぐ', () => {
+test('初回入金を再登録しても、入金日と支払い済み報酬を元に報酬を計算する', () => {
   const dir = tmp();
   const ledger = new Ledger({ dir });
-  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', confirmed: true };
+  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true };
   const first = ledger.recordSubscriptionPayment(form);
-  const second = ledger.recordSubscriptionPayment({ ...form, amount: 2000, reference: 'second' });
+  const second = ledger.recordSubscriptionPayment({ ...form, amount: 2000, reference: 'second', paidOn: '2026-11-01' });
   ledger.recordReferralPayout(first.id, 500);
   ledger.voidSubscriptionPayment(first.id, { reason: '初回の金額を誤記' });
   const replacement = ledger.recordSubscriptionPayment({ ...form, amount: 1200 });
@@ -206,9 +206,26 @@ test('初回入金を同じ照合番号で再登録しても、初回の順番�
   assert.deepEqual(cashTotals(reloaded.subscriptionCash()), [3200, 0, 600, 2600]);
 });
 
+test('配信者を取り違えた入金を再登録すると、正しい配信者の初回は入金日で決まる', () => {
+  const ledger = new Ledger({ dir: tmp(), now: () => Date.parse(at) });
+  const form = { amount: 1300, reference: 'oct', tenantId: 'wrong', paidOn: '2026-10-01', confirmed: true };
+  for (const paidOn of [undefined, '2026-02-30', '2026-10-01T00:00:00Z']) {
+    assert.throws(() => ledger.recordSubscriptionPayment({ ...form, paidOn }), /正しい入金日/);
+  }
+  const wrong = ledger.recordSubscriptionPayment(form);
+  const later = ledger.recordSubscriptionPayment({ ...form, tenantId: 'right', referrerId: 'a', amount: 3000, reference: 'nov', paidOn: '2026-11-01' });
+  ledger.voidSubscriptionPayment(wrong.id, { reason: '配信者の取り違え' });
+  const corrected = ledger.recordSubscriptionPayment({ ...form, tenantId: 'right', referrerId: 'a' });
+  assert.equal(corrected.reward.amount, 650);
+  assert.equal(corrected.paidOn, '2026-10-01');
+  assert.equal(corrected.confirmedAt, at);
+  assert.equal(ledger.entries().at(-1).period.month, '2026-10');
+  assert.equal(ledger.subscriptionCash().payments.find(({ id }) => id === later.id).reward, null);
+});
+
 test('すでに支払った報酬で赤字になる訂正と取り消しは追記しない', () => {
   const ledger = new Ledger({ dir: tmp() });
-  const first = ledger.recordSubscriptionPayment({ amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', confirmed: true });
+  const first = ledger.recordSubscriptionPayment({ amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true });
   ledger.recordReferralPayout(first.id, 500);
   const before = ledger.entries();
   const reason = '誤記';

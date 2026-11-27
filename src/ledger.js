@@ -12,6 +12,7 @@ export const LIVE_SERVICE_KEY = 'rai' + 'kone';
 const SOURCE_SYSTEMS = new Set(['rental', LIVE_SERVICE_KEY, 'manual', 'subscription']);
 const COLLECTION_METHODS = new Set(['paypay', 'bank', 'cash', 'other']);
 const MAX_YEN = 100_000_000;
+const tokyoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 
 export class LedgerError extends Error {
   constructor(message, { status = 400, code = 'ledger-error' } = {}) {
@@ -150,16 +151,13 @@ export function sourceAmountsByKey(entries) {
 
 function subscriptionCash(entries) {
   const recorded = new Map();
-  const originalOrder = new Map();
   const payouts = new Map();
   let paid = 0;
   for (const entry of entries) {
     if (entry.source?.system !== 'subscription') continue;
     const target = recorded.get(entry.targetId);
     if (entry.kind === 'subscription-payment') {
-      const reference = JSON.stringify([entry.tenantId, entry.source.key]);
-      if (!originalOrder.has(reference)) originalOrder.set(reference, recorded.size);
-      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false, order: originalOrder.get(reference) });
+      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false });
     } else if (entry.kind === 'adjustment' && target && !target.voided) {
       target.amount += entry.signedAmountYen;
     } else if (entry.kind === 'reversal' && target && !target.voided && entry.signedAmountYen === -target.amount) {
@@ -180,14 +178,14 @@ function subscriptionCash(entries) {
     if (payment.voided) continue;
     const { tenantId } = payment.entry;
     const first = firstByTenant.get(tenantId);
-    if (!first || payment.order < first.order) firstByTenant.set(tenantId, payment);
+    if (!first || payment.entry.at < first.entry.at) firstByTenant.set(tenantId, payment);
   }
   let received = 0;
   let owed = 0;
   for (const payment of recorded.values()) {
     const { entry, amount, voided } = payment;
     if (voided) continue;
-    const { id, tenantId, referrerId, at: confirmedAt } = entry;
+    const { id, tenantId, referrerId, at } = entry;
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_YEN) {
       throw new LedgerCorruptError('月額入金の行が不正です');
     }
@@ -201,7 +199,7 @@ function subscriptionCash(entries) {
       owed += due;
     }
     received += amount;
-    payments.push({ id, tenantId, reference: entry.source.key, amount, confirmedAt, reward });
+    payments.push({ id, tenantId, reference: entry.source.key, amount, paidOn: tokyoDate.format(new Date(at)), confirmedAt: entry.createdAt ?? at, reward });
   }
   if (![received, owed, paid].every(Number.isSafeInteger)) throw new LedgerCorruptError('台帳の合計金額を扱えません');
   return { received, owed, paid, balance: received - paid, payments };
@@ -295,13 +293,15 @@ export class Ledger {
     return this.entries().some((entry) => entry.kind === 'subscription-payment' && entry.tenantId === tenantId);
   }
 
-  recordSubscriptionPayment({ tenantId, referrerId, amount, reference, confirmed }) {
+  recordSubscriptionPayment({ tenantId, referrerId, amount, reference, paidOn, confirmed }) {
     if (confirmed !== true) throw new LedgerError('入金を確認してから記録してください');
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_YEN) {
       throw new LedgerError('入金額は1円以上1億円以下の整数で入力してください');
     }
     const key = typeof reference === 'string' ? reference.trim() : '';
     if (!key) throw new LedgerError('入金の照合番号を入力してください');
+    const date = typeof paidOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(paidOn) ? timeMs(paidOn) : null;
+    if (date == null || tokyoDate.format(date) !== paidOn) throw new LedgerError('正しい入金日を入力してください');
     return this.#withLock(() => {
       const entries = this.entries();
       const cash = subscriptionCash(entries);
@@ -309,7 +309,7 @@ export class Ledger {
       if (!Number.isSafeInteger(cash.received + amount)) throw new LedgerError('台帳の合計金額を扱えません');
       const prepared = validateEntry({
         kind: 'subscription-payment', tenantId, referrerId, signedAmountYen: amount,
-        at: new Date(this.now()).toISOString(), source: { system: 'subscription', key },
+        at: new Date(date).toISOString(), source: { system: 'subscription', key },
       });
       const entry = this.#appendEntry(prepared, entries);
       return subscriptionCash([...entries, entry]).payments.at(-1);

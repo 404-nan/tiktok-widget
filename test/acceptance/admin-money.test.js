@@ -71,13 +71,14 @@ test('管理 API は紹介元と実際のお金の動きを記録し、未確認
   assert.deepEqual(start.referrals, [{ tenantId: invitee.id, referrerId: inviter.id }]);
   assert.equal(start.owed, 0);
   assert.equal(invitee.billing.credit, 0);
-  const form = { tenantId: invitee.id, amount: 4980, reference: 'confirmed-01' };
+  const form = { tenantId: invitee.id, amount: 4980, reference: 'confirmed-01', paidOn: '2026-10-01' };
   await request(400, '/money/payments', form);
   await request(400, '/money/payments', { ...form, tenantId: 'unknown', confirmed: true });
   await request(400, '/money/payments/missing/payout', {});
   assert.equal((await request(200, '/money')).received, 0);
   const { payment } = await request(200, '/money/payments', { ...form, confirmed: true });
   assert.equal(payment.reward.amount, 2490);
+  assert.equal(payment.paidOn, form.paidOn);
   await request(400, '/money/payments', { ...form, confirmed: true });
   assert.match((await request(400, `/tenants/${invitee.id}/referral`, { code })).error, /初回入金/);
   const pending = await request(200, '/money');
@@ -98,7 +99,7 @@ test('管理 API は紹介元と実際のお金の動きを記録し、未確認
   assert.match(logs, /adminGuard: 合言葉が違います/);
   assert.match(logs, /POST \/admin\/api\/money\/payments: 入金を確認してから記録してください/);
   assert.match(logs, /POST \/admin\/api\/money\/payments\/:id\/payout: その紹介報酬は支払い済みです/);
-  const extra = { ...form, amount: 1000, reference: 'confirmed-02', confirmed: true };
+  const extra = { ...form, amount: 1000, reference: 'confirmed-02', paidOn: '2026-11-01', confirmed: true };
   const { payment: second } = await request(200, '/money/payments', extra);
   const changePath = `/money/payments/${second.id}`;
   await request(401, `${changePath}/correction`, {}, null);
@@ -126,7 +127,7 @@ test('入金額の訂正前に確認した報酬額では支払いを記録し�
   const { tenant: inviter } = await (await post('/tenants', { name: '紹介元' })).json();
   const { code } = await (await post(`/tenants/${inviter.id}/billing/code`, {})).json();
   const { tenant } = await (await post('/tenants', { name: '配信者', referralCode: code })).json();
-  const { payment } = await (await post('/money/payments', { tenantId: tenant.id, amount: 1000, reference: 'old', confirmed: true })).json();
+  const { payment } = await (await post('/money/payments', { tenantId: tenant.id, amount: 1000, reference: 'old', paidOn: '2026-10-01', confirmed: true })).json();
   const route = `/money/payments/${payment.id}`;
   const corrected = await post(`${route}/correction`, { amount: 1500, reason: '入力ミス' });
   assert.equal(corrected.status, 200);

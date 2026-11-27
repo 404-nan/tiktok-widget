@@ -15,12 +15,13 @@ function paymentForm(tenants) {
   tenant.append(new Option('配信者を選ぶ', ''));
   for (const { id, name } of tenants) tenant.append(new Option(`${name}（${id}）`, id));
   const amount = el('input', { type: 'number', min: '1', max: '100000000', step: '1', required: true });
+  const paidOn = el('input', { type: 'date', required: true });
   const reference = el('input', { required: true, autocomplete: 'off' });
   const confirmed = el('input', { type: 'checkbox', required: true });
   const save = el('button', { type: 'submit', className: 'btn primary pressable', textContent: '確認済みの入金を記録' });
   const form = el('form', { className: 'note-form' },
-    p('実際に受け取った月額料金だけを、古い月から順に記録してください。照合番号は、同じ入金を二重に記録しないために使います。'),
-    field('配信者', tenant), field('入金額（円）', amount), field('入金の照合番号', reference),
+    p('実際に受け取った月額料金と入金日を記録してください。照合番号は、同じ入金を二重に記録しないために使います。'),
+    field('配信者', tenant), field('入金額（円）', amount), field('入金日（日本時間）', paidOn), field('入金の照合番号', reference),
     el('label', { className: 'row' }, confirmed, el('span', { textContent: '入金を確認しました' })),
     el('div', { className: 'btn-row' }, save));
   form.addEventListener('submit', async (event) => {
@@ -30,7 +31,7 @@ function paymentForm(tenants) {
     try {
       await act(async () => {
         await api('/money/payments', {
-          tenantId: tenant.value, amount: amount.valueAsNumber, reference: reference.value, confirmed: confirmed.checked,
+          tenantId: tenant.value, amount: amount.valueAsNumber, reference: reference.value, paidOn: paidOn.value, confirmed: confirmed.checked,
         });
         form.reset();
         if (form.contains(document.activeElement)) document.activeElement.blur();
@@ -66,7 +67,7 @@ function paymentRow(payment, name) {
     await change('correction', { amount: amount.valueAsNumber, reason: reason.value }, '入金額を訂正しました');
   });
   return el('details', { className: 'admin-note' },
-    el('summary', { textContent: `${name(payment.tenantId)}：${yen(payment.amount)} ／ ${date.format(new Date(payment.confirmedAt))} に記録 ／ 照合番号：${payment.reference}` }),
+    el('summary', { textContent: `${name(payment.tenantId)}：${yen(payment.amount)} ／ 入金日：${payment.paidOn} ／ 照合番号：${payment.reference}` }),
     form);
 }
 
