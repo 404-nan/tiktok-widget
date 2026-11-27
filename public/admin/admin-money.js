@@ -13,7 +13,7 @@ function paymentForm(tenants) {
   if (!tenants.length) return p('配信者を追加すると入金を記録できます。');
   const tenant = el('select', { required: true });
   tenant.append(new Option('配信者を選ぶ', ''));
-  for (const { id, name } of tenants) tenant.append(new Option(name, id));
+  for (const { id, name } of tenants) tenant.append(new Option(`${name}（${id}）`, id));
   const amount = el('input', { type: 'number', min: '1', max: '100000000', step: '1', required: true });
   const reference = el('input', { required: true, autocomplete: 'off' });
   const confirmed = el('input', { type: 'checkbox', required: true });

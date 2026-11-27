@@ -4,7 +4,33 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import vm from 'node:vm';
 import { localScenario, startHostedServer } from '../helpers/guard-harness.js';
+
+test('名前が同じ配信者も入金先の選択肢は ID で見分けられる', () => {
+  const source = fs.readFileSync(new URL('../../public/admin/admin-money.js', import.meta.url), 'utf8')
+    .replace(/^import .*;$/m, '').replace('export function moneyDetail', 'function moneyDetail');
+  const nodes = [];
+  const context = {
+    el(tag, props, ...children) {
+      const node = { tag, ...props, children, append: (...items) => children.push(...items), addEventListener() {} };
+      nodes.push(node);
+      return node;
+    },
+    Option: class Option {
+      constructor(text, value) { Object.assign(this, { text, value }); }
+    },
+  };
+  vm.runInNewContext(source, context);
+  context.moneyDetail(
+    { received: 0, owed: 0, paid: 0, balance: 0, draftPlans: [], referrals: [], payments: [] },
+    [{ name: '同じ名前', id: 'first' }, { name: '同じ名前', id: 'second' }],
+  );
+  const select = nodes.find(({ tag }) => tag === 'select');
+  assert.deepEqual(select.children.map(({ text, value }) => [text, value]), [
+    ['配信者を選ぶ', ''], ['同じ名前（first）', 'first'], ['同じ名前（second）', 'second'],
+  ]);
+});
 
 test('管理 API は紹介元と実際のお金の動きを記録し、未確認・重複・権限なしを拒む', async (t) => {
   const { env } = localScenario();
