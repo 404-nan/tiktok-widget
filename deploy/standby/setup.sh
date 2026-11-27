@@ -6,7 +6,7 @@ umask 077
 
 repo=https://github.com/404-nan/tiktok-widget.git
 ref=${REF:-e2a303df2c198a3bd2d68c0a76601ac0412185ea}
-base=${STANDBY_DIR:-$HOME/.local/share/raikone-standby}
+base=${STANDBY_DIR:-$HOME/.local/share/tiktok-widget-standby}
 export PORT=${PORT:-3939}
 origin=http://127.0.0.1:$PORT
 export PATH="$HOME/.local/bin:$PATH"
