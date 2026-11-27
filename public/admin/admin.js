@@ -9,7 +9,7 @@ import { initList, renderKpis, renderFilters, renderRows, setupListEvents } from
 import { initDetail, tenantDetail, bulkDetail, signKeyGroup, aiGroup, globalDetail, singlePage, lulDetail } from './admin-detail.js';
 import { initBilling, notesDetail, billingDetail } from './admin-billing.js';
 import { initKeys, keysDetail, aiTokensDetail } from './admin-keys.js';
-import { ledgerDetail } from './admin-ledger.js';
+import { ledgerDetail, refreshLedger } from './admin-ledger.js';
 
 setupPanels();
 setupTheme();
@@ -143,8 +143,12 @@ function renderDetail(force = false) {
     return;
   }
   if (page === 'ledger') {
-    detailBody.replaceChildren(...ledgerDetail());
-    return;
+    let root = detailBody.querySelector('.ledger-page');
+    if (!root) {
+      [root] = ledgerDetail();
+      detailBody.replaceChildren(root);
+    }
+    return refreshLedger(root);
   }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));
   const t = data.tenants.find((x) => x.id === selected);

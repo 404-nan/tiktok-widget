@@ -3,12 +3,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { FakeElement } from './helpers/fake-dom.js';
 
 const source = fs.readFileSync(new URL('../public/admin/admin-ledger.js', import.meta.url), 'utf8')
   .replace(/^import .*;$/m, '').replace(/^export /gm, '');
 
 function ui(globals) {
-  return vm.createContext(globals);
+  return vm.createContext({ document: {}, ...globals });
 }
 
 test('元データが最新なら集金の集計に null の文字を表示しない', async () => {
@@ -21,7 +22,8 @@ test('元データが最新なら集金の集計に null の文字を表示し�
   const content = { replaceChildren(...nodes) {
     children = nodes.map((node) => typeof node === 'object' && node !== null ? node : String(node));
   } };
-  await context.fill({ querySelector: () => content });
+  const panel = { dataset: {}, replaceChildren() {} };
+  await context.fill({ isConnected: true, querySelector: (selector) => selector === '.ledger-content' ? content : panel });
   assert.equal(children[0].className, 'ledger-metrics');
   assert.ok(!children.includes('null'));
 });
@@ -49,9 +51,10 @@ test('集金の記録と取り消しのあとに集計と利用者一覧を読�
   });
   vm.runInContext(source, context);
   const content = { replaceChildren() {} };
-  const root = { querySelector: (selector) => {
-    assert.equal(selector, '.ledger-content');
-    return content;
+  const panel = { dataset: {}, replaceChildren() {} };
+  const root = { isConnected: true, querySelector: (selector) => {
+    assert.ok(['.ledger-content', '.ledger-detail-panel'].includes(selector));
+    return selector === '.ledger-content' ? content : panel;
   } };
   const form = {
     amount: { value: '1000' }, collectedAt: { value: '' },
@@ -64,4 +67,86 @@ test('集金の記録と取り消しのあとに集計と利用者一覧を読�
     '/ledger/collections', '/ledger/summary?months=6',
     '/ledger/entries/entry/reversal', '/ledger/summary?months=6',
   ]);
+});
+
+test('台帳の自動更新は古いページとスクロールと開閉を保ち、そのページから取り消せる', async () => {
+  const scroller = { scrollTop: 0 };
+  class Element extends FakeElement {
+    dataset = {};
+    get isConnected() { return this === detailBody || Boolean(this.parentNode?.isConnected); }
+    replaceChildren(...nodes) {
+      super.replaceChildren(...nodes);
+      if (this.isConnected) scroller.scrollTop = 0;
+    }
+  }
+  const detailBody = new Element('main');
+  const el = (tag, props, ...children) => {
+    const node = Object.assign(new Element(tag), props);
+    node.append(...children.filter(Boolean));
+    return node;
+  };
+  const calls = [];
+  let resolveOlder;
+  let reversed = false;
+  let collected = 100;
+  const streamer = { id: 's1', name: '利用者' };
+  const detail = (offset) => ({
+    streamer, balance: {}, entryPage: { total: 21, offset, limit: 20 },
+    entries: offset === 20 ? [{ id: 'old-entry', kind: 'collection', signedAmountYen: -100, reversed }] : [],
+  });
+  const context = ui({
+    page: 'ledger', detailBody, renderShell() {},
+    document: { scrollingElement: scroller, activeElement: null },
+    api: async (url) => {
+      calls.push(url);
+      if (url === '/ledger/summary?months=6') return { totals: { monthCollectedYen: collected }, streamers: [streamer] };
+      if (url === '/ledger/streamers/s1?offset=0') return detail(0);
+      if (url === '/ledger/streamers/s1?offset=20') {
+        if (!resolveOlder) return new Promise((resolve) => { resolveOlder = resolve; });
+        return detail(20);
+      }
+      assert.equal(url, '/ledger/entries/old-entry/reversal');
+      reversed = true;
+      return {};
+    },
+    el, button: (text, click) => {
+      const node = el('button', { textContent: text });
+      node.addEventListener('click', click);
+      return node;
+    },
+    message() {}, confirm: () => true, prompt: () => '誤記', crypto: { randomUUID: () => 'request' },
+    Option: class extends FakeElement { constructor(text) { super('option'); this.textContent = text; } },
+  });
+  const adminSource = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.url), 'utf8');
+  const renderDetail = adminSource.slice(adminSource.indexOf('function renderDetail('), adminSource.indexOf('// --- 読み込み ---'));
+  vm.runInContext(source + '\n' + renderDetail, context);
+  await context.renderDetail();
+  const root = detailBody.querySelector('.ledger-page');
+  const panel = root.querySelector('.ledger-detail-panel');
+  const button = (text) => panel.querySelectorAll('button').find((node) => node.textContent === text);
+  panel.querySelector('.ledger-collection-form').open = false;
+  panel.querySelector('.ledger-adjustment-form').open = true;
+  scroller.scrollTop = 500;
+  const changingPage = button('古い行').listeners.get('click')();
+  assert.equal(scroller.scrollTop, 500);
+  assert.ok(button('古い行'));
+  scroller.scrollTop = 525;
+  resolveOlder(detail(20));
+  await changingPage;
+  assert.equal(scroller.scrollTop, 525);
+  assert.ok(button('取り消す'));
+
+  collected = 200;
+  await context.renderDetail();
+  assert.equal(detailBody.querySelector('.ledger-page'), root);
+  assert.match(root.querySelector('.ledger-metrics').textContent, /今月の集金200円/);
+  assert.equal(calls.at(-1), '/ledger/streamers/s1?offset=20');
+  assert.equal(scroller.scrollTop, 525);
+  assert.equal(panel.querySelector('.ledger-collection-form').open, false);
+  assert.equal(panel.querySelector('.ledger-adjustment-form').open, true);
+  await button('取り消す').listeners.get('click')();
+  assert.deepEqual(calls.slice(-3), [
+    '/ledger/entries/old-entry/reversal', '/ledger/summary?months=6', '/ledger/streamers/s1?offset=20',
+  ]);
+  assert.equal(button('取り消す'), undefined);
 });

@@ -5,6 +5,25 @@ import { el, button, api, message } from './admin-parts.js';
 
 const liveService = 'rai' + 'kone';
 let selectedStreamer = null;
+const ledgerViews = new WeakMap();
+
+function viewFor(root) {
+  if (!ledgerViews.has(root)) ledgerViews.set(root, { offset: 0 });
+  return ledgerViews.get(root);
+}
+
+function editing(root) {
+  const active = document.activeElement;
+  return active && root.contains(active) && active.matches('input, textarea, select');
+}
+
+function replaceAtScroll(node, ...children) {
+  const scroller = document.scrollingElement;
+  const top = scroller?.scrollTop;
+  node.replaceChildren(...children);
+  if (scroller) scroller.scrollTop = top;
+}
+
 const yen = (n) => `${Number(n ?? 0).toLocaleString('ja-JP')}円`;
 const signedYen = (n) => `${n < 0 ? '−' : ''}${Math.abs(Number(n ?? 0)).toLocaleString('ja-JP')}円`;
 const dateText = (iso) => iso ? new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'まだありません';
@@ -133,22 +152,29 @@ async function reverseLedgerEntry(root, entry) {
   }
 }
 
-async function renderDetailPanel(root, id, offset = 0) {
+async function renderDetailPanel(root, id, offset = viewFor(root).offset, background = false) {
+  const view = viewFor(root);
+  view.offset = offset;
   const panel = root.querySelector('.ledger-detail-panel');
-  panel.replaceChildren(el('p', { className: 'hint', textContent: '読み込んでいます…' }));
+  const request = api(`/ledger/streamers/${id}?offset=${offset}`);
+  view.detailRequest = request;
+  const current = () => root.isConnected && selectedStreamer === id && view.detailRequest === request;
   try {
-    const detail = await api(`/ledger/streamers/${id}?offset=${offset}`);
-    if (selectedStreamer !== id) return;
+    const detail = await request;
+    if (!current() || (background && editing(root))) return;
     const entries = detail.entries ?? [];
     const page = detail.entryPage;
-    panel.replaceChildren(
+    const sameStreamer = panel.dataset.streamerId === id;
+    const collectionOpen = sameStreamer ? panel.querySelector('.ledger-collection-form')?.open ?? true : true;
+    const adjustmentOpen = sameStreamer ? panel.querySelector('.ledger-adjustment-form')?.open ?? false : false;
+    replaceAtScroll(panel,
       el('div', { className: 'ledger-detail-head' },
         el('h3', { textContent: detail.streamer.name }),
         el('div', { className: 'ledger-balance' }, el('span', { textContent: '未集金' }), el('strong', { textContent: yen(detail.balance.uncollectedYen) })),
       ),
       el('p', { className: 'hint', textContent: `前回集金: ${detail.balance.lastCollection ? `${dateText(detail.balance.lastCollection.at)}・${yen(detail.balance.lastCollection.amountYen)}` : 'まだありません'} / 前回から ${signedYen(detail.balance.sinceLastCollectionYen)}` }),
-      el('details', { open: true }, el('summary', { textContent: '集金を記録する' }), collectionForm(root, id)),
-      el('details', {}, el('summary', { textContent: '訂正・値引きを記録する' }), adjustmentForm(root, id)),
+      el('details', { className: 'ledger-collection-form', open: collectionOpen }, el('summary', { textContent: '集金を記録する' }), collectionForm(root, id)),
+      el('details', { className: 'ledger-adjustment-form', open: adjustmentOpen }, el('summary', { textContent: '訂正・値引きを記録する' }), adjustmentForm(root, id)),
       el('h4', { textContent: '売上と配信の推移' }),
       salesTable(detail.sales ?? []),
       el('p', { className: 'hint', textContent: 'コインは円に換算していません。TikTok の確定額入力はまだなので、売上(円)は貸出の申告がある分だけです。' }),
@@ -159,8 +185,12 @@ async function renderDetailPanel(root, id, offset = 0) {
         page.offset + page.limit < page.total ? button('古い行', () => renderDetailPanel(root, id, page.offset + page.limit)) : null,
       )] : []),
     );
+    panel.dataset.streamerId = id;
   } catch (err) {
-    panel.replaceChildren(el('p', { className: 'form-message error', textContent: err.message }));
+    console.warn('[admin] GET /admin/api/ledger/streamers/:id:', err.message);
+    if (current() && panel.dataset.streamerId !== id) {
+      replaceAtScroll(panel, el('p', { className: 'form-message error', textContent: err.message }));
+    }
   }
 }
 
@@ -175,10 +205,11 @@ function streamerTable(root, streamers) {
       el('td', { textContent: warningText(row.warnings) }),
     );
     tr.addEventListener('click', () => {
+      const offset = selectedStreamer === row.id ? viewFor(root).offset : 0;
       selectedStreamer = row.id;
       root.querySelectorAll('.ledger-streamers tbody tr').forEach((n) => n.classList.remove('selected'));
       tr.classList.add('selected');
-      renderDetailPanel(root, row.id);
+      renderDetailPanel(root, row.id, offset);
     });
     return tr;
   });
@@ -188,12 +219,20 @@ function streamerTable(root, streamers) {
   ));
 }
 
-async function fill(root) {
-  root.querySelector('.ledger-content').replaceChildren(el('p', { className: 'hint', textContent: '読み込んでいます…' }));
+async function fill(root, background = false) {
+  const view = viewFor(root);
+  const request = api('/ledger/summary?months=6');
+  view.summaryRequest = request;
+  const current = () => root.isConnected && view.summaryRequest === request;
+  const content = root.querySelector('.ledger-content');
   try {
-    const data = await api('/ledger/summary?months=6');
-    const content = root.querySelector('.ledger-content');
-    content.replaceChildren(
+    const data = await request;
+    if (!current() || (background && editing(root))) return;
+    if (!data.streamers.some((row) => row.id === selectedStreamer)) {
+      selectedStreamer = data.streamers[0]?.id ?? null;
+      view.offset = 0;
+    }
+    replaceAtScroll(content,
       el('div', { className: 'ledger-metrics' },
         metric('未集金の合計', yen(data.totals.uncollectedYen)),
         metric('前回集金からの合計', signedYen(data.totals.sinceLastCollectionYen)),
@@ -203,17 +242,24 @@ async function fill(root) {
       ),
       ...(data.stale ? [el('p', { className: 'form-message error', textContent: '元データの一部が読めません。売上推移は古いか欠けている可能性があります。台帳残高は entries.jsonl から読んでいます。' })] : []),
       data.streamers.length ? streamerTable(root, data.streamers) : el('div', { className: 'empty-card' }, el('p', { textContent: 'まだ台帳に出せる人がいません' }), el('p', { className: 'hint', textContent: 'streamers.json に利用者が入ると、ここに残高が出ます。' })),
-      el('div', { className: 'ledger-detail-panel' }, el('p', { className: 'hint', textContent: '上の表で人を選ぶと、推移と記録欄がここに出ます。' })),
     );
-    if (!selectedStreamer && data.streamers[0]) {
-      selectedStreamer = data.streamers[0].id;
-      renderDetailPanel(root, selectedStreamer);
-    } else if (selectedStreamer && data.streamers.some((row) => row.id === selectedStreamer)) {
-      renderDetailPanel(root, selectedStreamer);
+    if (selectedStreamer) {
+      await renderDetailPanel(root, selectedStreamer, view.offset, background);
+    } else {
+      const panel = root.querySelector('.ledger-detail-panel');
+      replaceAtScroll(panel);
+      delete panel.dataset.streamerId;
     }
   } catch (err) {
-    root.querySelector('.ledger-content').replaceChildren(el('p', { className: 'form-message error', textContent: err.message }));
+    console.warn('[admin] GET /admin/api/ledger/summary:', err.message);
+    if (current() && !content.querySelector('.ledger-metrics')) {
+      replaceAtScroll(content, el('p', { className: 'form-message error', textContent: err.message }));
+    }
   }
+}
+
+export function refreshLedger(root) {
+  return fill(root, true);
 }
 
 export function ledgerDetail() {
@@ -233,7 +279,7 @@ export function ledgerDetail() {
   root.append(
     el('div', { className: 'ledger-page-head' }, el('div', {}, el('h2', { textContent: '集金' }), el('p', { className: 'hint', textContent: '入金の事実と残高を記録します。プラン・支払いとは別で、コインは円に換算しません。' })), sync),
     el('div', { className: 'ledger-content' }, el('p', { className: 'hint', textContent: '読み込んでいます…' })),
+    el('div', { className: 'ledger-detail-panel' }),
   );
-  fill(root);
   return [root];
 }
