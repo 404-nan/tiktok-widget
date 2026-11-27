@@ -27,7 +27,12 @@ exec "$@"
   fs.writeFileSync(path.join(dir, 'resolvectl'), `#!/bin/sh
 [ "$1" = --type=SRV ] && [ "$2" = query ] || exit 2
 printf '%s\\n' "$3" >> "$QUERIES"
-[ "$3" != "$FAILED_HOST" ] && [ "$USE_DIG" != 1 ]
+if [ "$SERVICE_UNAVAILABLE" = 1 ]; then
+  printf '%s IN SRV 0 0 0 .                             -- link: eth0\\n' "$3"
+  exit 0
+fi
+[ "$3" != "$FAILED_HOST" ] && [ "$USE_DIG" != 1 ] || exit 1
+printf '%s IN SRV 1 1 7844 edge.example.                 -- link: eth0\\n' "$3"
 `, { mode: 0o700 });
   fs.writeFileSync(path.join(dir, 'dig'), `#!/bin/sh
 [ "$1" = +noall ] && [ "$2" = +answer ] && [ "$3" = -t ] && [ "$4" = SRV ] || exit 2
@@ -37,15 +42,19 @@ if [ "$5" != "$FAILED_HOST" ]; then
 fi
 `, { mode: 0o700 });
 
-  for (const [failedHost, useDig] of [['', false], ...hosts.map((host) => [host, false]), [srv, false], ['', true]]) {
+  const cases = [['', false], ...hosts.map((host) => [host, false]), [srv, false], ['', true], [srv, false, true]];
+  for (const [failedHost, useDig, serviceUnavailable] of cases) {
     fs.writeFileSync(queries, '');
     const result = spawnSync('/bin/bash', [check], {
-      env: { ...process.env, PATH: dir, QUERIES: queries, FAILED_HOST: failedHost, USE_DIG: useDig ? '1' : '0' },
+      env: {
+        ...process.env, PATH: dir, QUERIES: queries, FAILED_HOST: failedHost,
+        USE_DIG: useDig ? '1' : '0', SERVICE_UNAVAILABLE: serviceUnavailable ? '1' : '0',
+      },
       encoding: 'utf8',
       timeout: 15_000,
     });
     assert.ifError(result.error);
-    const expectedQueries = [...hosts, srv, ...(useDig || failedHost === srv ? [`dig ${srv}`] : [])];
+    const expectedQueries = [...hosts, srv, ...(useDig || (failedHost === srv && !serviceUnavailable) ? [`dig ${srv}`] : [])];
     assert.deepEqual(fs.readFileSync(queries, 'utf8').trim().split('\n'), expectedQueries);
     if (failedHost) {
       assert.equal(result.status, 1);

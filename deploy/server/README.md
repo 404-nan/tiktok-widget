@@ -28,7 +28,7 @@ lulserver の本番（127.0.0.1:3939）と開発サーバーに関わる反映�
 
 ## Cloudflare 1033 が出た場合の DNS 診断
 
-LuLServer 上のリポジトリで `bash deploy/server/dns-check.sh` を実行します。`region1.v2.argotunnel.com` と `widget.lul.works` のアドレスに加え、cloudflared が接続先を見つけるための `_v2-origintunneld._tcp.argotunnel.com` の SRV レコードを確認します。SRV は `resolvectl` で確認し、使えないか応答が得られなければ、利用できる場合に `dig` でも確認します。各照会は最大5秒です。失敗した名前と確認先を表示し、終了コード1を返します。設定は変更せず、サービスも再起動しません。
+LuLServer 上のリポジトリで `bash deploy/server/dns-check.sh` を実行します。`region1.v2.argotunnel.com` と `widget.lul.works` のアドレスに加え、cloudflared が接続先を見つけるための `_v2-origintunneld._tcp.argotunnel.com` の SRV レコードを確認します。SRV は `resolvectl` で確認し、使えないか応答が得られなければ、利用できる場合に `dig` でも確認します。接続先が `.`（サービスなし）だけの応答は失敗とします。各照会は最大5秒です。失敗した名前と確認先を表示し、終了コード1を返します。設定は変更せず、サービスも再起動しません。
 
 既存の死活の見張りはローカルの `/healthz` を使うため、ライコネ本体が動いていてトンネルだけ落ちた場合を検知しません。この DNS 診断は別に実行してください。成功してもトンネルへの接続や HTTP 応答を保証するものではありません。
 
