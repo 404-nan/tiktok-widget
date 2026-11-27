@@ -226,8 +226,22 @@ export class TugOfWarEngine {
     const side = this.#sideOf(event.user, this.config.autoJoin !== 'none', event.test === true);
     if (!side) return;
     if (event.test === true) this.battle.test = true;
-    // いいねはチーム全体・個人とも整数で合算してから likesPerPower で割る（0.1×10の丸め誤差とMVP偏りを同時に防ぐ）
-    this.#pull(side, event.user, count / per, { kind: 'like', likes: count, per, test: event.test === true });
+    const team = this.battle.teams[side];
+    // 視聴者ごと・チームごととも整数で端数を持ち越し、確定した整数点だけを積み上げる（浮動小数誤差・設定変更時の消失・MVP偏りを防ぐ）
+    const key = userKey(event.user) || '?';
+    const row = team.contributors.get(key) ?? { user: slimUser(event.user), power: 0, likes: 0, likeCarry: 0, gifts: 0 };
+    row.user = slimUser(event.user);
+    row.likes = (row.likes ?? 0) + count;
+    row.likeCarry = (row.likeCarry ?? 0) + count;
+    const rowGained = Math.floor(row.likeCarry / per);
+    row.likeCarry -= rowGained * per;
+    row.power += rowGained;
+    team.contributors.set(key, row);
+
+    team.likeCarry = (team.likeCarry ?? 0) + count;
+    const gained = Math.floor(team.likeCarry / per);
+    team.likeCarry -= gained * per;
+    if (gained > 0) this.#pull(side, event.user, gained, { kind: 'like', likes: count, test: event.test === true });
   }
 
   /** その人のチーム。まだ決まっていなければ、自動の振り分けが有効なとき人数の少ない方へ入れる */
@@ -263,39 +277,25 @@ export class TugOfWarEngine {
     const team = b.teams[side];
     const now = Date.now();
     if (detail.test) b.test = true;
-    if (detail.kind === 'like') {
-      team.likes = (team.likes ?? 0) + detail.likes;
-      team.power = (team.giftPower ?? 0) + team.likes / detail.per;
-    } else {
-      team.giftPower = (team.giftPower ?? 0) + power;
-      const per = number(this.config.likesPerPower, 0);
-      team.power = team.giftPower + (per > 0 && team.likes ? team.likes / per : 0);
-    }
+    team.power += power;
     // コンボ: 同じチームのギフトが続けて届いたら数を上げる。相手のギフトが来たら相手の数は切れる
     if (detail.kind === 'gift') {
       team.combo = now - team.lastHitAt <= COMBO_GAP_MS ? team.combo + 1 : 1;
       team.lastHitAt = now;
       b.teams[other(side)].combo = 0;
-    }
-    const key = userKey(user) || '?';
-    const row = team.contributors.get(key) ?? { user: slimUser(user), power: 0, giftPower: 0, likes: 0, gifts: 0 };
-    row.user = slimUser(user);
-    if (detail.kind === 'like') {
-      row.likes = (row.likes ?? 0) + detail.likes;
-      row.power = (row.giftPower ?? 0) + row.likes / detail.per;
-    } else {
-      row.giftPower = (row.giftPower ?? 0) + power;
-      const per = number(this.config.likesPerPower, 0);
-      row.power = row.giftPower + (per > 0 && row.likes ? row.likes / per : 0);
+      const key = userKey(user) || '?';
+      const row = team.contributors.get(key) ?? { user: slimUser(user), power: 0, likes: 0, likeCarry: 0, gifts: 0 };
+      row.user = slimUser(user);
+      row.power += power;
       row.gifts += 1;
+      team.contributors.set(key, row);
     }
-    team.contributors.set(key, row);
     const before = b.leader;
     b.leader = this.#currentLeader();
     const reversal = Boolean(before && b.leader && before !== b.leader);
     if (reversal) b.reversals += 1;
     const hit = {
-      side, user: slimUser(user), power: Math.round(power * 10) / 10, kind: detail.kind,
+      side, user: slimUser(user), power, kind: detail.kind,
       gift: detail.gift ?? null, likes: detail.likes ?? null,
       combo: detail.kind === 'gift' ? team.combo : 0, reversal, test: detail.test === true,
     };
@@ -311,10 +311,14 @@ export class TugOfWarEngine {
     return left.power > right.power ? 'left' : 'right';
   }
 
-  #ranking(side) {
+  #rankedRows(side) {
     return [...this.battle.teams[side].contributors.values()]
-      .sort((a, b) => b.power - a.power)
-      .map((row) => ({ user: { ...row.user }, power: Math.floor(row.power), gifts: row.gifts }));
+      .sort((a, b) => (b.power - a.power) || ((b.likes ?? 0) - (a.likes ?? 0)));
+  }
+
+  #ranking(side) {
+    return this.#rankedRows(side)
+      .map((row) => ({ user: { ...row.user }, power: row.power, gifts: row.gifts }));
   }
 
   #finish(reason) {
@@ -325,11 +329,12 @@ export class TugOfWarEngine {
     b.phase = 'result';
     b.reason = reason;
     b.winner = left.power === right.power ? 'draw' : left.power > right.power ? 'left' : 'right';
-    // MVP: 勝ったチームでいちばん引いた人。引き分けなら両チームでいちばん引いた人
+    // MVP: 勝ったチームでいちばん引いた人。引き分けなら両チームでいちばん引いた人（同点時はいいね数が多い人）
     const pool = b.winner === 'draw'
-      ? [...this.#ranking('left').map((r) => ({ ...r, side: 'left' })), ...this.#ranking('right').map((r) => ({ ...r, side: 'right' }))].sort((x, y) => y.power - x.power)
-      : this.#ranking(b.winner).map((r) => ({ ...r, side: b.winner }));
-    b.mvp = pool[0] ? { side: pool[0].side, user: pool[0].user, power: pool[0].power, gifts: pool[0].gifts } : null;
+      ? [...this.#rankedRows('left').map((r) => ({ ...r, side: 'left' })), ...this.#rankedRows('right').map((r) => ({ ...r, side: 'right' }))]
+        .sort((x, y) => (y.power - x.power) || ((y.likes ?? 0) - (x.likes ?? 0)))
+      : this.#rankedRows(b.winner).map((r) => ({ ...r, side: b.winner }));
+    b.mvp = pool[0] ? { side: pool[0].side, user: { ...pool[0].user }, power: pool[0].power, gifts: pool[0].gifts } : null;
     this.#broadcast('result');
     if (b.winner === 'draw' || b.test) return; // テストの試合と引き分けでは、決着の動作を動かさない
     try {
