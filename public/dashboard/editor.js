@@ -14,6 +14,7 @@ import { drawResultsView } from './draw-results-form.js';
 import { TIMER_COIN_SECONDS } from './timer-length.js';
 import { createTemplatesView } from './templates.js';
 import { TABS, BASIC } from './editor-constants.js';
+import { pendingFor, requestConfirm } from './plan-request.js';
 import { buildMinecraft } from './editor-minecraft.js';
 import { renderYamlIssues, setupYaml } from './editor-ai.js';
 import { buildPreview } from './editor-preview.js';
@@ -515,7 +516,9 @@ export function createEditor({ api, setMessage }) {
     }
   }
 
-  // 使えないウィジェットのカード。押しても入らない（入れても配信画面には出ないため）。理由は1行で、カードの下に出す
+  // 使えないウィジェットのカード。押しても入らない（入れても配信画面には出ないため）。理由は1行で、カードの下に出す。
+  // プランで使えないものは「○○にする」を押すとカードの中で申し込みの確かめ欄が開き、もう1回押せば申し込める。
+  // 申し込んだあとは「確認中」と出す（plan-request.js）。
   function lockedCard(section, lock) {
     const card = document.createElement('div');
     card.className = 'card locked';
@@ -527,7 +530,29 @@ export function createEditor({ api, setMessage }) {
     state.className = 'card-state';
     state.append(icon('lock'), lockText(lock));
     card.append(head, Object.assign(document.createElement('span'), { className: 'card-desc', textContent: INFO[section].desc }), state);
+    const request = lockedRequest(lock);
+    if (request) card.append(request);
     return card;
+  }
+
+  function lockedRequest(lock) {
+    const requests = me.planRequest;
+    if (!requests || lock?.reason !== 'plan' || !lock.requiredPlan) return null;
+    const option = (requests.options ?? []).find((item) => item.id === lock.requiredPlan);
+    if (!option) return null;
+    const pending = pendingFor(requests, 'upgrade', option.id);
+    if (pending) return Object.assign(document.createElement('span'), { className: 'card-request pending', textContent: `確認中（${option.label} の申し込み）` });
+    const box = document.createElement('div');
+    box.className = 'card-request';
+    const start = document.createElement('button');
+    start.type = 'button';
+    start.className = 'btn pressable';
+    start.textContent = `${option.label}にする`;
+    start.addEventListener('click', () => {
+      box.replaceChildren(requestConfirm({ state: requests, type: 'upgrade', option, onClose: (result) => { if (!result) box.replaceChildren(start); } }));
+    });
+    box.append(start);
+    return box;
   }
 
   function lockText(lock) {

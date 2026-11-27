@@ -41,7 +41,8 @@ export async function startLocalServer(repoRoot) {
   fs.copyFileSync(path.join(repoRoot, 'config.example.yaml'), configPath);
   const port = await findFreePort();
   const env = { ...process.env, PORT: String(port), HOST: '127.0.0.1', TW_ENV: 'dev', TW_CONFIG: configPath, TW_DATA: dataDir };
-  for (const key of ['TIKTOK_USERNAME', 'TW_VAULT', 'TW_HOSTED', 'TW_SERVER', 'TW_AI_TOKEN']) delete env[key];
+  // 本物の通知先（TW_NOTIFY_WEBHOOK）へ試験の申し込みを送らない
+  for (const key of ['TIKTOK_USERNAME', 'TW_VAULT', 'TW_HOSTED', 'TW_SERVER', 'TW_AI_TOKEN', 'TW_NOTIFY_WEBHOOK']) delete env[key];
 
   const child = spawn(process.execPath, [path.join(repoRoot, 'server.js')], {
     cwd: repoRoot,

@@ -187,6 +187,15 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .plan-contact { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
 .plan-contact a { color: inherit; font-weight: 700; text-decoration: underline; }
 .plan-panel[data-status="suspended"] .plan-body { color: var(--error); }
+/* プランの申し込み（plan-request.js）。「○○にする」→ 確かめ欄 → 申し込む。申し込んだら「確認中」 */
+.plan-request-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.plan-request-slot:empty { display: none; }
+.plan-request-box { display: grid; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--card-radius); }
+.plan-request-lead, .plan-request-pay, .plan-request-note, .plan-request-pending { margin: 0; font-size: 14px; line-height: 1.6; }
+.plan-request-pay { color: var(--text-secondary); }
+.plan-request-note:empty { display: none; }
+.plan-request-note.error { color: var(--error); }
+.plan-request-pending { font-weight: 700; color: var(--attention); }
 
 /* カットインの切り抜き。余白は 4/8/12/16/24/32/48 だけ。横並びのボタンは同じ大きさ */
 .cutin-crop {

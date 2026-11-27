@@ -3,6 +3,7 @@ import { createEditor } from './editor.js';
 import { setupAi } from './ai.js';
 import { setupIngest } from './ingest.js';
 import { setupStreamerAi } from './ai-streamer.js';
+import { planRequestNodes, PLAN_REQUEST_SENT, sentText } from './plan-request.js';
 import { $, store, api, setupChrome, statusText, createStatusGate } from './common.js';
 
 // --- 接続状態 ---
@@ -27,12 +28,16 @@ function renderStatus(status) {
 function setMessage(text, isError = false, { toast: allowToast = true } = {}) {
   $('message').textContent = text;
   $('message').classList.toggle('error', isError);
+  if (allowToast && isError && $('message').offsetParent === null) showToast(text);
+}
+
+// 下に出るお知らせ。元に戻すボタンが出ているときは上書きしない
+function showToast(text) {
   const toast = $('toast');
-  if (allowToast && isError && text && toast && $('message').offsetParent === null && !toast.querySelector('button')) {
-    toast.textContent = text;
-    clearTimeout(setMessage.toastTimer);
-    setMessage.toastTimer = setTimeout(() => { if (toast.textContent === text) toast.textContent = ''; }, 5000);
-  }
+  if (!text || !toast || toast.querySelector('button')) return;
+  toast.textContent = text;
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => { if (toast.textContent === text) toast.textContent = ''; }, 5000);
 }
 
 async function setupConnect() {
@@ -152,6 +157,8 @@ function planPriceText(plan) {
 function planPeriodText(plan) {
   const left = plan.daysLeft == null ? '' : plan.daysLeft === 0 ? '（今日まで）' : `（あと${plan.daysLeft}日）`;
   if (plan.status === 'trial' && plan.trialEndsAt) return `お試しは ${plan.trialEndsAt} まで${left}`;
+  if (plan.cancelled && plan.status === 'active' && plan.paidUntil) return `${plan.paidUntil} まで${left}・次の更新はしません`;
+  if (plan.cancelled && plan.status === 'free') return '解約しました。無料のまま続けて使えます';
   if (plan.status === 'free' && plan.trialEndsAt) return `お試しは ${plan.trialEndsAt} で終わりました。無料のまま続けて使えます`;
   if (plan.status === 'active' && plan.paidUntil) return `${plan.paidUntil} まで${left}`;
   if (plan.status === 'past_due' && plan.graceUntil) return `${plan.graceUntil} まで待ちます${left}`;
@@ -219,7 +226,8 @@ function renderPlan(me) {
   if (billing?.code) lines.push(`紹介コード: ${billing.code}`);
   $('planBody').textContent = lines.filter(Boolean).join('\n');
   const contact = planContactNode(plan);
-  $('planMore').replaceChildren(...planUpgrades(me.locked), ...(contact ? [contact] : []));
+  // 申し込みの欄（「Plus にする」「Pro にする」「解約する（次の更新をしない）」と「確認中」）は、案内の前に出す
+  $('planMore').replaceChildren(...planUpgrades(me.locked), ...planRequestNodes(me), ...(contact ? [contact] : []));
 }
 
 async function refreshPlan() {
@@ -399,6 +407,16 @@ setupDevTools();
 clearLog();
 
 const editor = createEditor({ api, setMessage });
+// 申し込みを送ったら、返事の /api/me で「プラン」とその他のウィジェットの鍵つきカードを「確認中」に描き直す
+// （使えるものは変わらないので、サーバーは配信画面へ知らせない）
+// 何が起きたか（二重に押して1件にまとめたときも）は、描き直しで消えないようにプランの欄と下のお知らせに出す
+window.addEventListener(PLAN_REQUEST_SENT, (event) => {
+  const text = sentText(event.detail);
+  renderPlan(event.detail);
+  $('planMore').append(Object.assign(document.createElement('p'), { className: 'plan-request-note', textContent: text }));
+  showToast(text);
+  editor.onEntitlements();
+});
 let ai = null;
 editor
   .start()

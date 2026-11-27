@@ -305,3 +305,7 @@
     gap: 5px;
   }
 }
+
+/* プランの申し込み（admin-detail.js の planRequestsGroup） */
+.plan-request { display: grid; gap: 6px; }
+.rows .name .tag { margin-left: 6px; }

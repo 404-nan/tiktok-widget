@@ -13,7 +13,9 @@ import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
 import { EDIT_CAPABILITIES } from './runtime-features.js';
 import { RentalState, rentalForHandle } from './rental.js';
-import { BillingStore, trialEndDay } from './billing.js';
+import { BillingStore, trialEndDay, computeStatus, effectivePlanId } from './billing.js';
+import { listPlans, defaultPlanId } from './plans.js';
+import { PlanRequests, PlanRequestError, describeRequest, oneMonthLater } from './plan-requests.js';
 import { IngestKeyStore } from './ingest-keys.js';
 import { recordError } from './error-log.js';
 
@@ -405,6 +407,79 @@ export class Tenants {
     return result;
   }
 
+  // --- プランの申し込み（src/plan-requests.js）。お金の出入りは持たない ---
+
+  planRequests(id) {
+    if (!this.get(id)) throw new PlanRequestError('その配信者は見つかりません', { status: 404 });
+    return new PlanRequests({ dir: this.dataDir(id), tenant: id });
+  }
+
+  /**
+   * 配信者からの申し込みを受ける。使えるものは変わらないので、配信画面へ entitlements を流さない
+   * （流すと OBS のウィジェットが読み込み直しになる）。「確認中」はダッシュボードが返事で描き直す。
+   */
+  submitPlanRequest(id, body) {
+    return this.planRequests(id).submit(body);
+  }
+
+  /** 管理画面に出す形。確認中のものと、最近の10件 */
+  planRequestView(id) {
+    try {
+      const all = this.planRequests(id).list().map(describeRequest);
+      return { pending: all.filter((row) => row.state === 'pending'), recent: all.slice(0, 10), error: '' };
+    } catch (err) {
+      // 読めないときも一覧は出す（原因は plan.request.io に残してある）
+      return { pending: [], recent: [], error: err.message };
+    }
+  }
+
+  /**
+   * 管理画面の「確かめて有効にする」「解約を確かめる」「見送る」。
+   * 上げる申し込みを有効にするときは、プラン・支払い済み・支払った日まで（今日から1か月。今の期限のほうが後なら縮めない）を入れる。
+   * 支払いの記録は先に書く（記録が書けたのに申し込みの印だけ残っても、もう一度押せば同じ結果になる）。
+   * 解約は、次の更新をしない印（cancelled）を入れるだけで、支払った日までは今のまま使える（プランも期限も変えない）。
+   * 支払った日を過ぎたら、支払い待ち・停止にせず無料に落ちる（billing.js の computeStatus）。
+   */
+  decidePlanRequest(id, requestId, action, { paidUntil = null, now = Date.now() } = {}) {
+    if (action !== 'approve' && action !== 'reject') throw new PlanRequestError('approve か reject を選んでください');
+    const store = this.planRequests(id);
+    const current = store.get(String(requestId ?? ''));
+    if (!current) throw new PlanRequestError('その申し込みは見つかりません', { status: 404 });
+    if (current.state !== 'pending') throw new PlanRequestError('その申し込みはもう処理しました', { status: 409 });
+    let billing = null;
+    if (action === 'approve' && current.type === 'upgrade') {
+      const acc = this.billing.account(id);
+      const curStatus = computeStatus(acc, now);
+      const allPlans = listPlans();
+      const curRank = (curStatus === 'active' || curStatus === 'past_due') ? allPlans.findIndex((p) => p.id === effectivePlanId(acc, now)) : -1;
+      const targetRank = allPlans.findIndex((p) => p.id === current.plan);
+      if (curRank >= 0 && targetRank >= 0 && targetRank <= curRank) {
+        throw new PlanRequestError('いまのプランと同じか下のプランには切り替えできません', { status: 409 });
+      }
+      const kept = acc?.paidUntil;
+      const next = paidUntil || oneMonthLater(now);
+      // もう一度有効にしたら、前の解約（次の更新をしない）は取り消す
+      billing = this.updateBilling(id, { plan: current.plan, status: 'active', paidUntil: !paidUntil && typeof kept === 'string' && kept > next ? kept : next, cancelled: false });
+      // 今回の申し込みより前の解約や同格以下の確認中申し込みだけ自動で閉じる（後から出た解約は残す）
+      for (const other of store.list()) {
+        if (other.id === current.id || other.state !== 'pending') continue;
+        const otherRank = other.type === 'upgrade' ? allPlans.findIndex((p) => p.id === other.plan) : -1;
+        const olderCancel = other.type === 'cancel' && String(other.createdAt ?? '') <= String(current.createdAt ?? '');
+        if (olderCancel || (other.type === 'upgrade' && otherRank >= 0 && otherRank <= targetRank)) {
+          store.decide(other.id, 'rejected');
+        }
+      }
+    }
+    // 解約は期限つきなら今使えるものを変えず、期限後に無料へ落とす。期限未設定ならその場で無料へ移す
+    if (action === 'approve' && current.type === 'cancel') {
+      const acc = this.billing.account(id);
+      if (acc?.paidUntil) billing = this.billing.setAccount(id, { cancelled: true });
+      else billing = this.updateBilling(id, { plan: defaultPlanId(), status: '', paidUntil: '', cancelled: true });
+    }
+    const request = store.decide(current.id, action === 'approve' ? 'approved' : 'rejected');
+    return { request: describeRequest(request), billing: billing ?? this.billing.adminView(id) };
+  }
+
   update(id, patch) {
     const t = this.get(id);
     if (!t) throw new Error('その配信者は見つかりません');
@@ -511,6 +586,10 @@ export class Tenants {
       notes: this.notes,
       connectionAllowed: ({ live } = {}) => this.billing.allowsConnection(id, { live }),
       onIngestKeyChange: () => this.refreshIngestKey(id),
+      planRequests: {
+        submit: (body) => this.submitPlanRequest(id, body),
+        list: () => this.planRequests(id).list(),
+      },
     });
     this.runtimes.set(id, rt);
     return rt;

@@ -13,7 +13,7 @@ import { validatePlans } from '../src/plans.js';
 import { setActiveErrorLog } from '../src/error-log.js';
 import { createExistingTenant } from './helpers/existing-tenant.js';
 
-const PLAN_KEYS = ['id', 'label', 'description', 'priceYen', 'draft', 'legacy', 'status', 'statusLabel', 'paidUntil', 'trialEndsAt', 'graceUntil', 'daysLeft', 'trialNotice', 'trialMessage', 'enforcementOn', 'contactUrl', 'contactNote'];
+const PLAN_KEYS = ['id', 'label', 'description', 'priceYen', 'draft', 'legacy', 'status', 'statusLabel', 'cancelled', 'paidUntil', 'trialEndsAt', 'graceUntil', 'daysLeft', 'trialNotice', 'trialMessage', 'enforcementOn', 'contactUrl', 'contactNote'];
 
 // trial: true なら新しく作った配信者（お試しつき）、偽なら前からいる配信者（支払いの記録なし）
 async function meOf({ billing, account = null, access = null, trial = false }) {

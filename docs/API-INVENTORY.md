@@ -19,6 +19,8 @@
 | GET /api/me/template | 自分のテンプレート |
 | GET /api/me/guide | 自分向けの案内 |
 | POST /api/me/name | 名前の変更 |
+| POST /api/me/plan-request | プランの申し込み（Plus・Pro にする／解約する）。持ち主の鍵だけ、OBS の鍵は 403 |
+| GET /api/me/plan-requests | 自分の申し込みの一覧（持ち主の鍵だけ） |
 | POST /api/preparation/auto | 準備の自動化 |
 | POST /api/preparation/dismiss | 準備の却下 |
 | GET /api/env | 環境の種別 |
@@ -108,6 +110,8 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/tenants/:id/billing/code | 課金のコード |
 | POST /admin/api/tenants/:id/referral | 紹介 |
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
+| GET /admin/api/tenants/:id/plan-requests | プランの申し込みの一覧 |
+| POST /admin/api/tenants/:id/plan-requests/:requestId/:action | 申し込みを確かめて有効にする（approve）・見送る（reject） |
 | GET /admin/api/lul | 全テナントの概要 |
 | GET /admin/api/widget-usage | ウィジェットの利用状況 |
 | GET /admin/api/deploy-status | 投入の状態 |

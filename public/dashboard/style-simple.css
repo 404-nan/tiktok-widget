@@ -48,6 +48,9 @@ body[data-mode=simple] [data-dev-only] { display: none !important; }
 .card.locked { cursor: default; background: transparent; box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
 .card.locked .card-head, .card.locked .card-desc { opacity: .72; }
 .card.locked .card-state { color: var(--attention); font-weight: 700; }
+/* 鍵つきカードの中の申し込み（editor.js の lockedRequest） */
+.card.locked .card-request { display: grid; gap: var(--s-2, 8px); margin-top: var(--s-2, 8px); }
+.card.locked .card-request.pending { color: var(--attention); font-weight: 700; font-size: 14px; }
 @media (max-width: 600px) {
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { min-height: 0; padding: 12px; }
