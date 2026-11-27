@@ -29,7 +29,7 @@ function validateChange(id, change) {
 }
 
 function aad(id) {
-  return Buffer.from(`raikone-tenant-revocation-v1:${id}`);
+  return Buffer.from(`tiktok-widget-tenant-revocation-v1:${id}`);
 }
 
 function encrypt(id, change, key) {
@@ -85,6 +85,7 @@ export async function openTenantRevocations(dir, { env = process.env, request = 
     typeof apiToken === 'string' && apiToken.trim() && /^[A-Za-z0-9_-]{43}$/.test(encryptionKey ?? ''),
   '失効台帳のアカウント、DB、API トークンまたは暗号鍵が不正です。');
   const key = Buffer.from(encryptionKey, 'base64url');
+  check(key.length === 32 && key.toString('base64url') === encryptionKey, '失効台帳の暗号鍵が不正です。');
   const id = createHash('sha256').update(`${accountId}:${databaseId}:`).update(key).digest('hex');
   check(!savedIdentity || savedIdentity === id, '同期データと失効台帳または暗号鍵が一致しません。');
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`;

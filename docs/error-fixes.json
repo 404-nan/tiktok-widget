@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "19ce278c94b7",
+      "summary": "src/tenant-revocations.js の暗号化識別子が旧ローマ字名を使い、ブランドの検査に失敗した。内部の製品名を tiktok-widget に揃える。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/brand.test.js", "name": "ローマ字ブランド名を追加せず、内部名はtiktok-widgetのままにする" }
+    },
+    {
       "fingerprint": "95eb66197ab6",
       "summary": "deploy/standby の古い同期データで配信者URLの失効が巻き戻り得た。src/tenant-revocations.js が別の台帳に変更を先に記録し、待機機は起動前に適用する。",
       "fixedIn": "PR #23",
