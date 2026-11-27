@@ -6,6 +6,97 @@
       "fixedIn": "dev/plan-catalog-2026-11-28",
       "fixedAt": "2026-11-27",
       "test": { "file": "test/tenants.test.js", "name": "Pro プランなら手動スイッチ無しで豪華演出と編集の操作が開き、手動の OFF がプランより強い" }
+    },
+    {
+      "fingerprint": "364e04b76a10",
+      "summary": "deploy/standby/standby.sh は昇格失敗後に復元データが期限切れになると再同期できなかった。未公開を確認した場合だけ復元データを退避し、再同期を許可する。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "未公開の切替データは退避して取り直せるが公開済みなら触らない" }
+    },
+    {
+      "fingerprint": "37f413410657",
+      "summary": "deploy/standby/setup.sh は失効台帳の設定パスを変更しても古い環境の本体を再利用した。読めないファイルは起動前に拒否し、パス変更時は本体を起動し直す。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-setup.test.js", "name": "失効台帳の設定パスを訂正した再試行で本体を起動し直す" }
+    },
+    {
+      "fingerprint": "c732be07588a",
+      "summary": "src/tenants.js の失効再適用で配信者だけ削除し、古い同期データの紹介コードが残った。削除済み配信者の請求情報も取り除く。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/tenant-revocations.test.js", "name": "待機機への切替後も削除した配信者の紹介コードは使えない" }
+    },
+    {
+      "fingerprint": "19ce278c94b7",
+      "summary": "src/tenant-revocations.js の暗号化識別子が旧ローマ字名を使い、ブランドの検査に失敗した。内部の製品名を tiktok-widget に揃える。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/brand.test.js", "name": "ローマ字ブランド名を追加せず、内部名はtiktok-widgetのままにする" }
+    },
+    {
+      "fingerprint": "95eb66197ab6",
+      "summary": "deploy/standby の古い同期データで配信者URLの失効が巻き戻り得た。src/tenant-revocations.js が別の台帳に変更を先に記録し、待機機は起動前に適用する。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/tenant-revocations.test.js", "name": "待機機は古い同期データより失効台帳を優先し、有効なOBS URLを変えない" }
+    },
+    {
+      "fingerprint": "995dce36d9e1",
+      "summary": "deploy/standby/standby.sh は rsync の秒単位比較で同じ秒・同じサイズの更新を見逃したため、秒未満まで比較する。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "同じ秒に同じサイズで更新したファイルも差分同期する" }
+    },
+    {
+      "fingerprint": "a953ee66a497",
+      "summary": "deploy/standby/standby.sh の DNS 更新前に失敗すると、再試行で復元データの期限を確認せず公開していた。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "DNSを変更する直前にも古いコピーを拒否し、変更済みなら確認だけできる" }
+    },
+    {
+      "fingerprint": "76babf61fdef",
+      "summary": "deploy/standby/standby-route.mjs が配信者別モードでは不要なルート config.yaml を必須にし、正常な待機データを拒否した。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "配信者別モードの同期データはルート設定なしでも検証できる" }
+    },
+    {
+      "fingerprint": "019b44e2a5db",
+      "summary": "deploy/standby/setup.sh は初回にしか復元せず、待機機が古い配信者データで起動し得た。待機側で定期同期し、期限切れ・破損時は昇格しない。",
+      "fixedIn": "standby failover",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "初回以降も同期し、壊れた同期と古いデータで待機機を昇格させない" }
+    },
+    {
+      "fingerprint": "21838e952ca8",
+      "summary": "同じ Cloudflare Tunnel を2台で起動すると通信が両方に送られる。deploy/standby の昇格では専用トンネルと旧本番の公開停止を確認してから DNS を更新する。",
+      "fixedIn": "standby failover",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "旧本番が稼働中・別のトンネル・待機機が未確認なら公開先を変更しない" }
+    },
+    {
+      "fingerprint": "31c6efe50543",
+      "summary": "一時起動のバックアップ URL をプロセスの引数に出さない",
+      "fixedIn": "PR #22",
+      "fixedAt": "2026-11-27",
+      "test": { "file": "test/standby-setup.test.js", "name": "バックアップの URL を curl の引数や環境に渡さない" }
+    },
+    {
+      "fingerprint": "368c7c25e8f7",
+      "summary": "一時起動のトンネルが停止に応じなくても本体を停止する",
+      "fixedIn": "PR #22",
+      "fixedAt": "2026-11-27",
+      "test": { "file": "test/standby-setup.test.js", "name": "停止に応じないトンネルを強制終了して本体も止める" }
+    },
+    {
+      "fingerprint": "1017eb0aa478",
+      "summary": "2026-11-28 00:44〜02:33 JST ごろ: lulserver の LAN DNS (192.168.11.60、/etc/systemd/resolved.conf) が応答せず、cloudflared が argotunnel の名前を引けなくなり、widget.lul.works が Cloudflare 1033 を返した。IP でのインターネット疎通と Tailscale は継続。恒久対策は /etc/systemd/resolved.conf.d/lul-fallback.conf に DNS=1.1.1.1 1.0.0.1 を設定すること。",
+      "fixedIn": "/etc/systemd/resolved.conf.d/lul-fallback.conf",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/dns-check.test.js", "name": "トンネルまたは公開先を名前解決できないと DNS 診断が失敗する" }
     }
   ]
 }
