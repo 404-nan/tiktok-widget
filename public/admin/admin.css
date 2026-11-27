@@ -267,6 +267,12 @@
   padding: 0 16px;
   font-size: 15px;
 }
+.detail.card-page .money-payment-submit > .btn {
+  min-width: 0;
+  max-width: 100%;
+  padding-block: var(--s-2);
+  white-space: normal;
+}
 
 /* スマホ: 列は画面いっぱい（決まった幅を持たせない） */
 @media (max-width: 899px) {

@@ -1,11 +1,15 @@
 // 管理者だけが紹介、確認済みの入金、紹介報酬の支払いを記録できることを HTTP で確かめる。
 
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 import vm from 'node:vm';
-import { localScenario, startHostedServer } from '../helpers/guard-harness.js';
+import express from 'express';
+import { localScenario, repoRoot, startHostedServer } from '../helpers/guard-harness.js';
 
 function renderMoney(money, tenants) {
   const source = fs.readFileSync(new URL('../../public/admin/admin-money.js', import.meta.url), 'utf8')
@@ -36,6 +40,47 @@ test('名前が同じ配信者も入金先の選択肢は ID で見分けられ�
   assert.deepEqual(select.children.map(({ text, value }) => [text, value]), [
     ['配信者を選ぶ', ''], ['同じ名前（first）', 'first'], ['同じ名前（second）', 'second'],
   ]);
+  const submit = nodes.find(({ tag, type, textContent }) => tag === 'button' && type === 'submit' && textContent === '確認済みの入金を記録');
+  assert.match(nodes.find(({ children }) => children.includes(submit)).className, /\bloose\b/);
+});
+
+test('入金を記録するボタンの文字が PC とスマホの明暗で背景に収まる', { skip: !process.env.TW_TEST_CHROME }, async (t) => {
+  const app = express();
+  app.get('/', (req, res) => res.send(`<!doctype html><html lang="ja" data-theme="${req.query.theme === 'light' ? 'light' : 'dark'}">
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/dashboard/style.css"><link rel="stylesheet" href="/admin/admin.css">
+    <main class="admin"><section class="detail card-page"><div class="money-cards"></div></section></main>
+    <script type="module">
+      import { moneyDetail } from '/admin/admin-money.js';
+      const money = { received: 0, owed: 0, paid: 0, balance: 0, draftPlans: [], referrals: [], payments: [], payouts: [], overpayments: [] };
+      document.querySelector('.money-cards').append(moneyDetail(money, [{ id: 'sample', name: '見本の配信者' }])[2]);
+      await document.fonts.ready;
+      const button = document.querySelector('button[type=submit]');
+      button.scrollIntoView({ block: 'center' });
+      const bounds = button.getBoundingClientRect();
+      const text = document.createRange();
+      text.selectNodeContents(button);
+      const inside = [...text.getClientRects()].every((rect) =>
+        rect.left > bounds.left && rect.right < bounds.right && rect.top >= bounds.top && rect.bottom <= bounds.bottom);
+      document.body.dataset.layout = (inside && bounds.height >= 40) ? 'fits' : 'overflow';
+    </script></html>`));
+  app.use('/vendor/fonts/zen-kaku-gothic-new', express.static(path.join(repoRoot, 'node_modules/@fontsource/zen-kaku-gothic-new')));
+  app.use(express.static(path.join(repoRoot, 'public')));
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+  const chrome = promisify(execFile);
+  for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
+    const url = `http://127.0.0.1:${server.address().port}/?theme=${theme}`;
+    const args = ['--headless', '--no-sandbox', '--hide-scrollbars', '--virtual-time-budget=2000', `--window-size=${width},680`];
+    const { stdout } = await chrome(process.env.TW_TEST_CHROME, [...args, '--dump-dom', url], { timeout: 12000 });
+    assert.match(stdout, /data-layout="fits"/, `${width}px・${theme}`);
+    if (process.env.TW_TEST_SCREENSHOTS) {
+      const screenshot = path.join(process.env.TW_TEST_SCREENSHOTS, `payment-submit-${width}-${theme}.png`);
+      await chrome(process.env.TW_TEST_CHROME, [...args, `--screenshot=${screenshot}`, url], { timeout: 12000 });
+      t.diagnostic(screenshot);
+    }
+  }
 });
 
 test('入金を減額または取り消しても、支払った金額と要回収額を別に表示する', () => {

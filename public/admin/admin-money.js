@@ -23,7 +23,7 @@ function paymentForm(tenants) {
     p('実際に受け取った月額料金と入金日を記録してください。照合番号は、同じ入金を二重に記録しないために使います。'),
     field('配信者', tenant), field('入金額（円）', amount), field('入金日（日本時間）', paidOn), field('入金の照合番号', reference),
     el('label', { className: 'row' }, confirmed, el('span', { textContent: '入金を確認しました' })),
-    el('div', { className: 'btn-row' }, save));
+    el('div', { className: 'btn-row loose money-payment-submit' }, save));
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (save.disabled) return;
