@@ -11,6 +11,21 @@ function ui(globals) {
   return vm.createContext(globals);
 }
 
+test('元データが最新なら集金の集計に null の文字を表示しない', async () => {
+  const context = ui({
+    api: async () => ({ totals: {}, streamers: [], stale: false }),
+    el: (tag, props, ...children) => ({ tag, ...props, children }),
+  });
+  vm.runInContext(source, context);
+  let children;
+  const content = { replaceChildren(...nodes) {
+    children = nodes.map((node) => typeof node === 'object' && node !== null ? node : String(node));
+  } };
+  await context.fill({ querySelector: () => content });
+  assert.equal(children[0].className, 'ledger-metrics');
+  assert.ok(!children.includes('null'));
+});
+
 test('ブラウザーのタイムゾーンにかかわらず集金日時を日本時間として送る', async () => {
   const requests = [];
   const context = ui({ api: async (url, body) => { requests.push([url, body]); return {}; }, message() {} });

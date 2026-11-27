@@ -154,10 +154,10 @@ async function renderDetailPanel(root, id, offset = 0) {
       el('p', { className: 'hint', textContent: 'コインは円に換算していません。TikTok の確定額入力はまだなので、売上(円)は貸出の申告がある分だけです。' }),
       el('h4', { textContent: '台帳の履歴' }),
       entries.length ? el('div', { className: 'table-wrap' }, el('table', { className: 'ledger-table' }, el('thead', {}, el('tr', {}, ...['日時', '種類', '金額', '理由・メモ', ''].map((h) => el('th', { textContent: h })))), el('tbody', {}, ...entries.map((entry) => entryRow(entry, entry.kind !== 'reversal' && !entry.reversed ? button('取り消す', () => reverseLedgerEntry(root, entry)) : null))))) : el('p', { className: 'hint', textContent: 'このページに台帳の行はありません' }),
-      page.total > page.limit || page.offset > 0 ? el('div', { className: 'btn-row loose' },
+      ...(page.total > page.limit || page.offset > 0 ? [el('div', { className: 'btn-row loose' },
         page.offset > 0 ? button('新しい行', () => renderDetailPanel(root, id, Math.max(0, page.offset - page.limit))) : null,
         page.offset + page.limit < page.total ? button('古い行', () => renderDetailPanel(root, id, page.offset + page.limit)) : null,
-      ) : null,
+      )] : []),
     );
   } catch (err) {
     panel.replaceChildren(el('p', { className: 'form-message error', textContent: err.message }));
@@ -201,7 +201,7 @@ async function fill(root) {
         metric('今月の集金', yen(data.totals.monthCollectedYen)),
         metric('申告待ち', `${data.totals.unreportedCount}枠`),
       ),
-      data.stale ? el('p', { className: 'form-message error', textContent: '元データの一部が読めません。売上推移は古いか欠けている可能性があります。台帳残高は entries.jsonl から読んでいます。' }) : null,
+      ...(data.stale ? [el('p', { className: 'form-message error', textContent: '元データの一部が読めません。売上推移は古いか欠けている可能性があります。台帳残高は entries.jsonl から読んでいます。' })] : []),
       data.streamers.length ? streamerTable(root, data.streamers) : el('div', { className: 'empty-card' }, el('p', { textContent: 'まだ台帳に出せる人がいません' }), el('p', { className: 'hint', textContent: 'streamers.json に利用者が入ると、ここに残高が出ます。' })),
       el('div', { className: 'ledger-detail-panel' }, el('p', { className: 'hint', textContent: '上の表で人を選ぶと、推移と記録欄がここに出ます。' })),
     );
