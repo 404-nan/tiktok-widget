@@ -56,6 +56,16 @@ test('前回集金からの累計は、集金より後の発生・調整・取�
   assert.equal(ledger.balance('s1').balanceYen, 300);
 });
 
+test('さかのぼって集金を記録しても実際の前回集金とその後の増分を保つ', () => {
+  const ledger = new Ledger({ dir: tmp() });
+  charge(ledger, 1000);
+  const latest = ledger.recordCollection({ streamerId: 's1', amountYen: 200, collectedAt: '2026-11-12T00:00:00Z', clientRequestId: 'latest' });
+  ledger.recordAdjustment({ streamerId: 's1', signedAmountYen: 300, reason: '追加', at: '2026-11-13T00:00:00Z' });
+  ledger.recordCollection({ streamerId: 's1', amountYen: 100, collectedAt: '2026-11-11T00:00:00Z', clientRequestId: 'older' });
+  assert.equal(ledger.balance('s1').lastCollection.id, latest.id);
+  assert.equal(ledger.balance('s1').sinceLastCollectionYen, 300);
+});
+
 test('取り消しは元行を消さず逆符号を足し、残高だけ元に戻る', () => {
   const ledger = new Ledger({ dir: tmp() });
   const original = ledger.recordAdjustment({ streamerId: 's1', signedAmountYen: 500, reason: '追加請求', at, clientRequestId: 'adj-rev' });
@@ -79,6 +89,18 @@ test('集金そのものを取り消すと、配分済みの発生も未集金�
   ledger.reverseEntry(collection.id, { reason: '入金確認の間違い' });
   assert.equal(ledger.balance('s1').balanceYen, 100);
   assert.equal(ledger.paymentBreakdown('s1').find((row) => row.id === original.id).status, 'unpaid');
+});
+
+test('集金を取り消しても、取り消した金額を前回集金からの増分には加えない', () => {
+  const ledger = new Ledger({ dir: tmp(), now: () => Date.parse('2026-11-14T00:00:00Z') });
+  charge(ledger, 1000);
+  const valid = ledger.recordCollection({ streamerId: 's1', amountYen: 200, collectedAt: '2026-11-11T00:00:00Z', clientRequestId: 'valid' });
+  ledger.recordAdjustment({ streamerId: 's1', signedAmountYen: 300, reason: '追加', at: '2026-11-12T00:00:00Z' });
+  const invalid = ledger.recordCollection({ streamerId: 's1', amountYen: 100, collectedAt: '2026-11-13T00:00:00Z', clientRequestId: 'invalid' });
+  ledger.reverseEntry(invalid.id, { reason: '誤記' });
+  assert.equal(ledger.balance('s1').lastCollection.id, valid.id);
+  assert.equal(ledger.balance('s1').sinceLastCollectionYen, 300);
+  assert.equal(ledger.balance('s1').balanceYen, 1100);
 });
 
 test('壊れた entries.jsonl は0円として読まず、同期停止のエラーにする', () => {

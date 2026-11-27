@@ -508,15 +508,19 @@ export class Ledger {
     assertStreamerId(streamerId);
     const entries = this.entries().filter((entry) => entry.streamerId === streamerId);
     const reversed = new Set(entries.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
+    const after = (a, b) => a.at > b.at || (a.at === b.at && a.seq > b.seq);
+    const collectionIds = new Set(entries.filter((entry) => entry.kind === 'collection').map((entry) => entry.id));
+    let latest = null;
+    for (const entry of entries) {
+      if (entry.kind === 'collection' && !reversed.has(entry.id) && (!latest || after(entry, latest))) latest = entry;
+    }
+    const lastCollection = latest && { at: latest.at, amountYen: -latest.signedAmountYen, method: latest.method ?? 'other', id: latest.id, seq: latest.seq };
     let balanceYen = 0;
-    let lastCollection = null;
     let sinceLastCollectionYen = 0;
     for (const entry of entries) {
       balanceYen += entry.signedAmountYen;
-      if (entry.kind === 'collection' && !reversed.has(entry.id)) {
-        lastCollection = { at: entry.at, amountYen: -entry.signedAmountYen, method: entry.method ?? 'other', id: entry.id, seq: entry.seq };
-        sinceLastCollectionYen = 0;
-      } else if (entry.kind !== 'collection') {
+      const voidsCollection = entry.kind === 'reversal' && collectionIds.has(entry.targetId);
+      if (entry.kind !== 'collection' && !voidsCollection && (!latest || after(entry, latest))) {
         sinceLastCollectionYen += entry.signedAmountYen;
       }
     }
@@ -559,9 +563,11 @@ export class Ledger {
 
   entriesPage(streamerId, { offset = 0, limit = 100 } = {}) {
     const all = this.entries().filter((entry) => entry.streamerId === streamerId).sort((a, b) => b.seq - a.seq);
+    const reversed = new Set(all.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
     const start = Math.max(0, Math.floor(Number(offset)) || 0);
     const size = Math.min(200, Math.max(1, Math.floor(Number(limit)) || 100));
-    return { total: all.length, offset: start, limit: size, items: all.slice(start, start + size) };
+    const items = all.slice(start, start + size).map((entry) => ({ ...entry, reversed: reversed.has(entry.id) }));
+    return { total: all.length, offset: start, limit: size, items };
   }
 
   readImportState() {

@@ -61,11 +61,16 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 ## 集金台帳（管理画面）
 
-管理画面の「集金」では、`streamers.json` の人ごとに未集金額・前回集金からの増分・月次の売上推移を見て、集金・訂正・取り消しを記録します。台帳は `data/ledger/entries.jsonl` に追記だけし、行を編集・削除しません。間違いは逆符号の取り消し行で直します。
+集金を記録・取り消しすると、今月の集金額と利用者一覧も更新されます。取り消された請求・集金は元の月の合計に含めません。
+前回集金は記録を追加した順ではなく、実際に受け取った日時で決めます。取り消した集金は前回集金にも増分にも数えません。
+「台帳の履歴」の「古い行」から、以前の記録も取り消せます。
+起動時には `TW_LEDGER_DIR` で置き場所を変えた台帳と同期状態も、バックアップの `ledger/` に保存します。
+
+管理画面の「集金」では、`streamers.json` の人ごとに未集金額・前回集金からの増分・月次の売上推移を見て、集金・訂正・取り消しを記録します。集金日時の入力と表示は日本時間です。台帳は `data/ledger/entries.jsonl` に追記だけし、行を編集・削除しません。間違いは逆符号の取り消し行で直します。
 
 貸出の申告売上は lul-rental-ops の `recordRevenueYen()` / `shareAmountYen()` を import して10%だけ発生させ、同じ申告を何回読んでも二重計上しません。TikTok のコインは円に換算せず参考値としてだけ表示します。固定プランの自動請求と5%プランの確定入力はまだ実装していません。
 
-場所は環境変数で変えられます: `TW_LEDGER_DIR`（台帳）、`TW_STREAMERS`、`TW_RENTAL_STATE`、`TW_RENTAL_OPS_DIR`、`TW_NUMBERS_CONFIG`、`TW_LEDGER_START_AT`（この日時より前に終わった貸出枠を発生させない）。`excludeStreamers` にある人は貸出の発生と売上推移に入れません。
+場所は環境変数で変えられます: `TW_LEDGER_DIR`（台帳）、`TW_STREAMERS`、`TW_RENTAL_STATE`、`TW_RENTAL_OPS_DIR`、`TW_NUMBERS_CONFIG`、`TW_LEDGER_START_AT`（この日時より前に終わった貸出枠を発生させない。不正な日時では同期しない）。`excludeStreamers` にある人は貸出の発生と売上推移に入れません。
 
 ## ウィジェット
 

@@ -32,9 +32,11 @@ export function createLedgerService({ dataDir, ledgerDir = process.env.TW_LEDGER
   }
   function ledgerTotals(id, month) {
     const entries = ledger.entries().filter((entry) => entry.streamerId === id);
+    const reversed = new Set(entries.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
+    const active = entries.filter((entry) => entry.period?.month === month && !reversed.has(entry.id));
     return {
-      chargeYen: entries.filter((entry) => (entry.kind === 'accrual' || entry.kind === 'adjustment') && entry.period?.month === month).reduce((sum, entry) => sum + entry.signedAmountYen, 0),
-      collectedYen: entries.filter((entry) => entry.kind === 'collection' && entry.period?.month === month).reduce((sum, entry) => sum - entry.signedAmountYen, 0),
+      chargeYen: active.filter((entry) => entry.kind === 'accrual' || entry.kind === 'adjustment').reduce((sum, entry) => sum + entry.signedAmountYen, 0),
+      collectedYen: active.filter((entry) => entry.kind === 'collection').reduce((sum, entry) => sum - entry.signedAmountYen, 0),
     };
   }
 
@@ -133,11 +135,12 @@ export function createLedgerService({ dataDir, ledgerDir = process.env.TW_LEDGER
         streamers,
       };
     },
-    async detail(id, { months = 6 } = {}) {
+    async detail(id, { months = 6, offset = 0 } = {}) {
       const p = person(id);
       const book = await salesBook({ months });
       const monthly = book.rows.get(id) ?? [];
-      return { streamer: p, ...decorate(p, monthly), sales: monthly, entries: ledger.entriesPage(id, { limit: 20 }).items, stale: book.stale, warnings: book.warnings };
+      const { items: entries, ...entryPage } = ledger.entriesPage(id, { limit: 20, offset });
+      return { streamer: p, ...decorate(p, monthly), sales: monthly, entries, entryPage, stale: book.stale, warnings: book.warnings };
     },
     async sales(id, { months = 12 } = {}) {
       person(id);

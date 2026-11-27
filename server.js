@@ -172,12 +172,13 @@ const ledgerRoute = (fn) => async (req, res) => {
   try {
     res.json(await fn(req));
   } catch (err) {
+    console.warn(`[admin] ${req.method} ${req.route.path}: ${err.message}`);
     res.status(err?.status ?? 500).json({ error: err?.message ?? '台帳で失敗しました', kind: err?.kind ?? err?.code ?? 'ledger-error' });
   }
 };
 admin.post('/ledger/sync', ledgerRoute(async () => ledgerService.sync()));
 admin.get('/ledger/summary', ledgerRoute(async (req) => ledgerService.summary({ months: req.query.months })));
-admin.get('/ledger/streamers/:id', ledgerRoute(async (req) => ledgerService.detail(req.params.id)));
+admin.get('/ledger/streamers/:id', ledgerRoute(async (req) => ledgerService.detail(req.params.id, { offset: req.query.offset })));
 admin.get('/ledger/streamers/:id/sales', ledgerRoute(async (req) => ledgerService.sales(req.params.id, { months: req.query.months })));
 admin.get('/ledger/streamers/:id/entries', ledgerRoute(async (req) => ledgerService.entries(req.params.id, req.query)));
 admin.post('/ledger/collections', ledgerRoute(async (req) => {
