@@ -366,6 +366,7 @@ export function buildPreview(ctx) {
       const t = (action, data) => control('tugOfWar', action, data);
       const e = payload.config.tugOfWar ?? {};
       box.replaceChildren(
+        chip('試合を始める', 'play', t('start')),
         chip('テストの試合を始める', 'play', t('start', { test: true, seconds: 60 })),
         chip(`${e.leftName || '左'} +100（テスト）`, 'gift', t('test', { side: 'left', coins: 100 })),
         chip(`${e.rightName || '右'} +100（テスト）`, 'gift', t('test', { side: 'right', coins: 100 })),
