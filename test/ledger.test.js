@@ -252,6 +252,31 @@ test('すでに支払った報酬で赤字になる訂正と取り消しは追�
   assert.deepEqual(cashTotals(ledger.subscriptionCash()), [500, 0, 500, 0]);
 });
 
+test('取り消せない入金も金額を変えずに入金日を訂正し、初回報酬を再計算できる', () => {
+  const dir = tmp();
+  const ledger = new Ledger({ dir, now: () => Date.parse(at) });
+  const form = { tenantId: 'b', referrerId: 'a', reference: 'first', amount: 1000, paidOn: '2026-09-01', confirmed: true };
+  const first = ledger.recordSubscriptionPayment(form);
+  const second = ledger.recordSubscriptionPayment({ ...form, reference: 'second', amount: 200, paidOn: '2026-10-01' });
+  ledger.recordReferralPayout(first.id, 500);
+  const reason = '日付を誤記';
+  assert.throws(() => ledger.voidSubscriptionPayment(first.id, { reason }), /残高が足りません/);
+  assert.throws(() => ledger.correctSubscriptionPayment(first.id, { paidOn: '2026-02-30', reason }), /正しい入金日/);
+  assert.throws(() => ledger.correctSubscriptionPayment(first.id, { paidOn: '2026-11-01', amount: 1, reason }), /別々に訂正/);
+  assert.equal(ledger.entries().length, 3);
+  const corrected = ledger.correctSubscriptionPayment(first.id, { paidOn: '2026-11-01', reason });
+  assert.deepEqual([corrected.paidOn, corrected.amount, corrected.reward], ['2026-11-01', 1000, null]);
+  const reloaded = new Ledger({ dir });
+  const cash = reloaded.subscriptionCash();
+  assert.deepEqual(cashTotals(cash), [1200, 0, 500, 700]);
+  assert.equal(cash.payments.find(({ id }) => id === second.id).reward.amount, 100);
+  assert.deepEqual(cash.overpayments, [{ tenantId: 'b', referrerId: 'a', amount: 400 }]);
+  const row = reloaded.entries().at(-1);
+  assert.deepEqual([row.kind, row.signedAmountYen, row.targetId, row.period.month, row.createdAt, row.reason],
+    ['adjustment', 0, first.id, '2026-11', at, reason]);
+  assert.equal(reloaded.entries()[0].period.month, '2026-09');
+});
+
 test('入金を減額・取り消ししても実際の支払い行が残り、過払いを計算する', () => {
   const ledger = new Ledger({ dir: tmp(), now: () => Date.parse(at) });
   const form = { amount: 1500, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true };

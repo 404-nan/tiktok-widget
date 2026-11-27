@@ -11,17 +11,21 @@ import vm from 'node:vm';
 import express from 'express';
 import { localScenario, repoRoot, startHostedServer } from '../helpers/guard-harness.js';
 
-function renderMoney(money, tenants) {
+function renderMoney(money, tenants, api) {
   const source = fs.readFileSync(new URL('../../public/admin/admin-money.js', import.meta.url), 'utf8')
     .replace(/^import .*;$/m, '').replace('export function moneyDetail', 'function moneyDetail');
   const nodes = [];
   const context = {
     el(tag, props, ...children) {
-      const node = { tag, ...props, children, append: (...items) => children.push(...items), addEventListener() {} };
+      const listeners = {};
+      const node = { tag, ...props, children, listeners, append: (...items) => children.push(...items),
+        addEventListener(type, listener) { listeners[type] = listener; } };
       nodes.push(node);
       return node;
     },
     button(text) { return context.el('button', { textContent: text }); },
+    api,
+    act(action) { return action; },
     Option: class Option {
       constructor(text, value) { Object.assign(this, { text, value }); }
     },
@@ -96,6 +100,26 @@ test('入金を減額または取り消しても、支払った金額と要回�
     assert.ok(nodes.some(({ textContent }) => textContent === `過払い・要回収：紹介元（紹介した相手：紹介先） ${amount}円`));
     assert.ok(!nodes.some(({ textContent }) => textContent === '紹介元：500円'));
   }
+});
+
+test('入金日の訂正フォームは日付と理由だけを送る', async () => {
+  const requests = [];
+  const money = {
+    received: 1000, owed: 0, paid: 0, balance: 1000, draftPlans: [], referrals: [], payouts: [], overpayments: [],
+    payments: [{ id: 'receipt', tenantId: 'a', paidOn: '2026-09-01', amount: 1000, reward: null }],
+  };
+  const nodes = renderMoney(money, [{ id: 'a', name: '配信者' }], (route, body) => requests.push([route, { ...body }]));
+  const detail = nodes.find(({ tag }) => tag === 'details');
+  const dateForm = detail.children.filter(({ tag }) => tag === 'form').find(({ children }) =>
+    children.some(({ children: actionRow }) => actionRow.some(({ textContent }) => textContent === '入金日を訂正')));
+  const inputs = dateForm.children.flatMap(({ children }) => children.filter(({ tag }) => tag === 'input'));
+  const date = inputs.find(({ type }) => type === 'date');
+  assert.equal(date.value, '2026-09-01');
+  date.value = '2026-11-01';
+  const reason = inputs.find(({ type }) => type !== 'date');
+  reason.value = '日付を誤記';
+  await dateForm.listeners.submit({ preventDefault() {} });
+  assert.deepEqual(requests, [['/money/payments/receipt/correction', { paidOn: '2026-11-01', reason: '日付を誤記' }]]);
 });
 
 test('管理 API は紹介元と実際のお金の動きを記録し、未確認・重複・権限なしを拒む', async (t) => {

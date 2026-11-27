@@ -47,28 +47,37 @@ function paymentRow(payment, name) {
   const amount = el('input', { type: 'number', min: '1', max: '100000000', step: '1', required: true, value: payment.amount });
   const reason = el('input', { required: true, maxLength: 500 });
   const save = el('button', { type: 'submit', className: 'btn pressable', textContent: '金額を訂正' });
+  const paidOn = el('input', { type: 'date', required: true, value: payment.paidOn });
+  const dateReason = el('input', { required: true, maxLength: 500 });
+  const saveDate = el('button', { type: 'submit', className: 'btn pressable', textContent: '入金日を訂正' });
   const discard = button('入金記録を取り消す', async () => {
     if (!reason.reportValidity() || !confirm('この入金記録を取り消します。返金は行いません。')) return;
     await change('void', { reason: reason.value }, '入金記録を取り消しました');
   }, { cls: 'btn' });
   async function change(action, body, done) {
     if (save.disabled) return;
-    save.disabled = discard.disabled = true;
+    save.disabled = saveDate.disabled = discard.disabled = true;
     try {
       await act(() => api(`/money/payments/${payment.id}/${action}`, body), done)();
     } finally {
-      save.disabled = discard.disabled = false;
+      save.disabled = saveDate.disabled = discard.disabled = false;
     }
   }
   const form = el('form', { className: 'note-form' },
-    field('正しい入金額（円）', amount), field('理由', reason), el('div', { className: 'btn-row' }, save, discard));
+    field('正しい入金額（円）', amount), field('理由', reason), el('div', { className: 'btn-row loose' }, save, discard));
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     await change('correction', { amount: amount.valueAsNumber, reason: reason.value }, '入金額を訂正しました');
   });
+  const dateForm = el('form', { className: 'note-form' },
+    field('正しい入金日（日本時間）', paidOn), field('理由', dateReason), el('div', { className: 'btn-row loose' }, saveDate));
+  dateForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await change('correction', { paidOn: paidOn.value, reason: dateReason.value }, '入金日を訂正しました');
+  });
   return el('details', { className: 'admin-note' },
     el('summary', { textContent: `${name(payment.tenantId)}：${yen(payment.amount)} ／ 入金日：${payment.paidOn} ／ 照合番号：${payment.reference}` }),
-    form);
+    form, dateForm);
 }
 
 function unpaidRewardRow(payment, balance, name) {

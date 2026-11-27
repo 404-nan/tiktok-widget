@@ -96,13 +96,20 @@ function normalizeSource(source, fallbackKey) {
   return { system, key, evidenceHash: source?.evidenceHash ?? null };
 }
 
+function subscriptionPaidAt(paidOn) {
+  const date = typeof paidOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(paidOn) ? timeMs(paidOn) : null;
+  if (date == null || tokyoDate.format(date) !== paidOn) throw new LedgerError('正しい入金日を入力してください');
+  return new Date(date).toISOString();
+}
+
 function validateEntry(input) {
   const subscription = input.source?.system === 'subscription';
   if (!ENTRY_KINDS.has(input.kind) && !subscription) throw new LedgerError('台帳の種類が不正です');
   if (subscription) {
     if (typeof input.tenantId !== 'string' || !input.tenantId) throw new LedgerError('配信者を指定してください');
   } else assertStreamerId(input.streamerId);
-  const signedAmountYen = assertYen(input.signedAmountYen);
+  const dateCorrection = subscription && input.kind === 'adjustment' && input.signedAmountYen === 0;
+  const signedAmountYen = dateCorrection ? 0 : assertYen(input.signedAmountYen);
   if (input.kind === 'accrual' && signedAmountYen < 0) throw new LedgerError('発生は正の金額です');
   if (input.kind === 'collection' && signedAmountYen > 0) throw new LedgerError('集金は負の金額です');
   const at = isoTime(input.at);
@@ -162,9 +169,10 @@ function subscriptionCash(entries) {
     if (entry.kind === 'subscription-payment') {
       const reference = entry.source.key;
       if (!originalSequences.has(reference)) originalSequences.set(reference, entry.seq);
-      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false, originalSeq: originalSequences.get(reference) });
+      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, paidAt: entry.at, voided: false, originalSeq: originalSequences.get(reference) });
     } else if (entry.kind === 'adjustment' && target && !target.voided) {
-      target.amount += entry.signedAmountYen;
+      if (entry.signedAmountYen === 0) target.paidAt = entry.at;
+      else target.amount += entry.signedAmountYen;
     } else if (entry.kind === 'reversal' && target && !target.voided && entry.signedAmountYen === -target.amount) {
       target.voided = true;
     } else if (entry.kind === 'referral-payout' && target && !target.voided &&
@@ -187,14 +195,14 @@ function subscriptionCash(entries) {
     if (payment.voided) continue;
     const { tenantId } = payment.entry;
     const first = firstByTenant.get(tenantId);
-    if (!first || payment.entry.at < first.entry.at ||
-      (payment.entry.at === first.entry.at && payment.originalSeq < first.originalSeq)) firstByTenant.set(tenantId, payment);
+    if (!first || payment.paidAt < first.paidAt ||
+      (payment.paidAt === first.paidAt && payment.originalSeq < first.originalSeq)) firstByTenant.set(tenantId, payment);
   }
   let received = 0;
   let owed = 0;
   const earned = new Map();
   for (const payment of recorded.values()) {
-    const { entry, amount, voided } = payment;
+    const { entry, amount, paidAt, voided } = payment;
     if (voided) continue;
     const { id, tenantId, referrerId, at } = entry;
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_YEN) {
@@ -212,7 +220,7 @@ function subscriptionCash(entries) {
       owed += due;
     }
     received += amount;
-    payments.push({ id, tenantId, reference: entry.source.key, amount, paidOn: tokyoDate.format(new Date(at)), confirmedAt: entry.createdAt ?? at, reward });
+    payments.push({ id, tenantId, reference: entry.source.key, amount, paidOn: tokyoDate.format(new Date(paidAt)), confirmedAt: entry.createdAt ?? at, reward });
   }
   const overpayments = [];
   for (const [key, { tenantId, referrerId, amount }] of paidByReferral) {
@@ -318,8 +326,7 @@ export class Ledger {
     }
     const key = typeof reference === 'string' ? reference.trim() : '';
     if (!key) throw new LedgerError('入金の照合番号を入力してください');
-    const date = typeof paidOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(paidOn) ? timeMs(paidOn) : null;
-    if (date == null || tokyoDate.format(date) !== paidOn) throw new LedgerError('正しい入金日を入力してください');
+    const paidAt = subscriptionPaidAt(paidOn);
     return this.#withLock(() => {
       const entries = this.entries();
       const cash = subscriptionCash(entries);
@@ -327,7 +334,7 @@ export class Ledger {
       if (!Number.isSafeInteger(cash.received + amount)) throw new LedgerError('台帳の合計金額を扱えません');
       const prepared = validateEntry({
         kind: 'subscription-payment', tenantId, referrerId, signedAmountYen: amount,
-        at: new Date(date).toISOString(), source: { system: 'subscription', key },
+        at: paidAt, source: { system: 'subscription', key },
       });
       const entry = this.#appendEntry(prepared, entries);
       return subscriptionCash([...entries, entry]).payments.at(-1);
@@ -355,7 +362,11 @@ export class Ledger {
     });
   }
 
-  correctSubscriptionPayment(paymentId, { amount, reason }) {
+  correctSubscriptionPayment(paymentId, { amount, paidOn, reason }) {
+    if (paidOn !== undefined) {
+      if (amount !== undefined) throw new LedgerError('入金額と入金日は別々に訂正してください');
+      return this.#changeSubscriptionPayment(paymentId, { paidOn, paidAt: subscriptionPaidAt(paidOn), reason, kind: 'adjustment' });
+    }
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_YEN) {
       throw new LedgerError('入金額は1円以上1億円以下の整数で入力してください');
     }
@@ -366,20 +377,20 @@ export class Ledger {
     this.#changeSubscriptionPayment(paymentId, { amount: 0, reason, kind: 'reversal' });
   }
 
-  #changeSubscriptionPayment(paymentId, { amount, reason, kind }) {
+  #changeSubscriptionPayment(paymentId, { amount, paidOn, paidAt, reason, kind }) {
     if (typeof reason !== 'string' || !reason.trim()) throw new LedgerError('訂正・取り消しには理由が必要です');
     return this.#withLock(() => {
       const entries = this.entries();
       const cash = subscriptionCash(entries);
       const payment = cash.payments.find(({ id }) => id === paymentId);
       if (!payment) throw new LedgerError('有効な月額入金が見つかりません', { status: 404 });
-      const delta = amount - payment.amount;
-      if (delta === 0) return payment;
-      if (cash.balance + delta < 0) throw new LedgerError('受け取ったお金の残高が足りません');
+      const delta = paidAt ? 0 : amount - payment.amount;
+      if (paidAt ? paidOn === payment.paidOn : delta === 0) return payment;
+      if (!paidAt && cash.balance + delta < 0) throw new LedgerError('受け取ったお金の残高が足りません');
       if (!Number.isSafeInteger(cash.received + delta)) throw new LedgerError('台帳の合計金額を扱えません');
       const change = this.#appendEntry(validateEntry({
         kind, tenantId: payment.tenantId, signedAmountYen: delta, reason, targetId: paymentId,
-        at: new Date(this.now()).toISOString(), source: { system: 'subscription', key: payment.reference },
+        at: paidAt ?? new Date(this.now()).toISOString(), source: { system: 'subscription', key: payment.reference },
       }), entries);
       return subscriptionCash([...entries, change]).payments.find(({ id }) => id === paymentId);
     });
