@@ -96,6 +96,7 @@ function collectionForm(root, id) {
   const now = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 16);
   form.append(
     el('input', { type: 'hidden', name: 'clientRequestId', value: crypto.randomUUID() }),
+    el('p', { className: 'sub', textContent: '配信者の月額料金は「紹介・お金の管理」に記録してください。' }),
     el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '受け取った金額' }), el('input', { name: 'amount', type: 'number', min: '1', step: '1', required: true, placeholder: '例: 1000' })),
     el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '受け取った日時' }), el('input', { name: 'collectedAt', type: 'datetime-local', value: now })),
     el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '方法' }), (() => { const s = el('select', { name: 'method' }); for (const [v, t] of [['paypay', 'PayPay'], ['bank', '銀行'], ['cash', '現金'], ['other', 'その他']]) s.append(new Option(t, v)); return s; })()),

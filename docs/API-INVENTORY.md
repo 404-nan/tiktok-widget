@@ -109,7 +109,7 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/tenants/:id/referral | 初回入金の記録前に紹介コードを適用 |
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
 | GET /admin/api/money | 紹介元、入金、紹介報酬、残高、月額案 |
-| POST /admin/api/money/payments | 確認済み入金の記録（`tenantId`、整数の `amount`、一意の `reference`、`confirmed: true`） |
+| POST /admin/api/money/payments | 共通の台帳に確認済み月額入金を記録（`tenantId`、整数の `amount`、一意の `reference`、`confirmed: true`） |
 | POST /admin/api/money/payments/:id/payout | 入金にひもづいた報酬の支払いを記録（残高不足は拒否） |
 | GET /admin/api/lul | 全テナントの概要 |
 | POST /admin/api/ledger/sync | 集金台帳へ貸出の発生・訂正差分を同期 |

@@ -7,6 +7,7 @@ import { Ledger, monthInTokyo, sourceAmountsByKey } from '../src/ledger.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'tw-ledger-'));
 const at = '2026-11-10T12:00:00.000Z';
+const cashTotals = ({ received, owed, paid, balance }) => [received, owed, paid, balance];
 
 function charge(ledger, amount = 1000, key = 'test:charge') {
   return ledger.append({
@@ -111,4 +112,47 @@ test('import-state が消えても entries の source.key から同期済み金�
   const state = ledger.readImportState();
   ledger.writeImportState({ ...state, sources: { 'rental:r1': { lastShareYen: 150 } } });
   assert.equal(ledger.readImportState().sources['rental:r1'].lastShareYen, 150);
+});
+
+test('確認済みの初回入金と報酬は既存の集金と同じ JSONL に1回ずつ追記し、集計は混ぜない', () => {
+  const dir = tmp();
+  const ledger = new Ledger({ dir });
+  charge(ledger, 1000);
+  ledger.recordCollection({ streamerId: 's1', amountYen: 400, clientRequestId: 'one' });
+  const form = { tenantId: 'b', referrerId: 'a', amount: 2981, reference: 'one', confirmed: true };
+  assert.deepEqual(cashTotals(ledger.subscriptionCash()), [0, 0, 0, 0]);
+  assert.throws(() => ledger.recordSubscriptionPayment({ ...form, confirmed: false }), /確認して/);
+  for (const amount of [0, -1, 1.5, '2981', Infinity, 100_000_001]) {
+    assert.throws(() => ledger.recordSubscriptionPayment({ ...form, amount }), /整数/);
+  }
+  assert.deepEqual(cashTotals(ledger.subscriptionCash()), [0, 0, 0, 0]);
+  const first = ledger.recordSubscriptionPayment(form);
+  assert.deepEqual(first.reward, { referrerId: 'a', amount: 1490, paidAt: null });
+  assert.throws(() => ledger.recordSubscriptionPayment({ ...form, reference: ' one ' }), /記録済み/);
+  assert.deepEqual(cashTotals(ledger.subscriptionCash()), [2981, 1490, 0, 2981]);
+  assert.equal(ledger.recordSubscriptionPayment({ ...form, amount: 4000, reference: 'two' }).reward, null);
+  assert.equal(ledger.recordSubscriptionPayment({ ...form, tenantId: 'c', referrerId: null, amount: 1000, reference: 'three' }).reward, null);
+  assert.ok(ledger.recordReferralPayout(first.id).reward.paidAt);
+  assert.throws(() => ledger.recordReferralPayout(first.id), /支払い済み/);
+  assert.deepEqual(ledger.entries().map(({ kind }) => kind), ['accrual', 'collection', 'subscription-payment', 'subscription-payment', 'subscription-payment', 'referral-payout']);
+  assert.equal(ledger.balance('s1').balanceYen, 600);
+  assert.deepEqual(cashTotals(new Ledger({ dir }).subscriptionCash()), [7981, 0, 1490, 6491]);
+});
+
+test('残高不足または台帳ロック中の支払いは追記しない', () => {
+  const ledger = new Ledger({ dir: tmp() });
+  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', confirmed: true };
+  const first = ledger.recordSubscriptionPayment(form);
+  const pending = ledger.recordSubscriptionPayment({ ...form, tenantId: 'c', reference: 'pending' });
+  ledger.recordReferralPayout(first.id);
+  const rows = ledger.entries();
+  rows.at(-1).signedAmountYen = -1800;
+  const fixture = rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
+  fs.writeFileSync(ledger.file, fixture);
+  assert.equal(ledger.subscriptionCash().balance, 200);
+  assert.throws(() => ledger.recordReferralPayout(pending.id), /残高が足りません/);
+  fs.closeSync(fs.openSync(ledger.lockFile, 'wx'));
+  assert.throws(() => ledger.recordReferralPayout(pending.id), /別の処理/);
+  assert.throws(() => ledger.recordSubscriptionPayment({ ...form, reference: 'locked' }), /別の処理/);
+  assert.equal(fs.readFileSync(ledger.file, 'utf8'), fixture);
 });

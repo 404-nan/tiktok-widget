@@ -11,6 +11,7 @@ import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
 import { overlayMessageAllowed } from './src/billing.js';
+import { LedgerError } from './src/ledger.js';
 import { createLedgerService } from './src/ledger-service.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
@@ -107,9 +108,10 @@ function adminBillingAction(location, action) {
     try {
       res.json(action(req));
     } catch (err) {
-      const internal = Boolean(err.code);
+      const known = err instanceof LedgerError;
+      const internal = !known && Boolean(err.code);
       console.warn(`[billing] ${location}: ${internal ? err.code : err.message}`);
-      res.status(internal ? 500 : 400).json({ error: internal ? '記録の読み書きに失敗しました' : err.message });
+      res.status(known ? err.status : internal ? 500 : 400).json({ error: internal ? '記録の読み書きに失敗しました' : err.message });
     }
   };
 }
@@ -322,15 +324,22 @@ admin.put('/tenants/:id/billing', (req, res) => {
 admin.post('/tenants/:id/billing/code', adminBillingAction('POST /admin/api/tenants/:id/billing/code', (req) => ({
   ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)),
 })));
-admin.post('/tenants/:id/referral', adminBillingAction('POST /admin/api/tenants/:id/referral', (req) => ({
-  ok: true, ...tenants.applyReferral(req.params.id, req.body?.code), tenant: tenantView(req, tenants.get(req.params.id)),
+admin.post('/tenants/:id/referral', adminBillingAction('POST /admin/api/tenants/:id/referral', (req) => {
+  const { id } = req.params;
+  if (ledgerService.ledger.hasSubscriptionPayment(id)) throw new Error('初回入金を記録した後は紹介コードを使えません');
+  return { ok: true, ...tenants.applyReferral(id, req.body?.code), tenant: tenantView(req, tenants.get(id)) };
+}));
+admin.get('/money', adminBillingAction('GET /admin/api/money', () => ({
+  ...ledgerService.ledger.subscriptionCash(), referrals: tenants.billing.referrals(), draftPlans: tenants.billing.draftPlans,
 })));
-admin.get('/money', adminBillingAction('GET /admin/api/money', () => tenants.billing.moneyView()));
-admin.post('/money/payments', adminBillingAction('POST /admin/api/money/payments', (req) => ({
-  ok: true, payment: tenants.recordPayment(req.body?.tenantId, req.body ?? {}),
-})));
+admin.post('/money/payments', adminBillingAction('POST /admin/api/money/payments', (req) => {
+  const { tenantId, amount, reference, confirmed } = req.body ?? {};
+  if (!tenants.get(tenantId)) throw new Error('その配信者は見つかりません');
+  const referrerId = tenants.billing.referrerOf(tenantId);
+  return { ok: true, payment: ledgerService.ledger.recordSubscriptionPayment({ tenantId, referrerId, amount, reference, confirmed }) };
+}));
 admin.post('/money/payments/:id/payout', adminBillingAction('POST /admin/api/money/payments/:id/payout', (req) => ({
-  ok: true, payment: tenants.billing.recordPayout(req.params.id),
+  ok: true, payment: ledgerService.ledger.recordReferralPayout(req.params.id),
 })));
 admin.post('/tenants/:id/billing/credit', (req, res) => {
   try {

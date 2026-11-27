@@ -270,28 +270,12 @@ function draftPlans(env) {
   });
 }
 
-function moneyTotals(payments) {
-  let received = 0;
-  let owed = 0;
-  let paid = 0;
-  for (const { amount, reward } of payments) {
-    if (!positiveYen(amount) || (reward != null && !positiveYen(reward.amount))) {
-      throw new Error('入金または紹介報酬の金額が不正です');
-    }
-    received += amount;
-    if (reward?.paidAt) paid += reward.amount;
-    else owed += reward?.amount ?? 0;
-  }
-  if (![received, owed, paid].every(Number.isSafeInteger)) throw new Error('台帳の合計金額を扱えません');
-  return { received, owed, paid, balance: received - paid };
-}
-
 export class BillingStore {
   constructor({ dir, env = process.env } = {}) {
     this.dir = dir;
     this.env = env;
     this.file = path.join(dir, 'billing.json');
-    this.data = { enforcement: null, premiumFeatures: [], accounts: {}, payments: [] };
+    this.data = { enforcement: null, premiumFeatures: [], accounts: {} };
     this.draftPlans = draftPlans(env);
     this.corrupt = false;
     this.load();
@@ -312,19 +296,15 @@ export class BillingStore {
     }
     try {
       const d = JSON.parse(raw);
-      const payments = Object.hasOwn(d, 'payments') ? d.payments : [];
-      if (!Array.isArray(payments)) throw new Error('入金の一覧が不正です');
-      moneyTotals(payments);
       this.data = {
         enforcement: d.enforcement === true ? true : d.enforcement === false ? false : null,
         premiumFeatures: Array.isArray(d.premiumFeatures) ? d.premiumFeatures.map((name) => String(name)).filter(Boolean) : [],
         accounts: d.accounts && typeof d.accounts === 'object' && !Array.isArray(d.accounts) ? d.accounts : {},
-        payments,
       };
     } catch (err) {
       // 壊れたファイルは読み込みでは上書きしない。スイッチがオンのときだけ、中身が読めないので止める
       this.corrupt = true;
-      this.data = { enforcement: null, premiumFeatures: [], accounts: {}, payments: [] };
+      this.data = { enforcement: null, premiumFeatures: [], accounts: {} };
       console.warn(`[billing] BillingStore.load: billing.json が不正です: ${err instanceof SyntaxError ? err.name : err.message}`);
     }
     return this.data;
@@ -590,51 +570,21 @@ export class BillingStore {
     if (referrerId === refereeId) throw new Error('自分の紹介コードは使えません');
     const referee = { ...(this.data.accounts[refereeId] ?? {}) };
     if (referee.referredBy) throw new Error('紹介コードはすでに使っています');
-    if (this.data.payments.some((payment) => payment.tenantId === refereeId)) {
-      throw new Error('初回入金を記録した後は紹介コードを使えません');
-    }
     referee.referredBy = referrerId;
     referee.usedCode = normCode(code);
     this.save({ ...this.data, accounts: { ...this.data.accounts, [refereeId]: referee } });
     return { referrerId };
   }
 
-  moneyView() {
-    if (this.corrupt) throw new Error('支払いの記録を読めないため集計できません');
-    const { accounts, payments } = this.data;
-    const referrals = Object.entries(accounts).flatMap(([tenantId, account]) =>
-      account.referredBy ? [{ tenantId, referrerId: account.referredBy }] : []);
-    return { ...moneyTotals(payments), referrals, payments, draftPlans: this.draftPlans };
+  referrals() {
+    if (this.corrupt) throw new Error('紹介の記録を読めません');
+    return Object.entries(this.data.accounts).flatMap(([tenantId, account]) =>
+      account?.referredBy ? [{ tenantId, referrerId: account.referredBy }] : []);
   }
 
-  recordPayment(tenantId, { amount, reference, confirmed } = {}) {
-    if (confirmed !== true) throw new Error('入金を確認してから記録してください');
-    if (!positiveYen(amount)) throw new Error('入金額は正の整数（円）で入力してください');
-    const ref = typeof reference === 'string' ? reference.trim() : '';
-    if (!ref) throw new Error('入金の照合番号を入力してください');
-    const { payments } = this.data;
-    if (payments.some((payment) => payment.reference === ref)) throw new Error('その入金の照合番号は記録済みです');
-    const referrerId = this.account(tenantId)?.referredBy;
-    const rewardAmount = Math.floor(amount / 2);
-    const reward = referrerId && rewardAmount && !payments.some((payment) => payment.tenantId === tenantId)
-      ? { referrerId, amount: rewardAmount, paidAt: null }
-      : null;
-    const payment = { id: crypto.randomUUID(), tenantId, reference: ref, amount, confirmedAt: new Date().toISOString(), reward };
-    const next = [...payments, payment];
-    moneyTotals(next);
-    this.save({ ...this.data, payments: next });
-    return payment;
-  }
-
-  recordPayout(paymentId) {
-    const { payments, balance } = this.moneyView();
-    const payment = payments.find(({ id }) => id === paymentId);
-    if (!payment?.reward) throw new Error('支払う紹介報酬が見つかりません');
-    if (payment.reward.paidAt) throw new Error('その紹介報酬は支払い済みです');
-    if (payment.reward.amount > balance) throw new Error('受け取ったお金の残高が足りません');
-    const paid = { ...payment, reward: { ...payment.reward, paidAt: new Date().toISOString() } };
-    this.save({ ...this.data, payments: payments.map((row) => row === payment ? paid : row) });
-    return paid;
+  referrerOf(tenantId) {
+    if (this.corrupt) throw new Error('紹介の記録を読めません');
+    return this.account(tenantId)?.referredBy ?? null;
   }
 
   useMonth(id) {

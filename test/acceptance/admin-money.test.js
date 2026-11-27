@@ -1,13 +1,16 @@
 // 管理者だけが紹介、確認済みの入金、紹介報酬の支払いを記録できることを HTTP で確かめる。
 
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import { localScenario, startHostedServer } from '../helpers/guard-harness.js';
 
 test('管理 API は紹介元と実際のお金の動きを記録し、未確認・重複・権限なしを拒む', async (t) => {
   const { env } = localScenario();
+  const ledgerDir = path.join(env.TW_DATA, 'ledger');
   const token = 'money-test-admin-token';
-  const { child, ready } = await startHostedServer({ env: { ...env, TW_ADMIN_TOKEN: token, TW_RESUME_CONNECT: '0', TW_DRAFT_PRO_YEN: '5000' } });
+  const { child, ready } = await startHostedServer({ env: { ...env, TW_LEDGER_DIR: ledgerDir, TW_ADMIN_TOKEN: token, TW_RESUME_CONNECT: '0', TW_DRAFT_PLUS_YEN: '2980', TW_DRAFT_PRO_YEN: '5000' } });
   t.after(() => child.kill());
   let logs = '';
   child.stderr.on('data', (chunk) => { logs += chunk; });
@@ -50,12 +53,21 @@ test('管理 API は紹介元と実際のお金の動きを記録し、未確認
   const { payment } = await request(200, '/money/payments', { ...form, confirmed: true });
   assert.equal(payment.reward.amount, 2490);
   await request(400, '/money/payments', { ...form, confirmed: true });
+  assert.match((await request(400, `/tenants/${invitee.id}/referral`, { code })).error, /初回入金/);
   const pending = await request(200, '/money');
   assert.deepEqual([pending.received, pending.owed, pending.paid, pending.balance], [4980, 2490, 0, 4980]);
   await request(200, `/money/payments/${payment.id}/payout`, {});
   await request(400, `/money/payments/${payment.id}/payout`, {});
   const paid = await request(200, '/money');
   assert.deepEqual([paid.received, paid.owed, paid.paid, paid.balance], [4980, 0, 2490, 2490]);
+  const file = path.join(ledgerDir, 'entries.jsonl');
+  const before = fs.readFileSync(file, 'utf8');
+  assert.deepEqual(before.trim().split('\n').map((line) => JSON.parse(line).kind), ['subscription-payment', 'referral-payout']);
+  const billingPath = path.join(env.TW_DATA, 'billing.json');
+  const oldSave = JSON.parse(fs.readFileSync(billingPath, 'utf8'));
+  assert.equal(Object.hasOwn(oldSave, 'payments'), false);
+  fs.writeFileSync(billingPath, JSON.stringify({ enforcement: true, accounts: oldSave.accounts }));
+  assert.equal(fs.readFileSync(file, 'utf8'), before);
   assert.match(logs, /adminGuard: 合言葉が違います/);
   assert.match(logs, /POST \/admin\/api\/money\/payments: 入金を確認してから記録してください/);
   assert.match(logs, /POST \/admin\/api\/money\/payments\/:id\/payout: その紹介報酬は支払い済みです/);

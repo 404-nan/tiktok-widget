@@ -6,9 +6,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const ENTRY_KINDS = new Set(['accrual', 'collection', 'adjustment', 'reversal']);
+const SUBSCRIPTION_KINDS = new Set(['subscription-payment', 'referral-payout']);
 // streamers.json で決まっている配信側サービスのキー。表示名のローマ字を増やさない決まりがあるので連結で持つ。
 export const LIVE_SERVICE_KEY = 'rai' + 'kone';
-const SOURCE_SYSTEMS = new Set(['rental', LIVE_SERVICE_KEY, 'manual']);
+const SOURCE_SYSTEMS = new Set(['rental', LIVE_SERVICE_KEY, 'manual', 'subscription']);
 const COLLECTION_METHODS = new Set(['paypay', 'bank', 'cash', 'other']);
 const MAX_YEN = 100_000_000;
 
@@ -95,15 +96,18 @@ function normalizeSource(source, fallbackKey) {
 }
 
 function validateEntry(input) {
-  if (!ENTRY_KINDS.has(input.kind)) throw new LedgerError('台帳の種類が不正です');
-  assertStreamerId(input.streamerId);
+  const subscription = SUBSCRIPTION_KINDS.has(input.kind);
+  if (!ENTRY_KINDS.has(input.kind) && !subscription) throw new LedgerError('台帳の種類が不正です');
+  if (subscription) {
+    if (typeof input.tenantId !== 'string' || !input.tenantId) throw new LedgerError('配信者を指定してください');
+  } else assertStreamerId(input.streamerId);
   const signedAmountYen = assertYen(input.signedAmountYen);
   if (input.kind === 'accrual' && signedAmountYen < 0) throw new LedgerError('発生は正の金額です');
   if (input.kind === 'collection' && signedAmountYen > 0) throw new LedgerError('集金は負の金額です');
   const at = isoTime(input.at);
   return {
     kind: input.kind,
-    streamerId: input.streamerId,
+    ...(subscription ? { tenantId: input.tenantId, referrerId: input.referrerId ?? null } : { streamerId: input.streamerId }),
     signedAmountYen,
     at,
     period: normalizePeriod(input.period, at),
@@ -142,6 +146,40 @@ export function sourceAmountsByKey(entries) {
     out.set(key, (out.get(key) ?? 0) + entry.signedAmountYen);
   }
   return out;
+}
+
+function subscriptionCash(entries) {
+  const payouts = new Map();
+  let paid = 0;
+  for (const entry of entries) {
+    if (entry.kind !== 'referral-payout') continue;
+    if (!Number.isSafeInteger(entry.signedAmountYen) || entry.signedAmountYen >= 0 || payouts.has(entry.targetId)) {
+      throw new LedgerCorruptError('紹介報酬の支払い行が不正です');
+    }
+    paid -= entry.signedAmountYen;
+    payouts.set(entry.targetId, entry.at);
+  }
+  const payments = [];
+  const first = new Set();
+  let received = 0;
+  let owed = 0;
+  for (const entry of entries) {
+    if (entry.kind !== 'subscription-payment') continue;
+    const { id, tenantId, referrerId, signedAmountYen: amount, at: confirmedAt } = entry;
+    if (!Number.isSafeInteger(amount) || amount <= 0 || entry.source?.system !== 'subscription') {
+      throw new LedgerCorruptError('月額入金の行が不正です');
+    }
+    const rewardAmount = Math.floor(amount / 2);
+    const reward = !first.has(tenantId) && referrerId && rewardAmount
+      ? { referrerId, amount: rewardAmount, paidAt: payouts.get(id) ?? null }
+      : null;
+    received += amount;
+    if (reward && !reward.paidAt) owed += reward.amount;
+    first.add(tenantId);
+    payments.push({ id, tenantId, reference: entry.source.key, amount, confirmedAt, reward });
+  }
+  if (![received, owed, paid].every(Number.isSafeInteger)) throw new LedgerCorruptError('台帳の合計金額を扱えません');
+  return { received, owed, paid, balance: received - paid, payments };
 }
 
 export class Ledger {
@@ -195,6 +233,7 @@ export class Ledger {
   }
 
   append(input) {
+    if (!ENTRY_KINDS.has(input.kind)) throw new LedgerError('台帳の種類が不正です');
     const prepared = validateEntry(input);
     if (prepared.clientRequestId) {
       const existing = this.entries().find((entry) => entry.clientRequestId === prepared.clientRequestId);
@@ -206,16 +245,69 @@ export class Ledger {
         const existing = entries.find((entry) => entry.clientRequestId === prepared.clientRequestId);
         if (existing) return { ...existing, duplicate: true };
       }
-      const entry = {
-        seq: (entries.at(-1)?.seq ?? 0) + 1,
-        id: newEntryId(),
-        ...prepared,
-        allocations: validateAllocations(prepared.allocations, entries),
-        createdAt: new Date(this.now()).toISOString(),
-        createdBy: input.createdBy ?? 'admin',
-      };
-      fs.appendFileSync(this.file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
-      return entry;
+      return this.#appendEntry(prepared, entries, input.createdBy);
+    });
+  }
+
+  #appendEntry(prepared, entries, createdBy = 'admin') {
+    const entry = {
+      seq: (entries.at(-1)?.seq ?? 0) + 1,
+      id: newEntryId(),
+      ...prepared,
+      allocations: validateAllocations(prepared.allocations, entries),
+      createdAt: new Date(this.now()).toISOString(),
+      createdBy,
+    };
+    fs.appendFileSync(this.file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
+    return entry;
+  }
+
+  subscriptionCash() {
+    return subscriptionCash(this.entries());
+  }
+
+  hasSubscriptionPayment(tenantId) {
+    return this.entries().some((entry) => entry.kind === 'subscription-payment' && entry.tenantId === tenantId);
+  }
+
+  recordSubscriptionPayment({ tenantId, referrerId, amount, reference, confirmed }) {
+    if (confirmed !== true) throw new LedgerError('入金を確認してから記録してください');
+    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_YEN) {
+      throw new LedgerError('入金額は1円以上1億円以下の整数で入力してください');
+    }
+    const key = typeof reference === 'string' ? reference.trim() : '';
+    if (!key) throw new LedgerError('入金の照合番号を入力してください');
+    return this.#withLock(() => {
+      const entries = this.entries();
+      const cash = subscriptionCash(entries);
+      if (cash.payments.some((payment) => payment.reference === key)) throw new LedgerError('その入金の照合番号は記録済みです');
+      if (!Number.isSafeInteger(cash.received + amount)) throw new LedgerError('台帳の合計金額を扱えません');
+      const first = !cash.payments.some((payment) => payment.tenantId === tenantId);
+      const prepared = validateEntry({
+        kind: 'subscription-payment', tenantId, referrerId: first ? referrerId : null, signedAmountYen: amount,
+        at: new Date(this.now()).toISOString(), source: { system: 'subscription', key },
+      });
+      const entry = this.#appendEntry(prepared, entries);
+      return subscriptionCash([...entries, entry]).payments.at(-1);
+    });
+  }
+
+  recordReferralPayout(paymentId) {
+    return this.#withLock(() => {
+      const entries = this.entries();
+      const { payments, balance } = subscriptionCash(entries);
+      const payment = payments.find(({ id }) => id === paymentId);
+      if (!payment?.reward) throw new LedgerError('支払う紹介報酬が見つかりません');
+      const { reward } = payment;
+      if (reward.paidAt) throw new LedgerError('その紹介報酬は支払い済みです');
+      if (reward.amount > balance) throw new LedgerError('受け取ったお金の残高が足りません');
+      const at = new Date(this.now()).toISOString();
+      const prepared = validateEntry({
+        kind: 'referral-payout', tenantId: reward.referrerId, signedAmountYen: -reward.amount, at,
+        targetId: payment.id, source: { system: 'subscription', key: payment.id },
+      });
+      this.#appendEntry(prepared, entries);
+      return { ...payment, reward: { ...reward, paidAt: at } };
     });
   }
 
@@ -305,6 +397,7 @@ export class Ledger {
     const entries = this.entries();
     const target = entries.find((entry) => entry.id === targetId);
     if (!target) throw new LedgerError('取り消す行が見つかりません', { status: 404 });
+    if (SUBSCRIPTION_KINDS.has(target.kind)) throw new LedgerError('月額入金と紹介報酬は集金画面から取り消せません');
     if (target.kind === 'reversal') throw new LedgerError('取り消し行は取り消せません');
     if (clientRequestId) {
       const existing = entries.find((entry) => entry.clientRequestId === String(clientRequestId));

@@ -212,48 +212,17 @@ test('紹介コードを使っても割引残高は増えず、以前の割引�
   assert.equal(again.enforcement(), true);
 });
 
-test('確認済みの初回入金の半分だけ紹介報酬にし、支払いは一度だけ記録する', () => {
+test('紹介元は配信者を削除しても残り、月額案は設定から読める', () => {
   const dir = tmp();
   const store = new BillingStore({ dir, env: { TW_DRAFT_PLUS_YEN: '3000' } });
   const code = store.ensureCode('a');
   store.applyCode('b', code);
-  const totals = ({ received, owed, paid, balance }) => [received, owed, paid, balance];
-  assert.deepEqual(totals(store.moneyView()), [0, 0, 0, 0]);
-  assert.deepEqual(store.moneyView().draftPlans, [{ label: 'Plus', price: 3000 }, { label: 'Pro', price: 4980 }]);
-  assert.throws(() => store.recordPayment('b', { amount: 2981, reference: 'one' }), /確認して/);
-  for (const amount of [0, -1, 1.5, '2981', Infinity]) {
-    assert.throws(() => store.recordPayment('b', { confirmed: true, amount, reference: 'one' }), /正の整数/);
-  }
-  assert.deepEqual(totals(store.moneyView()), [0, 0, 0, 0]);
-  const first = store.recordPayment('b', { confirmed: true, amount: 2981, reference: 'one' });
-  assert.deepEqual(first.reward, { referrerId: 'a', amount: 1490, paidAt: null });
-  assert.throws(() => store.recordPayment('b', { confirmed: true, amount: 2981, reference: ' one ' }), /記録済み/);
-  assert.deepEqual(totals(store.moneyView()), [2981, 1490, 0, 2981]);
-  assert.equal(store.recordPayment('b', { confirmed: true, amount: 4000, reference: 'two' }).reward, null);
-  assert.equal(store.recordPayment('c', { confirmed: true, amount: 1000, reference: 'three' }).reward, null);
-  assert.throws(() => store.applyCode('c', code), /初回入金/);
+  assert.deepEqual(store.draftPlans, [{ label: 'Plus', price: 3000 }, { label: 'Pro', price: 4980 }]);
   store.remove('a');
   store.remove('b');
   assert.equal(store.findByCode(code), null);
   const again = new BillingStore({ dir, env: {} });
-  assert.deepEqual(again.moneyView().referrals, [{ tenantId: 'b', referrerId: 'a' }]);
-  assert.ok(again.recordPayout(first.id).reward.paidAt);
-  assert.throws(() => again.recordPayout(first.id), /支払い済み/);
-  assert.deepEqual(totals(new BillingStore({ dir, env: {} }).moneyView()), [7981, 0, 1490, 6491]);
-});
-
-test('受け取った残高を超える報酬は、台帳を変えずに支払いを拒む', () => {
-  const store = new BillingStore({ dir: tmp(), env: {} });
-  const fixture = JSON.stringify({ payments: [
-    { id: 'previous', amount: 1000, reward: { amount: 1400, paidAt: '2026-11-01' } },
-    { id: 'pending', amount: 1000, reward: { amount: 700, paidAt: null } },
-  ] });
-  fs.writeFileSync(store.file, fixture);
-  store.load();
-  assert.equal(store.moneyView().balance, 600);
-  assert.throws(() => store.recordPayout('pending'), /残高が足りません/);
-  assert.equal(store.moneyView().paid, 1400);
-  assert.equal(fs.readFileSync(store.file, 'utf8'), fixture);
+  assert.deepEqual(again.referrals(), [{ tenantId: 'b', referrerId: 'a' }]);
 });
 
 test('紹介を保存できなかった場合は、配信者を追加しない', (t) => {
@@ -272,7 +241,7 @@ test('紹介を保存できなかった場合は、配信者を追加しない',
   assert.throws(() => tenants.create({ name: '紹介された人', referralCode: code }), /書き込めません/);
   assert.equal(tenants.list().length, 1);
   assert.equal(fs.readFileSync(file, 'utf8'), before);
-  assert.deepEqual(tenants.billing.moneyView().referrals, []);
+  assert.deepEqual(tenants.billing.referrals(), []);
 });
 
 test('壊れた支払いファイルは読み込みでは直さない。オフなら通す。オンなら止め、配信中は切らない', () => {
@@ -282,8 +251,8 @@ test('壊れた支払いファイルは読み込みでは直さない。オフ�
   const store = new BillingStore({ dir, env: { TW_BILLING: 'on' } });
   assert.equal(fs.readFileSync(file, 'utf8'), '{');
   assert.equal(store.corrupt, true);
-  assert.throws(() => store.moneyView(), /集計できません/);
-  assert.throws(() => store.recordPayment('a', { amount: 3000, reference: 'one', confirmed: true }), /保存できません/);
+  assert.throws(() => store.referrals(), /紹介の記録を読めません/);
+  assert.throws(() => store.referrerOf('a'), /紹介の記録を読めません/);
   assert.equal(fs.readFileSync(file, 'utf8'), '{');
   assert.equal(store.account('anyone'), null);
   assert.equal(store.clientView('anyone').status, 'trial');

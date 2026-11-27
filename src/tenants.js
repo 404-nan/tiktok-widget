@@ -386,11 +386,6 @@ export class Tenants {
     return result;
   }
 
-  recordPayment(id, payment) {
-    if (!this.get(id)) throw new Error('その配信者は見つかりません');
-    return this.billing.recordPayment(id, payment);
-  }
-
   useBillingCredit(id) {
     if (!this.get(id)) throw new Error('その配信者は見つかりません');
     const result = this.billing.useMonth(id);
