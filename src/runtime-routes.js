@@ -36,7 +36,7 @@ function nestedAt(obj, segments) {
   return cur;
 }
 
-function findTouchedCapability(value, existing, merge = false) {
+function findTouchedCapability(value, existing, merge = false, fallback = undefined) {
   if (!value || typeof value !== 'object') return null;
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
@@ -45,15 +45,16 @@ function findTouchedCapability(value, existing, merge = false) {
     }
     return null;
   }
+  const base = existing !== undefined ? existing : fallback;
   for (const [key, val] of Object.entries(value)) {
-    const prev = existing && typeof existing === 'object' ? existing[key] : undefined;
+    const prev = base && typeof base === 'object' ? base[key] : undefined;
     if (LAYOUT_KEYS.has(key)) {
-      if (existing === undefined || JSON.stringify(val) !== JSON.stringify(prev)) return 'edit.layout';
+      if (base === undefined || JSON.stringify(val) !== JSON.stringify(prev)) return 'edit.layout';
     }
     if (CUTIN_IMAGE_KEYS.has(key)) {
-      if (existing === undefined || JSON.stringify(val) !== JSON.stringify(prev)) return 'edit.cutinImage';
+      if (base === undefined || JSON.stringify(val) !== JSON.stringify(prev)) return 'edit.cutinImage';
     }
-    const hit = findTouchedCapability(val, prev, merge);
+    const hit = findTouchedCapability(val, existing && typeof existing === 'object' ? existing[key] : undefined, merge);
     if (hit) return hit;
   }
   if (!merge && existing && typeof existing === 'object' && !Array.isArray(existing)) {
@@ -69,6 +70,7 @@ function findTouchedCapability(value, existing, merge = false) {
 /**
  * PATCH /api/config の中身が、どの編集の操作か（edit.layout / edit.cutinImage）。ふつうの設定の変更は null。
  * 送信形式（merge・丸ごと置換・yaml文字列・delete）によらず、実際に配置・切り抜きへ触れる変更を判定する。
+ * 新規作成・複製・削除の取り消しで既定値のまま入る posX/crop は許可する。
  */
 export function configPatchCapability(body, currentConfig) {
   if (!body) return null;
@@ -81,7 +83,9 @@ export function configPatchCapability(body, currentConfig) {
   }
   if (body.delete) return null;
   const existing = currentConfig !== undefined ? nestedAt(currentConfig, segments) : undefined;
-  return findTouchedCapability(body.value, existing, Boolean(body.merge));
+  const section = String(segments[0] ?? '');
+  const fallback = existing === undefined && segments.length === 2 && SCHEMA[section] ? defaultsFor(section) : undefined;
+  return findTouchedCapability(body.value, existing, Boolean(body.merge), fallback);
 }
 
 import { createWidgetVersions } from './widget-versions.js';

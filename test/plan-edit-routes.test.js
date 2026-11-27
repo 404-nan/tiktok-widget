@@ -64,6 +64,9 @@ test('PATCH /api/config は送信形式によらず、配置・切り抜きに�
   const current = { alerts: { default: { duration: 3, posX: 10 } } };
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { duration: 4, posX: 10 } }, current), null);
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], value: { duration: 4 } }, current), 'edit.layout');
+  // 複製や削除の取り消しで既定値のまま入る crop / posX は許可し、既定値から変えた場合は拒否する
+  assert.equal(configPatchCapability({ path: ['imageCutins', 'copy'], value: { crop: { x: 0.5, y: 0.5, scale: 1 } } }, { imageCutins: {} }), null);
+  assert.equal(configPatchCapability({ path: ['imageCutins', 'copy'], value: { crop: { x: 0.2, y: 0.5, scale: 1 } } }, { imageCutins: {} }), 'edit.cutinImage');
   // ふつうの変更・エントリ丸ごとの削除はプランで分けない
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { duration: 4 } }), null);
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { inAll: false } }), null);
