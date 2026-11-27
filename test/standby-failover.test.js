@@ -97,6 +97,9 @@ test('配信者別モードの同期データはルート設定なしでも検�
   fs.writeFileSync(path.join(root, 'data/tenants.json'), '{"tenants":[{"id":"fixture"}]}');
   fs.writeFileSync(path.join(root, 'data/admin-token.txt'), 'fixture-admin');
   await validateSnapshot(root);
+  await assert.rejects(validateSnapshot(root, { requireRevocations: true }), /失効台帳を有効にした同期データ/);
+  fs.writeFileSync(path.join(root, 'data/tenant-revocations.id'), 'a'.repeat(64));
+  await validateSnapshot(root, { requireRevocations: true });
   fs.mkdirSync(path.join(root, 'config.yaml'));
   await assert.rejects(validateSnapshot(root), /ファイルではありません/);
 });
@@ -117,6 +120,7 @@ test('初回以降も同期し、壊れた同期と古いデータで待機機�
   fs.mkdirSync(bin, { recursive: true });
   write(files('deps.commit'), commit + '\n');
   write(sourceData('admin-token.txt'), 'fixture-admin');
+  write(sourceData('tenant-revocations.id'), 'a'.repeat(64));
   const tenants = JSON.stringify({ tenants: [{ id: 'fixture-tenant' }] });
   write(sourceData('tenants.json'), tenants);
   write(sourceData('gift-log.txt'), 'old');

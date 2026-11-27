@@ -43,7 +43,10 @@ function migrate(holder) {
 }
 
 export class Tenants {
-  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env } = {}) {
+  #credentialQueue = Promise.resolve();
+  #revocations;
+
+  constructor({ dir = DATA_DIR, onChange = () => {}, ai = null, notes = null, env = process.env, revocations = null } = {}) {
     this.dir = dir;
     this.ai = ai; // 「AI にたのむ」（全員で同じキーを使う）
     this.notes = notes;
@@ -58,6 +61,12 @@ export class Tenants {
     this.rental = new RentalState();
     this.backupDir = backupData(dir);
     this.#load();
+    this.#revocations = revocations;
+    if (revocations?.changes.size) {
+      this.data.tenants = this.data.tenants.filter((t) => !revocations.changes.get(t.id)?.removed);
+      for (const t of this.data.tenants) Object.assign(t, revocations.changes.get(t.id));
+      this.#save();
+    }
     // 期限が切れたら、その配信者の画面を読み込み直す（使えなくなったものは止まり、使えるようになったものは出る）
     this.lastState = new Map();
     this.timer = setInterval(() => this.#checkExpiry(), 15_000);
@@ -123,12 +132,38 @@ export class Tenants {
 
   /** 4桁の数字を作り直す。前の数字で覚えたスマホ・PC は、もう一度入れ直しになる */
   repin(id) {
-    const t = this.get(id);
-    if (!t) throw new Error('その配信者は見つかりません');
-    t.pin = newPin();
-    t.pinVer = (t.pinVer ?? 1) + 1;
-    this.#save();
-    return t;
+    return this.#updateCredentials(id, (t) => {
+      let pin;
+      do { pin = newPin(); } while (pin === t.pin);
+      return { pin, pinVer: (t.pinVer ?? 1) + 1 };
+    });
+  }
+
+  #credentialChange(work) {
+    const result = this.#credentialQueue.then(work);
+    this.#credentialQueue = result.catch(() => {});
+    return result;
+  }
+
+  async #recordCredentialChange(id, change) {
+    try {
+      await this.#revocations?.record(id, change);
+    } catch (error) {
+      recordError(error, { kind: 'tenant.revocations', context: { tenant: id, op: 'tenant.revocations.record' } });
+      throw error;
+    }
+  }
+
+  #updateCredentials(id, getChange) {
+    return this.#credentialChange(async () => {
+      const t = this.get(id);
+      if (!t) throw new Error('その配信者は見つかりません');
+      const change = getChange(t);
+      if (Object.keys(change).length) await this.#recordCredentialChange(id, change);
+      Object.assign(t, change);
+      this.#save();
+      return t;
+    });
   }
 
   #save() {
@@ -392,23 +427,35 @@ export class Tenants {
     return t;
   }
 
-  /** 鍵を作り直す（URL が漏れたとき）。古い URL は使えなくなる */
-  rekey(id, which = 'both') {
-    const t = this.get(id);
-    if (!t) throw new Error('その配信者は見つかりません');
-    if (which === 'both' || which === 'key') t.key = newKey();
-    if (which === 'both' || which === 'obs') t.obsKey = newKey();
-    this.#save();
-    return t;
+  updateFromAdmin(id, patch) {
+    return this.#credentialChange(async () => {
+      const t = this.get(id);
+      if (!t) throw new Error('その配信者は見つかりません');
+      if (patch.enabled != null && Boolean(patch.enabled) !== t.enabled) {
+        await this.#recordCredentialChange(id, { enabled: Boolean(patch.enabled) });
+      }
+      return this.update(id, patch);
+    });
   }
 
-  async remove(id) {
-    await this.close(id);
-    this.data.tenants = this.data.tenants.filter((t) => t.id !== id);
-    this.ingestKeys.delete(id);
-    this.#removeIngestIndex(id);
-    this.#save();
-    this.billing.remove(id);
+  /** 鍵を作り直す（URL が漏れたとき）。古い URL は使えなくなる */
+  rekey(id, which = 'both') {
+    return this.#updateCredentials(id, () => ({
+      ...(which === 'both' || which === 'key' ? { key: newKey() } : {}),
+      ...(which === 'both' || which === 'obs' ? { obsKey: newKey() } : {}),
+    }));
+  }
+
+  remove(id) {
+    return this.#credentialChange(async () => {
+      if (this.get(id)) await this.#recordCredentialChange(id, { removed: true });
+      await this.close(id);
+      this.data.tenants = this.data.tenants.filter((t) => t.id !== id);
+      this.ingestKeys.delete(id);
+      this.#removeIngestIndex(id);
+      this.#save();
+      this.billing.remove(id);
+    });
   }
 
   // --- 配信者ごとの仕組み（runtime） ---

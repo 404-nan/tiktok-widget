@@ -240,6 +240,9 @@ main() {
   fi
   [[ $action == start || $action == prepare || $action == activate ]] ||
     fail '使い方: setup.sh [start|stop|prepare|activate]'
+  if [[ $action == start && -e $base/promoted ]]; then
+    fail '昇格済みの待機機には standby.sh promote --primary-fenced を使ってください。'
+  fi
   [[ $PORT =~ ^[1-9][0-9]{0,4}$ ]] && ((PORT <= 65535)) || fail 'PORT は 1〜65535 で指定してください。'
   [[ -z ${DATA_TARBALL:-} || -z $data_url ]] || fail 'DATA_TARBALL と DATA_URL はどちらか一方だけ指定してください。'
   if [[ -x $HOME/.local/node22/bin/node ]]; then export PATH="$HOME/.local/node22/bin:$PATH"; fi
@@ -250,8 +253,11 @@ main() {
       fail '待機機を昇格できません。準備済みの版と依存ライブラリが一致しません。'
     [[ -n ${STANDBY_EXPECT_COMMIT:-} && $(< "$base/deps.commit") == "$STANDBY_EXPECT_COMMIT" ]] ||
       fail '待機機を昇格できません。準備済みの版と復元データの版が一致しません。'
+    [[ -f $base/app/src/tenant-revocations.js && -n ${TW_TENANT_REVOCATIONS_CONFIG:-} ]] ||
+      fail '待機機を昇格できません。失効台帳に対応する版と失効台帳の設定が必要です。'
     use_node && command -v cloudflared >/dev/null ||
       fail '待機機を昇格できません。Node.js または cloudflared がありません。'
+    export TW_REQUIRE_TENANT_REVOCATIONS=1
     start_services "$token"
     return
   fi
@@ -297,7 +303,9 @@ main() {
 
 start_services() {
   local token=$1 mode tunnel_id url i
-  if runner_pid server >/dev/null && [[ $(cat "$base/server.port" 2>/dev/null) != "$PORT" ]]; then
+  local requires_revocations=${TW_REQUIRE_TENANT_REVOCATIONS:-0}
+  if runner_pid server >/dev/null && { [[ $(cat "$base/server.port" 2>/dev/null) != "$PORT" ]] ||
+    [[ $(cat "$base/server.revocations" 2>/dev/null || printf 0) != "$requires_revocations" ]]; }; then
     stop_runners
   fi
   if ! runner_pid server >/dev/null; then
@@ -305,6 +313,7 @@ start_services() {
       fail "ポート $PORT を開けません。ライコネは起動していません。"
     start_runner server
     printf '%s\n' "$PORT" > "$base/server.port"
+    printf '%s\n' "$requires_revocations" > "$base/server.revocations"
   fi
   wait_health "$origin" 30 || fail "ライコネが応答しません。$base/server.log を確認してください。"
 

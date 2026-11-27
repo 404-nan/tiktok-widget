@@ -6,6 +6,7 @@ import { createServer } from 'node:net';
 import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { openTenantRevocations } from '../src/tenant-revocations.js';
 
 const setup = path.resolve(import.meta.dirname, '../deploy/standby/setup.sh');
 const manage = path.join(path.dirname(setup), 'standby.sh');
@@ -63,20 +64,25 @@ fi
 exec "${realCurl}" "\${args[@]}"
 `, { mode: 0o700 });
   fs.mkdirSync(path.join(app, 'public/help'), { recursive: true });
+  fs.mkdirSync(path.join(app, 'src'));
+  fs.copyFileSync(new URL('../src/tenant-revocations.js', import.meta.url), path.join(app, 'src/tenant-revocations.js'));
   fs.writeFileSync(path.join(app, 'public/help/index.html'), 'fixture');
   fs.writeFileSync(path.join(app, 'server.js'), `
 const { writeFileSync, readFileSync } = require('node:fs');
 const { createServer } = require('node:http');
 if (process.env.TW_HOSTED !== '1' || process.env.HOST !== '127.0.0.1') process.exit(1);
-writeFileSync(process.env.TW_DATA + '/child.pid', String(process.pid));
-createServer((req, res) => {
-  if (req.url === '/fixture-data') return res.end(readFileSync(process.env.TW_DATA + '/admin-token.txt'));
-  if (req.url.startsWith('/help/standby-')) return res.end(readFileSync('public' + req.url));
-  res.end('ok');
-}).listen(+process.env.PORT, process.env.HOST);
+import('./src/tenant-revocations.js').then(async ({ openTenantRevocations }) => {
+  await openTenantRevocations(process.env.TW_DATA);
+  writeFileSync(process.env.TW_DATA + '/child.pid', String(process.pid));
+  createServer((req, res) => {
+    if (req.url === '/fixture-data') return res.end(readFileSync(process.env.TW_DATA + '/admin-token.txt'));
+    if (req.url.startsWith('/help/standby-')) return res.end(readFileSync('public' + req.url));
+    res.end('ok');
+  }).listen(+process.env.PORT, process.env.HOST);
+});
 `);
   run('git', ['init', '-q', app]);
-  run('git', ['-C', app, 'add', 'server.js', 'public']);
+  run('git', ['-C', app, 'add', 'server.js', 'public', 'src']);
   run('git', ['-C', app, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture']);
   const env = {
     ...process.env,
@@ -148,6 +154,9 @@ createServer((req, res) => {
         const { hostname, pathname } = new URL(url);
         let id = fs.existsSync(state) ? fs.readFileSync(state, 'utf8') : '${primary}';
         if (hostname === 'api.cloudflare.com') {
+          if (pathname.includes('/d1/database/')) {
+            return Response.json({ success: true, result: [{ success: true, results: [] }] });
+          }
           if (options.method === 'PATCH') {
             if (process.env.FIXTURE_PATCH_FAIL === '1') return new Response('down', { status: 503 });
             id = JSON.parse(options.body).content.split('.')[0];
@@ -168,11 +177,17 @@ createServer((req, res) => {
         return new Response('not found', { status: 404 });
       };
     `);
+    const ledgerConfig = path.join(root, 'ledger.json');
+    fs.writeFileSync(ledgerConfig, JSON.stringify({
+      accountId: 'a'.repeat(32), databaseId: primary, apiToken: 'fixture-revocations',
+      encryptionKey: Buffer.alloc(32, 17).toString('base64url'),
+    }), { mode: 0o600 });
     const vars = {
       ...env, STANDBY_DIR: managed, NODE_OPTIONS: `--import=${stub}`, PUBLIC_HOST: 'widget.example.test',
       STANDBY_PROBE_HOST: 'probe.example.test', CF_ZONE_ID: 'a'.repeat(32), CF_DNS_RECORD_ID: 'b'.repeat(32),
       PRIMARY_TUNNEL_ID: primary, STANDBY_TUNNEL_ID: target, CF_API_TOKEN: 'fixture-dns',
       TUNNEL_TOKEN: Buffer.from(JSON.stringify({ t: target })).toString('base64'),
+      TW_TENANT_REVOCATIONS_CONFIG: ledgerConfig,
     };
     const call = (...args) => run('bash', [manage, ...args], { env: vars, timeout: 15_000 });
     call('prepare');
@@ -180,6 +195,10 @@ createServer((req, res) => {
     const snapshot = path.join(managed, 'replica-a');
     fs.cpSync(path.join(root, 'backup'), snapshot, { recursive: true });
     fs.writeFileSync(path.join(snapshot, 'data/tenants.json'), '{"tenants":[{"id":"fixture"}]}\n');
+    await openTenantRevocations(path.join(snapshot, 'data'), {
+      env: vars,
+      request: async () => Response.json({ success: true, result: [{ success: true, results: [] }] }),
+    });
     fs.writeFileSync(path.join(snapshot, 'stamp'), `${Math.floor(Date.now() / 1000)} ${env.REF}\n`);
     fs.symlinkSync('replica-a', path.join(managed, 'current'));
     const promoted = path.join(managed, 'promoted');

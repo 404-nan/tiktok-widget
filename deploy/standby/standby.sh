@@ -78,7 +78,7 @@ sync_snapshot() {
     }
   step=validate
   after=$(source_commit) && [[ $after == "$commit" ]] || fail '同期中に本番の版を確認できなくなりました。'
-  node "$here/standby-route.mjs" validate "$next" ||
+  node "$here/standby-route.mjs" validate "$next" --require-revocations ||
     fail '同期したデータを検証できません。前回のデータは維持します。'
   printf '%s %s\n' "$timestamp" "$commit" > "$next/stamp"
   ln -sfn "$slot" "$base/current.next"
@@ -126,7 +126,10 @@ promote() {
     snapshot_info
     [[ $(cat "$base/deps.commit" 2>/dev/null) == "$snapshot_commit" ]] ||
       fail '同期した本番データと準備済みの版が一致しません。'
-    node "$here/standby-route.mjs" validate "$snapshot" || fail '同期データの再検証に失敗しました。'
+    node "$here/standby-route.mjs" validate "$snapshot" --require-revocations ||
+      fail '同期データの再検証に失敗しました。'
+    [[ -n ${TW_TENANT_REVOCATIONS_CONFIG:-} && -f $base/app/src/tenant-revocations.js ]] ||
+      fail '失効台帳の設定と対応版を用意してから切り替えてください。'
     [[ ! -e $base/data && ! -L $base/data && ! -e $base/config.yaml && ! -L $base/config.yaml ]] ||
       fail '別の稼働データがあります。上書きせず停止します。'
     stage=$(mktemp -d "$base/restore.XXXXXXXX")
@@ -156,7 +159,12 @@ promote() {
 }
 
 case $action in
-  prepare) step=prepare; bash "$here/setup.sh" prepare 8>&- ;;
+  prepare)
+    step=prepare
+    [[ ${REF:-} =~ $sha_re ]] || fail 'REF に失効台帳に対応する本番の完全なコミット ID を指定してください。'
+    bash "$here/setup.sh" prepare 8>&-
+    [[ -f $base/app/src/tenant-revocations.js ]] || fail '指定の版は失効台帳に対応していません。'
+    ;;
   sync) sync_snapshot ;;
   watch) watch_standby ;;
   status)

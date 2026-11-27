@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { readRevocationIdentity, TenantRevocationError } from '../../src/tenant-revocations.js';
 
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const hostname = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
@@ -25,7 +26,7 @@ function snapshotAge(timestamp, env) {
   return age;
 }
 
-export async function validateSnapshot(dir) {
+export async function validateSnapshot(dir, { requireRevocations = false } = {}) {
   const tenants = JSON.parse(await readFile(join(dir, 'data/tenants.json'), 'utf8'));
   requireCheck(Array.isArray(tenants.tenants) && tenants.tenants.length > 0, '配信者が入った tenants.json がありません。');
   const token = await stat(join(dir, 'data/admin-token.txt'));
@@ -35,6 +36,8 @@ export async function validateSnapshot(dir) {
     return null;
   });
   requireCheck(!config || config.isFile(), 'config.yaml がファイルではありません。');
+  if (requireRevocations) requireCheck(await readRevocationIdentity(join(dir, 'data')),
+    '本番で失効台帳を有効にした同期データが必要です。');
 }
 
 export function createRoute({ env = process.env, request = fetch, pause = delay } = {}) {
@@ -155,7 +158,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [, , command, arg, timestamp] = process.argv;
   const route = createRoute();
   try {
-    if (command === 'validate') await validateSnapshot(arg);
+    if (command === 'validate') await validateSnapshot(arg, { requireRevocations: timestamp === '--require-revocations' });
     else if (command === 'health') await route.health();
     else if (command === 'preflight') console.log(await route.preflight());
     else if (command === 'switch') await route.switchRoute(arg, timestamp);
@@ -163,7 +166,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     else if (command === 'origin') await route.checkOrigin(arg);
     else throw new CheckError('不明な確認操作です。');
   } catch (error) {
-    const reason = error instanceof CheckError ? error.message : (error.code ?? '読み込みまたは形式のエラー');
+    const reason = error instanceof CheckError || error instanceof TenantRevocationError
+      ? error.message : (error.code ?? '読み込みまたは形式のエラー');
     console.error(`[${new Date().toISOString()}] standby-route/${command}: ${reason}`);
     process.exitCode = 1;
   }
