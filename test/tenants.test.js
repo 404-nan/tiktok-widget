@@ -8,6 +8,21 @@ import { featureOfPage } from '../src/runtime.js';
 
 const setup = () => new Tenants({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-')) });
 
+test('起動時は TW_LEDGER_DIR に移した台帳と同期状態をバックアップする', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-ledger-backup-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, 'data');
+  const ledgerDir = path.join(root, 'custom');
+  fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+  fs.mkdirSync(ledgerDir);
+  fs.writeFileSync(path.join(dir, 'ledger', 'entries.jsonl'), 'old ledger');
+  fs.writeFileSync(path.join(ledgerDir, 'entries.jsonl'), 'active ledger');
+  fs.writeFileSync(path.join(ledgerDir, 'import-state.json'), 'active sync state');
+  const tenants = new Tenants({ dir, env: { TW_LEDGER_DIR: ledgerDir } });
+  assert.equal(fs.readFileSync(path.join(tenants.backupDir, 'ledger', 'entries.jsonl'), 'utf8'), 'active ledger');
+  assert.equal(fs.readFileSync(path.join(tenants.backupDir, 'ledger', 'import-state.json'), 'utf8'), 'active sync state');
+});
+
 test('配信者を追加すると、ダッシュボード用と OBS 用の鍵ができ、鍵から役割がわかる', () => {
   const t = setup();
   const a = t.create({ name: 'りん' });

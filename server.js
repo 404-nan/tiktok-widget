@@ -11,6 +11,7 @@ import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
 import { overlayMessageAllowed } from './src/billing.js';
+import { createLedgerService } from './src/ledger-service.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
 import { NotesStore } from './src/notes.js';
@@ -150,6 +151,34 @@ admin.get('/tenants', (req, res) => {
   });
 });
 admin.get('/lul', (req, res) => res.json({ tenants: tenants.list().map((t) => tenantView(req, t)), features: FEATURES }));
+
+// 集金台帳。既存の streamers.json / 貸出 usage.jsonl / 配信履歴は読むだけ。書くのは data/ledger だけ。
+const ledgerService = createLedgerService({ dataDir: DATA_DIR });
+const ledgerRoute = (fn) => async (req, res) => {
+  try {
+    res.json(await fn(req));
+  } catch (err) {
+    console.warn(`[admin] ${req.method} ${req.route.path}: ${err.message}`);
+    res.status(err?.status ?? 500).json({ error: err?.message ?? '台帳で失敗しました', kind: err?.kind ?? err?.code ?? 'ledger-error' });
+  }
+};
+admin.post('/ledger/sync', ledgerRoute(async () => ledgerService.sync()));
+admin.get('/ledger/summary', ledgerRoute(async (req) => ledgerService.summary({ months: req.query.months })));
+admin.get('/ledger/streamers/:id', ledgerRoute(async (req) => ledgerService.detail(req.params.id, { offset: req.query.offset })));
+admin.get('/ledger/streamers/:id/sales', ledgerRoute(async (req) => ledgerService.sales(req.params.id, { months: req.query.months })));
+admin.get('/ledger/streamers/:id/entries', ledgerRoute(async (req) => ledgerService.entries(req.params.id, req.query)));
+admin.post('/ledger/collections', ledgerRoute(async (req) => {
+  const entry = ledgerService.recordCollection({ ...(req.body ?? {}), createdBy: 'admin-ui' });
+  return { ok: true, entry, duplicate: Boolean(entry.duplicate) };
+}));
+admin.post('/ledger/adjustments', ledgerRoute(async (req) => {
+  const entry = ledgerService.recordAdjustment({ ...(req.body ?? {}), createdBy: 'admin-ui' });
+  return { ok: true, entry, duplicate: Boolean(entry.duplicate) };
+}));
+admin.post('/ledger/entries/:id/reversal', ledgerRoute(async (req) => {
+  const entry = ledgerService.reverseEntry(req.params.id, { ...(req.body ?? {}), createdBy: 'admin-ui' });
+  return { ok: true, entry };
+}));
 admin.get('/deploy-status', (req, res) => {
   const live = tenants.list().map((t) => tenantView(req, t)).filter((t) => t.status.mode === 'live');
   res.json({ live: live.map((t) => ({ name: t.name, minutes: t.status.elapsedMinutes ?? 0 })) });

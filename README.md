@@ -17,6 +17,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 配信画面の遊び方選択 | 配信画面の見本で、耐久・目標配信などの使うものを選び、配置を保存する | できた | `public/dashboard/stage.js`、`src/runtime.js` |
 | AI にたのむ | 設定変更の案を見てから反映し、元に戻す | できた | `src/ai.js`、`public/dashboard/ai.js` |
 | ギフト・コメント・視聴者数の受信と WebSocket 配信 | TikTok LIVE のイベントを受けて画面へ配る | できた | - |
+| 利用者ごとの集金台帳 | streamers.json の人ごとに、貸出の申告売上10%の発生・訂正差分・集金・値引き・取り消しを記録し、未集金額と前回集金からの増分、月次の売上推移を管理画面で見る。コインは円に換算せず参考表示だけ | できた（開発側） | `src/ledger.js`、`src/ledger-sync.js`、`public/admin/admin-ledger.js` |
 | オーバーレイ、ダッシュボード、モニター、統計、管理画面 | 配信・設定・履歴を管理する。統計に OBS ウィジェット利用時間を表示し、配信中の接続回数も記録する | できた | `src/history.js`、`public/history/` |
 | 演出の効果ログと配信後レポート | ギフト・フォロー・シェアとサーバー側演出を匿名で記録し、配信合計と同じ数え方で前後のコインを比較する。記録は消さずに全部残す | できた | `src/effect-log.js`、`src/gifts.js`、`public/history/` |
 | 配信の1件ごとの記録 | ギフト・フォロー・シェア・ルーレットを「誰が・いつ・何を」で配信ごとに全部残し、配信単位で種類を絞って全件をページ単位で読める | できた（開発側） | `src/session-details.js`、`src/history.js`、`src/runtime-routes.js` |
@@ -56,6 +57,20 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、「ためしに動かす」でデモを始めるか配信中にテスト送信すると「ためす」を済みにする。配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1 / preview=live)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
 | 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する。管理画面から短い URL・4桁の数字・使い始めの手順をまとめてコピーできる。配信ソフトに入れる URL は設定済みを先頭に出し、ほかを折りたためる | できた（開発サーバー確認まで） | `public/dashboard/`、`public/admin/admin.js`、`test/kind-ui-playwright.test.js` |
 | 配信中のウィジェット未接続案内 | `/api/status` の `widgetConnected` が false のまま配信中なら、ホームで入れ方を案内し、配信ごとに閉じられる | できた | `src/runtime.js`、`public/dashboard/editor.js` |
+
+## 集金台帳（管理画面）
+
+集金を記録・取り消しすると、今月の集金額と利用者一覧も更新されます。取り消された請求・集金は元の月の合計に含めません。
+元データに欠けや古い部分があるときは、集計に警告を表示します。
+前回集金は記録を追加した順ではなく、実際に受け取った日時で決めます。取り消した集金は前回集金にも増分にも数えません。
+「台帳の履歴」の「古い行」から、以前の記録も取り消せます。自動更新しても履歴のページ、表示位置、記録欄の開閉は変わりません。
+起動時には `TW_LEDGER_DIR` で置き場所を変えた台帳と同期状態も、バックアップの `ledger/` に保存します。
+
+管理画面の「集金」では、`streamers.json` の人ごとに未集金額・前回集金からの増分・月次の売上推移を見て、集金・訂正・取り消しを記録します。集金日時の入力と表示は日本時間です。台帳は `data/ledger/entries.jsonl` に追記だけし、行を編集・削除しません。間違いは逆符号の取り消し行で直します。
+
+貸出の申告売上は lul-rental-ops の `recordRevenueYen()` / `shareAmountYen()` を import して10%だけ発生させ、同じ申告を何回読んでも二重計上しません。TikTok のコインは円に換算せず参考値としてだけ表示します。固定プランの自動請求と5%プランの確定入力はまだ実装していません。
+
+場所は環境変数で変えられます: `TW_LEDGER_DIR`（台帳）、`TW_STREAMERS`、`TW_RENTAL_STATE`、`TW_RENTAL_OPS_DIR`、`TW_NUMBERS_CONFIG`、`TW_LEDGER_START_AT`（この日時より前に終わった貸出枠を発生させない。不正な日時では同期しない）。`excludeStreamers` にある人は貸出の発生と売上推移に入れません。
 
 ## ウィジェット
 
@@ -555,4 +570,3 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にします。すでにある名前は前の名前を残し、変わった名前は標準出力に出します（コインの値は一覧に更新）。終わったらブラウザ用の表も作り直します。ログイン・API キー・有料プランは不要です。AI 向けの決まりは `AGENTS.md` にあります。
-

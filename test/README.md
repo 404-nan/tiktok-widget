@@ -5,6 +5,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | ファイル | 役目 |
 | --- | --- |
 | `acceptance/guard.test.js` / `guard-round2.test.js` / `guard-round3.test.js` | ガード機能の受け入れテスト |
+| `acceptance/ledger-admin.test.js` | 集金台帳の認証、同期 retry、集金の二重送信防止、訂正・古いページからの取り消しを実サーバーで確認する |
+| `admin-ledger-ui.test.js` | 集金日時の日本時間での送信、記録・取り消し後の集計更新、不要な文字表示の防止、自動更新後の履歴ページ・表示位置・開閉の維持を確認する |
 | `acceptance/ingest.test.js` / `ingest-round2.test.js` / `ingest-round3.test.js` | ingest AC-1〜24の受け入れテスト |
 | `acceptance/ingest-review.test.js` / `ingest-review.test.js` | ingestレビューのHTTP境界・単体テスト |
 | `acceptance/ingest-status.test.js` | ingest-statusの画面・説明の受け入れテスト |
@@ -34,6 +36,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
 | `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
 | `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
+| `ledger.test.js` / `ledger-sources.test.js` | 集金台帳の残高・FIFO・取り消し・壊れたJSONL、貸出同期の二重計上防止・訂正差分・除外・JST境界のテスト |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能（手動開始・ミッションを含む）と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
 | `comment-slide.test.js` | コメントスライド(きっかけの含む判定・上から最初の1つだけ・待ち行列の上限3と捨てる・カタログへの登録)のテスト |
