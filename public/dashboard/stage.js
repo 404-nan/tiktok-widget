@@ -24,9 +24,10 @@ export function createStage({ api, getPayload, getMe: rawGetMe, onChanged, onErr
   const getMe = () => {
     const me = rawGetMe() ?? {};
     if (me.mode !== 'tenant') return me;
-    const widgets = [...(me.widgets ?? [])];
-    for (const section of Object.keys(me.features ?? {})) if (!widgets.includes(section)) widgets.push(section);
-    return { ...me, widgets, access: Object.fromEntries(Object.keys(me.features ?? {}).map((section) => [section, { on: true }])) };
+    const locked = new Set((me.locked ?? []).filter((item) => item.kind !== 'capability').map((item) => item.key));
+    const widgets = [...(me.widgets ?? [])].filter((section) => !locked.has(section));
+    for (const section of Object.keys(me.features ?? {})) if (!locked.has(section) && !widgets.includes(section)) widgets.push(section);
+    return { ...me, widgets, access: Object.fromEntries(Object.keys(me.features ?? {}).filter((section) => !locked.has(section)).map((section) => [section, { on: true }])) };
   };
   const root = document.querySelector('#stageView'); let preview = null, frame = null, viewScale = 1, selected = null;
   // プレビューの見え方: true=「動きを確認」(preview=1)、false=「配信画面そのまま」(preview=live)
