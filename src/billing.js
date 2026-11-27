@@ -682,6 +682,7 @@ export class BillingStore {
     const before = {};
     for (const key of HISTORY_FIELDS) before[key] = cur[key] ?? null;
     const prevStatus = canonicalStatus(cur.status);
+    const prevComputed = computeStatus(cur, Date.now());
     if ('plan' in patch) {
       if (patch.plan == null || patch.plan === '') delete cur.plan;
       else {
@@ -702,13 +703,6 @@ export class BillingStore {
       }
     }
     if ('free' in patch) cur.free = Boolean(patch.free);
-    // 解約（次の更新をしない）。false か空で取り消す（支払い済み以外から支払い済みへ戻したときも自動で取り消す）
-    if ('cancelled' in patch) {
-      if (patch.cancelled === true) cur.cancelled = true;
-      else delete cur.cancelled;
-    } else if (cur.status === 'active' && 'status' in patch && prevStatus !== 'active') {
-      delete cur.cancelled;
-    }
     if ('paidUntil' in patch) {
       if (patch.paidUntil == null || patch.paidUntil === '') delete cur.paidUntil;
       else {
@@ -716,6 +710,13 @@ export class BillingStore {
         if (!day) throw new Error('支払った日までは 2026-11-30 のような日付です');
         cur.paidUntil = day;
       }
+    }
+    // 解約（次の更新をしない）。false か空で取り消す（有効以外から有効へ戻したときも自動で取り消す）
+    if ('cancelled' in patch) {
+      if (patch.cancelled === true) cur.cancelled = true;
+      else delete cur.cancelled;
+    } else if (cur.cancelled === true && prevComputed !== 'active' && computeStatus({ ...cur, cancelled: false }, Date.now()) === 'active') {
+      delete cur.cancelled;
     }
     if ('trialEndsAt' in patch) {
       if (patch.trialEndsAt == null || patch.trialEndsAt === '') delete cur.trialEndsAt;
