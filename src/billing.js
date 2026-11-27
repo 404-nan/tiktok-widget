@@ -136,9 +136,10 @@ export function computeStatus(entry, now = Date.now()) {
 
   const paidEnd = paidUntilEnd(entry.paidUntil);
   if (explicit === 'past_due') {
+    if (entry.cancelled === true && (paidEnd == null || paidEnd < now)) return 'free';
     const since = graceStart(entry, paidEnd);
     if (since == null) return 'past_due';
-    return now < since + GRACE_MS ? 'past_due' : 'suspended';
+    return now < since + GRACE_MS ? 'past_due' : (entry.cancelled === true ? 'free' : 'suspended');
   }
   if (explicit === 'active' || (explicit == null && paidEnd != null)) {
     if (paidEnd == null || paidEnd >= now) return 'active';
