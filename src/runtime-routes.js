@@ -94,7 +94,7 @@ let sharedWidgetVersions = null;
 
 export function bindRoutes(r, ctx) {
   const {
-    id, hub, store, info, entitled, editAllowed = () => true, widgetBase, mediaDirs, root, notes, ai,
+    id, hub, store, info, entitled, accessState = () => null, editAllowed = () => true, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
@@ -181,21 +181,33 @@ export function bindRoutes(r, ctx) {
    */
   function lockedList(me, features, capabilities) {
     const planId = me.plan?.id ?? null;
-    const suspended = me.plan?.status === 'suspended' && me.plan?.enforcementOn === true;
+    const enforcementOn = me.plan?.enforcementOn === true;
+    const suspended = me.plan?.status === 'suspended' && enforcementOn;
     const limited = new Set(me.billing?.limited ?? []);
+    const rawAccess = accessState?.() ?? me.access;
+    const manualOff = (key) => {
+      const state = rawAccess?.[key];
+      return Boolean(state && !state.on && (state.source === 'own' || state.source === 'everyone'));
+    };
     const why = (key, premium) => {
       if (suspended) return 'stopped';
-      if (premium && !planAllowsFeature(planId, key)) return 'plan';
+      // 管理者が手動でオフにしたものは、プラン変更では解除されない
+      if (manualOff(key)) return 'switch';
       // 管理画面の「いちばん上のプランだけ」で止まっているもの
       if (limited.has(key)) return 'plan';
+      if (premium) {
+        if (enforcementOn && !planAllowsFeature(planId, key)) return 'plan';
+        // 確認スイッチがオフのときは Pro だけが自動で開く（Plus に上げても自動では開かない）
+        if (!enforcementOn && planId !== topPlanId()) return 'plan';
+      }
       return 'switch';
     };
     const rows = [];
     for (const [key, def] of Object.entries(FEATURES)) {
       if (features[key] && !limited.has(key)) continue;
       const reason = why(key, def.premium);
-      // 「いちばん上のプランだけ」にしたものは、plans.json の並びより強い
-      const requiredPlan = reason !== 'plan' ? null : limited.has(key) ? topPlanId() : requiredPlanFor(key);
+      // 「いちばん上のプランだけ」にしたもの、および確認スイッチオフ時の豪華演出は最上位プランが必要
+      const requiredPlan = reason !== 'plan' ? null : (limited.has(key) || !enforcementOn) ? topPlanId() : requiredPlanFor(key);
       rows.push({ key, kind: 'feature', label: def.label, requiredPlan, requiredPlanLabel: planLabelOf(requiredPlan), reason, pages: [...def.pages] });
     }
     for (const [key, def] of Object.entries(EDIT_CAPABILITIES)) {

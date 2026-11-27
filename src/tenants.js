@@ -488,6 +488,7 @@ export class Tenants {
       dataDir: dir,
       mediaDirs: [path.join(dir, 'media'), MEDIA_DIR],
       entitled: (f) => this.entitled(id, f),
+      accessState: () => this.accessState(id),
       editAllowed: (capability) => this.editAllowed(id, capability),
       info: () => this.info(id),
       setWidgets: (list) => this.update(id, { widgets: list }),

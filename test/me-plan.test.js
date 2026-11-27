@@ -93,6 +93,12 @@ test('/api/me は Pro なら locked が空で、停止中は理由を stopped、
 
   const off = await meOf({ billing: 'off', access: { feature: 'alerts', on: false } });
   assert.deepEqual({ reason: lockOf(off, 'alerts').reason, requiredPlan: lockOf(off, 'alerts').requiredPlan }, { reason: 'switch', requiredPlan: null });
+
+  // 確認スイッチオフでは Plus にしても自動では開かず、Pro だけが自動で開く。手動オフはプラン変更でも開かないため switch
+  const freeOff = await meOf({ billing: 'off' });
+  assert.deepEqual({ reason: lockOf(freeOff, 'cutins').reason, requiredPlan: lockOf(freeOff, 'cutins').requiredPlan }, { reason: 'plan', requiredPlan: 'pro' });
+  const manualCutinOff = await meOf({ billing: 'on', access: { feature: 'cutins', on: false } });
+  assert.deepEqual({ reason: lockOf(manualCutinOff, 'cutins').reason, requiredPlan: lockOf(manualCutinOff, 'cutins').requiredPlan }, { reason: 'switch', requiredPlan: null });
 });
 
 test('planSummary はお試し・支払い待ちの残り日数を数え、記録が無い人を無料として見せる', () => {
@@ -109,6 +115,11 @@ test('planSummary はお試し・支払い待ちの残り日数を数え、記�
   assert.deepEqual([none.id, none.priceYen, none.daysLeft], ['free', 0, null]);
   const legacy = planSummary({ plan: 'flat5000', status: 'active', paidUntil: '2099-01-01' }, { now });
   assert.deepEqual([legacy.id, legacy.legacy], ['pro', { label: '5000円プラン', priceYen: 5000 }]);
+  // 個別の月額が設定されていればカタログ価格や旧プラン既定値より優先する
+  const customPlus = planSummary({ plan: 'plus', monthlyPrice: 1800, status: 'active', paidUntil: '2099-01-01' }, { now });
+  assert.deepEqual([customPlus.priceYen, customPlus.draft], [1800, false]);
+  const customLegacy = planSummary({ plan: 'flat5000', monthlyPrice: 3000, status: 'active', paidUntil: '2099-01-01' }, { now });
+  assert.deepEqual([customLegacy.priceYen, customLegacy.legacy], [3000, { label: '5000円プラン', priceYen: 3000 }]);
 });
 
 test('案内のリンクは http(s) だけ。環境変数で差し替えられ、おかしな値は使わない', () => {

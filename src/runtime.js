@@ -74,7 +74,7 @@ export { FEATURES, PREMIUM, featureOfPage, OBS_ALLOWED } from './runtime-feature
  * entitled(feature): そのウィジェット・演出を使えるか（管理者が決める）、info(): 配信者の情報（/api/me）、setWidgets(list): 使うウィジェットを保存
  * editAllowed(capability): 編集の操作（edit.media など）ができるか（プランと確認スイッチで決まる。1人で使うときはいつもできる）
  */
-export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, editAllowed = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
+export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitled = () => true, accessState = () => null, editAllowed = () => true, info = () => ({ mode: 'local' }), setWidgets = null, setTemplate = null, setGuideDone = null, setDisplayName = null, rememberTiktokId = null, setStayConnected = null, widgetBase, ai = null, notes = null, connectionAllowed = () => true, onIngestKeyChange = () => {}, now = Date.now }) {
   const hub = new Hub();
   const preparation = new PreparationStore(path.join(dataDir, 'preparation.json'), now);
   const infoFeed = new InfoFeed(hub);
@@ -352,7 +352,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   // control の関数は遅延参照で渡す（OBS ミドルウェアが先に登録される必要があるため bindRoutes → bindControl の順）
   let _control;
   const { readGifts } = bindRoutes(r, {
-    id, hub, store, info: () => info(), entitled, editAllowed, widgetBase, mediaDirs, root, notes, ai,
+    id, hub, store, info: () => info(), entitled, accessState, editAllowed, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
