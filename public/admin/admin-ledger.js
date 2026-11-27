@@ -63,7 +63,7 @@ async function submitCollection(root, id, form) {
       clientRequestId: form.clientRequestId.value,
     });
     message(result.duplicate ? '同じ集金はすでに記録されています' : '集金を記録しました');
-    await renderDetailPanel(root, id);
+    await fill(root);
   } catch (err) {
     message(err.message, true);
   } finally {
@@ -120,14 +120,14 @@ function adjustmentForm(root, id) {
   return form;
 }
 
-async function reverseLedgerEntry(root, streamerId, entry) {
+async function reverseLedgerEntry(root, entry) {
   if (!confirm(`${entry.signedAmountYen < 0 ? '−' : ''}${Math.abs(entry.signedAmountYen).toLocaleString('ja-JP')}円の行を取り消しますか？ 元の行は残り、逆符号の行が足されます。`)) return;
   const reason = prompt('取り消す理由を入れてください');
   if (!reason?.trim()) return message('取り消しには理由が必要です', true);
   try {
     await api(`/ledger/entries/${entry.id}/reversal`, { reason, clientRequestId: crypto.randomUUID() });
     message('取り消しを記録しました');
-    await renderDetailPanel(root, streamerId);
+    await fill(root);
   } catch (err) {
     message(err.message, true);
   }
@@ -152,7 +152,7 @@ async function renderDetailPanel(root, id) {
       salesTable(detail.sales ?? []),
       el('p', { className: 'hint', textContent: 'コインは円に換算していません。TikTok の確定額入力はまだなので、売上(円)は貸出の申告がある分だけです。' }),
       el('h4', { textContent: '最近の台帳' }),
-      entries.length ? el('div', { className: 'table-wrap' }, el('table', { className: 'ledger-table' }, el('thead', {}, el('tr', {}, ...['日時', '種類', '金額', '理由・メモ', ''].map((h) => el('th', { textContent: h })))), el('tbody', {}, ...entries.map((entry) => entryRow(entry, entry.kind !== 'reversal' && !reversedIds.has(entry.id) ? button('取り消す', () => reverseLedgerEntry(root, id, entry)) : null))))) : el('p', { className: 'hint', textContent: 'まだ台帳の行はありません' }),
+      entries.length ? el('div', { className: 'table-wrap' }, el('table', { className: 'ledger-table' }, el('thead', {}, el('tr', {}, ...['日時', '種類', '金額', '理由・メモ', ''].map((h) => el('th', { textContent: h })))), el('tbody', {}, ...entries.map((entry) => entryRow(entry, entry.kind !== 'reversal' && !reversedIds.has(entry.id) ? button('取り消す', () => reverseLedgerEntry(root, entry)) : null))))) : el('p', { className: 'hint', textContent: 'まだ台帳の行はありません' }),
     );
   } catch (err) {
     panel.replaceChildren(el('p', { className: 'form-message error', textContent: err.message }));
