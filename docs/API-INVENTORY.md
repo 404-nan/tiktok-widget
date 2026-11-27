@@ -102,12 +102,15 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | 経路 | 役目 |
 | --- | --- |
 | GET /admin/api/tenants | テナント一覧 |
-| POST /admin/api/tenants | テナント作成 |
+| POST /admin/api/tenants | テナント作成（`referralCode` は任意） |
 | POST /admin/api/tenants/:id/rekey | 鍵の再発行 |
 | POST /admin/api/tenants/:id/repin | PIN の再発行 |
-| POST /admin/api/tenants/:id/billing/code | 課金のコード |
-| POST /admin/api/tenants/:id/referral | 紹介 |
+| POST /admin/api/tenants/:id/billing/code | 紹介コードの発行 |
+| POST /admin/api/tenants/:id/referral | 初回入金の記録前に紹介コードを適用 |
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
+| GET /admin/api/money | 紹介元、入金、紹介報酬、残高、月額案 |
+| POST /admin/api/money/payments | 確認済み入金の記録（`tenantId`、整数の `amount`、一意の `reference`、`confirmed: true`） |
+| POST /admin/api/money/payments/:id/payout | 入金にひもづいた報酬の支払いを記録（残高不足は拒否） |
 | GET /admin/api/lul | 全テナントの概要 |
 | POST /admin/api/ledger/sync | 集金台帳へ貸出の発生・訂正差分を同期 |
 | GET /admin/api/ledger/summary | 集金台帳の人ごとの残高と今月の集計 |

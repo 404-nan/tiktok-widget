@@ -102,6 +102,18 @@ app.use('/vendor/icons', vendor('lucide-static/icons'));
 const admin = express.Router();
 admin.use(adminGuard(ADMIN_TOKEN));
 
+function adminBillingAction(location, action) {
+  return (req, res) => {
+    try {
+      res.json(action(req));
+    } catch (err) {
+      const internal = Boolean(err.code);
+      console.warn(`[billing] ${location}: ${internal ? err.code : err.message}`);
+      res.status(internal ? 500 : 400).json({ error: internal ? '記録の読み書きに失敗しました' : err.message });
+    }
+  };
+}
+
 // 前に Cloudflare などがあるときは、そこに届いた URL（X-Forwarded-Host / Proto）を使う
 const origin = (req) => `${req.protocol}://${req.host}`;
 function tenantView(req, t) {
@@ -182,14 +194,10 @@ admin.get('/deploy-status', (req, res) => {
   const live = tenants.list().map((t) => tenantView(req, t)).filter((t) => t.status.mode === 'live');
   res.json({ live: live.map((t) => ({ name: t.name, minutes: t.status.elapsedMinutes ?? 0 })) });
 });
-admin.post('/tenants', (req, res) => {
-  try {
-    const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
-    res.json({ ok: true, tenant: tenantView(req, t) });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+admin.post('/tenants', adminBillingAction('POST /admin/api/tenants', (req) => {
+  const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
+  return { ok: true, tenant: tenantView(req, t) };
+}));
 admin.patch('/tenants/:id', (req, res) => {
   try {
     res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
@@ -311,21 +319,19 @@ admin.put('/tenants/:id/billing', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.post('/tenants/:id/billing/code', (req, res) => {
-  try {
-    res.json({ ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-admin.post('/tenants/:id/referral', (req, res) => {
-  try {
-    const result = tenants.applyReferral(req.params.id, req.body?.code);
-    res.json({ ok: true, ...result, tenant: tenantView(req, tenants.get(req.params.id)) });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+admin.post('/tenants/:id/billing/code', adminBillingAction('POST /admin/api/tenants/:id/billing/code', (req) => ({
+  ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)),
+})));
+admin.post('/tenants/:id/referral', adminBillingAction('POST /admin/api/tenants/:id/referral', (req) => ({
+  ok: true, ...tenants.applyReferral(req.params.id, req.body?.code), tenant: tenantView(req, tenants.get(req.params.id)),
+})));
+admin.get('/money', adminBillingAction('GET /admin/api/money', () => tenants.billing.moneyView()));
+admin.post('/money/payments', adminBillingAction('POST /admin/api/money/payments', (req) => ({
+  ok: true, payment: tenants.recordPayment(req.body?.tenantId, req.body ?? {}),
+})));
+admin.post('/money/payments/:id/payout', adminBillingAction('POST /admin/api/money/payments/:id/payout', (req) => ({
+  ok: true, payment: tenants.billing.recordPayout(req.params.id),
+})));
 admin.post('/tenants/:id/billing/credit', (req, res) => {
   try {
     res.json({ ok: true, discount: tenants.useBillingCredit(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });

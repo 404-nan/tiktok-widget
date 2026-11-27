@@ -202,6 +202,11 @@
 .form-card > p.hint, .admin-key-list > p.hint { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); }
 .form-card > p.hint + .admin-key-list > p.hint { padding-top: 0; }
 .form-card > h3 { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; line-height: 1.6; }
+.money-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--card-gap); }
+.money-cards .form-card > .sub, .money-totals { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); overflow-wrap: anywhere; }
+.money-cards .form-card > .sub + .sub, .money-cards .form-card > form + .sub { border-top: 1px solid var(--border); }
+.money-totals { display: grid; grid-template-columns: 1fr auto; gap: var(--s-2); }
+.money-totals dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* カードの中の行: どれも同じ内側余白、行の間は線1本 */
 .note-form, .key-form, .lul-tenant, .admin-note, .admin-key {

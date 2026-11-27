@@ -3,13 +3,14 @@
 // API は /admin/api/...（合言葉を x-admin-token で送る）
 
 import { $, store, setupPanels, setupTheme } from '/dashboard/common.js';
-import { initParts, api, message } from './admin-parts.js';
+import { initParts, api, el, message } from './admin-parts.js';
 import { initAuth, showLogin, setupAuth } from './admin-auth.js';
 import { initList, renderKpis, renderFilters, renderRows, setupListEvents } from './admin-list.js';
 import { initDetail, tenantDetail, bulkDetail, signKeyGroup, aiGroup, globalDetail, singlePage, lulDetail } from './admin-detail.js';
 import { initBilling, notesDetail, billingDetail } from './admin-billing.js';
 import { initKeys, keysDetail, aiTokensDetail } from './admin-keys.js';
 import { ledgerDetail } from './admin-ledger.js';
+import { moneyDetail } from './admin-money.js';
 
 setupPanels();
 setupTheme();
@@ -30,7 +31,7 @@ detailBody.className = 'detail-body';
 $('detail').append(detailBody);
 
 // カードを縦に並べるページ（見出しはカードの外、中の項目は線で区切った行）
-const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'ai-tokens', 'ledger'];
+const CARD_PAGES = ['lul', 'notes', 'keys', 'billing', 'money', 'ai-tokens', 'ledger'];
 
 // --- 遅延バインディングの初期化 ---
 
@@ -108,7 +109,8 @@ function renderShell() {
 
 function renderDetail(force = false) {
   // 名前などを打っている最中は作り直さない
-  if (!force && detailBody.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox]), textarea, select')) return;
+  if (!force && detailBody.contains(document.activeElement)
+    && document.activeElement.matches(page === 'money' ? 'input, select' : 'input:not([type=checkbox]), textarea, select')) return;
   renderShell();
   if (page === 'global') {
     detailBody.replaceChildren(...globalDetail());
@@ -144,6 +146,17 @@ function renderDetail(force = false) {
   }
   if (page === 'ledger') {
     detailBody.replaceChildren(...ledgerDetail());
+    return;
+  }
+  if (page === 'money') {
+    const panel = el('div', { className: 'money-cards' }, el('p', { className: 'sub', textContent: '読み込んでいます…' }));
+    detailBody.replaceChildren(el('div', { className: 'detail-head' }, el('h2', { textContent: '紹介・お金の管理' })), panel);
+    api('/money').then((money) => {
+      if (panel.isConnected) panel.replaceChildren(...moneyDetail(money, data.tenants));
+    }).catch((err) => {
+      console.warn('[admin] GET /admin/api/money:', err.message);
+      panel.textContent = `お金の記録を読み込めませんでした：${err.message}`;
+    });
     return;
   }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));
@@ -186,8 +199,9 @@ $('addCancel').addEventListener('click', () => toggleAdd(false));
 $('createForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
-    const { tenant } = await api('/tenants', { name: $('newName').value });
+    const { tenant } = await api('/tenants', { name: $('newName').value, referralCode: $('newReferral').value });
     $('newName').value = '';
+    $('newReferral').value = '';
     toggleAdd(false);
     selected = tenant.id;
     checked.clear();

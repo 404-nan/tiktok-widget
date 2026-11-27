@@ -54,7 +54,6 @@ const AI_PATH_LABEL = {
   'billing.status': '状態',
   'billing.paidUntil': '支払った日まで',
   'billing.trialEndsAt': 'お試しの終わり',
-  'billing.multiplier': '紹介の倍率',
   'billing.note': 'メモ',
   'billing.free': '無料提供',
   'billing.monthlyPrice': '月額（円）',

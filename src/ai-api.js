@@ -51,7 +51,6 @@ const ACCOUNT_FIELDS = {
   monthlyprice: 'monthlyPrice',
 };
 const GLOBAL_FIELDS = {
-  multiplier: 'multiplier',
   premiumfeatures: 'premiumFeatures',
 };
 

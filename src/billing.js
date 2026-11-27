@@ -163,7 +163,7 @@ function graceUntilDay(entry, now = Date.now()) {
   return DAY_FMT.format(new Date(since + GRACE_MS));
 }
 
-/** 紹介や割引に使う月額（円）。手入力がプランの金額より優先。5%プランは手入力が無いと 0 */
+/** プランや割引に使う月額（円）。手入力がプランの金額より優先。5%プランは手入力が無いと 0 */
 export function monthlyPriceYen(entry) {
   if (!entry) return 0;
   if (entry.monthlyPrice != null && entry.monthlyPrice !== '') {
@@ -171,29 +171,6 @@ export function monthlyPriceYen(entry) {
     if (Number.isFinite(n) && n >= 0) return Math.round(n);
   }
   return planOf(entry.plan)?.price ?? 0;
-}
-
-export function referralCreditYen(monthlyPrice, multiplier = 1.5) {
-  const price = Math.max(0, Math.round(Number(monthlyPrice) || 0));
-  const m = Number(multiplier);
-  const mult = Number.isFinite(m) && m > 0 ? m : 1.5;
-  return Math.round(price * mult);
-}
-
-/** 双方の割引残高に、それぞれの月額 × 倍率を足す。現金は増えない */
-export function grantReferral({ referrer, referee, multiplier = 1.5 } = {}) {
-  const referrerCredit = referralCreditYen(monthlyPriceYen(referrer), multiplier);
-  const refereeCredit = referralCreditYen(monthlyPriceYen(referee), multiplier);
-  return {
-    referrerCredit,
-    refereeCredit,
-    referrer: { ...referrer, credit: Math.max(0, Math.round(Number(referrer?.credit) || 0)) + referrerCredit },
-    referee: {
-      ...referee,
-      credit: Math.max(0, Math.round(Number(referee?.credit) || 0)) + refereeCredit,
-      referredBy: referrer?.id ?? referee?.referredBy ?? null,
-    },
-  };
 }
 
 /** 次の1か月に残高から引ける割引。支払う額は 0 未満にしない */
@@ -279,12 +256,43 @@ function makeCode() {
   return Array.from(crypto.randomBytes(8), (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
 }
 
+const positiveYen = (amount) => Number.isSafeInteger(amount) && amount > 0;
+
+function draftPlans(env) {
+  return [
+    ['Plus', 'TW_DRAFT_PLUS_YEN', 2980],
+    ['Pro', 'TW_DRAFT_PRO_YEN', 4980],
+  ].map(([label, key, fallback]) => {
+    const price = Number(env[key] ?? fallback);
+    if (positiveYen(price)) return { label, price };
+    console.warn(`[billing] draftPlans: ${key} は正の整数（円）で指定してください`);
+    return { label, price: fallback };
+  });
+}
+
+function moneyTotals(payments) {
+  let received = 0;
+  let owed = 0;
+  let paid = 0;
+  for (const { amount, reward } of payments) {
+    if (!positiveYen(amount) || (reward != null && !positiveYen(reward.amount))) {
+      throw new Error('入金または紹介報酬の金額が不正です');
+    }
+    received += amount;
+    if (reward?.paidAt) paid += reward.amount;
+    else owed += reward?.amount ?? 0;
+  }
+  if (![received, owed, paid].every(Number.isSafeInteger)) throw new Error('台帳の合計金額を扱えません');
+  return { received, owed, paid, balance: received - paid };
+}
+
 export class BillingStore {
   constructor({ dir, env = process.env } = {}) {
     this.dir = dir;
     this.env = env;
     this.file = path.join(dir, 'billing.json');
-    this.data = { enforcement: null, multiplier: 1.5, premiumFeatures: [], accounts: {} };
+    this.data = { enforcement: null, premiumFeatures: [], accounts: {}, payments: [] };
+    this.draftPlans = draftPlans(env);
     this.corrupt = false;
     this.load();
   }
@@ -296,30 +304,39 @@ export class BillingStore {
       raw = fs.readFileSync(this.file, 'utf8');
     } catch (err) {
       // ファイルが無いときはお試しのまま。無いファイルは読み込みでは作らない
-      if (err?.code !== 'ENOENT') this.corrupt = true;
+      if (err?.code !== 'ENOENT') {
+        this.corrupt = true;
+        console.warn(`[billing] BillingStore.load: billing.json を読めません: ${err.code ?? err.name}`);
+      }
       return this.data;
     }
     try {
       const d = JSON.parse(raw);
+      const payments = Object.hasOwn(d, 'payments') ? d.payments : [];
+      if (!Array.isArray(payments)) throw new Error('入金の一覧が不正です');
+      moneyTotals(payments);
       this.data = {
         enforcement: d.enforcement === true ? true : d.enforcement === false ? false : null,
-        multiplier: d.multiplier === 2 ? 2 : 1.5,
         premiumFeatures: Array.isArray(d.premiumFeatures) ? d.premiumFeatures.map((name) => String(name)).filter(Boolean) : [],
         accounts: d.accounts && typeof d.accounts === 'object' && !Array.isArray(d.accounts) ? d.accounts : {},
+        payments,
       };
-    } catch {
+    } catch (err) {
       // 壊れたファイルは読み込みでは上書きしない。スイッチがオンのときだけ、中身が読めないので止める
       this.corrupt = true;
-      this.data = { enforcement: null, multiplier: 1.5, premiumFeatures: [], accounts: {} };
+      this.data = { enforcement: null, premiumFeatures: [], accounts: {}, payments: [] };
+      console.warn(`[billing] BillingStore.load: billing.json が不正です: ${err instanceof SyntaxError ? err.name : err.message}`);
     }
     return this.data;
   }
 
-  save() {
+  save(next = this.data) {
+    if (this.corrupt) throw new Error('支払いの記録を読めないため保存できません');
     fs.mkdirSync(this.dir, { recursive: true });
     const tmp = `${this.file}.tmp-${process.pid}`;
-    fs.writeFileSync(tmp, `${JSON.stringify(this.data, null, 2)}\n`);
+    fs.writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
     fs.renameSync(tmp, this.file);
+    this.data = next;
   }
 
   enforcement() {
@@ -349,7 +366,6 @@ export class BillingStore {
     return {
       enforcement: this.data.enforcement,
       effective: this.enforcement(),
-      multiplier: this.data.multiplier === 2 ? 2 : 1.5,
       premiumFeatures: [...this.data.premiumFeatures],
       plans: PLANS.map((p) => ({ ...p })),
     };
@@ -472,15 +488,11 @@ export class BillingStore {
   }
 
   setGlobal(patch = {}) {
+    if ('multiplier' in patch) throw new Error('紹介報酬は初回入金の50%で固定です');
     if ('enforcement' in patch) {
       if (patch.enforcement === true || patch.enforcement === 'on') this.data.enforcement = true;
       else if (patch.enforcement === false || patch.enforcement === 'off') this.data.enforcement = false;
       else this.data.enforcement = null;
-    }
-    if ('multiplier' in patch) {
-      const n = Number(patch.multiplier);
-      if (n !== 1.5 && n !== 2) throw new Error('紹介の倍率は 1.5 か 2 です');
-      this.data.multiplier = n;
     }
     if ('premiumFeatures' in patch) {
       if (!Array.isArray(patch.premiumFeatures)) throw new Error('機能の一覧で送ってください');
@@ -566,8 +578,7 @@ export class BillingStore {
       code = makeCode();
     } while (this.findByCode(code));
     cur.code = code;
-    this.data.accounts[id] = cur;
-    this.save();
+    this.save({ ...this.data, accounts: { ...this.data.accounts, [id]: cur } });
     return code;
   }
 
@@ -579,19 +590,51 @@ export class BillingStore {
     if (referrerId === refereeId) throw new Error('自分の紹介コードは使えません');
     const referee = { ...(this.data.accounts[refereeId] ?? {}) };
     if (referee.referredBy) throw new Error('紹介コードはすでに使っています');
-    const referrer = { ...(this.data.accounts[referrerId] ?? {}) };
-    const granted = grantReferral({
-      referrer: { ...referrer, id: referrerId },
-      referee: { ...referee, id: refereeId },
-      multiplier: this.data.multiplier === 2 ? 2 : 1.5,
-    });
-    const { id: _referrerId, ...referrerNext } = granted.referrer;
-    const { id: _refereeId, ...refereeNext } = granted.referee;
-    refereeNext.usedCode = code;
-    this.data.accounts[referrerId] = referrerNext;
-    this.data.accounts[refereeId] = refereeNext;
-    this.save();
-    return { referrerId, referrerCredit: granted.referrerCredit, refereeCredit: granted.refereeCredit };
+    if (this.data.payments.some((payment) => payment.tenantId === refereeId)) {
+      throw new Error('初回入金を記録した後は紹介コードを使えません');
+    }
+    referee.referredBy = referrerId;
+    referee.usedCode = normCode(code);
+    this.save({ ...this.data, accounts: { ...this.data.accounts, [refereeId]: referee } });
+    return { referrerId };
+  }
+
+  moneyView() {
+    if (this.corrupt) throw new Error('支払いの記録を読めないため集計できません');
+    const { accounts, payments } = this.data;
+    const referrals = Object.entries(accounts).flatMap(([tenantId, account]) =>
+      account.referredBy ? [{ tenantId, referrerId: account.referredBy }] : []);
+    return { ...moneyTotals(payments), referrals, payments, draftPlans: this.draftPlans };
+  }
+
+  recordPayment(tenantId, { amount, reference, confirmed } = {}) {
+    if (confirmed !== true) throw new Error('入金を確認してから記録してください');
+    if (!positiveYen(amount)) throw new Error('入金額は正の整数（円）で入力してください');
+    const ref = typeof reference === 'string' ? reference.trim() : '';
+    if (!ref) throw new Error('入金の照合番号を入力してください');
+    const { payments } = this.data;
+    if (payments.some((payment) => payment.reference === ref)) throw new Error('その入金の照合番号は記録済みです');
+    const referrerId = this.account(tenantId)?.referredBy;
+    const rewardAmount = Math.floor(amount / 2);
+    const reward = referrerId && rewardAmount && !payments.some((payment) => payment.tenantId === tenantId)
+      ? { referrerId, amount: rewardAmount, paidAt: null }
+      : null;
+    const payment = { id: crypto.randomUUID(), tenantId, reference: ref, amount, confirmedAt: new Date().toISOString(), reward };
+    const next = [...payments, payment];
+    moneyTotals(next);
+    this.save({ ...this.data, payments: next });
+    return payment;
+  }
+
+  recordPayout(paymentId) {
+    const { payments, balance } = this.moneyView();
+    const payment = payments.find(({ id }) => id === paymentId);
+    if (!payment?.reward) throw new Error('支払う紹介報酬が見つかりません');
+    if (payment.reward.paidAt) throw new Error('その紹介報酬は支払い済みです');
+    if (payment.reward.amount > balance) throw new Error('受け取ったお金の残高が足りません');
+    const paid = { ...payment, reward: { ...payment.reward, paidAt: new Date().toISOString() } };
+    this.save({ ...this.data, payments: payments.map((row) => row === payment ? paid : row) });
+    return paid;
   }
 
   useMonth(id) {
@@ -605,8 +648,11 @@ export class BillingStore {
   }
 
   remove(id) {
-    if (!this.data.accounts?.[id]) return;
-    delete this.data.accounts[id];
-    this.save();
+    const account = this.account(id);
+    if (!account) return;
+    const accounts = { ...this.data.accounts };
+    if (account.referredBy) accounts[id] = { referredBy: account.referredBy };
+    else delete accounts[id];
+    this.save({ ...this.data, accounts });
   }
 }

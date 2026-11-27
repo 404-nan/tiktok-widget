@@ -336,8 +336,26 @@ export class Tenants {
       createdAt: Date.now(),
     };
     this.data.tenants.push(t);
-    this.#save();
-    if (code) this.billing.applyCode(t.id, code);
+    try {
+      this.#save();
+    } catch (err) {
+      this.data.tenants.pop();
+      throw err;
+    }
+    if (code) {
+      try {
+        this.billing.applyCode(t.id, code);
+      } catch (err) {
+        this.data.tenants.pop();
+        try {
+          this.#save();
+        } catch (rollbackError) {
+          this.data.tenants.push(t);
+          console.error(`[tenants] Tenants.create: 配信者の追加を取り消せません: ${rollbackError.code ?? rollbackError.name}`);
+        }
+        throw err;
+      }
+    }
     return t;
   }
 
@@ -366,6 +384,11 @@ export class Tenants {
     const result = this.billing.applyCode(id, code);
     this.#notify(null);
     return result;
+  }
+
+  recordPayment(id, payment) {
+    if (!this.get(id)) throw new Error('その配信者は見つかりません');
+    return this.billing.recordPayment(id, payment);
   }
 
   useBillingCredit(id) {
