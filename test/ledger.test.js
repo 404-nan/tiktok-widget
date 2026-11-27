@@ -223,6 +223,22 @@ test('配信者を取り違えた入金を再登録すると、正しい配信�
   assert.equal(ledger.subscriptionCash().payments.find(({ id }) => id === later.id).reward, null);
 });
 
+test('同じ入金日の初回入金は、再登録しても照合番号の元の順番を保つ', () => {
+  const dir = tmp();
+  const ledger = new Ledger({ dir });
+  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true };
+  const first = ledger.recordSubscriptionPayment(form);
+  const second = ledger.recordSubscriptionPayment({ ...form, amount: 2200, reference: 'second' });
+  ledger.recordReferralPayout(first.id, 500);
+  ledger.voidSubscriptionPayment(first.id, { reason: '再登録' });
+  const replacement = ledger.recordSubscriptionPayment(form);
+  assert.equal(replacement.reward.amount, 500);
+  assert.ok(replacement.reward.paidAt);
+  const cash = new Ledger({ dir }).subscriptionCash();
+  assert.equal(cash.payments.find(({ id }) => id === second.id).reward, null);
+  assert.deepEqual(cashTotals(cash), [3200, 0, 500, 2700]);
+});
+
 test('すでに支払った報酬で赤字になる訂正と取り消しは追記しない', () => {
   const ledger = new Ledger({ dir: tmp() });
   const first = ledger.recordSubscriptionPayment({ amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true });

@@ -151,6 +151,7 @@ export function sourceAmountsByKey(entries) {
 
 function subscriptionCash(entries) {
   const recorded = new Map();
+  const originalSequences = new Map();
   const payouts = [];
   const paidByReferral = new Map();
   const referralKey = (tenantId, referrerId) => JSON.stringify([tenantId, referrerId]);
@@ -159,7 +160,9 @@ function subscriptionCash(entries) {
     if (entry.source?.system !== 'subscription') continue;
     const target = recorded.get(entry.targetId);
     if (entry.kind === 'subscription-payment') {
-      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false });
+      const reference = entry.source.key;
+      if (!originalSequences.has(reference)) originalSequences.set(reference, entry.seq);
+      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false, originalSeq: originalSequences.get(reference) });
     } else if (entry.kind === 'adjustment' && target && !target.voided) {
       target.amount += entry.signedAmountYen;
     } else if (entry.kind === 'reversal' && target && !target.voided && entry.signedAmountYen === -target.amount) {
@@ -184,7 +187,8 @@ function subscriptionCash(entries) {
     if (payment.voided) continue;
     const { tenantId } = payment.entry;
     const first = firstByTenant.get(tenantId);
-    if (!first || payment.entry.at < first.entry.at) firstByTenant.set(tenantId, payment);
+    if (!first || payment.entry.at < first.entry.at ||
+      (payment.entry.at === first.entry.at && payment.originalSeq < first.originalSeq)) firstByTenant.set(tenantId, payment);
   }
   let received = 0;
   let owed = 0;
