@@ -457,6 +457,7 @@ export class Tenants {
       template: t?.template ?? null,
       guideDone: Boolean(t?.guideDone),
       billing,
+      plan: this.billing.planView(id),
     };
   }
 

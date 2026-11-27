@@ -131,41 +131,92 @@ async function setupSimulate() {
   });
 }
 
-function renderPlan(billing) {
+// --- プラン ---
+// プランの情報があるときはいつも出す（困ったときだけ出すと、払っている期間や増えるものが分からず不安になる）。
+// いまのプラン・値段・期限・残り日数・上のプランで増えるもの・案内を、この1枚にまとめる。
+
+const yen = (n) => `${fmt(n)}円`;
+
+function planPriceText(plan) {
+  if (plan.legacy) return plan.legacy.priceYen == null ? plan.legacy.label : `${plan.legacy.label}（${yen(plan.legacy.priceYen)}／月）`;
+  if (!plan.priceYen) return '0円';
+  return `${yen(plan.priceYen)}／月${plan.draft ? '（仮の値段）' : ''}`;
+}
+
+function planPeriodText(plan) {
+  const left = plan.daysLeft == null ? '' : plan.daysLeft === 0 ? '（今日まで）' : `（あと${plan.daysLeft}日）`;
+  if (plan.status === 'trial' && plan.trialEndsAt) return `お試しは ${plan.trialEndsAt} まで${left}`;
+  if (plan.status === 'active' && plan.paidUntil) return `${plan.paidUntil} まで${left}`;
+  if (plan.status === 'past_due' && plan.graceUntil) return `${plan.graceUntil} まで待ちます${left}`;
+  return '';
+}
+
+function planMessage(plan, billing) {
+  if (plan.status === 'suspended') {
+    return plan.enforcementOn
+      ? 'お支払いの確認が取れていません。LuLにご連絡ください。いまは配信画面を止めています'
+      : 'お支払いの確認が取れていません。LuLにご連絡ください。いまは配信を止めていません';
+  }
+  if (plan.trialNotice) return '有料化のお知らせ: お試しの期間がもうすぐ終わります。続けて使うプランは下の案内から相談できます';
+  if (plan.status === 'past_due') return '支払いの確認を待っています。いまは配信を止めていません';
+  if (plan.status === 'active') return '支払い済みの期間は、配信画面が出ます';
+  if (plan.status === 'trial') return billing?.show === false ? 'いまのプランで使えるものが、そのまま使えます' : 'お試しの期間です';
+  return '';
+}
+
+// 上のプランで増えるもの。プランごとにまとめて、名前だけ並べる（読む量を減らす）
+function planUpgrades(locked) {
+  const byPlan = new Map();
+  for (const item of locked ?? []) {
+    if (item.reason !== 'plan' || !item.requiredPlanLabel) continue;
+    if (!byPlan.has(item.requiredPlanLabel)) byPlan.set(item.requiredPlanLabel, []);
+    byPlan.get(item.requiredPlanLabel).push(item.label);
+  }
+  return [...byPlan].map(([label, items]) => {
+    const p = document.createElement('p');
+    p.className = 'plan-upgrade';
+    p.append(icon('lock'), Object.assign(document.createElement('span'), { textContent: `${label} で使えるもの: ${items.join('、')}` }));
+    return p;
+  });
+}
+
+function planContactNode(plan) {
+  const p = document.createElement('p');
+  p.className = 'plan-contact';
+  if (plan.contactUrl) {
+    p.append(Object.assign(document.createElement('a'), { href: plan.contactUrl, target: '_blank', rel: 'noopener', textContent: 'プランについて LuL に聞く' }));
+  } else if (plan.contactNote) {
+    p.textContent = plan.contactNote;
+  }
+  return p.childNodes.length ? p : null;
+}
+
+function renderPlan(me) {
   const panel = $('planPanel');
   if (!panel) return;
-  const suspended = Boolean(billing && billing.status === 'suspended');
-  const notice = Boolean(billing && billing.trialNotice);
-  const urgent = suspended || notice || billing?.status === 'past_due';
-  if (!billing || !urgent) {
+  const plan = me?.plan;
+  const billing = me?.billing;
+  if (!plan) {
     panel.hidden = true;
     return;
   }
   panel.hidden = false;
-  const bits = [billing.planLabel || 'プラン未設定', billing.statusLabel || ''];
-  if (billing.paidUntil && billing.status === 'active') bits.push(`${billing.paidUntil} まで`);
-  if (billing.trialEndsAt && billing.status === 'trial') bits.push(`${billing.trialEndsAt} まで`);
-  $('planStatus').textContent = bits.filter(Boolean).join('・');
-  const lines = [];
-  if (suspended) {
-    lines.push('お支払いの確認が取れていません。LuLにご連絡ください');
-  } else if (notice) {
-    lines.push('有料化のお知らせ');
-  } else if (billing.status === 'trial') {
-    lines.push('お試しの期間です。');
-  } else if (billing.status === 'active') {
-    lines.push('支払い済みの期間は、配信画面が出ます。');
-  } else if (billing.status === 'past_due') {
-    lines.push('支払いの確認を待っています。いまは配信を止めていません。');
-  }
-  if (billing.credit > 0) lines.push(`翌月以降に使える割引: ${fmt(billing.credit)}円（現金にはできません）`);
-  if (billing.code) lines.push(`紹介コード: ${billing.code}`);
-  $('planBody').textContent = lines.join('\n');
+  panel.dataset.status = plan.status;
+  // 記録が無く伝えることも無い人（billing.show が偽）には「お試し」と書かない
+  const statusLabel = billing?.show === false ? '' : plan.statusLabel;
+  $('planStatus').textContent = [`${plan.label}プラン`, planPriceText(plan), statusLabel, planPeriodText(plan)].filter(Boolean).join('・');
+  const lines = [planMessage(plan, billing)];
+  if (plan.description) lines.push(plan.description);
+  if (billing?.credit > 0) lines.push(`翌月以降に使える割引: ${fmt(billing.credit)}円（現金にはできません）`);
+  if (billing?.code) lines.push(`紹介コード: ${billing.code}`);
+  $('planBody').textContent = lines.filter(Boolean).join('\n');
+  const contact = planContactNode(plan);
+  $('planMore').replaceChildren(...planUpgrades(me.locked), ...(contact ? [contact] : []));
 }
 
 async function refreshPlan() {
   const me = await api('/api/me').catch(() => null);
-  renderPlan(me?.billing);
+  renderPlan(me);
 }
 
 async function setupAnnouncements() {

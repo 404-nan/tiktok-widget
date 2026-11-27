@@ -27,6 +27,10 @@ let active = null;
 const isText = (value) => typeof value === 'string' && value.trim() !== '';
 const isDays = (value) => Number.isInteger(value) && value >= 0;
 const isYen = (value) => Number.isInteger(value) && value >= 0;
+// 案内のリンクは http(s) だけ（javascript: などを画面のリンクにしない）
+const isContactUrl = (value) => {
+  try { return ['https:', 'http:'].includes(new URL(value).protocol); } catch { return false; }
+};
 
 function textList(value, where) {
   if (!Array.isArray(value)) throw new Error(`${where} は一覧にしてください`);
@@ -110,6 +114,18 @@ function applyPriceEnv(plans, env, file) {
   });
 }
 
+/** 問い合わせ先のリンク。環境変数（contactEnv）があればそちら。おかしな値は使わず、記録だけ残す */
+function contactUrlOf(data, env, file) {
+  const fromEnv = data.contactEnv ? String(env?.[data.contactEnv] ?? '').trim() : '';
+  if (fromEnv) {
+    if (isContactUrl(fromEnv)) return fromEnv;
+    const err = new PlansError(`${data.contactEnv} は http(s):// で始まる URL にしてください。plans.json の contactUrl を使います`, { file });
+    console.warn(`[plans] ${err.message}`);
+    recordError(err, { kind: 'plans.load', level: 'warn', context: { file, env: data.contactEnv } });
+  }
+  return data.contactUrl ?? '';
+}
+
 /** 読んだ JSON を検査して、使う形に直す。おかしいところがあれば Error を投げる */
 export function validatePlans(data, { env = process.env, file = null } = {}) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('中身は { ... } の形にしてください');
@@ -117,6 +133,8 @@ export function validatePlans(data, { env = process.env, file = null } = {}) {
     if (!isDays(data[key])) throw new Error(`${key} は 0 以上の整数（日）にしてください`);
   }
   if (typeof data.paymentNote !== 'string') throw new Error('paymentNote は文字にしてください');
+  if (data.contactUrl != null && data.contactUrl !== '' && !isContactUrl(data.contactUrl)) throw new Error('contactUrl は http(s):// で始まる URL か空にしてください');
+  if (data.contactEnv != null && !isText(data.contactEnv)) throw new Error('contactEnv は環境変数の名前にしてください');
   const premiumFeatures = textList(data.premiumFeatures, 'premiumFeatures');
   const editCapabilities = checkCapabilities(data.editCapabilities, premiumFeatures);
   const capabilityKeys = editCapabilities.map((c) => c.key);
@@ -133,6 +151,7 @@ export function validatePlans(data, { env = process.env, file = null } = {}) {
     trialNoticeDays: data.trialNoticeDays,
     graceDays: data.graceDays,
     paymentNote: data.paymentNote,
+    contactUrl: contactUrlOf(data, env, file),
     premiumFeatures,
     editCapabilities,
     plans: applyPriceEnv(plans, env, file),
@@ -257,6 +276,7 @@ export function toPublicCatalog() {
     trialNoticeDays: c.trialNoticeDays,
     graceDays: c.graceDays,
     paymentNote: c.paymentNote,
+    contactUrl: c.contactUrl,
     editCapabilities: structuredClone(c.editCapabilities),
     plans: c.plans.map(({ id, label, description, priceYen, draft, features, capabilities }) => ({ id, label, description, priceYen, draft, features: [...features], capabilities: [...capabilities] })),
   };
@@ -266,4 +286,10 @@ export function toPublicCatalog() {
 export function planTimings() {
   const { trialDays, trialNoticeDays, graceDays } = catalog();
   return { trialDays, trialNoticeDays, graceDays };
+}
+
+/** 支払いとプランの変更の案内（文と、あればリンク） */
+export function planContact() {
+  const { paymentNote, contactUrl } = catalog();
+  return { note: paymentNote, url: contactUrl };
 }

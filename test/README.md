@@ -89,6 +89,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `pinlogin.test.js` | PINログインのテスト |
 | `plans.test.js` | プランの定義（`src/plans.json`）の形、昔のプラン名の置き換え、壊れた定義の記録、仮の値段の差し替え |
 | `plan-edit-routes.test.js` | 編集の書き込み API が、確認スイッチとプランで 403（`requiredPlan`・`capability`）を返すか |
+| `me-plan.test.js` | `/api/me` が `features` を今までどおり返し、使えないもの（`locked`）・編集の操作（`capabilities`）・いまのプラン（`plan`。メモは入れない）を返すか |
+| `locked-page.test.js` | `locked.html` が配信画面（OBS）では透明な空白のまま、見本（`?preview=1`）でだけ「○○ プランで使えます」などの理由を出すか |
 | `reconnect.test.js` | 再接続のテスト |
 | `hub-clients.test.js` | ハブが、つながっている画面の役目(obs)を答え、つながったことを知らせるか |
 | `preparation.test.js` | 配信準備の印を重複なく保存し、再起動後に読み戻せるか |

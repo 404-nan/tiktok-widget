@@ -2,6 +2,7 @@
 import { icon, mediaUrl, giftLabel } from '/widgets/lib/overlay.js';
 import { WEIGHT_INPUT, parseWeight } from './weight.js';
 import { TOKEN_LABELS } from './editor-constants.js';
+import { planLimitText } from './common.js';
 
 export function buildRoulette(ctx) {
 
@@ -154,7 +155,7 @@ export function buildRoulette(ctx) {
         try {
           const res = await fetch('/api/media', { method: 'POST', headers: { 'content-type': f.type }, body: f });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || '画像を入れられませんでした');
+          if (!res.ok) throw new Error(planLimitText(data, res.status) || data.error || '画像を入れられませんでした');
           if (!media.includes(data.path)) media.push(data.path);
           r.image = data.path;
           paint();

@@ -9,7 +9,7 @@ import YAML from 'yaml';
 import * as cfg from './config.js';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
 import { EDIT_CAPABILITIES, FEATURES, OBS_ALLOWED } from './runtime-features.js';
-import { getPlan, requiredPlanFor } from './plans.js';
+import { getPlan, planAllowsCapability, planAllowsFeature, requiredPlanFor, topPlanId } from './plans.js';
 import { recordError } from './error-log.js';
 import { DEMO_GIFTS } from './demo.js';
 import { readProfile, SUPERSTREAM_ACTIONS, giftTable } from './superstream.js';
@@ -163,13 +163,50 @@ export function bindRoutes(r, ctx) {
   // /api/me と、その更新系（widgets / template / guide / name）で返す形をそろえる。
   // ダッシュボードは更新の返事で画面の状態（me）を丸ごと入れ替えるので、
   // features が欠けた返事を受けると「使えるもの」の判定が全部ずれて、カードが消えてしまう。
+  // locked は「使えないもの」を消さずに鍵つきで見せるための一覧。features（使えるもの）は今までどおり。
   const meJson = (req) => {
     const me = info();
     const tenant = me.mode === 'tenant';
     const features = tenant ? Object.fromEntries(Object.entries(FEATURES).filter(([key]) => entitled(key))) : FEATURES;
     const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
-    return { ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}) };
+    const capabilities = Object.fromEntries(Object.keys(EDIT_CAPABILITIES).map((key) => [key, editAllowed(key) !== false]));
+    const locked = tenant ? lockedList(me, features, capabilities) : [];
+    return { ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}), locked, capabilities, plan: tenant ? me.plan ?? null : null };
   };
+
+  const planLabelOf = (planId) => (planId ? getPlan(planId)?.label ?? planId : '');
+  /**
+   * 使えない機能と編集の操作 [{ key, kind, label, requiredPlan, requiredPlanLabel, reason, pages }]。
+   * reason: 'plan'（いまのプランに入っていない。requiredPlan（表示名は requiredPlanLabel）のプランで使える）/ 'stopped'（停止中）/ 'switch'（管理者が止めている）
+   */
+  function lockedList(me, features, capabilities) {
+    const planId = me.plan?.id ?? null;
+    const suspended = me.plan?.status === 'suspended' && me.plan?.enforcementOn === true;
+    const limited = new Set(me.billing?.limited ?? []);
+    const why = (key, premium) => {
+      if (suspended) return 'stopped';
+      if (premium && !planAllowsFeature(planId, key)) return 'plan';
+      // 管理画面の「いちばん上のプランだけ」で止まっているもの
+      if (limited.has(key)) return 'plan';
+      return 'switch';
+    };
+    const rows = [];
+    for (const [key, def] of Object.entries(FEATURES)) {
+      if (features[key] && !limited.has(key)) continue;
+      const reason = why(key, def.premium);
+      // 「いちばん上のプランだけ」にしたものは、plans.json の並びより強い
+      const requiredPlan = reason !== 'plan' ? null : limited.has(key) ? topPlanId() : requiredPlanFor(key);
+      rows.push({ key, kind: 'feature', label: def.label, requiredPlan, requiredPlanLabel: planLabelOf(requiredPlan), reason, pages: [...def.pages] });
+    }
+    for (const [key, def] of Object.entries(EDIT_CAPABILITIES)) {
+      if (capabilities[key]) continue;
+      // edit.ai は「AI にたのむ」の手動の OFF でも止まる。プランで使えるなら、止めているのは管理者
+      const reason = suspended ? 'stopped' : planAllowsCapability(planId, key) ? 'switch' : 'plan';
+      const requiredPlan = reason === 'plan' ? requiredPlanFor(key) : null;
+      rows.push({ key, kind: 'capability', label: def.label, requiredPlan, requiredPlanLabel: planLabelOf(requiredPlan), reason, pages: [] });
+    }
+    return rows;
+  }
 
   r.get('/api/me', (req, res) => {
     res.json(meJson(req));

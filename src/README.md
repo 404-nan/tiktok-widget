@@ -16,7 +16,7 @@
 | `ai-tokens.js` | 管理者用トークンと、テナント固定で10件までの配信者用トークンを発行・照合・失効する |
 | `ai.js` | AI の案を検証し、設定変更の形にする。使ったトークンは `data/ai-usage.jsonl` に残す(中身は書かない) |
 | `api-keys.js` | 管理画面の API キーを保存・伏せ字表示する |
-| `billing.js` | 利用期限・プラン・課金状態を判定する。プランの名前・値段・使える機能は `plans.js` を見る |
+| `billing.js` | 利用期限・プラン・課金状態を判定する。プランの名前・値段・使える機能は `plans.js` を見る。ダッシュボードに出すプランのまとめ（`planSummary`。メモや紹介コードは入れない）も作る |
 | `boss.js` | ボスの HP、ダメージ、討伐、手動開始とミッションを管理する |
 | `build-info.js` | 起動した時の製品版数とコミットを、git コマンドを呼ばず `.git` のファイルから読む |
 | `cheer.js` | いいねをため、満タンと次の目標を WebSocket で配る（記録しない） |
@@ -63,7 +63,7 @@
 | `puchun.js` | ギフト名・コイン数からパチンコ演出を選び、立ち絵の画像 ID を含む表示指示を連打の個数分作る |
 | `pinlogin.js` | 短い URL と数字のログインを扱う |
 | `plans.js` | `plans.json` を読み・検査し、プランで使える機能・編集の操作に答える。昔のプラン名（flat5000 など）を置き換える |
-| `plans.json` | プラン（無料・Plus・Pro）の唯一の定義。値段・使える機能・編集の操作・お試しと猶予の日数・支払いの案内 |
+| `plans.json` | プラン（無料・Plus・Pro）の唯一の定義。値段・使える機能・編集の操作・お試しと猶予の日数・支払いの案内と問い合わせ先（`contactUrl`、`TW_PLAN_CONTACT_URL` で差し替え） |
 | `preparation.js` | 配信の準備4段階と、自動接続の設定を名前なしで保存する |
 | `push-button.js` | コメントといいねを押し数へ集計し、結果を WebSocket で配る |
 | `rcon.js` | MinecraftのRCONへ接続し、通常コマンドとゴール距離問い合わせを送る |
@@ -72,7 +72,7 @@
 | `roulette.js` | ルーレットを抽選し、結果を配る |
 | `runtime.js` | 大トリ・ダレ場などを配信イベント、API、WebSocket、設定へつなぐ。切断後15分未満の再接続を配信中として判定する |
 | `runtime-features.js` | 管理者が ON / OFF できる機能の一覧と、OBS 用の鍵で読める API。プランで分ける機能（premium）と編集の操作（`EDIT_CAPABILITIES`）は `plans.json` から作る |
-| `runtime-routes.js` | 配信者1人分の HTTP API。確認スイッチがオンのとき、編集の書き込み（画像・切り抜き・配置・YAML・AI）を Pro 以外は 403（`requiredPlan`・`capability` つき）で断る |
+| `runtime-routes.js` | 配信者1人分の HTTP API。確認スイッチがオンのとき、編集の書き込み（画像・切り抜き・配置・YAML・AI）を Pro 以外は 403（`requiredPlan`・`capability` つき）で断る。`/api/me` に使えないもの（`locked`）・編集の操作（`capabilities`）・いまのプラン（`plan`）を足して返す |
 | `rush.js` | RUSH の突入、延長、終了を管理する |
 | `schema.js` | `pushButtons`、カットインの段階ごとの声・メディア種類、コメントスライドのきっかけの言葉と出す言葉を含む設定項目・初期値・日本語説明を定義する。画面に出る節には共通の背景の項目（background／chromaColor／solidColor／backgroundImage）も足す |
 | `signkey.js` | TikTok 署名 API キーを安全に保存する |

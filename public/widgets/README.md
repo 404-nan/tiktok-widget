@@ -17,7 +17,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `gift-jar.html` | ギフト瓶を表示する |
 | `goal.html` | 目標バーを表示する |
 | `image-cutin.html` | 画像付きカットインを表示する |
-| `locked.html` | 利用できない画面を表示する |
+| `locked.html` | 使えないウィジェット（停止中・プランに無い・OFF）の代わりのページ。配信画面（OBS）では透明な空白のまま、ダッシュボードの見本（`?preview=1`）でだけ理由を出す（文は `lib/locked-reason.js`） |
 | `media.html` / `media.js` | メディア通知を再生する |
 | `puchun/` | パチンコ演出の見本。`try.html`(ためす画面)・`puchun.html`(流す画面)・`presets.js`(演出4本)・`fx.js`(タイムラインの土台)・`parts.js`(部品)・`fonts/`(Reggae One、OFL)。詳しくは `puchun/README.md` |
 | `ranking.html` | ランキングを表示する |

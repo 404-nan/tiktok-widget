@@ -6,14 +6,38 @@
 <title></title>
 <link rel="stylesheet" href="lib/overlay.css">
 <style>
+  /* 使えないウィジェットの代わりのページ。配信画面（OBS）では何も出さず透明のまま。
+     ダッシュボードの見本（?preview=1）のときだけ、なぜ出ないかを真ん中に出す */
   html, body { background: transparent; }
+  .locked-reason { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; }
+  .locked-reason[hidden] { display: none; }
+  .locked-reason-box { max-width: 520px; padding: 18px 22px; border-radius: 16px; background: rgba(17, 17, 19, 0.82); color: #fff; text-align: center; line-height: 1.6; }
+  .locked-reason-title { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .locked-reason-detail { margin: 0; font-size: 14px; opacity: 0.85; }
 </style>
 </head>
 <body>
+<div class="locked-reason" id="lockedReason" hidden>
+  <div class="locked-reason-box">
+    <p class="locked-reason-title" id="lockedTitle"></p>
+    <p class="locked-reason-detail" id="lockedDetail"></p>
+  </div>
+</div>
 <script type="module">
   import { setupPage, connect } from './lib/overlay.js';
+  import { lockedReason, pageOfPath } from './lib/locked-reason.js';
   setupPage();
   connect({});
+  // 理由は見本（preview=1）のときだけ。配信画面（OBS）に文字を出すと配信者の信用を損なうので、ほかは透明のまま
+  if (new URLSearchParams(location.search).get('preview') === '1') {
+    const show = (me) => {
+      const reason = lockedReason(me, pageOfPath(location.pathname));
+      document.getElementById('lockedTitle').textContent = reason.title;
+      document.getElementById('lockedDetail').textContent = reason.detail;
+      document.getElementById('lockedReason').hidden = false;
+    };
+    fetch('/api/me').then((res) => (res.ok ? res.json() : null)).catch(() => null).then(show);
+  }
 </script>
 </body>
 </html>

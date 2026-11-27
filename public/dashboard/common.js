@@ -81,8 +81,26 @@ export async function api(path, body, method) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(planLimitText(data, res.status) || data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.requiredPlan = data.requiredPlan ?? null;
+    throw err;
+  }
   return data;
+}
+
+const PLAN_NAMES = { plus: 'Plus', pro: 'Pro' };
+
+/**
+ * 編集の操作（画像・切り抜き・配置・設定ファイル・AI）がプランで断られた返事（403 と requiredPlan）を、
+ * 何をすれば使えるかが分かる文にする。プランで断られたのでなければ null。
+ */
+export function planLimitText(data, status) {
+  if (status !== 403 || !data?.requiredPlan) return null;
+  const plan = PLAN_NAMES[data.requiredPlan] ?? data.requiredPlan;
+  const head = data.error || `この操作は ${plan} プランで使えます`;
+  return `${head}。いまのプランはホームの「プラン」で確かめられます`;
 }
 
 export { statusText, createStatusGate } from './status-text.js';

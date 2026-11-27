@@ -12,7 +12,8 @@ import crypto from 'node:crypto';
 import { isDevEnv } from './env.js';
 import { recordError } from './error-log.js';
 import {
-  describeStoredPlan, normalizePlanId, planAllowsCapability, planAllowsFeature, planTimings, selectablePlans, storedPlanId, topPlanId,
+  defaultPlanId, describeStoredPlan, getPlan, normalizePlanId, planAllowsCapability, planAllowsFeature, planContact, planTimings,
+  selectablePlans, storedPlanId, topPlanId,
 } from './plans.js';
 
 const STATUS_IDS = new Set(['trial', 'active', 'past_due', 'suspended']);
@@ -297,6 +298,51 @@ function recordBillingChange(cur, before) {
   if (cur.history.length > 50) cur.history.splice(0, cur.history.length - 50);
 }
 
+/** 期限（その日の終わり）まで、あと何日か。今日が期限なら 0。期限が無いか過ぎていれば null */
+function daysUntil(end, now) {
+  if (end == null || end < now) return null;
+  return Math.floor((end - now) / DAY_MS);
+}
+
+/**
+ * 配信者のダッシュボードに出す、いまのプランのまとめ（/api/me の plan）。
+ * 手で入れたメモ・紹介コード・履歴は入れない。プランの記録が無い人は無料（plans.json の defaultPlan）として見せる。
+ * daysLeft は、お試しならお試しの終わり、支払い済みなら支払った日、支払い待ちなら猶予の終わりまで。
+ */
+export function planSummary(entry, { now = Date.now(), enforcement = false } = {}) {
+  const status = computeStatus(entry, now);
+  const planId = catalogPlan(entry?.plan) ?? defaultPlanId();
+  const plan = getPlan(planId);
+  const stored = describeStoredPlan(entry?.plan);
+  const trialEndsAt = typeof entry?.trialEndsAt === 'string' ? entry.trialEndsAt : '';
+  const paidUntil = typeof entry?.paidUntil === 'string' ? entry.paidUntil : '';
+  const graceUntil = entry ? graceUntilDay(entry, now) : '';
+  const graceSince = status === 'past_due' ? graceStart(entry) : null;
+  const end = status === 'trial' ? paidUntilEnd(trialEndsAt)
+    : status === 'active' ? paidUntilEnd(paidUntil)
+      : graceSince != null ? graceSince + GRACE_MS : null;
+  const contact = planContact();
+  return {
+    id: plan.id,
+    label: plan.label,
+    description: plan.description,
+    priceYen: plan.priceYen,
+    draft: plan.draft,
+    // 昔のプラン（5000円プランなど）は、決めたときの名前と値段も見せる
+    legacy: stored?.legacy ? { label: stored.label, priceYen: stored.priceYen } : null,
+    status,
+    statusLabel: STATUS_LABEL[status] ?? '',
+    paidUntil,
+    trialEndsAt,
+    graceUntil,
+    daysLeft: daysUntil(end, now),
+    trialNotice: trialNotice(entry, now),
+    enforcementOn: enforcement === true,
+    contactUrl: contact.url,
+    contactNote: contact.note,
+  };
+}
+
 /** 未払いの配信画面には、読み込み直し以外のメッセージを流さない */
 export function overlayMessageAllowed({ role = 'owner', blocked = false, type = '' } = {}) {
   if (role !== 'obs' || !blocked) return true;
@@ -431,7 +477,6 @@ export class BillingStore {
         catalogPlan: catalogPlan(entry?.plan),
         paidUntil: typeof entry?.paidUntil === 'string' ? entry.paidUntil : '',
         trialEndsAt: typeof entry?.trialEndsAt === 'string' ? entry.trialEndsAt : '',
-        note: typeof entry?.note === 'string' ? entry.note : '',
         trialNotice: notice,
         suspended,
         monthlyPrice: monthlyPriceYen(entry),
@@ -449,7 +494,6 @@ export class BillingStore {
       catalogPlan: null,
       paidUntil: '',
       trialEndsAt: '',
-      note: '',
       trialNotice: false,
       suspended: false,
       monthlyPrice: 0,
@@ -457,6 +501,12 @@ export class BillingStore {
       code: '',
       overlay: true,
     });
+  }
+
+  /** ダッシュボードに出すプランのまとめ（planSummary）。判定が落ちたら無料として見せる */
+  planView(id, now = Date.now()) {
+    const enforcement = safely('確認スイッチの判定', () => this.enforcement(), false);
+    return safely('プランの表示', () => planSummary(this.account(id), { now, enforcement }), planSummary(null, { now, enforcement }));
   }
 
   /** スイッチがオンで、ファイルが壊れているときは中身が読めないので止める。配信中は切らない */

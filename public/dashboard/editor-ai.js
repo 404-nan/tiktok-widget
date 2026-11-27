@@ -1,6 +1,6 @@
 // YAML エディタと AI パネルの初期設定。editor.js の createEditor から呼ばれる。
 
-import { copyText, flashCopied } from './common.js';
+import { copyText, flashCopied, planLimitText } from './common.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,7 +42,12 @@ export async function setupYaml(ctx) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ yaml: text.value }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    const limit = planLimitText(data, res.status);
+    if (limit) {
+      $('yamlState').textContent = limit;
+      return;
+    }
     renderYamlIssues(data.errors, data.warnings);
     if (data.ok) {
       setYamlDirty(false);
