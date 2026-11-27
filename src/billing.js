@@ -136,16 +136,17 @@ export function computeStatus(entry, now = Date.now()) {
 
   const paidEnd = paidUntilEnd(entry.paidUntil);
   if (explicit === 'past_due') {
-    if (entry.cancelled === true && (paidEnd == null || paidEnd < now)) return 'free';
+    if (entry.cancelled === true) return paidEnd != null && paidEnd >= now ? 'active' : 'free';
     const since = graceStart(entry, paidEnd);
     if (since == null) return 'past_due';
-    return now < since + GRACE_MS ? 'past_due' : (entry.cancelled === true ? 'free' : 'suspended');
+    return now < since + GRACE_MS ? 'past_due' : 'suspended';
   }
   if (explicit === 'active' || (explicit == null && paidEnd != null)) {
     if (paidEnd == null || paidEnd >= now) return 'active';
     if (entry.cancelled === true) return 'free';
     return now < paidEnd + GRACE_MS ? 'past_due' : 'suspended';
   }
+  if (entry.cancelled === true && paidEnd == null) return 'free';
   return trialOrFree(entry, now);
 }
 
