@@ -287,6 +287,28 @@ test('壊れた支払いファイルは読み込みでは直さない。オフ�
   assert.equal(quiet.isOverlayBlocked('anyone'), false);
 });
 
+test('支払い設定を保存できなければ確認を有効にせず、原因と場所を記録する', (t) => {
+  const dir = tmp();
+  const file = path.join(dir, 'billing.json');
+  fs.writeFileSync(file, '{');
+  const store = new BillingStore({ dir, env: {} });
+  const warn = t.mock.method(console, 'warn', () => {});
+  const before = store.globalView();
+  assert.throws(() => store.setGlobal({ enforcement: 'on', premiumFeatures: ['bosses'] }), /保存できません/);
+  assert.deepEqual(store.globalView(), before);
+  assert.equal(store.widgetBlocked('anyone', 'bosses'), false);
+  assert.equal(fs.readFileSync(file, 'utf8'), '{');
+  assert.match(warn.mock.calls[0].arguments[0], /BillingStore\.setGlobal:.*支払いの記録を読めないため保存できません/);
+
+  const writable = new BillingStore({ dir: tmp(), env: {} });
+  t.mock.method(writable, 'save', () => { throw Object.assign(new Error('failed'), { code: 'EACCES' }); });
+  assert.throws(() => writable.setGlobal({ enforcement: 'on', premiumFeatures: ['bosses'] }), { code: 'EACCES' });
+  assert.deepEqual(writable.globalView(), before);
+  assert.match(warn.mock.calls[1].arguments[0], /BillingStore\.setGlobal:.*EACCES/);
+  assert.throws(() => writable.setGlobal({ enforcement: 'on', premiumFeatures: null }), /機能の一覧/);
+  assert.deepEqual(writable.globalView(), before);
+});
+
 test('未払いの配信画面には集計もイベントも流さず、読み込み直しだけ届く', () => {
   const hub = new Hub();
   hub.publish(makeEvent('follow'));

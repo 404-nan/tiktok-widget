@@ -469,25 +469,31 @@ export class BillingStore {
 
   setGlobal(patch = {}) {
     if ('multiplier' in patch) throw new Error('紹介報酬は初回入金の50%で固定です');
+    const next = { ...this.data };
     if ('enforcement' in patch) {
-      if (patch.enforcement === true || patch.enforcement === 'on') this.data.enforcement = true;
-      else if (patch.enforcement === false || patch.enforcement === 'off') this.data.enforcement = false;
-      else this.data.enforcement = null;
+      if (patch.enforcement === true || patch.enforcement === 'on') next.enforcement = true;
+      else if (patch.enforcement === false || patch.enforcement === 'off') next.enforcement = false;
+      else next.enforcement = null;
     }
     if ('premiumFeatures' in patch) {
       if (!Array.isArray(patch.premiumFeatures)) throw new Error('機能の一覧で送ってください');
-      const next = [];
+      const features = [];
       const seen = new Set();
       for (const item of patch.premiumFeatures) {
         const name = String(item ?? '').trim();
         if (!name || seen.has(name) || name.length > 40) continue;
         seen.add(name);
-        next.push(name);
-        if (next.length >= 40) break;
+        features.push(name);
+        if (features.length >= 40) break;
       }
-      this.data.premiumFeatures = next;
+      next.premiumFeatures = features;
     }
-    this.save();
+    try {
+      this.save(next);
+    } catch (err) {
+      console.warn(`[billing] BillingStore.setGlobal: 支払いの設定を保存できません: ${err.code ?? err.message}`);
+      throw err;
+    }
     return this.globalView();
   }
 
