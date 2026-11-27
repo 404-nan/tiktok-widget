@@ -21,14 +21,14 @@ function renderStatus(status) {
   $('connectBtn').hidden = active || (hasUsername && !['error', 'ended'].includes(status.mode));
   $('connectBtn').textContent = hasUsername && ['error', 'ended'].includes(status.mode) ? '今すぐつなぐ' : '配信につなぐ';
   $('demoBtn').hidden = active;
-  if (status.message) setMessage(status.message, status.mode === 'error');
+  if (status.message) setMessage(status.message, status.mode === 'error', { toast: false });
 }
 
-function setMessage(text, isError = false) {
+function setMessage(text, isError = false, { toast: allowToast = true } = {}) {
   $('message').textContent = text;
   $('message').classList.toggle('error', isError);
   const toast = $('toast');
-  if (isError && text && toast && $('message').offsetParent === null) {
+  if (allowToast && isError && text && toast && $('message').offsetParent === null && !toast.querySelector('button')) {
     toast.textContent = text;
     clearTimeout(setMessage.toastTimer);
     setMessage.toastTimer = setTimeout(() => { if (toast.textContent === text) toast.textContent = ''; }, 5000);
