@@ -13,6 +13,13 @@
       "fixedIn": "PR #22",
       "fixedAt": "2026-11-27",
       "test": { "file": "test/standby-setup.test.js", "name": "停止に応じないトンネルを強制終了して本体も止める" }
+    },
+    {
+      "fingerprint": "1017eb0aa478",
+      "summary": "2026-11-28 00:44〜02:33 JST ごろ: lulserver の LAN DNS (192.168.11.60、/etc/systemd/resolved.conf) が応答せず、cloudflared が argotunnel の名前を引けなくなり、widget.lul.works が Cloudflare 1033 を返した。IP でのインターネット疎通と Tailscale は継続。恒久対策は /etc/systemd/resolved.conf.d/lul-fallback.conf に DNS=1.1.1.1 1.0.0.1 を設定すること。",
+      "fixedIn": "/etc/systemd/resolved.conf.d/lul-fallback.conf",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/dns-check.test.js", "name": "トンネルまたは公開先を名前解決できないと DNS 診断が失敗する" }
     }
   ]
 }

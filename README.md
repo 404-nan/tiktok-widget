@@ -25,6 +25,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | プレビューで発火させない | ダッシュボードの見本と単独モードのプレビューには、本番の演出（出来事と、派生の知らせ全部。ダレ場・名前入り妨害・動画と音・リレー停止・スロット結果・来場を含む）を流さない。テスト送信と状態の同期は届く | できた | `src/hub.js` |
 | `/healthz`（稼働確認・配信中人数・起動した版とコミット） | 稼働状態と、実際に動いている版を確認する | できた | `src/healthz.js`、`src/build-info.js` |
 | 死活の見張りと緊急通知 | healthz が3回続けて返らない時に診断を残し、設定した知らせ口へ落ちたことと復帰を1回ずつ送る。自動復帰は既定で切ってあり、動かす機械側で入れた時だけ、同じ障害で1回・15分に1回まで試す | できた（知らせ口と自動復帰は機械側の設定が必要） | `scripts/health-watch.sh` |
+| トンネルの DNS 診断 | Cloudflare Tunnel の接続先と公開ドメインを名前解決できるか調べる | 手動確認用 | `deploy/server/dns-check.sh` |
 | Euler Stream の利用数記録 | 日別・配信者別・種類別に数え、`tw euler-usage` で確認する | できた | `src/euler-usage.js` |
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |
 | 障害時の一時起動 | 本番ホストが使えない間、別の Linux 機でライコネを起動する。既存データを上書きせずバックアップを戻せる | 手順あり | [一時起動](deploy/standby/README.md) |
@@ -268,6 +269,7 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 いまは LuLServer で動かし、`https://widget.lul.works` で公開しています。
 - サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。自動反映のタイマーは止まっていると記録されています（2026-11-27 の棚卸し）。今は、誰も配信していない時にオーナーの許可を取って `scripts/deploy-release.sh` を手で回して入れます。TikTok との接続が切れて `connecting` / `error` になっても、最後に `live` だった時刻から15分未満は配信中として扱い、再起動を待ちます
 - トンネル: `~/.config/systemd/user/tiktok-widget-tunnel.service`（設定は `~/.cloudflared/tiktok-widget.yml`、`widget.lul.works` → `http://127.0.0.1:3939`）
+- Cloudflare 1033 が出たときの名前解決の切り分け: [DNS 診断の手順](deploy/server/README.md#cloudflare-1033-が出た場合の-dns-診断)
 - `public/` の静的ファイルは `Cache-Control: no-cache` で配る。本番は Cloudflare を通るので、反映後に `curl -sI https://widget.lul.works/widgets/lib/overlay.js` で `max-age=14400` が消えたことを確かめる。消えていなければ Cloudflare 側の「ブラウザーのキャッシュ時間」を「元のサーバーに従う」にする必要がある（オーナーの許可が要る）
 - 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
 - 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
@@ -576,4 +578,3 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にします。すでにある名前は前の名前を残し、変わった名前は標準出力に出します（コインの値は一覧に更新）。終わったらブラウザ用の表も作り直します。ログイン・API キー・有料プランは不要です。AI 向けの決まりは `AGENTS.md` にあります。
-
