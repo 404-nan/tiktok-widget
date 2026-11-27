@@ -25,7 +25,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | プレビューで発火させない | ダッシュボードの見本と単独モードのプレビューには、本番の演出（出来事と、派生の知らせ全部。ダレ場・名前入り妨害・動画と音・リレー停止・スロット結果・来場を含む）を流さない。テスト送信と状態の同期は届く | できた | `src/hub.js` |
 | `/healthz`（稼働確認・配信中人数・起動した版とコミット） | 稼働状態と、実際に動いている版を確認する | できた | `src/healthz.js`、`src/build-info.js` |
 | 死活の見張りと緊急通知 | healthz が3回続けて返らない時に診断を残し、設定した知らせ口へ落ちたことと復帰を1回ずつ送る。自動復帰は既定で切ってあり、動かす機械側で入れた時だけ、同じ障害で1回・15分に1回まで試す | できた（知らせ口と自動復帰は機械側の設定が必要） | `scripts/health-watch.sh` |
-| トンネルの DNS 診断 | Cloudflare Tunnel の接続先と公開ドメインを名前解決できるか調べる | 手動確認用 | `deploy/server/dns-check.sh` |
+| トンネルの DNS 診断 | Cloudflare Tunnel の接続先（SRV を含む）と公開ドメインを名前解決できるか調べる | 手動確認用 | `deploy/server/dns-check.sh` |
 | Euler Stream の利用数記録 | 日別・配信者別・種類別に数え、`tw euler-usage` で確認する | できた | `src/euler-usage.js` |
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |
 | 障害時の一時起動 | 本番ホストが使えない間、別の Linux 機でライコネを起動する。既存データを上書きせずバックアップを戻せる | 手順あり | [一時起動](deploy/standby/README.md) |
