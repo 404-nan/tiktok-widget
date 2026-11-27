@@ -225,11 +225,14 @@ export class TugOfWarEngine {
     if (!(count > 0)) return;
     const side = this.#sideOf(event.user, this.config.autoJoin !== 'none', event.test === true);
     if (!side) return;
-    // いいねは整数で端数を持ち越し、浮動小数の丸め誤差（0.1×10 < 1）で同点判定が狂うのを防ぐ
+    if (event.test === true) this.battle.test = true;
+    // いいねは視聴者ごとに整数で端数を持ち越し、浮動小数の丸め誤差や他人のいいねによるMVP誤付与を防ぐ
     const team = this.battle.teams[side];
-    const carry = (team.likeCarry ?? 0) + count;
+    if (!team.likeCarry) team.likeCarry = new Map();
+    const key = userKey(event.user) || '?';
+    const carry = (team.likeCarry.get(key) ?? 0) + count;
     const gained = Math.floor(carry / per);
-    team.likeCarry = carry - gained * per;
+    team.likeCarry.set(key, carry - gained * per);
     if (gained > 0) this.#pull(side, event.user, gained, { kind: 'like', likes: count, test: event.test === true });
   }
 
