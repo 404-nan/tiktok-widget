@@ -362,8 +362,11 @@ export class Tenants {
     };
     this.data.tenants.push(t);
     this.#save();
-    // 新しく作る配信者だけ、お試し（trialDays 日、そのあいだは Pro）を自動で始める。今いる配信者の記録には触らない
-    this.billing.setAccount(t.id, { status: 'trial', trialEndsAt: trialEndDay(t.createdAt) });
+    // 新しく作る配信者だけ、お試し（trialDays 日、そのあいだは Pro）を自動で始める。今いる配信者の記録には触らない。
+    // 支払いファイルが壊れているときは上書きしない（復旧用の元ファイルを消さない）
+    if (!this.billing.corrupt) {
+      this.billing.setAccount(t.id, { status: 'trial', trialEndsAt: trialEndDay(t.createdAt) });
+    }
     if (code) this.billing.applyCode(t.id, code);
     return t;
   }
@@ -493,7 +496,11 @@ export class Tenants {
       accessState: () => this.accessState(id),
       editAllowed: (capability) => this.editAllowed(id, capability),
       info: () => this.info(id),
-      setWidgets: (list) => this.update(id, { widgets: list }),
+      setWidgets: (list) => {
+        // いま開いていない有料ウィジェットの選択は、無料期間中に基本ウィジェットを変えても消さずに残す
+        const hidden = (this.get(id)?.widgets ?? []).filter((w) => !this.entitled(id, w) && !list.includes(w));
+        return this.update(id, { widgets: [...list, ...hidden] });
+      },
       setTemplate: (template) => this.setTemplate(id, template),
       setGuideDone: (done) => this.setGuideDone(id, done),
       setDisplayName: (name) => this.update(id, { name }),
