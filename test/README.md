@@ -6,6 +6,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | --- | --- |
 | `acceptance/guard.test.js` / `guard-round2.test.js` / `guard-round3.test.js` | ガード機能の受け入れテスト |
 | `acceptance/ledger-admin.test.js` | 集金台帳の認証、同期 retry、集金の二重送信防止、訂正・取り消しを実サーバーで確認する |
+| `admin-ledger-ui.test.js` | 集金画面が入力した日時を日本時間として送ることを確認する |
 | `acceptance/ingest.test.js` / `ingest-round2.test.js` / `ingest-round3.test.js` | ingest AC-1〜24の受け入れテスト |
 | `acceptance/ingest-review.test.js` / `ingest-review.test.js` | ingestレビューのHTTP境界・単体テスト |
 | `acceptance/ingest-status.test.js` | ingest-statusの画面・説明の受け入れテスト |

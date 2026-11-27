@@ -60,7 +60,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 ## 集金台帳（管理画面）
 
-管理画面の「集金」では、`streamers.json` の人ごとに未集金額・前回集金からの増分・月次の売上推移を見て、集金・訂正・取り消しを記録します。台帳は `data/ledger/entries.jsonl` に追記だけし、行を編集・削除しません。間違いは逆符号の取り消し行で直します。
+管理画面の「集金」では、`streamers.json` の人ごとに未集金額・前回集金からの増分・月次の売上推移を見て、集金・訂正・取り消しを記録します。集金日時の入力と表示は日本時間です。台帳は `data/ledger/entries.jsonl` に追記だけし、行を編集・削除しません。間違いは逆符号の取り消し行で直します。
 
 貸出の申告売上は lul-rental-ops の `recordRevenueYen()` / `shareAmountYen()` を import して10%だけ発生させ、同じ申告を何回読んでも二重計上しません。TikTok のコインは円に換算せず参考値としてだけ表示します。固定プランの自動請求と5%プランの確定入力はまだ実装していません。
 
@@ -564,4 +564,3 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にします。すでにある名前は前の名前を残し、変わった名前は標準出力に出します（コインの値は一覧に更新）。終わったらブラウザ用の表も作り直します。ログイン・API キー・有料プランは不要です。AI 向けの決まりは `AGENTS.md` にあります。
-

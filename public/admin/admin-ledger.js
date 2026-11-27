@@ -57,7 +57,7 @@ async function submitCollection(root, id, form) {
     const result = await api('/ledger/collections', {
       streamerId: id,
       amountYen,
-      collectedAt: form.collectedAt.value ? new Date(form.collectedAt.value).toISOString() : undefined,
+      collectedAt: form.collectedAt.value ? new Date(`${form.collectedAt.value}+09:00`).toISOString() : undefined,
       method: form.method.value,
       note: form.note.value,
       clientRequestId: form.clientRequestId.value,
@@ -97,7 +97,7 @@ function collectionForm(root, id) {
   form.append(
     el('input', { type: 'hidden', name: 'clientRequestId', value: crypto.randomUUID() }),
     el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '受け取った金額' }), el('input', { name: 'amount', type: 'number', min: '1', step: '1', required: true, placeholder: '例: 1000' })),
-    el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '受け取った日時' }), el('input', { name: 'collectedAt', type: 'datetime-local', value: now })),
+    el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '受け取った日時（日本時間）' }), el('input', { name: 'collectedAt', type: 'datetime-local', value: now })),
     el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '方法' }), (() => { const s = el('select', { name: 'method' }); for (const [v, t] of [['paypay', 'PayPay'], ['bank', '銀行'], ['cash', '現金'], ['other', 'その他']]) s.append(new Option(t, v)); return s; })()),
     el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'メモ（なくてもよい）' }), el('input', { name: 'note', autocomplete: 'off' })),
     el('div', { className: 'btn-row' }, el('button', { className: 'btn primary pressable', type: 'submit', textContent: '集金を記録' })),
