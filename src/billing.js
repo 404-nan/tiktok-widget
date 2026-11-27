@@ -245,14 +245,18 @@ export function allowsFeature(entry, feature, { enforcement = false, premiumFeat
 
 /**
  * プランの既定で機能を開くか。答えないときは null（手動の設定も無ければ、初めの状態になる）。
- * スイッチがオンなら記録のプランで答える。オフでも、いちばん上のプラン（Pro）を入れた人には開く
- * （Pro を払ったのに管理者が手で開けるまで豪華な演出が使えなかったため）。オフのほかのプランは今までどおり答えない。
+ * スイッチがオンなら記録のプランと管理画面の「最上位プラン限定」設定（premiumFeatures）・停止状態に合わせて答える。
+ * オフでも、いちばん上のプラン（Pro）を入れた人には開く（Pro を払ったのに管理者が手で開けるまで豪華な演出が使えなかったため）。
  */
-export function planFeatureDefault(entry, feature, { enforcement = false } = {}) {
+export function planFeatureDefault(entry, feature, { enforcement = false, premiumFeatures = [], now = Date.now() } = {}) {
   return safely('プランの既定の判定', () => {
     const plan = catalogPlan(entry?.plan);
     if (!plan) return null;
     if (!enforcement && plan !== topPlanId()) return null;
+    if (enforcement) {
+      if (computeStatus(entry, now) === 'suspended') return false;
+      if (isPremiumOnly(feature, premiumFeatures) && plan !== topPlanId()) return false;
+    }
     return planAllowsFeature(plan, feature);
   }, null);
 }
@@ -488,8 +492,12 @@ export class BillingStore {
   }
 
   /** プランの既定（true / false）。答えないときは null。スイッチがオフでも Pro には答える */
-  planFeatureDefault(id, feature) {
-    return planFeatureDefault(this.account(id), feature, { enforcement: this.enforcement() });
+  planFeatureDefault(id, feature, now = Date.now()) {
+    return planFeatureDefault(this.account(id), feature, {
+      enforcement: this.enforcement(),
+      premiumFeatures: this.data.premiumFeatures,
+      now,
+    });
   }
 
   /** 編集の操作ができるか。スイッチがオンでファイルが壊れているときは、中身が読めないのでできない */

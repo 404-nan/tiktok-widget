@@ -258,7 +258,7 @@ export class Tenants {
     if (live(own, now)) return { on: own.on, until: own.until ?? null, source: 'own' };
     if (live(all, now)) return { on: all.on, until: all.until ?? null, source: 'everyone' };
     if (def?.premium && this.get(id)) {
-      const byPlan = this.billing.planFeatureDefault(id, feature);
+      const byPlan = this.billing.planFeatureDefault(id, feature, now);
       if (byPlan != null) return { on: byPlan, until: null, source: 'plan' };
     }
     return { on: def ? !def.premium : true, until: null, source: 'default' };

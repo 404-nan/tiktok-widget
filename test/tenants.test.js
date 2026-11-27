@@ -226,4 +226,10 @@ test('確認スイッチがオンなら、プランごとに豪華演出と編�
   // 手で開けた Plus の「AI にたのむ」は、edit.ai もできる（手動がいちばん強い）
   t.setAccess(plus.id, 'ai', true);
   assert.equal(t.editAllowed(plus.id, 'edit.ai'), true);
+
+  // 管理画面で cutins を最上位プラン（Pro）限定にしている場合、Plus のダッシュボード判定も OBS と同じく false になる
+  t.updateBillingSettings({ premiumFeatures: ['cutins'] });
+  assert.equal(t.billing.isFeatureAllowed(plus.id, 'cutins'), false);
+  assert.equal(t.entitled(plus.id, 'cutins'), false);
+  assert.equal(t.entitled(pro.id, 'cutins'), true);
 });
