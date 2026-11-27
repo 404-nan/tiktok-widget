@@ -150,13 +150,16 @@ export function sourceAmountsByKey(entries) {
 
 function subscriptionCash(entries) {
   const recorded = new Map();
+  const originalOrder = new Map();
   const payouts = new Map();
   let paid = 0;
   for (const entry of entries) {
     if (entry.source?.system !== 'subscription') continue;
     const target = recorded.get(entry.targetId);
     if (entry.kind === 'subscription-payment') {
-      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false });
+      const reference = JSON.stringify([entry.tenantId, entry.source.key]);
+      if (!originalOrder.has(reference)) originalOrder.set(reference, recorded.size);
+      recorded.set(entry.id, { entry, amount: entry.signedAmountYen, voided: false, order: originalOrder.get(reference) });
     } else if (entry.kind === 'adjustment' && target && !target.voided) {
       target.amount += entry.signedAmountYen;
     } else if (entry.kind === 'reversal' && target && !target.voided && entry.signedAmountYen === -target.amount) {
@@ -172,10 +175,17 @@ function subscriptionCash(entries) {
     }
   }
   const payments = [];
-  const first = new Set();
+  const firstByTenant = new Map();
+  for (const payment of recorded.values()) {
+    if (payment.voided) continue;
+    const { tenantId } = payment.entry;
+    const first = firstByTenant.get(tenantId);
+    if (!first || payment.order < first.order) firstByTenant.set(tenantId, payment);
+  }
   let received = 0;
   let owed = 0;
-  for (const { entry, amount, voided } of recorded.values()) {
+  for (const payment of recorded.values()) {
+    const { entry, amount, voided } = payment;
     if (voided) continue;
     const { id, tenantId, referrerId, at: confirmedAt } = entry;
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_YEN) {
@@ -183,7 +193,7 @@ function subscriptionCash(entries) {
     }
     const rewardAmount = Math.floor(amount / 2);
     let reward = null;
-    if (!first.has(tenantId) && referrerId && rewardAmount) {
+    if (firstByTenant.get(tenantId) === payment && referrerId && rewardAmount) {
       const payout = payouts.get(tenantId);
       const due = Math.max(0, rewardAmount - (payout?.amount ?? 0));
       reward = { referrerId, amount: rewardAmount, paidAt: due ? null : payout.at };
@@ -191,7 +201,6 @@ function subscriptionCash(entries) {
       owed += due;
     }
     received += amount;
-    first.add(tenantId);
     payments.push({ id, tenantId, reference: entry.source.key, amount, confirmedAt, reward });
   }
   if (![received, owed, paid].every(Number.isSafeInteger)) throw new LedgerCorruptError('台帳の合計金額を扱えません');

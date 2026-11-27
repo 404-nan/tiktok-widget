@@ -185,7 +185,25 @@ test('入金の訂正と取り消しを追記し、報酬を再計算して照�
   [['adjustment', 401, reason], ['adjustment', 199, reason], ['reversal', -1600, reason]]);
   assert.equal(sourceAmountsByKey(reloaded.entries()).has('first'), false);
   assert.equal(reloaded.balance('s1').balanceYen, 1000);
-  assert.equal(reloaded.recordSubscriptionPayment(form).reward, null);
+  assert.equal(reloaded.recordSubscriptionPayment(form).reward.amount, 500);
+});
+
+test('初回入金を同じ照合番号で再登録しても、初回の順番と支払い済み報酬を引き継ぐ', () => {
+  const dir = tmp();
+  const ledger = new Ledger({ dir });
+  const form = { amount: 1000, reference: 'first', tenantId: 'b', referrerId: 'a', confirmed: true };
+  const first = ledger.recordSubscriptionPayment(form);
+  const second = ledger.recordSubscriptionPayment({ ...form, amount: 2000, reference: 'second' });
+  ledger.recordReferralPayout(first.id);
+  ledger.voidSubscriptionPayment(first.id, { reason: '初回の金額を誤記' });
+  const replacement = ledger.recordSubscriptionPayment({ ...form, amount: 1200 });
+  assert.notEqual(replacement.id, first.id);
+  assert.deepEqual(replacement.reward, { referrerId: 'a', amount: 600, paidAt: null, due: 100 });
+  const reloaded = new Ledger({ dir });
+  assert.equal(reloaded.subscriptionCash().payments.find(({ id }) => id === second.id).reward, null);
+  assert.deepEqual(cashTotals(reloaded.subscriptionCash()), [3200, 100, 500, 2700]);
+  reloaded.recordReferralPayout(replacement.id);
+  assert.deepEqual(cashTotals(reloaded.subscriptionCash()), [3200, 0, 600, 2600]);
 });
 
 test('すでに支払った報酬で赤字になる訂正と取り消しは追記しない', () => {
