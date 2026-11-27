@@ -90,6 +90,7 @@
 | `vault.js` | Cloudflare 上で data/ を退避・復元する |
 | `visitors.js` | 配信者ごとの秘密鍵で来場者 ID を HMAC 化し、複数設定の最短保存期間・常連回数で通知と匿名記録を管理する |
 | `vote.js` | コメントの番号投票を1人1票で集計し、結果を WebSocket で配る |
+| `tug-of-war.js` | 綱引きギフトバトル（Plus）。コメントの言葉・加勢ギフト・自動の振り分けで左右のチームを決め、試合中のギフトのコイン（といいね）を引く力にする。コンボ・逆転・時間切れと大差の決着・MVP を持ち、WebSocket の `tugOfWar` で配る。保存しない。テストの印のついた試合と引き分けでは決着の動作を動かさない |
 | `quiz.js` | クイズの出題・制限時間・コメントの正解判定を持ち、最初の正解者を WebSocket で配る（ポイントの支払いは runtime が onWin で行う） |
 | `wins.js` | WIN 数と全画面演出の段階を管理する |
 | `ws-mode.js` | WebSocket URL の compact 指定を判定する |
@@ -108,4 +109,4 @@
 - カットイン: `runtime.js` が配信の直前に `cutin-draw.js` で抽選し、公開側の `public/widgets/lib/cutin.js` が `cutinDraw` を受けて表示する
 - 開発用撮影: `ai-mcp.js` → `ai-screenshot.js` → `list_widget_urls` / `test_event`
 
-最後に直した日: 2026-11-27
+最後に直した日: 2026-11-28

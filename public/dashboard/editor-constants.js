@@ -1,5 +1,5 @@
 // editor.js の定数。タブ一覧・表示名・フォームの構成など。
-export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'quizzes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'commentSlide', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
+export const TABS = ['alerts', 'chats', 'cutins', 'puchuns', 'imageCutins', 'roulettes', 'votes', 'quizzes', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'commentSlide', 'pushButtons', 'jars', 'rankings', 'counters', 'goals', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'rush', 'stepup', 'swarm', 'combo', 'tugOfWar', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop', 'mcGifts', 'cardDraw', 'obs', 'minecraft', 'theme'];
 
 // 選択肢の表示名
 export const ENUM_LABELS = {
@@ -27,7 +27,7 @@ export const ENUM_LABELS = {
   'rankSource.manual': '手入力', 'rankSource.live': '配信の順位（無ければ手入力）',
   telop: 'テロップ風（下から積み上がる一覧）', bubble: '吹き出し風',
   chance: 'チャンス予告', cutin: 'キャラのカットイン', jackpot: '大当たり', puchun: 'プチュン', full: '全画面',
-  'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない',
+  'idleMode.small': '右下に小さく出す', 'idleMode.hide': '出さない', 'idleMode.entry': '参加受付の画面を出す', 'autoJoin.balance': '人数の少ないチームへ入れて数える', 'autoJoin.none': '数えない（コメントで参加した人だけ）',
   'queuePriority.off': '入った順（今までどおり）', 'queuePriority.big': '大きいギフトを先に',
 };
 // 項目の短い名前（説明は下に小さく出す）
@@ -66,6 +66,7 @@ export const LABELS = {
   'omikuji.pickMode': '番号の選び方', 'omikuji.pickSeconds': '番号を待つ秒数', 'omikuji.timeoutMode': '時間切れのとき',
   'slots.enabled': 'スロットを使う', 'slots.trigger': '回すきっかけ', 'slots.symbols': '絵柄と重み', 'slots.payouts': '役・表示文・当選時の動作', 'slots.revivalRate': '当たりの復活割合', 'slots.nearMissRate': '外れのニアミス割合', 'slots.reelStopMs': 'リールの停止間隔', 'slots.idleMode': '待機中の表示',
   'votes.title': '見出し', 'votes.options': '選択肢（カンマ区切り）', 'votes.durationSeconds': '受付時間（秒）', 'votes.autoReveal': '時間で結果を出す', 'votes.resultActions': '結果が出たときの動作', 'votes.showNames': '投票した人の名前を出す', 'votes.sound': '効果音', 'votes.volume': '音量', 'votes.color': '色',
+  'tugOfWar.enabled': '綱引きを使う', 'tugOfWar.title': '見出し', 'tugOfWar.leftName': '左のチームの名前', 'tugOfWar.rightName': '右のチームの名前', 'tugOfWar.leftColor': '左のチームの色', 'tugOfWar.rightColor': '右のチームの色', 'tugOfWar.leftWords': '左に入るコメント（カンマ区切り）', 'tugOfWar.rightWords': '右に入るコメント（カンマ区切り）', 'tugOfWar.leftGifts': '左の加勢ギフト', 'tugOfWar.rightGifts': '右の加勢ギフト', 'tugOfWar.autoJoin': 'チームに入っていない人のギフト', 'tugOfWar.allowSwitch': 'コメントでチームを替えられる', 'tugOfWar.likesPerPower': '何いいねで引く力 1 か', 'tugOfWar.seconds': '試合の秒数', 'tugOfWar.koLead': 'この差がついたらその場で決着（コイン）', 'tugOfWar.idleMode': '試合をしていないとき', 'tugOfWar.resultActions': '決着したときの動作', 'tugOfWar.sound': '効果音', 'tugOfWar.volume': '音量',
   'quizzes.title': '見出し', 'quizzes.source': '問題の出し方', 'quizzes.question': '問題文', 'quizzes.answer': '答え', 'quizzes.choices': '選択肢（カンマ区切り）', 'quizzes.questions': '問題集（1行ごとに「問題文|答え」）', 'quizzes.seconds': '制限時間（秒）', 'quizzes.rewardPoints': '正解者へのポイント', 'quizzes.showAnswer': '答えを見せる', 'quizzes.sound': '効果音', 'quizzes.volume': '音量', 'quizzes.color': '帯の色', 'cheers.title': '見出し', 'cheers.goal': '満タンまでのいいね', 'cheers.growth': '次の目標の倍率', 'cheers.loop': '満タン後も続ける', 'cheers.fullText': '満タンの文', 'cheers.fullActions': '満タンの動作', 'cheers.sound': '効果音', 'cheers.volume': '音量', 'cheers.color': 'ゲージの色', 'cheers.fullColor': '満タンの色',
   'pushButtons.label': 'ボタンの文字', 'pushButtons.seconds': '受付時間（秒）', 'pushButtons.keyword': '押しと数える言葉', 'pushButtons.likesPerPush': '何いいねで1押しか', 'pushButtons.steps': '段階の境目', 'pushButtons.blueActions': '青の動作', 'pushButtons.greenActions': '緑の動作', 'pushButtons.redActions': '赤の動作', 'pushButtons.goldActions': '金の動作', 'pushButtons.missText': '不発の文字', 'pushButtons.sound': '効果音', 'pushButtons.volume': '音量', 'pushButtons.color': '色',
   rollMs: '回転のミリ秒', revealMs: '結果のミリ秒', doneMs: '終了のミリ秒',
@@ -117,6 +118,7 @@ export const BASIC = {
   omikuji: ['enabled', 'displayMode', 'resultFont', 'minCoins', 'gifts', 'pickMode', 'pickSeconds', 'timeoutMode', 'tiers'],
   slots: ['enabled', 'trigger', 'look', 'symbols', 'payouts', 'revivalRate', 'nearMissRate', 'reelStopMs', 'idleMode'],
   votes: ['title', 'options', 'durationSeconds', 'autoReveal', 'resultActions', 'showNames', 'sound', 'volume', 'color'],
+  tugOfWar: ['enabled', 'title', 'leftName', 'rightName', 'leftWords', 'rightWords', 'leftGifts', 'rightGifts', 'autoJoin', 'allowSwitch', 'likesPerPower', 'seconds', 'koLead', 'idleMode', 'resultActions', 'leftColor', 'rightColor', 'sound', 'volume'],
   quizzes: ['title', 'source', 'question', 'answer', 'choices', 'questions', 'seconds', 'rewardPoints', 'showAnswer', 'sound', 'volume', 'color'],
   cheers: ['title', 'goal', 'growth', 'loop', 'fullText', 'fullActions', 'sound', 'volume', 'color', 'fullColor'],
   pushButtons: ['label', 'seconds', 'keyword', 'likesPerPush', 'steps', 'blueActions', 'greenActions', 'redActions', 'goldActions', 'missText', 'sound', 'volume', 'color'],

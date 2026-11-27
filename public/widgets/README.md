@@ -37,6 +37,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 | `obs-bridge.html` / `obs-bridge.js` | 透明なブラウザソースからローカルの obs-websocket へ演出命令を送る |
 | `push-button.html` / `push-button.js` | 押し数と段階を表示する |
 | `vote.html` / `vote.js` | コメント投票の票数・名前・結果を表示する |
+| `tug-of-war.html`（`tug-of-war/index.html`） | 綱引きギフトバトル（Plus）。左右のチームの力・綱と旗・残り時間・応援上位と、ギフトのヒット・コンボ・逆転・ラストスパート・残り10秒・勝利の帯と MVP を出す |
 | `quiz.html`（`quiz/index.html`） | クイズの問題・選択肢・制限時間と、正解者・答えの発表をテレビ番組風に表示する |
 | `cheer.html` / `cheer.js` | いいね応援ゲージと満タン演出を表示する |
 | `stepup.html` / `stepup.js` | STEP 1〜5、残りゲージ、段階演出を表示する |
@@ -52,7 +53,7 @@ OBS や TikTok LIVE Studio のブラウザソースで開く公開ウィジェ�
 
 `obs-bridge.html` は `src/schema.js` の設定と `/ws` のイベントを使い、`lib/sha256.js` で OBS WebSocket 認証を行います。新しい公開 JavaScript は ES5、外部 CDN なしで作ります。既存ウィジェットの一覧は一番上の [`README.md`](../../README.md) を見てください。
 
-最後に直した日: 2026-11-22
+最後に直した日: 2026-11-28
 
 - WebSocket を開くウィジェットは、URL に `preview=1` または `preview=live` があるとき `/ws?preview=1` でつなぐ。サーバーはこれを配信ソフトからの接続(obs)として数えない(準備の印と自動でつなぐのため)。`test/preview-ws.test.js` で確かめている
 - `mc-gifts.html`: 妨害マイクラのギフト表。`/api/mc-gifts`(配信者の minecraft.superstreamFile か、環境変数 TW_MC_GIFT_TABLE のプロフィール)を、行の数ずつ順にめくって出す

@@ -97,7 +97,7 @@ export function bindRoutes(r, ctx) {
     id, hub, store, info, entitled, accessState = () => null, editAllowed = () => true, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, tugOfWar, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues, timerSeconds, performControl,
   } = ctx;
@@ -389,6 +389,18 @@ export function bindRoutes(r, ctx) {
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
+  });
+  // 綱引きギフトバトル。Stream Deck から押せるように GET と POST の両方を受ける。
+  // 例: /api/tug-of-war/start?seconds=60・/api/tug-of-war/finish・/api/tug-of-war/test?side=left&coins=100
+  r.get('/api/tug-of-war', (_req, res) => res.json(tugOfWar.snapshot()));
+  r.all('/api/tug-of-war/:action', (req, res) => {
+    const action = req.params.action;
+    // テスト送信は /api/simulate と同じ線引き（配信者本人の画面だけ。配信画面用の鍵では使えない）
+    if (action === 'test' && !isDevEnv(req) && (req.role ?? 'owner') !== 'owner') {
+      return res.status(403).json({ error: 'テスト送信は配信者本人の画面でだけ使えます' });
+    }
+    const out = performControl('tugOfWar', action, { ...req.body, ...req.query });
+    res.status(out.status).json(out.body);
   });
   // クイズ。Stream Deck から押せるように GET と POST の両方を受ける。
   // start には今回だけの問題（question / answer / choices / seconds）を渡せる。

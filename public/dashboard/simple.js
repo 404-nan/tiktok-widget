@@ -10,7 +10,7 @@ import { ROULETTE_DESCRIPTION } from './dashboard-descriptions.js';
 // 「出すものを足す」に並べる順（目的ごと）
 export const GROUPS = [
   ['お礼・にぎやかし', ['alerts', 'chats', 'counters', 'goals', 'rankings', 'cheers', 'tickers', 'supporters', 'visitors', 'superchats', 'commentSlide']],
-  ['企画・ゲーム', ['roulettes', 'votes', 'quizzes', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts', 'cardDraw']],
+  ['企画・ゲーム', ['roulettes', 'votes', 'quizzes', 'tugOfWar', 'pushButtons', 'jars', 'wins', 'timers', 'bosses', 'doors', 'peka', 'throne', 'ootori', 'dareba', 'mcGifts', 'cardDraw']],
   ['豪華な演出', ['obs', 'cutins', 'puchuns', 'imageCutins', 'rush', 'stepup', 'swarm', 'combo', 'mediaAlerts', 'giftSounds', 'gacha', 'omikuji', 'slots', 'relayStop']],
 ];
 
@@ -64,6 +64,7 @@ export const INFO = {
   rush: { icon: 'flame', desc: '大きいギフトで RUSH に突入。画面の両側が光り続ける' },
   stepup: { icon: 'trending-up', desc: 'みんなのギフトの合計で STEP 1 から STEP 5 まで一段ずつ上がる' },
   swarm: { icon: 'groups', desc: '短い時間にギフトが集まると、ギフトの大群が画面を横切る' },
+  tugOfWar: { icon: 'swords', desc: '視聴者が2チームに分かれて、ギフトのコインで綱を引き合う。時間切れか大差で決着して MVP を出す' },
   combo: { icon: 'layers', desc: '続けてギフトすると ×2 ×3 と数字が出て、色が上がっていく' },
   minecraft: { icon: 'box', desc: 'マイクラの枠の時間が分かります。枠の間は自動で TikTok につながります' },
   theme: { icon: 'palette', desc: '全部のウィジェットの色と大きさ' },
@@ -353,6 +354,30 @@ export const SIMPLE = {
       { title: '音', fields: ['sound', 'volume'] },
     ],
   },
+  tugOfWar: {
+    groups: [
+      { title: '使う', fields: ['enabled', 'title'] },
+      { title: 'チーム', fields: ['leftName', 'rightName', 'leftWords', 'rightWords', 'leftColor', 'rightColor'] },
+      {
+        title: '数え方',
+        presets: [{ title: 'チームの決まり方', options: [
+          { label: 'ギフトだけで自動', value: { autoJoin: 'balance' } },
+          { label: 'コメントで参加した人だけ', value: { autoJoin: 'none' } },
+        ] }],
+        fields: ['leftGifts', 'rightGifts', 'allowSwitch', 'likesPerPower'],
+      },
+      {
+        title: '試合の長さ',
+        presets: [{ title: '長さ', options: [
+          { label: '1分', value: { seconds: 60 } },
+          { label: '3分', value: { seconds: 180 } },
+          { label: '5分', value: { seconds: 300 } },
+        ] }],
+        fields: ['seconds', 'koLead', 'resultActions'],
+      },
+      { title: '見た目と音', fields: ['idleMode', 'sound', 'volume'] },
+    ],
+  },
   combo: {
     groups: [
       { title: '使う', fields: ['enabled'] },
@@ -502,6 +527,7 @@ export const SIMPLE_LABELS = {
   'stepup.cooldownSeconds': '次までの待ち時間', 'stepup.sound': '効果音', 'stepup.volume': '音量', 'stepup.edge': '積み上がる側',
   'swarm.enabled': '群予告を使う', 'swarm.windowSeconds': '数える時間', 'swarm.scale': '配信の大きさ', 'swarm.threshold': '群を出す個数',
   'swarm.cooldownSeconds': '次までの待ち時間', 'swarm.text': '出す文字', 'swarm.maxIcons': '飛ばすアイコンの上限', 'swarm.sound': '効果音', 'swarm.volume': '音量',
+  'tugOfWar.enabled': '綱引きを使う', 'tugOfWar.title': '見出し', 'tugOfWar.leftName': '左のチームの名前', 'tugOfWar.rightName': '右のチームの名前', 'tugOfWar.leftColor': '左のチームの色', 'tugOfWar.rightColor': '右のチームの色', 'tugOfWar.leftWords': '左に入るコメント', 'tugOfWar.rightWords': '右に入るコメント', 'tugOfWar.leftGifts': '左の加勢ギフト', 'tugOfWar.rightGifts': '右の加勢ギフト', 'tugOfWar.allowSwitch': 'コメントでチームを替えられる', 'tugOfWar.likesPerPower': '何いいねで引く力 1 か', 'tugOfWar.seconds': '試合の秒数', 'tugOfWar.koLead': 'この差がついたら決着', 'tugOfWar.resultActions': '決着したときの動作', 'tugOfWar.idleMode': '試合をしていないとき', 'tugOfWar.sound': '効果音', 'tugOfWar.volume': '音量',
   'combo.enabled': 'コンボを使う', 'combo.seconds': 'つながる秒数', 'combo.gifts': '数えるギフト', 'combo.minCoins': '何コインから数える', 'combo.endText': '終わるときの文字',
   'theme.mode': '明るさ', 'theme.accent': '差し色', 'theme.gold': 'コイン・達成の色', 'theme.scale': '全体の大きさ',
 };
@@ -510,7 +536,7 @@ export const SIMPLE_LABELS = {
 export const UNITS = {
   minCoins: 'コイン', bigCoins: 'コイン', fontSize: 'px', maxItems: '件', limit: '人', startMinutes: '分', maxHours: '時間',
   coinSeconds: '秒', followSeconds: '秒', likeEvery: '回', likeSeconds: '秒', hpScale: '倍', duration: '秒', seconds: '秒', scale: '倍',
-  rivalCoins: 'コイン', pity: '回', premiumRate: '%', promoteRate: '%', freePerReset: '回', cooldownSec: '秒',
+  rivalCoins: 'コイン', pity: '回', premiumRate: '%', promoteRate: '%', freePerReset: '回', cooldownSec: '秒', koLead: 'コイン',
 };
 
 const EVENT = { gift: 'ギフト', follow: 'フォロー', share: 'シェア' };
@@ -546,6 +572,7 @@ const SUMMARY = {
   rush: (e) => (e.enabled ? `${e.enterCoins ? `${e.enterCoins} コイン` : giftsOr(e.gifts, 'ボタン')}で突入` : '使わない設定'),
   stepup: (e) => (e.enabled ? `${e.windowSeconds} 秒で ${e.scale === 'small' ? '小さめ' : e.scale === 'large' ? '大きめ' : 'ふつう'}の境目` : '使わない設定'),
   swarm: (e) => (e.enabled ? `${e.windowSeconds} 秒で ${e.scale === 'small' ? '小さめ' : e.scale === 'large' ? '大きめ' : e.scale === 'custom' ? `${e.threshold} 個` : 'ふつう'}の群` : '使わない設定'),
+  tugOfWar: (e) => (e.enabled === false ? '使わない設定' : `${e.leftName} 対 ${e.rightName}・${e.seconds ? `${e.seconds} 秒` : '手で締める'}${e.koLead ? `・${e.koLead} コイン差で決着` : ''}`),
   combo: (e) => (e.enabled ? `${e.seconds} 秒つながる・${e.blueAt} 回から出す` : '使わない設定'),
   mediaAlerts: (e) => (e.enabled === false ? '使わない設定' : `きっかけ ${e.rules?.length ?? 0} 件`),
   giftSounds: (e) => (e.enabled === false ? '使わない設定' : `ルール ${e.rules?.length ?? 0} 件`),

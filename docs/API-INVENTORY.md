@@ -74,6 +74,8 @@
 | ALL /api/door/:id/:action | 扉の操作（開始・選択・リセット） |
 | GET /api/quiz | クイズの状態 |
 | ALL /api/quiz/:id/:action | クイズの操作（出題・終了など） |
+| GET /api/tug-of-war | 綱引きギフトバトルの状態（配信画面用の鍵でも読める） |
+| ALL /api/tug-of-war/:action | 綱引きの操作（start 開始・finish 締める・reset・test テスト送信・status）。test は配信者本人だけ |
 | GET /api/dareba | ダレバ |
 | GET /api/ootori | 大鳥 |
 | GET /api/peka | ペカ |

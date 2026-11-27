@@ -1,0 +1,1 @@
+{"desc":"視聴者が2チームに分かれて、ギフトのコインで綱を引き合う対戦。時間切れか大差で決着し、勝ったチームと MVP を出す","events":[],"id":"tugOfWar","name":"綱引きギフトバトル","page":"tug-of-war.html","sample":{"label":"左チームに加勢（テスト）","post":{"body":{"side":"left","coins":100},"path":"/api/tug-of-war/test"}},"size":[1080,560],"sounds":[]}

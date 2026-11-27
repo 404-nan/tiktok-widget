@@ -18,7 +18,7 @@ export function bindControl(r, ctx) {
   const {
     hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss, door,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
-    peka, throne, ootori, dareba, vote, quiz, cheer, push, visitors, preparation,
+    peka, throne, ootori, dareba, vote, quiz, tugOfWar, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
     setStayConnected, rememberTiktokId,
     auto, currentAutoId, timerSeconds,
@@ -393,6 +393,20 @@ export function bindControl(r, ctx) {
           else throw new Error('動作は start / close / result / reset / status のどれかです');
         }
         return { status: 200, body: { ok: true, vote: ids.length === 1 ? out[ids[0]] : undefined, votes: out } };
+      } catch (err) {
+        return { status: 400, body: { error: err.message } };
+      }
+    }
+    if (target === 'tugOfWar') {
+      if (action === 'status') return { status: 200, body: { ok: true, tugOfWar: tugOfWar.snapshot() } };
+      if (!entitled('tugOfWar')) return { status: 403, body: { error: '綱引きギフトバトルはいまは使えません（Plus プランで使えます）' } };
+      try {
+        if (action === 'start') return { status: 200, body: { ok: true, tugOfWar: tugOfWar.start({ seconds: data?.seconds, test: data?.test }) } };
+        if (action === 'finish') return { status: 200, body: { ok: true, tugOfWar: tugOfWar.finish() } };
+        if (action === 'reset') return { status: 200, body: { ok: true, tugOfWar: tugOfWar.reset() } };
+        // テスト送信: 本物のイベントを作らず、綱引きの中だけで引く（集計・記録・ほかの演出に入れない）
+        if (action === 'test') return { status: 200, body: { ok: true, tugOfWar: tugOfWar.test({ side: data?.side, coins: data?.coins, name: data?.name }) } };
+        return { status: 400, body: { error: '綱引きの動作は start / finish / reset / test / status のどれかです' } };
       } catch (err) {
         return { status: 400, body: { error: err.message } };
       }
