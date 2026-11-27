@@ -32,7 +32,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
-| `acceptance/admin-money.test.js` | 管理 API の紹介・入金・報酬と、同名の配信者を区別する入金先の選択欄を確認する |
+| `acceptance/admin-money.test.js` | 管理 API の紹介・入金・報酬、古い金額での支払い拒否、入金先の選択欄を確認する |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
 | `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
 | `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金と支払い設定を保存できない場合のテスト |

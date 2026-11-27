@@ -346,7 +346,7 @@ admin.post('/money/payments/:id/void', adminBillingAction('POST /admin/api/money
   return { ok: true };
 }));
 admin.post('/money/payments/:id/payout', adminBillingAction('POST /admin/api/money/payments/:id/payout', (req) => ({
-  ok: true, payment: ledgerService.ledger.recordReferralPayout(req.params.id),
+  ok: true, payment: ledgerService.ledger.recordReferralPayout(req.params.id, req.body?.confirmedAmount),
 })));
 admin.post('/tenants/:id/billing/credit', (req, res) => {
   try {

@@ -112,7 +112,7 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/money/payments | 共通の台帳に確認済み月額入金を記録（`tenantId`、整数の `amount`、一意の `reference`、`confirmed: true`） |
 | POST /admin/api/money/payments/:id/correction | 入金の訂正を台帳に追記（正しい整数の `amount`、`reason`） |
 | POST /admin/api/money/payments/:id/void | 入金記録の取り消しを台帳に追記（`reason`）。取り消した入金の照合番号は再利用可 |
-| POST /admin/api/money/payments/:id/payout | 入金にひもづいた報酬の支払いを記録（残高不足は拒否） |
+| POST /admin/api/money/payments/:id/payout | 確認した金額（`confirmedAmount`）で報酬の支払いを記録。現在の未払い額と異なる場合は 409 |
 | GET /admin/api/lul | 全テナントの概要 |
 | POST /admin/api/ledger/sync | 集金台帳へ貸出の発生・訂正差分を同期 |
 | GET /admin/api/ledger/summary | 集金台帳の人ごとの残高と今月の集計 |

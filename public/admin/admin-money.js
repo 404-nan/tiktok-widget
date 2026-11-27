@@ -77,7 +77,7 @@ function payoutRow(payment, balance, name) {
     if (!confirm(`${name(reward.referrerId)}への ${yen(due)} の支払いを記録します。この画面から送金はしません。`)) return;
     payout.disabled = true;
     try {
-      await act(() => api(`/money/payments/${payment.id}/payout`, {}), '紹介報酬の支払いを記録しました')();
+      await act(() => api(`/money/payments/${payment.id}/payout`, { confirmedAmount: due }), '紹介報酬の支払いを記録しました')();
     } finally {
       payout.disabled = false;
     }

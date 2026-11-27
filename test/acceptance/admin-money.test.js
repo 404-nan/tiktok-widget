@@ -82,8 +82,9 @@ test('管理 API は紹介元と実際のお金の動きを記録し、未確認
   assert.match((await request(400, `/tenants/${invitee.id}/referral`, { code })).error, /初回入金/);
   const pending = await request(200, '/money');
   assert.deepEqual([pending.received, pending.owed, pending.paid, pending.balance], [4980, 2490, 0, 4980]);
-  await request(200, `/money/payments/${payment.id}/payout`, {});
-  await request(400, `/money/payments/${payment.id}/payout`, {});
+  await request(409, `/money/payments/${payment.id}/payout`, {});
+  await request(200, `/money/payments/${payment.id}/payout`, { confirmedAmount: 2490 });
+  await request(400, `/money/payments/${payment.id}/payout`, { confirmedAmount: 2490 });
   const paid = await request(200, '/money');
   assert.deepEqual([paid.received, paid.owed, paid.paid, paid.balance], [4980, 0, 2490, 2490]);
   const file = path.join(ledgerDir, 'entries.jsonl');
@@ -109,4 +110,30 @@ test('管理 API は紹介元と実際のお金の動きを記録し、未確認
   await request(200, `${changePath}/void`, { reason });
   assert.equal((await request(200, '/money')).balance, 2490);
   await request(200, '/money/payments', extra);
+});
+
+test('入金額の訂正前に確認した報酬額では支払いを記録しない', async (t) => {
+  const { env } = localScenario();
+  const token = 'money-confirmation-test';
+  const { child, ready } = await startHostedServer({ env: { ...env, TW_LEDGER_DIR: path.join(env.TW_DATA, 'ledger'), TW_ADMIN_TOKEN: token, TW_RESUME_CONNECT: '0' } });
+  t.after(() => child.kill());
+  const base = await ready;
+  const post = (route, body) => fetch(`${base}/admin/api${route}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-admin-token': token },
+    body: JSON.stringify(body),
+  });
+  const { tenant: inviter } = await (await post('/tenants', { name: '紹介元' })).json();
+  const { code } = await (await post(`/tenants/${inviter.id}/billing/code`, {})).json();
+  const { tenant } = await (await post('/tenants', { name: '配信者', referralCode: code })).json();
+  const { payment } = await (await post('/money/payments', { tenantId: tenant.id, amount: 1000, reference: 'old', confirmed: true })).json();
+  const route = `/money/payments/${payment.id}`;
+  const corrected = await post(`${route}/correction`, { amount: 1500, reason: '入力ミス' });
+  assert.equal(corrected.status, 200);
+  const stale = await post(`${route}/payout`, { confirmedAmount: payment.reward.amount });
+  assert.equal(stale.status, 409);
+  assert.match((await stale.json()).error, /確認した金額/);
+  const rows = fs.readFileSync(path.join(env.TW_DATA, 'ledger', 'entries.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.deepEqual(rows.map(({ kind }) => kind), ['subscription-payment', 'adjustment']);
+  assert.equal((await post(`${route}/payout`, { confirmedAmount: 750 })).status, 200);
 });

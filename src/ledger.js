@@ -316,7 +316,7 @@ export class Ledger {
     });
   }
 
-  recordReferralPayout(paymentId) {
+  recordReferralPayout(paymentId, confirmedAmount) {
     return this.#withLock(() => {
       const entries = this.entries();
       const { payments, balance } = subscriptionCash(entries);
@@ -325,6 +325,7 @@ export class Ledger {
       const { reward } = payment;
       if (reward.paidAt) throw new LedgerError('その紹介報酬は支払い済みです');
       const due = reward.due ?? reward.amount;
+      if (confirmedAmount !== due) throw new LedgerError('確認した金額と現在の未払い額が一致しません。画面を更新して確認し直してください', { status: 409 });
       if (due > balance) throw new LedgerError('受け取ったお金の残高が足りません');
       const at = new Date(this.now()).toISOString();
       const prepared = validateEntry({
