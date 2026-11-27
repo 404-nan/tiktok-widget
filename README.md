@@ -27,6 +27,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 死活の見張りと緊急通知 | healthz が3回続けて返らない時に診断を残し、設定した知らせ口へ落ちたことと復帰を1回ずつ送る。自動復帰は既定で切ってあり、動かす機械側で入れた時だけ、同じ障害で1回・15分に1回まで試す | できた（知らせ口と自動復帰は機械側の設定が必要） | `scripts/health-watch.sh` |
 | Euler Stream の利用数記録 | 日別・配信者別・種類別に数え、`tw euler-usage` で確認する | できた | `src/euler-usage.js` |
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |
+| 障害時の一時起動 | 本番ホストが使えない間、別の Linux 機でライコネを起動する。既存データを上書きせずバックアップを戻せる | 手順あり | [一時起動](deploy/standby/README.md) |
 | 外部イベント受け口 `ingest` | TikFinity・Streamer.bot などから、配信者ごとの鍵付きHTTP受け口でギフト・いいね・フォロー・コメント・シェアを受け、既存の正規化と配信へ流す | できた | - |
 | 受け口の状態表示・外部ツール案内 | ダッシュボードで TikTok / 外部ツールの状態、最後に届いた時刻、受信数を確認し、鍵と貼り付け用 URL を作る。使い方画面に TikFinity の例と Streamer.bot の準備中案内を表示 | できた | - |
 | Minecraft ゴール接近警報 | - | できた（50m・20m・5mの段階警報、1m以内の到達判定、ボスバー作成、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`src/minecraft.js`、`public/widgets/goal-alert.html` |
@@ -270,6 +271,12 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 - `public/` の静的ファイルは `Cache-Control: no-cache` で配る。本番は Cloudflare を通るので、反映後に `curl -sI https://widget.lul.works/widgets/lib/overlay.js` で `max-age=14400` が消えたことを確かめる。消えていなければ Cloudflare 側の「ブラウザーのキャッシュ時間」を「元のサーバーに従う」にする必要がある（オーナーの許可が要る）
 - 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
 - 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
+
+### 障害時の一時起動（Manus など）
+
+本番機が停止したときは、別の Linux 機で [一時起動の手順](deploy/standby/README.md) の1行を実行します。
+通常は `trycloudflare.com` の別の URL になるため、配信者への案内と OBS の URL の差し替えが必要です。
+バックアップなしでは既存の配信者・設定・履歴は戻りません。
 
 ## 無料で公開する（配信者に URL を渡すとき）
 
