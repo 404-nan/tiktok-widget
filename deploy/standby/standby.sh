@@ -85,7 +85,7 @@ sync_snapshot() {
   step=validate
   after=$(source_commit) && [[ $after == "$commit" ]] || fail '同期中に本番の版を確認できなくなりました。'
   node "$here/standby-route.mjs" validate "$next" ||
-    fail '同期したテナント一覧または管理用ファイルが欠損・破損しています。'
+    fail '同期したデータを検証できません。前回のデータは維持します。'
   printf '%s %s\n' "$timestamp" "$commit" > "$next/stamp"
   ln -sfn "$slot" "$base/current.next"
   mv -Tf -- "$base/current.next" "$base/current"

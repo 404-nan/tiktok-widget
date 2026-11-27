@@ -5,7 +5,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createRoute } from '../deploy/standby/standby-route.mjs';
+import { createRoute, validateSnapshot } from '../deploy/standby/standby-route.mjs';
 
 const script = path.resolve(import.meta.dirname, '../deploy/standby/standby.sh');
 const recordId = 'a'.repeat(32);
@@ -78,6 +78,17 @@ test('DNS更新後に別のサーバーが返答しても成功扱いや自動�
   const { route, edits } = router({ badPublicMarker: true });
   await assert.rejects(route.switchRoute(marker), /待機機固有/);
   assert.equal(edits(), 1);
+});
+
+test('配信者別モードの同期データはルート設定なしでも検証できる', async (t) => {
+  const root = fs.mkdtempSync(path.join(tmpdir(), 'tw-hosted-snapshot-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'data'));
+  fs.writeFileSync(path.join(root, 'data/tenants.json'), '{"tenants":[{"id":"fixture"}]}');
+  fs.writeFileSync(path.join(root, 'data/admin-token.txt'), 'fixture-admin');
+  await validateSnapshot(root);
+  fs.mkdirSync(path.join(root, 'config.yaml'));
+  await assert.rejects(validateSnapshot(root), /ファイルではありません/);
 });
 
 test('初回以降も同期し、壊れた同期と古いデータで待機機を昇格させない', (t) => {

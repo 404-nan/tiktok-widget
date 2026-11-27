@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "76babf61fdef",
+      "summary": "deploy/standby/standby-route.mjs が配信者別モードでは不要なルート config.yaml を必須にし、正常な待機データを拒否した。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "配信者別モードの同期データはルート設定なしでも検証できる" }
+    },
+    {
       "fingerprint": "019b44e2a5db",
       "summary": "deploy/standby/setup.sh は初回にしか復元せず、待機機が古い配信者データで起動し得た。待機側で定期同期し、期限切れ・破損時は昇格しない。",
       "fixedIn": "standby failover",

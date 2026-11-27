@@ -20,8 +20,11 @@ export async function validateSnapshot(dir) {
   requireCheck(Array.isArray(tenants.tenants) && tenants.tenants.length > 0, '配信者が入った tenants.json がありません。');
   const token = await stat(join(dir, 'data/admin-token.txt'));
   requireCheck(token.isFile() && token.size > 0, '空でない admin-token.txt がありません。');
-  const config = await stat(join(dir, 'config.yaml'));
-  requireCheck(config.isFile(), 'config.yaml がありません。');
+  const config = await stat(join(dir, 'config.yaml')).catch((error) => {
+    if (error.code !== 'ENOENT') throw error;
+    return null;
+  });
+  requireCheck(!config || config.isFile(), 'config.yaml がファイルではありません。');
 }
 
 export function createRoute({ env = process.env, request = fetch, pause = delay } = {}) {
