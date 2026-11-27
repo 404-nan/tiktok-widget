@@ -702,10 +702,12 @@ export class BillingStore {
       }
     }
     if ('free' in patch) cur.free = Boolean(patch.free);
-    // 解約（次の更新をしない）。false か空で取り消す（もう一度プランを有効にしたとき）
+    // 解約（次の更新をしない）。false か空で取り消す（もう一度支払い済みに戻したときも自動で取り消す）
     if ('cancelled' in patch) {
       if (patch.cancelled === true) cur.cancelled = true;
       else delete cur.cancelled;
+    } else if (cur.status === 'active' && 'status' in patch) {
+      delete cur.cancelled;
     }
     if ('paidUntil' in patch) {
       if (patch.paidUntil == null || patch.paidUntil === '') delete cur.paidUntil;
