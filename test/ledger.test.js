@@ -235,3 +235,25 @@ test('すでに支払った報酬で赤字になる訂正と取り消しは追�
   assert.equal(ledger.correctSubscriptionPayment(first.id, { amount: 500, reason }).reward.amount, 250);
   assert.deepEqual(cashTotals(ledger.subscriptionCash()), [500, 0, 500, 0]);
 });
+
+test('入金を減額・取り消ししても実際の支払い行が残り、過払いを計算する', () => {
+  const ledger = new Ledger({ dir: tmp(), now: () => Date.parse(at) });
+  const form = { amount: 1500, reference: 'first', tenantId: 'b', referrerId: 'a', paidOn: '2026-10-01', confirmed: true };
+  const first = ledger.recordSubscriptionPayment(form);
+  ledger.recordSubscriptionPayment({ ...form, tenantId: 'c', referrerId: null, reference: 'other' });
+  ledger.recordReferralPayout(first.id, 750);
+  const payout = ledger.entries().at(-1);
+  const reason = '入金の誤記';
+  ledger.correctSubscriptionPayment(first.id, { amount: 1000, reason });
+  const corrected = ledger.subscriptionCash();
+  assert.deepEqual(corrected.payouts, [
+    { id: payout.id, paymentId: first.id, tenantId: 'b', referrerId: 'a', amount: 750, paidAt: at },
+  ]);
+  assert.deepEqual(corrected.overpayments, [{ tenantId: 'b', referrerId: 'a', amount: 250 }]);
+  ledger.voidSubscriptionPayment(first.id, { reason });
+  const voided = ledger.subscriptionCash();
+  assert.equal(voided.payments.some(({ id }) => id === first.id), false);
+  assert.deepEqual(voided.payouts, corrected.payouts);
+  assert.deepEqual(voided.overpayments, [{ tenantId: 'b', referrerId: 'a', amount: 750 }]);
+  assert.deepEqual(cashTotals(voided), [1500, 0, 750, 750]);
+});

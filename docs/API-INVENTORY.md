@@ -108,7 +108,7 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | POST /admin/api/tenants/:id/billing/code | 紹介コードの発行 |
 | POST /admin/api/tenants/:id/referral | 初回入金の記録前に紹介コードを適用 |
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
-| GET /admin/api/money | 紹介元、入金、紹介報酬、残高、月額案 |
+| GET /admin/api/money | 紹介元、入金、紹介報酬、実際の支払い（`payouts`）、要回収額（`overpayments`）、残高、月額案 |
 | POST /admin/api/money/payments | 共通の台帳に確認済み月額入金を記録（`tenantId`、整数の `amount`、一意の `reference`、日本時間の入金日 `paidOn: YYYY-MM-DD`、`confirmed: true`） |
 | POST /admin/api/money/payments/:id/correction | 入金の訂正を台帳に追記（正しい整数の `amount`、`reason`） |
 | POST /admin/api/money/payments/:id/void | 入金記録の取り消しを台帳に追記（`reason`）。取り消した入金の照合番号は再利用可 |

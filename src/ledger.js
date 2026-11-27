@@ -151,7 +151,9 @@ export function sourceAmountsByKey(entries) {
 
 function subscriptionCash(entries) {
   const recorded = new Map();
-  const payouts = new Map();
+  const payouts = [];
+  const paidByReferral = new Map();
+  const referralKey = (tenantId, referrerId) => JSON.stringify([tenantId, referrerId]);
   let paid = 0;
   for (const entry of entries) {
     if (entry.source?.system !== 'subscription') continue;
@@ -164,10 +166,14 @@ function subscriptionCash(entries) {
       target.voided = true;
     } else if (entry.kind === 'referral-payout' && target && !target.voided &&
       Number.isSafeInteger(entry.signedAmountYen) && entry.signedAmountYen < 0 && target.entry.referrerId === entry.tenantId) {
-      const key = target.entry.tenantId;
-      const previous = payouts.get(key)?.amount ?? 0;
-      paid -= entry.signedAmountYen;
-      payouts.set(key, { amount: previous - entry.signedAmountYen, at: entry.at });
+      const tenantId = target.entry.tenantId;
+      const { id, tenantId: referrerId, at: paidAt } = entry;
+      const amount = -entry.signedAmountYen;
+      const key = referralKey(tenantId, referrerId);
+      const previous = paidByReferral.get(key)?.amount ?? 0;
+      paid += amount;
+      payouts.push({ id, paymentId: entry.targetId, tenantId, referrerId, amount, paidAt });
+      paidByReferral.set(key, { tenantId, referrerId, amount: previous + amount, paidAt });
     } else {
       throw new LedgerCorruptError('月額入金・紹介報酬の台帳行が不正です');
     }
@@ -182,6 +188,7 @@ function subscriptionCash(entries) {
   }
   let received = 0;
   let owed = 0;
+  const earned = new Map();
   for (const payment of recorded.values()) {
     const { entry, amount, voided } = payment;
     if (voided) continue;
@@ -192,17 +199,24 @@ function subscriptionCash(entries) {
     const rewardAmount = Math.floor(amount / 2);
     let reward = null;
     if (firstByTenant.get(tenantId) === payment && referrerId && rewardAmount) {
-      const payout = payouts.get(tenantId);
+      const key = referralKey(tenantId, referrerId);
+      const payout = paidByReferral.get(key);
+      earned.set(key, rewardAmount);
       const due = Math.max(0, rewardAmount - (payout?.amount ?? 0));
-      reward = { referrerId, amount: rewardAmount, paidAt: due ? null : payout.at };
+      reward = { referrerId, amount: rewardAmount, paidAt: due ? null : payout.paidAt };
       if (due && due < rewardAmount) reward.due = due;
       owed += due;
     }
     received += amount;
     payments.push({ id, tenantId, reference: entry.source.key, amount, paidOn: tokyoDate.format(new Date(at)), confirmedAt: entry.createdAt ?? at, reward });
   }
+  const overpayments = [];
+  for (const [key, { tenantId, referrerId, amount }] of paidByReferral) {
+    const excess = amount - (earned.get(key) ?? 0);
+    if (excess > 0) overpayments.push({ tenantId, referrerId, amount: excess });
+  }
   if (![received, owed, paid].every(Number.isSafeInteger)) throw new LedgerCorruptError('台帳の合計金額を扱えません');
-  return { received, owed, paid, balance: received - paid, payments };
+  return { received, owed, paid, balance: received - paid, payments, payouts, overpayments };
 }
 
 export class Ledger {

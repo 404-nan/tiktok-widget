@@ -71,7 +71,7 @@ function paymentRow(payment, name) {
     form);
 }
 
-function payoutRow(payment, balance, name) {
+function unpaidRewardRow(payment, balance, name) {
   const { reward } = payment;
   const due = reward.due ?? reward.amount;
   const payout = button('支払いを記録', async () => {
@@ -87,16 +87,21 @@ function payoutRow(payment, balance, name) {
     el('strong', { textContent: `${name(reward.referrerId)}：${yen(reward.amount)}` }),
     p(`紹介した相手：${name(payment.tenantId)}`),
     reward.due ? p(`未払い分：${yen(due)}`) : null,
-    reward.paidAt ? p(`支払い済み：${date.format(new Date(reward.paidAt))}`)
-      : due > balance ? p('未払い・残高不足のため記録できません')
-        : el('div', { className: 'btn-row' }, payout));
+    due > balance ? p('未払い・残高不足のため記録できません') : el('div', { className: 'btn-row' }, payout));
+}
+
+function payoutRow({ tenantId, referrerId, amount, paidAt }, name) {
+  return el('article', { className: 'admin-note' },
+    el('strong', { textContent: `${name(referrerId)}：${yen(amount)}` }),
+    p(`紹介した相手：${name(tenantId)}`),
+    p(`支払い済み：${date.format(new Date(paidAt))}`));
 }
 
 export function moneyDetail(money, tenants) {
   const names = new Map(tenants.map(({ id, name }) => [id, name]));
   const name = (id) => names.get(id) ?? `削除済みの配信者（${id}）`;
-  const { received, owed, paid, balance, draftPlans, referrals, payments } = money;
-  const rewards = payments.filter(({ reward }) => reward).reverse();
+  const { received, owed, paid, balance, draftPlans, referrals, payments, payouts, overpayments } = money;
+  const rewards = payments.filter(({ reward }) => reward && !reward.paidAt).reverse();
   return [
     card('お金の残高',
       p('一般公開までは無料です。ここでは入金と紹介報酬の支払いを記録するだけで、請求や送金はしません。'),
@@ -110,6 +115,9 @@ export function moneyDetail(money, tenants) {
     card('受け取ったお金', paymentForm(tenants),
       ...(payments.length ? payments.slice().reverse().map((row) => paymentRow(row, name))
         : [p('入金の記録はまだありません。')])),
-    card('紹介報酬', ...(rewards.length ? rewards.map((row) => payoutRow(row, balance, name)) : [p('紹介報酬はまだありません。')])),
+    card('未払いの紹介報酬', ...(rewards.length ? rewards.map((row) => unpaidRewardRow(row, balance, name)) : [p('未払いの紹介報酬はありません。')])),
+    card('支払った紹介報酬',
+      ...overpayments.map(({ tenantId, referrerId, amount }) => p(`過払い・要回収：${name(referrerId)}（紹介した相手：${name(tenantId)}） ${yen(amount)}`)),
+      ...(payouts.length ? payouts.slice().reverse().map((row) => payoutRow(row, name)) : [p('支払いの記録はまだありません。')])),
   ];
 }

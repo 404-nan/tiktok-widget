@@ -7,7 +7,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { localScenario, startHostedServer } from '../helpers/guard-harness.js';
 
-test('名前が同じ配信者も入金先の選択肢は ID で見分けられる', () => {
+function renderMoney(money, tenants) {
   const source = fs.readFileSync(new URL('../../public/admin/admin-money.js', import.meta.url), 'utf8')
     .replace(/^import .*;$/m, '').replace('export function moneyDetail', 'function moneyDetail');
   const nodes = [];
@@ -17,19 +17,40 @@ test('名前が同じ配信者も入金先の選択肢は ID で見分けられ�
       nodes.push(node);
       return node;
     },
+    button(text) { return context.el('button', { textContent: text }); },
     Option: class Option {
       constructor(text, value) { Object.assign(this, { text, value }); }
     },
   };
   vm.runInNewContext(source, context);
-  context.moneyDetail(
-    { received: 0, owed: 0, paid: 0, balance: 0, draftPlans: [], referrals: [], payments: [] },
+  context.moneyDetail(money, tenants);
+  return nodes;
+}
+
+test('名前が同じ配信者も入金先の選択肢は ID で見分けられる', () => {
+  const nodes = renderMoney(
+    { received: 0, owed: 0, paid: 0, balance: 0, draftPlans: [], referrals: [], payments: [], payouts: [], overpayments: [] },
     [{ name: '同じ名前', id: 'first' }, { name: '同じ名前', id: 'second' }],
   );
   const select = nodes.find(({ tag }) => tag === 'select');
   assert.deepEqual(select.children.map(({ text, value }) => [text, value]), [
     ['配信者を選ぶ', ''], ['同じ名前（first）', 'first'], ['同じ名前（second）', 'second'],
   ]);
+});
+
+test('入金を減額または取り消しても、支払った金額と要回収額を別に表示する', () => {
+  const base = {
+    received: 1000, owed: 0, paid: 750, balance: 250, draftPlans: [], referrals: [],
+    payouts: [{ tenantId: 'b', referrerId: 'a', amount: 750, paidAt: '2026-11-20T12:00:00Z' }],
+  };
+  const tenants = [{ id: 'a', name: '紹介元' }, { id: 'b', name: '紹介先' }];
+  const corrected = [{ tenantId: 'b', amount: 1000, reward: { amount: 500, paidAt: base.payouts[0].paidAt } }];
+  for (const [payments, amount] of [[corrected, 250], [[], 750]]) {
+    const nodes = renderMoney({ ...base, payments, overpayments: [{ tenantId: 'b', referrerId: 'a', amount }] }, tenants);
+    assert.ok(nodes.some(({ textContent }) => textContent === '紹介元：750円'));
+    assert.ok(nodes.some(({ textContent }) => textContent === `過払い・要回収：紹介元（紹介した相手：紹介先） ${amount}円`));
+    assert.ok(!nodes.some(({ textContent }) => textContent === '紹介元：500円'));
+  }
 });
 
 test('管理 API は紹介元と実際のお金の動きを記録し、未確認・重複・権限なしを拒む', async (t) => {
