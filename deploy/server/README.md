@@ -5,6 +5,7 @@ lulserver の本番（127.0.0.1:3939）と開発サーバーに関わる反映�
 | ファイル | 役目 |
 | --- | --- |
 | `auto-deploy.sh` | 止めてある自動反映の本体。新しいコミット・版数・お知らせ・配信中でないこと・テスト（一時フォルダは自動で消す）を見て本番を再起動する形 |
+| `dns-check.sh` | Cloudflare Tunnel の接続先と公開ドメインを名前解決できるか確認する |
 | `tiktok-widget-deploy.service` | `auto-deploy.sh` を1回動かす systemd のユーザーサービス |
 | `tiktok-widget-deploy.timer` | 上のサービスを1分ごとに動かすタイマー（今は止めてある） |
 | `tw-flow` | 開発の流れの道具。`status`(本番・開発・まだ入っていないブランチの一覧)、`preview <branch>`(開発サーバー3940をそのブランチにする。テストが通ったときだけ)、`clean`(本番に入り終わったブランチの worktree を片付ける。ブランチは残す) |
@@ -25,4 +26,10 @@ lulserver の本番（127.0.0.1:3939）と開発サーバーに関わる反映�
 - テストが通らなかったコミットは出さない（`~/.local/state/tiktok-widget/last-test.log`）。次のコミットでもう一度試す
 - `tw-flow` は `ln -s ~/tiktok-widget/deploy/server/tw-flow ~/.local/bin/tw-flow` で入れる。本番には触らない
 
-最後に直した日: 2026-11-27
+## Cloudflare 1033 が出た場合の DNS 診断
+
+LuLServer 上のリポジトリで `bash deploy/server/dns-check.sh` を実行します。`region1.v2.argotunnel.com` と `widget.lul.works` のアドレスに加え、cloudflared が接続先を見つけるための `_v2-origintunneld._tcp.argotunnel.com` の SRV レコードを確認します。SRV は `resolvectl` で確認し、使えないか応答が得られなければ、利用できる場合に `dig` でも確認します。接続先が `.`（サービスなし）だけの応答は失敗とします。各照会は最大5秒です。失敗した名前と確認先を表示し、終了コード1を返します。設定は変更せず、サービスも再起動しません。
+
+既存の死活の見張りはローカルの `/healthz` を使うため、ライコネ本体が動いていてトンネルだけ落ちた場合を検知しません。この DNS 診断は別に実行してください。成功してもトンネルへの接続や HTTP 応答を保証するものではありません。
+
+最後に直した日: 2026-11-28

@@ -25,8 +25,10 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | プレビューで発火させない | ダッシュボードの見本と単独モードのプレビューには、本番の演出（出来事と、派生の知らせ全部。ダレ場・名前入り妨害・動画と音・リレー停止・スロット結果・来場を含む）を流さない。テスト送信と状態の同期は届く | できた | `src/hub.js` |
 | `/healthz`（稼働確認・配信中人数・起動した版とコミット） | 稼働状態と、実際に動いている版を確認する | できた | `src/healthz.js`、`src/build-info.js` |
 | 死活の見張りと緊急通知 | healthz が3回続けて返らない時に診断を残し、設定した知らせ口へ落ちたことと復帰を1回ずつ送る。自動復帰は既定で切ってあり、動かす機械側で入れた時だけ、同じ障害で1回・15分に1回まで試す | できた（知らせ口と自動復帰は機械側の設定が必要） | `scripts/health-watch.sh` |
+| トンネルの DNS 診断 | Cloudflare Tunnel の接続先（SRV を含む）と公開ドメインを名前解決できるか調べる | 手動確認用 | `deploy/server/dns-check.sh` |
 | Euler Stream の利用数記録 | 日別・配信者別・種類別に数え、`tw euler-usage` で確認する | できた | `src/euler-usage.js` |
 | Cloudflare 経由の hosted 運用 | - | 作りかけ（運用環境の確認が必要） | - |
+| 障害時の一時起動 | 本番ホストが使えない間、別の Linux 機でライコネを起動する。既存データを上書きせずバックアップを戻せる | 手順あり | [一時起動](deploy/standby/README.md) |
 | 外部イベント受け口 `ingest` | TikFinity・Streamer.bot などから、配信者ごとの鍵付きHTTP受け口でギフト・いいね・フォロー・コメント・シェアを受け、既存の正規化と配信へ流す | できた | - |
 | 受け口の状態表示・外部ツール案内 | ダッシュボードで TikTok / 外部ツールの状態、最後に届いた時刻、受信数を確認し、鍵と貼り付け用 URL を作る。使い方画面に TikFinity の例と Streamer.bot の準備中案内を表示 | できた | - |
 | Minecraft ゴール接近警報 | - | できた（50m・20m・5mの段階警報、1m以内の到達判定、ボスバー作成、WIN連携、開発用確認） | `src/mc-goal-alert.js`、`src/minecraft.js`、`public/widgets/goal-alert.html` |
@@ -267,9 +269,20 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 いまは LuLServer で動かし、`https://widget.lul.works` で公開しています。
 - サーバー: `~/.config/systemd/user/tiktok-widget.service`（`TW_HOSTED=1 HOST=127.0.0.1 PORT=3939`）。自動反映のタイマーは止まっていると記録されています（2026-11-27 の棚卸し）。今は、誰も配信していない時にオーナーの許可を取って `scripts/deploy-release.sh` を手で回して入れます。TikTok との接続が切れて `connecting` / `error` になっても、最後に `live` だった時刻から15分未満は配信中として扱い、再起動を待ちます
 - トンネル: `~/.config/systemd/user/tiktok-widget-tunnel.service`（設定は `~/.cloudflared/tiktok-widget.yml`、`widget.lul.works` → `http://127.0.0.1:3939`）
+- Cloudflare 1033 が出たときの名前解決の切り分け: [DNS 診断の手順](deploy/server/README.md#cloudflare-1033-が出た場合の-dns-診断)
 - `public/` の静的ファイルは `Cache-Control: no-cache` で配る。本番は Cloudflare を通るので、反映後に `curl -sI https://widget.lul.works/widgets/lib/overlay.js` で `max-age=14400` が消えたことを確かめる。消えていなければ Cloudflare 側の「ブラウザーのキャッシュ時間」を「元のサーバーに従う」にする必要がある（オーナーの許可が要る）
 - 管理画面は `https://widget.lul.works/admin/`、配信者には `https://widget.lul.works/d/<短いID>` と 4桁の数字を渡します
 - 本番で配信者に渡す段階になったら、下の Oracle の無料サーバーに移すと、PC を消していても動きます。
+
+### 障害時の一時起動（Manus など）
+
+継続運用には、別の Linux 機がデータを定期同期し、旧本番を止めた時だけ同じ URL で昇格する [待機機の手順](deploy/standby/README.md#公開-url-を維持する待機機) を使います。失効した配信者 URL を戻さないよう、待機機はデータとは別の台帳を確認してから起動します。公開側とデータの鮮度は待機機から監視できます。
+
+架空データでの短時間の確認は、別の Linux 機で [一時起動の手順](deploy/standby/README.md) の1行を実行します。失効台帳を使わない一時起動では、本番データを公開しません。
+通常は `trycloudflare.com` の別の URL になるため、配信者への案内と OBS の URL の差し替えが必要です。
+バックアップなしでは既存の配信者・設定・履歴は戻りません。
+非公開のバックアップは、手元のファイルから戻すか、保護された HTTPS の URL を環境変数で渡します。
+停止コマンドは、トンネルが終了しない場合でもライコネ本体を止めます。
 
 ## 無料で公開する（配信者に URL を渡すとき）
 
@@ -546,6 +559,7 @@ test/                  node --test のテスト（[README](test/README.md)）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
+deploy/standby/         障害時の待機機の準備・差分同期・外部監視・昇格
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 deploy/server/          lulserver の本番反映に関わる部品（自動反映のタイマーは停止中。今は scripts/deploy-release.sh を手で回す）
 ```
@@ -567,4 +581,3 @@ npm test
 ## ギフトの日本語名の対応表
 
 画面に出すギフト名は `src/gift-names-ja.json`（GiftID → [英語名, 日本語名]）から日本語名を引き、表に無いギフトは TikTok から来た名前のまま出します。表を作り直すときは `node scripts/giftlist.js`（部屋のギフトも足すなら `node scripts/giftlist.js <roomId>`）を実行します。TikTok の公開 gift/list API を英語（`webcast_language=en`）と日本語（`webcast_language=ja-JP`。`ja` だけだと英語で返る）で署名なしに呼び、GiftID で対にします。すでにある名前は前の名前を残し、変わった名前は標準出力に出します（コインの値は一覧に更新）。終わったらブラウザ用の表も作り直します。ログイン・API キー・有料プランは不要です。AI 向けの決まりは `AGENTS.md` にあります。
-

@@ -10,6 +10,7 @@ import * as cfg from './src/config.js';
 import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
+import { openTenantRevocations, TenantRevocationError } from './src/tenant-revocations.js';
 import { overlayMessageAllowed } from './src/billing.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
@@ -82,7 +83,11 @@ const local = HOSTED
   : createRuntime({ id: 'local', store: cfg.localStore, dataDir: DATA_DIR, mediaDirs: [cfg.MEDIA_DIR], ai, notes });
 
 // --- 契約している配信者（data/tenants.json） ---
-const tenants = new Tenants({ ai, notes });
+const revocations = await openTenantRevocations(DATA_DIR).catch((error) => {
+  recordError(error, { kind: 'tenant.revocations', context: { op: 'tenant.revocations.startup' } });
+  throw error;
+});
+const tenants = new Tenants({ ai, notes, revocations });
 
 // TikTok につなぐための API キー（管理画面で入れたものは data/sign-api-key.txt）
 const signKey = createSignKey({ dir: DATA_DIR });
@@ -188,11 +193,11 @@ admin.post('/tenants', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.patch('/tenants/:id', (req, res) => {
+admin.patch('/tenants/:id', async (req, res) => {
   try {
-    res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
+    res.json({ ok: true, tenant: tenantView(req, await tenants.updateFromAdmin(req.params.id, req.body ?? {})) });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(err instanceof TenantRevocationError ? 503 : 404).json({ error: err.message });
   }
 });
 admin.patch('/tenants/:id/settings', (req, res) => {
@@ -207,26 +212,31 @@ admin.patch('/tenants/:id/settings', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.post('/tenants/:id/rekey', (req, res) => {
+admin.post('/tenants/:id/rekey', async (req, res) => {
   try {
-    const t = tenants.rekey(req.params.id, req.body?.which);
+    const t = await tenants.rekey(req.params.id, req.body?.which);
     tenants.close(t.id);
     res.json({ ok: true, tenant: tenantView(req, t) });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(err instanceof TenantRevocationError ? 503 : 404).json({ error: err.message });
   }
 });
 // 4桁の数字を作り直す（前の数字で覚えた端末は入れ直し）
-admin.post('/tenants/:id/repin', (req, res) => {
+admin.post('/tenants/:id/repin', async (req, res) => {
   try {
-    res.json({ ok: true, tenant: tenantView(req, tenants.repin(req.params.id)) });
+    res.json({ ok: true, tenant: tenantView(req, await tenants.repin(req.params.id)) });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    res.status(err instanceof TenantRevocationError ? 503 : 404).json({ error: err.message });
   }
 });
 admin.delete('/tenants/:id', async (req, res) => {
-  await tenants.remove(req.params.id);
-  res.json({ ok: true });
+  try {
+    await tenants.remove(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    if (!(err instanceof TenantRevocationError)) throw err;
+    res.status(503).json({ error: err.message });
+  }
 });
 // 使える / 使えない: { target: 配信者の id | 'global' | 'everyone', feature: 名前 | 'all' | 'premium', on: true | false | null（初めに戻す）, hours: 0（ずっと）| 時間 }
 admin.put('/access', (req, res) => {
