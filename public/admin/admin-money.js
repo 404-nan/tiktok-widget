@@ -8,6 +8,7 @@ const p = (textContent) => el('p', { className: 'sub', textContent });
 const field = (label, input) => el('label', { className: 'field' },
   el('span', { className: 'field-label', textContent: label }), input);
 const card = (title, ...children) => el('section', { className: 'form-card' }, el('h3', { textContent: title }), ...children);
+const moneyRequests = new WeakMap();
 
 function paymentForm(tenants) {
   if (!tenants.length) return p('配信者を追加すると入金を記録できます。');
@@ -43,7 +44,7 @@ function paymentForm(tenants) {
   return form;
 }
 
-function paymentRow(payment, name) {
+function paymentRow(payment, name, openPayments) {
   const amount = el('input', { type: 'number', min: '1', max: '100000000', step: '1', required: true, value: payment.amount });
   const reason = el('input', { required: true, maxLength: 500 });
   const save = el('button', { type: 'submit', className: 'btn pressable', textContent: '金額を訂正' });
@@ -75,9 +76,12 @@ function paymentRow(payment, name) {
     event.preventDefault();
     await change('correction', { paidOn: paidOn.value, reason: dateReason.value }, '入金日を訂正しました');
   });
-  return el('details', { className: 'admin-note' },
+  const key = JSON.stringify([payment.tenantId, payment.reference]);
+  const details = el('details', { className: 'admin-note', open: openPayments.has(key) },
     el('summary', { textContent: `${name(payment.tenantId)}：${yen(payment.amount)} ／ 入金日：${payment.paidOn} ／ 照合番号：${payment.reference}` }),
     form, dateForm);
+  details.dataset.paymentKey = key;
+  return details;
 }
 
 function unpaidRewardRow(payment, balance, name) {
@@ -106,7 +110,29 @@ function payoutRow({ tenantId, referrerId, amount, paidAt }, name) {
     p(`支払い済み：${date.format(new Date(paidAt))}`));
 }
 
-export function moneyDetail(money, tenants) {
+export async function refreshMoney(panel, tenants) {
+  const request = api('/money');
+  moneyRequests.set(panel, request);
+  const current = () => panel.isConnected && moneyRequests.get(panel) === request;
+  try {
+    const money = await request;
+    if (!current()) return;
+    const active = document.activeElement;
+    if (active && panel.contains(active) && active.matches('input, select')) return;
+    const openPayments = new Set([...panel.querySelectorAll('details[data-payment-key][open]')]
+      .map(({ dataset }) => dataset.paymentKey));
+    const cards = moneyDetail(money, tenants, openPayments);
+    const scroller = document.scrollingElement;
+    const scrollTop = scroller?.scrollTop;
+    panel.replaceChildren(...cards);
+    if (scroller) scroller.scrollTop = scrollTop;
+  } catch (err) {
+    console.warn('[admin] GET /admin/api/money:', err.message);
+    if (current() && !panel.querySelector('.form-card')) panel.textContent = `お金の記録を読み込めませんでした：${err.message}`;
+  }
+}
+
+export function moneyDetail(money, tenants, openPayments = new Set()) {
   const names = new Map(tenants.map(({ id, name }) => [id, name]));
   const name = (id) => names.get(id) ?? `削除済みの配信者（${id}）`;
   const { received, owed, paid, balance, draftPlans, referrals, payments, payouts, overpayments } = money;
@@ -122,7 +148,7 @@ export function moneyDetail(money, tenants) {
       p('紹介した人への報酬は、紹介された人の初回の月額入金の50%です。1円未満は切り捨てます。'),
       ...(referrals.length ? referrals.map(({ tenantId, referrerId }) => p(`${name(referrerId)} → ${name(tenantId)}`)) : [p('紹介はまだありません。')])),
     card('受け取ったお金', paymentForm(tenants),
-      ...(payments.length ? payments.slice().reverse().map((row) => paymentRow(row, name))
+      ...(payments.length ? payments.slice().reverse().map((row) => paymentRow(row, name, openPayments))
         : [p('入金の記録はまだありません。')])),
     card('未払いの紹介報酬', ...(rewards.length ? rewards.map((row) => unpaidRewardRow(row, balance, name)) : [p('未払いの紹介報酬はありません。')])),
     card('支払った紹介報酬',

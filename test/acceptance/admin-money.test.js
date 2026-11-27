@@ -11,26 +11,33 @@ import vm from 'node:vm';
 import express from 'express';
 import { localScenario, repoRoot, startHostedServer } from '../helpers/guard-harness.js';
 
-function renderMoney(money, tenants, api) {
+function moneyUI(api, document) {
   const source = fs.readFileSync(new URL('../../public/admin/admin-money.js', import.meta.url), 'utf8')
-    .replace(/^import .*;$/m, '').replace('export function moneyDetail', 'function moneyDetail');
+    .replace(/^import .*;$/m, '').replace(/^export /gm, '');
   const nodes = [];
   const context = {
     el(tag, props, ...children) {
       const listeners = {};
-      const node = { tag, ...props, children, listeners, append: (...items) => children.push(...items),
+      const content = children.filter((child) => child != null && child !== false);
+      const node = { tag, ...props, children: content, dataset: {}, listeners, append: (...items) => content.push(...items),
         addEventListener(type, listener) { listeners[type] = listener; } };
       nodes.push(node);
       return node;
     },
     button(text) { return context.el('button', { textContent: text }); },
     api,
+    document,
     act(action) { return action; },
     Option: class Option {
       constructor(text, value) { Object.assign(this, { text, value }); }
     },
   };
   vm.runInNewContext(source, context);
+  return { context, nodes };
+}
+
+function renderMoney(money, tenants, api) {
+  const { context, nodes } = moneyUI(api);
   context.moneyDetail(money, tenants);
   return nodes;
 }
@@ -120,6 +127,46 @@ test('入金日の訂正フォームは日付と理由だけを送る', async ()
   reason.value = '日付を誤記';
   await dateForm.listeners.submit({ preventDefault() {} });
   assert.deepEqual(requests, [['/money/payments/receipt/correction', { paidOn: '2026-11-01', reason: '日付を誤記' }]]);
+});
+
+test('お金の自動更新でスクロール位置と開いている訂正欄を引き継ぐ', async () => {
+  const scroller = { scrollTop: 500 };
+  let resolveMoney;
+  const { context } = moneyUI((route) => {
+    assert.equal(route, '/money');
+    return new Promise((resolve) => { resolveMoney = resolve; });
+  }, { scrollingElement: scroller, activeElement: null });
+  const first = { id: 'one', tenantId: 'a', reference: 'first', paidOn: '2026-09-01', amount: 1000, reward: null };
+  const second = { ...first, id: 'two', reference: 'second' };
+  const money = {
+    received: 2000, owed: 0, paid: 0, balance: 2000, draftPlans: [], referrals: [], payouts: [], overpayments: [],
+    payments: [first, second],
+  };
+  const tenants = [{ id: 'a', name: '配信者' }];
+  const details = (cards) => cards.flatMap(({ children }) => children.filter(({ tag }) => tag === 'details'));
+  const original = context.moneyDetail(money, tenants);
+  details(original).find((row) => row.dataset.paymentKey === '["a","first"]').open = true;
+  const panel = {
+    isConnected: true,
+    cards: original,
+    querySelectorAll() { return details(this.cards).filter(({ open }) => open); },
+    replaceChildren(...cards) {
+      this.cards = cards;
+      scroller.scrollTop = 0;
+    },
+  };
+  const updating = context.refreshMoney(panel, tenants);
+  assert.equal(panel.cards, original);
+  assert.equal(scroller.scrollTop, 500);
+  scroller.scrollTop = 550;
+  resolveMoney({ ...money, payments: [second, { ...first, id: 'replacement', amount: 1500 }] });
+  await updating;
+  assert.notEqual(panel.cards, original);
+  assert.equal(scroller.scrollTop, 550);
+  const rows = details(panel.cards);
+  assert.equal(rows[0].open, true);
+  assert.match(rows[0].children[0].textContent, /1,500円/);
+  assert.equal(rows[1].open, false);
 });
 
 test('管理 API は紹介元と実際のお金の動きを記録し、未確認・重複・権限なしを拒む', async (t) => {

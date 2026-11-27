@@ -10,7 +10,7 @@ import { initDetail, tenantDetail, bulkDetail, signKeyGroup, aiGroup, globalDeta
 import { initBilling, notesDetail, billingDetail } from './admin-billing.js';
 import { initKeys, keysDetail, aiTokensDetail } from './admin-keys.js';
 import { ledgerDetail } from './admin-ledger.js';
-import { moneyDetail } from './admin-money.js';
+import { refreshMoney } from './admin-money.js';
 
 setupPanels();
 setupTheme();
@@ -149,14 +149,12 @@ function renderDetail(force = false) {
     return;
   }
   if (page === 'money') {
-    const panel = el('div', { className: 'money-cards' }, el('p', { className: 'sub', textContent: '読み込んでいます…' }));
-    detailBody.replaceChildren(el('div', { className: 'detail-head' }, el('h2', { textContent: '紹介・お金の管理' })), panel);
-    api('/money').then((money) => {
-      if (panel.isConnected) panel.replaceChildren(...moneyDetail(money, data.tenants));
-    }).catch((err) => {
-      console.warn('[admin] GET /admin/api/money:', err.message);
-      panel.textContent = `お金の記録を読み込めませんでした：${err.message}`;
-    });
+    let panel = detailBody.querySelector(':scope > .money-cards');
+    if (!panel) {
+      panel = el('div', { className: 'money-cards' }, el('p', { className: 'sub', textContent: '読み込んでいます…' }));
+      detailBody.replaceChildren(el('div', { className: 'detail-head' }, el('h2', { textContent: '紹介・お金の管理' })), panel);
+    }
+    refreshMoney(panel, data.tenants);
     return;
   }
   const ids = [...checked].filter((id) => data.tenants.some((t) => t.id === id));
