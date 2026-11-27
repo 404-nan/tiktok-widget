@@ -132,7 +132,7 @@ export function tenantBillingCard(t, plans) {
   const makeCode = b.code ? null : button('紹介コードを作る', () => act(() => api(`/tenants/${t.id}/billing/code`, {}, 'POST'), '紹介コードを作りました')(), { cls: 'btn' });
   const apply = button('コードを適用', () => {
     if (!useCode.value.trim()) return message('紹介コードを入れてください', true);
-    if (!confirm('この紹介コードを適用します。双方の割引残高が増えます。現金にはなりません。')) return;
+    if (!confirm('この紹介コードを適用します。紹介報酬は初回の入金を確認した後に発生します。')) return;
     act(() => api(`/tenants/${t.id}/referral`, { code: useCode.value.trim() }, 'POST'), '紹介コードを適用しました')();
   }, { cls: 'btn' });
   if (b.referredBy) apply.disabled = true;
@@ -175,7 +175,7 @@ export function tenantBillingCard(t, plans) {
 
 export function billingDetail() {
   const data = _getData();
-  const settings = data.billing ?? { enforcement: null, effective: false, multiplier: 1.5, premiumFeatures: [], plans: [] };
+  const settings = data.billing ?? { enforcement: null, effective: false, premiumFeatures: [], plans: [] };
   const plans = settings.plans?.length ? settings.plans : [
     { id: 'pct5', label: '5%プラン', price: null },
     { id: 'flat2000', label: '2000円プラン', price: 2000 },
@@ -189,10 +189,6 @@ export function billingDetail() {
   enforcement.append(new Option('初期値（本番はオフ、開発はオン）', '', false, settings.enforcement == null));
   enforcement.append(new Option('オン（停止と7日の猶予）', 'on', false, settings.enforcement === true));
   enforcement.append(new Option('オフ（誰も止めない）', 'off', false, settings.enforcement === false));
-  const multiplier = el('select');
-  multiplier.setAttribute('aria-label', '紹介の倍率');
-  multiplier.append(new Option('1.5倍', '1.5', false, settings.multiplier !== 2));
-  multiplier.append(new Option('2倍', '2', false, settings.multiplier === 2));
   const checks = features.map(([key, feature]) => {
     const input = el('input', { type: 'checkbox' });
     input.dataset.flag = key;
@@ -207,7 +203,6 @@ export function billingDetail() {
     const more = extra.value.split(/[,、\s]+/).map((name) => name.trim()).filter(Boolean);
     act(() => api('/billing', {
       enforcement: enforcement.value === 'on' ? true : enforcement.value === 'off' ? false : null,
-      multiplier: Number(multiplier.value),
       premiumFeatures: [...flags, ...more],
     }, 'PUT'), 'プランの設定を保存しました')();
   }, { cls: 'btn primary' });
@@ -220,7 +215,6 @@ export function billingDetail() {
       { className: 'note-form' },
       el('p', { className: 'sub', textContent: settings.effective ? 'オンです。停止の配信者は新しい接続を始めず、配信画面も出ません。支払い待ちは7日です。5000円プラン以外は、下で選んだ機能を止めます。' : 'オフです。配信も機能も止めていません。状態とお知らせは、これまでどおり出します。' }),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払いの確認' }), el('div', { className: 'enforcement-row' }, enforcement, el('span', { className: 'hint', textContent: 'オフの間は誰も止まりません' }))),
-      el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '紹介の倍率' }), multiplier),
       el('div', { className: 'field' }, el('span', { className: 'field-label', textContent: '5000円プランだけの機能' }), flagBox),
       el('p', { className: 'sub', textContent: '空のままだと、まだ決めていません。5%プランと2000円プランは同じ機能です。' }),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'そのほかの機能名' }), extra),

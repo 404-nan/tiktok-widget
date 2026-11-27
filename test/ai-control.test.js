@@ -390,15 +390,17 @@ test('AI のトークンと安全柵', { concurrency: false }, async (t) => {
     const limited = issue(['write'], ['a']);
     const starred = issue(['write'], ['*', 'a']);
     for (const token of [limited, starred]) {
-      const denied = await call(token.value, '/ai/v1/config/set', { method: 'POST', body: JSON.stringify({ tenant: 'a', path: 'billing.multiplier', value: 2 }) });
+      const denied = await call(token.value, '/ai/v1/config/set', { method: 'POST', body: JSON.stringify({ tenant: 'a', path: 'billing.premiumFeatures', value: ['rush'] }) });
       assert.equal(denied.status, 403);
       assert.equal((await denied.json()).error, '全体の課金は、全配信者のトークンからだけ申請できます');
       const dry = await call(token.value, '/ai/v1/billing/request', { method: 'POST', body: JSON.stringify({ tenant: 'a', path: 'billing.premiumFeatures', value: ['rush'], dryRun: true }) });
       assert.equal(dry.status, 403);
     }
-    assert.equal(ctx.billing.globalView().multiplier, 1.5);
+    assert.deepEqual(ctx.billing.globalView().premiumFeatures, []);
     const all = issue(['write'], ['*']);
-    const asked = await call(all.value, '/ai/v1/config/set', { method: 'POST', body: JSON.stringify({ tenant: 'a', path: 'billing.multiplier', value: 2 }) });
+    const retired = await call(all.value, '/ai/v1/config/set', { method: 'POST', body: JSON.stringify({ tenant: 'a', path: 'billing.multiplier', value: 2 }) });
+    assert.equal(retired.status, 400);
+    const asked = await call(all.value, '/ai/v1/config/set', { method: 'POST', body: JSON.stringify({ tenant: 'a', path: 'billing.premiumFeatures', value: ['rush'] }) });
     assert.equal(asked.status, 202);
     const askedBody = await asked.json();
     const queued = await fetch(`${ctx.base}/admin/api/ai-approvals`, { headers: adminHeaders });
@@ -406,7 +408,7 @@ test('AI のトークンと安全柵', { concurrency: false }, async (t) => {
     assert.equal(queuedRow.global, true);
     const approved = await fetch(`${ctx.base}/admin/api/ai-approvals/${askedBody.approvalId}/approve`, { method: 'POST', headers: adminHeaders });
     assert.equal(approved.status, 200);
-    assert.equal(ctx.billing.globalView().multiplier, 2);
+    assert.deepEqual(ctx.billing.globalView().premiumFeatures, ['rush']);
   });
 
   await t.test('本番の承認は配信中と接続中を拒否し、開発環境では通す', async () => {

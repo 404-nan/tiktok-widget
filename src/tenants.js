@@ -336,8 +336,26 @@ export class Tenants {
       createdAt: Date.now(),
     };
     this.data.tenants.push(t);
-    this.#save();
-    if (code) this.billing.applyCode(t.id, code);
+    try {
+      this.#save();
+    } catch (err) {
+      this.data.tenants.pop();
+      throw err;
+    }
+    if (code) {
+      try {
+        this.billing.applyCode(t.id, code);
+      } catch (err) {
+        this.data.tenants.pop();
+        try {
+          this.#save();
+        } catch (rollbackError) {
+          this.data.tenants.push(t);
+          console.error(`[tenants] Tenants.create: 配信者の追加を取り消せません: ${rollbackError.code ?? rollbackError.name}`);
+        }
+        throw err;
+      }
+    }
     return t;
   }
 

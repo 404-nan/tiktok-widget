@@ -41,6 +41,7 @@
         <button class="side-item pressable" type="button" data-page="tenants">配信者</button>
         <button class="side-item pressable" type="button" data-page="ledger">集金</button>
         <button class="side-item pressable" type="button" data-page="billing">プラン・支払い</button>
+        <button class="side-item pressable" type="button" data-page="money">紹介・お金の管理</button>
         <button class="side-item pressable" type="button" data-page="global">全員の ON / OFF</button>
         <button class="side-item pressable" type="button" data-page="ai">AI にたのむ の設定</button>
         <button class="side-item pressable" type="button" data-page="sign">TikTok の接続キー</button>
@@ -67,6 +68,7 @@
         </div>
         <form class="add-row" id="createForm" hidden>
           <input id="newName" placeholder="配信者の名前（例: たろう）" autocomplete="off" required>
+          <input id="newReferral" aria-label="紹介コード（任意）" placeholder="紹介コード（任意）" autocomplete="off">
           <button class="btn primary pressable" type="submit">追加して URL を作る</button>
           <button class="chip pressable" id="addCancel" type="button">やめる</button>
         </form>

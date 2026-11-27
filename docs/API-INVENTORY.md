@@ -102,12 +102,17 @@ GET /api/boss / GET /api/cheer / GET /api/combo / GET /api/rush / GET /api/stepu
 | 経路 | 役目 |
 | --- | --- |
 | GET /admin/api/tenants | テナント一覧 |
-| POST /admin/api/tenants | テナント作成 |
+| POST /admin/api/tenants | テナント作成（`referralCode` は任意） |
 | POST /admin/api/tenants/:id/rekey | 鍵の再発行 |
 | POST /admin/api/tenants/:id/repin | PIN の再発行 |
-| POST /admin/api/tenants/:id/billing/code | 課金のコード |
-| POST /admin/api/tenants/:id/referral | 紹介 |
+| POST /admin/api/tenants/:id/billing/code | 紹介コードの発行 |
+| POST /admin/api/tenants/:id/referral | 初回入金の記録前に紹介コードを適用 |
 | POST /admin/api/tenants/:id/billing/credit | 課金の残高 |
+| GET /admin/api/money | 紹介元、入金、紹介報酬、実際の支払い（`payouts`）、要回収額（`overpayments`）、残高、月額案 |
+| POST /admin/api/money/payments | 共通の台帳に確認済み月額入金を記録（`tenantId`、整数の `amount`、一意の `reference`、日本時間の入金日 `paidOn: YYYY-MM-DD`、`confirmed: true`） |
+| POST /admin/api/money/payments/:id/correction | 入金の訂正を台帳に追記（`reason` と、整数の `amount` または日本時間の入金日 `paidOn: YYYY-MM-DD` のどちらか一方）。日付だけの訂正は金額・残高を変えない |
+| POST /admin/api/money/payments/:id/void | 入金記録の取り消しを台帳に追記（`reason`）。取り消した入金の照合番号は再利用可 |
+| POST /admin/api/money/payments/:id/payout | 確認した金額（`confirmedAmount`）で報酬の支払いを記録。現在の未払い額と異なる場合は 409 |
 | GET /admin/api/lul | 全テナントの概要 |
 | POST /admin/api/ledger/sync | 集金台帳へ貸出の発生・訂正差分を同期 |
 | GET /admin/api/ledger/summary | 集金台帳の人ごとの残高と今月の集計 |

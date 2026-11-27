@@ -33,10 +33,11 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `helpers/guard-harness.js` | 一時サーバーを起動するテストヘルパー |
 | `actions.test.js` | アクションのテスト |
 | `admin-features.test.js` | 管理画面機能のテスト |
+| `acceptance/admin-money.test.js` | 管理 API の紹介・入金・報酬と、自動更新時のスクロール位置・訂正欄の維持を確認する。`TW_TEST_CHROME` を指定すると入金ボタンの文字が背景に収まることも確認する |
 | `agents-docs.test.js` | 作業規則とドキュメントのテスト |
 | `ai.test.js` / `ai-control.test.js` | AI設定と操作制御のテスト。使ったトークンの記録も確かめる |
-| `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金のテスト |
-| `ledger.test.js` / `ledger-sources.test.js` | 集金台帳の残高・FIFO・取り消し・壊れたJSONL、貸出同期の二重計上防止・訂正差分・除外・JST境界のテスト |
+| `billing.test.js` / `rental.test.js` | 利用制限、利用期間、課金と支払い設定を保存できない場合のテスト |
+| `ledger.test.js` / `ledger-sources.test.js` | 集金台帳の残高・FIFO・取り消し・壊れたJSONL、貸出同期、同じ日の月額入金の再登録と日付だけを訂正した場合の初回報酬・残高のテスト |
 | `boss.test.js` / `boss-rank.test.js` | ボス機能（手動開始・ミッションを含む）と順位のテスト |
 | `chat.test.js` | コメント処理のテスト |
 | `comment-slide.test.js` | コメントスライド(きっかけの含む判定・上から最初の1つだけ・待ち行列の上限3と捨てる・カタログへの登録)のテスト |

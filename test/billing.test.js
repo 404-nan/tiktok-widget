@@ -24,7 +24,6 @@ import {
   normalizeDate,
   overlayMessageAllowed,
   paidUntilEnd,
-  referralCreditYen,
   trialNotice,
   widgetPageBlocked,
 } from '../src/billing.js';
@@ -101,17 +100,12 @@ test('支払いの確認は、保存したオン/オフが環境変数より優�
   }
 });
 
-test('月額は手入力が優先。5%プランは金額が無いと 0。紹介の割引は月額×倍率', () => {
+test('月額は手入力が優先。5%プランは金額が無いと 0。過去の割引残高は引き続き使える', () => {
   assert.equal(monthlyPriceYen({ plan: 'yen2000' }), 2000);
   assert.equal(monthlyPriceYen({ plan: 'yen5000', monthlyPrice: 1800 }), 1800);
   assert.equal(monthlyPriceYen({ plan: 'percent5' }), 0);
   assert.equal(monthlyPriceYen({ plan: 'percent5', monthlyPrice: 4000 }), 4000);
   assert.equal(monthlyPriceYen({ plan: 'yen2000', monthlyPrice: 0 }), 0);
-  assert.equal(referralCreditYen(2000, 1.5), 3000);
-  assert.equal(referralCreditYen(5000, 1.5), 7500);
-  assert.equal(referralCreditYen(2000, 2), 4000);
-  assert.equal(referralCreditYen(1000, 2), 2000);
-  assert.equal(referralCreditYen(0, 1.5), 0);
   const entry = { plan: 'yen2000', credit: 2500 };
   assert.deepEqual(monthDiscount(entry), { price: 2000, discount: 2000, due: 0, creditAfter: 500 });
   assert.equal(entry.credit, 2500);
@@ -163,19 +157,20 @@ test('停止の配信画面だけ止め、5000円プランだけの機能は別�
   assert.equal(overlayMessageAllowed({ role: 'owner', blocked: true, type: 'event' }), true);
 });
 
-test('紹介コードは双方の月額×倍率を残高に足し、1か月分だけ手で引く。現金にはしない', () => {
+test('紹介コードを使っても割引残高は増えず、以前の割引残高は1か月分だけ手で引ける', () => {
   const dir = tmp();
   const store = new BillingStore({ dir, env: {} });
   assert.equal(fs.existsSync(store.file), false);
   assert.equal(store.enforcement(), false);
-  store.setAccount('a', { plan: 'yen2000', paidUntil: future });
-  store.setAccount('b', { plan: 'yen5000', paidUntil: future });
+  fs.writeFileSync(store.file, JSON.stringify({ accounts: {
+    a: { plan: 'yen2000', paidUntil: future, credit: 7000 },
+    b: { plan: 'yen5000', paidUntil: future, credit: 7500 },
+  } }));
+  store.load();
   const code = store.ensureCode('a');
   assert.equal(store.ensureCode('a'), code);
-  const granted = store.applyCode('b', code.toUpperCase());
-  assert.equal(granted.referrerCredit, 3000);
-  assert.equal(granted.refereeCredit, 7500);
-  assert.equal(store.adminView('a').credit, 3000);
+  assert.deepEqual(store.applyCode('b', code.toUpperCase()), { referrerId: 'a' });
+  assert.equal(store.adminView('a').credit, 7000);
   assert.equal(store.adminView('b').credit, 7500);
   assert.equal(store.adminView('b').discount.discount, 5000);
   assert.throws(() => store.applyCode('b', code), /すでに使っています/);
@@ -183,12 +178,11 @@ test('紹介コードは双方の月額×倍率を残高に足し、1か月分�
   assert.throws(() => store.applyCode('b', 'ない'), /見つかりません/);
   assert.throws(() => store.applyCode('b', '  '), /入れてください/);
 
-  store.setGlobal({ multiplier: 2 });
   store.setAccount('c', { plan: 'yen2000', monthlyPrice: 1000, paidUntil: future });
   store.applyCode('c', code);
   assert.equal(store.adminView('a').price, 2000);
   assert.equal(store.adminView('a').credit, 7000);
-  assert.equal(store.adminView('c').credit, 2000);
+  assert.equal(store.adminView('c').credit, 0);
   const used = store.useMonth('a');
   assert.equal(used.discount, 2000);
   assert.equal(used.due, 0);
@@ -200,23 +194,54 @@ test('紹介コードは双方の月額×倍率を残高に足し、1か月分�
   store.setAccount('d', { plan: 'percent5' });
   const percentCode = store.ensureCode('d');
   store.setAccount('e', { plan: 'percent5' });
-  const zero = store.applyCode('e', percentCode);
-  assert.equal(zero.referrerCredit, 0);
-  assert.equal(zero.refereeCredit, 0);
+  assert.deepEqual(store.applyCode('e', percentCode), { referrerId: 'd' });
+  assert.equal(store.adminView('d').credit, 0);
+  assert.equal(store.adminView('e').credit, 0);
   assert.throws(() => store.useMonth('e'), /引ける割引がありません/);
-  assert.throws(() => store.setGlobal({ multiplier: 3 }), /1\.5 か 2/);
+  assert.throws(() => store.setGlobal({ multiplier: 3 }), /50%で固定/);
   assert.throws(() => store.setAccount('a', { plan: 'premium' }), /プランは/);
   assert.throws(() => store.setAccount('a', { paidUntil: '2026-02-31' }), /日付/);
   assert.throws(() => store.setAccount('a', { monthlyPrice: -1 }), /月額/);
 
   const again = new BillingStore({ dir, env: { TW_BILLING: 'on', TW_ENV: 'dev' } });
   assert.equal(again.adminView('a').credit, 5000);
-  assert.equal(again.globalView().multiplier, 2);
   assert.equal(again.enforcement(), true);
   again.setGlobal({ enforcement: 'off' });
   assert.equal(again.enforcement(), false);
   again.setGlobal({ enforcement: null });
   assert.equal(again.enforcement(), true);
+});
+
+test('紹介元は配信者を削除しても残り、月額案は設定から読める', () => {
+  const dir = tmp();
+  const store = new BillingStore({ dir, env: { TW_DRAFT_PLUS_YEN: '3000' } });
+  const code = store.ensureCode('a');
+  store.applyCode('b', code);
+  assert.deepEqual(store.draftPlans, [{ label: 'Plus', price: 3000 }, { label: 'Pro', price: 4980 }]);
+  store.remove('a');
+  store.remove('b');
+  assert.equal(store.findByCode(code), null);
+  const again = new BillingStore({ dir, env: {} });
+  assert.deepEqual(again.referrals(), [{ tenantId: 'b', referrerId: 'a' }]);
+});
+
+test('紹介を保存できなかった場合は、配信者を追加しない', (t) => {
+  const dir = tmp();
+  const tenants = new Tenants({ dir, env: {} });
+  t.after(() => {
+    clearInterval(tenants.timer);
+    clearInterval(tenants.rentalTimer);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const inviter = tenants.create({ name: '紹介元' });
+  const code = tenants.issueReferralCode(inviter.id);
+  const file = path.join(dir, 'tenants.json');
+  const before = fs.readFileSync(file, 'utf8');
+  t.mock.method(tenants.billing, 'save', () => { throw new Error('書き込めません'); });
+  assert.throws(() => tenants.create({ name: '紹介された人', referralCode: code }), /書き込めません/);
+  assert.equal(tenants.list().length, 1);
+  assert.equal(fs.readFileSync(file, 'utf8'), before);
+  assert.deepEqual(tenants.billing.referrals(), []);
 });
 
 test('壊れた支払いファイルは読み込みでは直さない。オフなら通す。オンなら止め、配信中は切らない', () => {
@@ -226,6 +251,9 @@ test('壊れた支払いファイルは読み込みでは直さない。オフ�
   const store = new BillingStore({ dir, env: { TW_BILLING: 'on' } });
   assert.equal(fs.readFileSync(file, 'utf8'), '{');
   assert.equal(store.corrupt, true);
+  assert.throws(() => store.referrals(), /紹介の記録を読めません/);
+  assert.throws(() => store.referrerOf('a'), /紹介の記録を読めません/);
+  assert.equal(fs.readFileSync(file, 'utf8'), '{');
   assert.equal(store.account('anyone'), null);
   assert.equal(store.clientView('anyone').status, 'trial');
   assert.equal(store.clientView('anyone').show, true);
@@ -257,6 +285,28 @@ test('壊れた支払いファイルは読み込みでは直さない。オフ�
   assert.equal(quiet.clientView('anyone').status, 'trial');
   assert.equal(quiet.clientView('anyone').show, false);
   assert.equal(quiet.isOverlayBlocked('anyone'), false);
+});
+
+test('支払い設定を保存できなければ確認を有効にせず、原因と場所を記録する', (t) => {
+  const dir = tmp();
+  const file = path.join(dir, 'billing.json');
+  fs.writeFileSync(file, '{');
+  const store = new BillingStore({ dir, env: {} });
+  const warn = t.mock.method(console, 'warn', () => {});
+  const before = store.globalView();
+  assert.throws(() => store.setGlobal({ enforcement: 'on', premiumFeatures: ['bosses'] }), /保存できません/);
+  assert.deepEqual(store.globalView(), before);
+  assert.equal(store.widgetBlocked('anyone', 'bosses'), false);
+  assert.equal(fs.readFileSync(file, 'utf8'), '{');
+  assert.match(warn.mock.calls[0].arguments[0], /BillingStore\.setGlobal:.*支払いの記録を読めないため保存できません/);
+
+  const writable = new BillingStore({ dir: tmp(), env: {} });
+  t.mock.method(writable, 'save', () => { throw Object.assign(new Error('failed'), { code: 'EACCES' }); });
+  assert.throws(() => writable.setGlobal({ enforcement: 'on', premiumFeatures: ['bosses'] }), { code: 'EACCES' });
+  assert.deepEqual(writable.globalView(), before);
+  assert.match(warn.mock.calls[1].arguments[0], /BillingStore\.setGlobal:.*EACCES/);
+  assert.throws(() => writable.setGlobal({ enforcement: 'on', premiumFeatures: null }), /機能の一覧/);
+  assert.deepEqual(writable.globalView(), before);
 });
 
 test('未払いの配信画面には集計もイベントも流さず、読み込み直しだけ届く', () => {
@@ -297,7 +347,7 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
   assert.equal(tenants.info(a.id).billing.show, false);
   assert.equal(tenants.entitled(a.id, 'alerts'), true);
 
-  tenants.updateBillingSettings({ enforcement: true, multiplier: 1.5, premiumFeatures: ['boss', 'gacha', 'media', 'rouletteLinks'] });
+  tenants.updateBillingSettings({ enforcement: true, premiumFeatures: ['boss', 'gacha', 'media', 'rouletteLinks'] });
   tenants.updateBilling(a.id, { plan: 'yen2000' });
   assert.equal(tenants.billing.adminView(a.id).status, 'trial');
   assert.equal(tenants.billing.adminView(a.id).plan, 'flat2000');
@@ -355,7 +405,8 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
   assert.throws(() => tenants.create({ name: 'だめ', referralCode: 'ないコード' }), /見つかりません/);
   assert.equal(tenants.list().some((t) => t.name === 'だめ'), false);
   const newbie = tenants.create({ name: '新規', referralCode: code });
-  assert.equal(tenants.billing.adminView(a.id).credit, 3000);
+  assert.equal(tenants.billing.adminView(a.id).credit, 0);
+  assert.equal(tenants.billing.adminView(newbie.id).referredBy, a.id);
   assert.equal(tenants.billing.adminView(newbie.id).credit, 0);
   tenants.updateBilling(newbie.id, { plan: 'yen5000', paidUntil: future });
   assert.equal(tenants.billing.adminView(newbie.id).credit, 0);
@@ -363,28 +414,25 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
   const friend = tenants.create({ name: 'ともだち' });
   tenants.updateBilling(friend.id, { plan: 'yen5000', monthlyPrice: 5000, paidUntil: future });
   const both = tenants.applyReferral(friend.id, code);
-  assert.equal(both.referrerCredit, 3000);
-  assert.equal(both.refereeCredit, 7500);
-  tenants.updateBillingSettings({ multiplier: 2 });
+  assert.deepEqual(both, { referrerId: a.id });
   const custom = tenants.create({ name: '手入力' });
   tenants.updateBilling(custom.id, { monthlyPrice: 1000, plan: 'yen2000', paidUntil: future });
   tenants.applyReferral(custom.id, code);
   assert.equal(tenants.billing.adminView(a.id).price, 2000);
-  assert.equal(tenants.billing.adminView(a.id).credit, 3000 + 3000 + 4000);
-  assert.equal(tenants.billing.adminView(custom.id).credit, 2000);
-  const pulled = tenants.useBillingCredit(a.id);
-  assert.equal(pulled.discount, 2000);
-  assert.equal(tenants.billing.adminView(a.id).credit, 8000);
+  assert.equal(tenants.billing.adminView(a.id).credit, 0);
+  assert.equal(tenants.billing.adminView(custom.id).credit, 0);
+  assert.throws(() => tenants.useBillingCredit(a.id), /引ける割引がありません/);
   tenants.updateBilling(a.id, { paidUntil: '2099-12-31' });
-  assert.equal(tenants.billing.adminView(a.id).credit, 8000);
+  assert.equal(tenants.billing.adminView(a.id).credit, 0);
 
   const again = new Tenants({ dir, env: {} });
   assert.equal(again.get(a.id).name, 'りん');
   assert.equal(again.get(a.id).key, a.key);
   assert.equal(fs.readFileSync(yamlPath, 'utf8'), yaml);
-  assert.equal(again.billing.adminView(a.id).credit, 8000);
+  assert.equal(again.billing.adminView(a.id).credit, 0);
   assert.equal(again.billing.globalView().effective, true);
-  assert.match(fs.readFileSync(path.join(again.backupDir, 'billing.json'), 'utf8'), /8000/);
+  const backup = JSON.parse(fs.readFileSync(path.join(again.backupDir, 'billing.json'), 'utf8'));
+  assert.equal(backup.accounts[newbie.id].referredBy, a.id);
   assert.equal(again.info(a.id).billing.overlay, true);
   assert.deepEqual(again.info(a.id).widgets, widgets);
 });

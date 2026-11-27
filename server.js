@@ -11,6 +11,7 @@ import { SCHEMA, SECTIONS } from './src/schema.js';
 import { createRuntime, featureOfPage, FEATURES } from './src/runtime.js';
 import { Tenants, DATA_DIR, INGEST_LOOKUP_LIMITED } from './src/tenants.js';
 import { overlayMessageAllowed } from './src/billing.js';
+import { LedgerError } from './src/ledger.js';
 import { createLedgerService } from './src/ledger-service.js';
 import { createVault } from './src/vault.js';
 import { createSignKey } from './src/signkey.js';
@@ -102,6 +103,19 @@ app.use('/vendor/icons', vendor('lucide-static/icons'));
 const admin = express.Router();
 admin.use(adminGuard(ADMIN_TOKEN));
 
+function adminBillingAction(location, action) {
+  return (req, res) => {
+    try {
+      res.json(action(req));
+    } catch (err) {
+      const known = err instanceof LedgerError;
+      const internal = !known && Boolean(err.code);
+      console.warn(`[billing] ${location}: ${internal ? err.code : err.message}`);
+      res.status(known ? err.status : internal ? 500 : 400).json({ error: internal ? '記録の読み書きに失敗しました' : err.message });
+    }
+  };
+}
+
 // 前に Cloudflare などがあるときは、そこに届いた URL（X-Forwarded-Host / Proto）を使う
 const origin = (req) => `${req.protocol}://${req.host}`;
 function tenantView(req, t) {
@@ -183,14 +197,10 @@ admin.get('/deploy-status', (req, res) => {
   const live = tenants.list().map((t) => tenantView(req, t)).filter((t) => t.status.mode === 'live');
   res.json({ live: live.map((t) => ({ name: t.name, minutes: t.status.elapsedMinutes ?? 0 })) });
 });
-admin.post('/tenants', (req, res) => {
-  try {
-    const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
-    res.json({ ok: true, tenant: tenantView(req, t) });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+admin.post('/tenants', adminBillingAction('POST /admin/api/tenants', (req) => {
+  const t = tenants.create({ name: req.body?.name, referralCode: req.body?.referralCode });
+  return { ok: true, tenant: tenantView(req, t) };
+}));
 admin.patch('/tenants/:id', (req, res) => {
   try {
     res.json({ ok: true, tenant: tenantView(req, tenants.update(req.params.id, req.body ?? {})) });
@@ -312,21 +322,33 @@ admin.put('/tenants/:id/billing', (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-admin.post('/tenants/:id/billing/code', (req, res) => {
-  try {
-    res.json({ ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-admin.post('/tenants/:id/referral', (req, res) => {
-  try {
-    const result = tenants.applyReferral(req.params.id, req.body?.code);
-    res.json({ ok: true, ...result, tenant: tenantView(req, tenants.get(req.params.id)) });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+admin.post('/tenants/:id/billing/code', adminBillingAction('POST /admin/api/tenants/:id/billing/code', (req) => ({
+  ok: true, code: tenants.issueReferralCode(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)),
+})));
+admin.post('/tenants/:id/referral', adminBillingAction('POST /admin/api/tenants/:id/referral', (req) => {
+  const { id } = req.params;
+  if (ledgerService.ledger.hasSubscriptionPayment(id)) throw new Error('初回入金を記録した後は紹介コードを使えません');
+  return { ok: true, ...tenants.applyReferral(id, req.body?.code), tenant: tenantView(req, tenants.get(id)) };
+}));
+admin.get('/money', adminBillingAction('GET /admin/api/money', () => ({
+  ...ledgerService.ledger.subscriptionCash(), referrals: tenants.billing.referrals(), draftPlans: tenants.billing.draftPlans,
+})));
+admin.post('/money/payments', adminBillingAction('POST /admin/api/money/payments', (req) => {
+  const { tenantId, amount, reference, paidOn, confirmed } = req.body ?? {};
+  if (!tenants.get(tenantId)) throw new Error('その配信者は見つかりません');
+  const referrerId = tenants.billing.referrerOf(tenantId);
+  return { ok: true, payment: ledgerService.ledger.recordSubscriptionPayment({ tenantId, referrerId, amount, reference, paidOn, confirmed }) };
+}));
+admin.post('/money/payments/:id/correction', adminBillingAction('POST /admin/api/money/payments/:id/correction', (req) => ({
+  ok: true, payment: ledgerService.ledger.correctSubscriptionPayment(req.params.id, req.body ?? {}),
+})));
+admin.post('/money/payments/:id/void', adminBillingAction('POST /admin/api/money/payments/:id/void', (req) => {
+  ledgerService.ledger.voidSubscriptionPayment(req.params.id, req.body ?? {});
+  return { ok: true };
+}));
+admin.post('/money/payments/:id/payout', adminBillingAction('POST /admin/api/money/payments/:id/payout', (req) => ({
+  ok: true, payment: ledgerService.ledger.recordReferralPayout(req.params.id, req.body?.confirmedAmount),
+})));
 admin.post('/tenants/:id/billing/credit', (req, res) => {
   try {
     res.json({ ok: true, discount: tenants.useBillingCredit(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });

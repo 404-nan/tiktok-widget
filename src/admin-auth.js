@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 
 export function adminGuard(token) {
-  const expected = String(token ?? '');
+  const expected = Buffer.from(String(token ?? ''));
   return (req, res, next) => {
-    const actual = req.get('x-admin-token');
-    if (typeof actual === 'string' && actual.length === expected.length && crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected))) return next();
+    const header = req.get('x-admin-token');
+    const actual = typeof header === 'string' ? Buffer.from(header) : null;
+    if (actual?.length === expected.length && crypto.timingSafeEqual(actual, expected)) return next();
+    console.warn('[admin] adminGuard: 合言葉が違います');
     return res.status(401).json({ error: '合言葉が違います' });
   };
 }
-
