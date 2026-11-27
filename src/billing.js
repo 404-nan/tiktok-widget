@@ -322,14 +322,17 @@ export function planSummary(entry, { now = Date.now(), enforcement = false } = {
     : status === 'active' ? paidUntilEnd(paidUntil)
       : graceSince != null ? graceSince + GRACE_MS : null;
   const contact = planContact();
+  const rawMonthly = entry?.monthlyPrice;
+  const customPrice = rawMonthly != null && rawMonthly !== '' && Number.isFinite(Number(rawMonthly)) && Number(rawMonthly) >= 0
+    ? Math.round(Number(rawMonthly)) : null;
   return {
     id: plan.id,
     label: plan.label,
     description: plan.description,
-    priceYen: plan.priceYen,
-    draft: plan.draft,
-    // 昔のプラン（5000円プランなど）は、決めたときの名前と値段も見せる
-    legacy: stored?.legacy ? { label: stored.label, priceYen: stored.priceYen } : null,
+    priceYen: customPrice ?? plan.priceYen,
+    draft: customPrice == null ? plan.draft : false,
+    // 昔のプラン（5000円プランなど）は、決めたときの名前と値段（個別月額があればそちら）も見せる
+    legacy: stored?.legacy ? { label: stored.label, priceYen: customPrice ?? stored.priceYen } : null,
     status,
     statusLabel: STATUS_LABEL[status] ?? '',
     paidUntil,
