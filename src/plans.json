@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "defaultPlan": "free",
+  "trialDays": 14,
+  "trialNoticeDays": 3,
+  "graceDays": 7,
+  "paymentNote": "お支払いの方法は準備中です。プランを変えたいときは LuL にご連絡ください。",
+  "premiumFeatures": ["cutins", "imageCutins", "rush", "stepup", "swarm", "winsFx", "combo", "ai"],
+  "editCapabilities": [
+    { "key": "edit.media", "label": "画像を上げる" },
+    { "key": "edit.cutinImage", "label": "カットイン画像の切り抜き" },
+    { "key": "edit.layout", "label": "配信画面の配置" },
+    { "key": "edit.advanced", "label": "くわしい設定・YAML" },
+    { "key": "edit.ai", "label": "AI にたのむ", "feature": "ai" }
+  ],
+  "plans": [
+    {
+      "id": "free",
+      "label": "無料",
+      "description": "基本のウィジェットと演出。編集の機能はありません",
+      "priceYen": 0,
+      "draft": false,
+      "features": [],
+      "capabilities": []
+    },
+    {
+      "id": "plus",
+      "label": "Plus",
+      "description": "全部のウィジェットと豪華な演出。編集の機能はありません",
+      "priceYen": 2980,
+      "priceEnv": "TW_DRAFT_PLUS_YEN",
+      "draft": true,
+      "features": ["cutins", "imageCutins", "rush", "stepup", "swarm", "winsFx", "combo"],
+      "capabilities": []
+    },
+    {
+      "id": "pro",
+      "label": "Pro",
+      "description": "全部のウィジェットと豪華な演出に加えて、編集の機能が全部使えます",
+      "priceYen": 4980,
+      "priceEnv": "TW_DRAFT_PRO_YEN",
+      "draft": true,
+      "features": ["cutins", "imageCutins", "rush", "stepup", "swarm", "winsFx", "combo", "ai"],
+      "capabilities": ["edit.media", "edit.cutinImage", "edit.layout", "edit.advanced", "edit.ai"]
+    }
+  ],
+  "legacyPlans": [
+    { "id": "pct5", "label": "5%プラン", "priceYen": null, "plan": "plus", "aliases": ["percent5"] },
+    { "id": "flat2000", "label": "2000円プラン", "priceYen": 2000, "plan": "plus", "aliases": ["yen2000"] },
+    { "id": "flat5000", "label": "5000円プラン", "priceYen": 5000, "plan": "pro", "aliases": ["yen5000"] }
+  ]
+}

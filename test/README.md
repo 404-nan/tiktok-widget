@@ -87,6 +87,8 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `monitor-status.test.js` | モニター状態のテスト |
 | `normalize.test.js` | 入力正規化のテスト |
 | `pinlogin.test.js` | PINログインのテスト |
+| `plans.test.js` | プランの定義（`src/plans.json`）の形、昔のプラン名の置き換え、壊れた定義の記録、仮の値段の差し替え |
+| `plan-edit-routes.test.js` | 編集の書き込み API が、確認スイッチとプランで 403（`requiredPlan`・`capability`）を返すか |
 | `reconnect.test.js` | 再接続のテスト |
 | `hub-clients.test.js` | ハブが、つながっている画面の役目(obs)を答え、つながったことを知らせるか |
 | `preparation.test.js` | 配信準備の印を重複なく保存し、再起動後に読み戻せるか |
@@ -104,7 +106,7 @@ Node.js の組み込みテストランナーで、サーバーの機能、公開
 | `rush.test.js` / `rush-odds.test.js` | RUSHと抽選率のテスト |
 | `signkey.test.js` | 署名鍵のテスト |
 | `slot.test.js` / `timer.test.js` / `timer-length.test.js` | スロットとタイマーのテスト |
-| `tenants.test.js` | 配信者管理のテスト |
+| `tenants.test.js` | 配信者管理のテスト。Pro なら手動スイッチ無しで豪華演出が開き、手動の OFF がプランより強いこと |
 | `tiktok.test.js` | TikTok接続のテスト |
 | `vault.test.js` | データ退避のテスト |
 | `weight.test.js` | 重み付き抽選のテスト |

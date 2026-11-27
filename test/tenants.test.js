@@ -131,3 +131,99 @@ test('ページから、どのウィジェットかがわかる', () => {
   assert.equal(featureOfPage('roulette-strip.html'), 'roulettes');
   assert.equal(featureOfPage('locked.html'), null);
 });
+
+// --- プランの既定（src/plans.json）---
+
+const setupWith = (env) => new Tenants({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-plan-')), env });
+
+test('Pro プランなら手動スイッチ無しで豪華演出と編集の操作が開き、手動の OFF がプランより強い', () => {
+  // 確認スイッチはオフ（本番の初期値）。Pro を入れたのに管理者が手で開けるまで使えなかった不具合の再発防止
+  const t = setupWith({ TW_BILLING: 'off' });
+  const a = t.create({ name: 'A' });
+  t.updateBilling(a.id, { plan: 'pro', status: 'active', paidUntil: '2099-01-01' });
+  for (const feature of ['cutins', 'imageCutins', 'rush', 'stepup', 'swarm', 'winsFx', 'combo', 'ai']) {
+    assert.equal(t.entitled(a.id, feature), true, feature);
+    assert.equal(t.access(a.id, feature).source, 'plan', feature);
+  }
+  for (const capability of ['edit.media', 'edit.cutinImage', 'edit.layout', 'edit.advanced', 'edit.ai']) assert.equal(t.editAllowed(a.id, capability), true, capability);
+  assert.equal(t.onMap(a.id).features.cutins, true);
+
+  // 配信者ごとの OFF も、全員の OFF も、プランより強い
+  t.setAccess(a.id, 'cutins', false);
+  assert.equal(t.entitled(a.id, 'cutins'), false);
+  assert.equal(t.access(a.id, 'cutins').source, 'own');
+  t.setAccess('global', 'rush', false);
+  assert.equal(t.entitled(a.id, 'rush'), false);
+  assert.equal(t.access(a.id, 'rush').source, 'everyone');
+  // 「AI にたのむ」を手で止めると、edit.ai もできない
+  t.setAccess(a.id, 'ai', false);
+  assert.equal(t.editAllowed(a.id, 'edit.ai'), false);
+  // 手動を消すとプランの既定に戻る
+  t.setAccess(a.id, 'cutins', null);
+  assert.equal(t.access(a.id, 'cutins').source, 'plan');
+  assert.equal(t.entitled(a.id, 'cutins'), true);
+});
+
+test('昔の5000円プラン（flat5000 / yen5000）も Pro として、手動スイッチ無しで豪華演出が開く', () => {
+  const t = setupWith({ TW_BILLING: 'off' });
+  const a = t.create({ name: 'A' });
+  t.updateBilling(a.id, { plan: 'yen5000' });
+  assert.equal(t.billing.adminView(a.id).plan, 'flat5000');
+  assert.equal(t.billing.adminView(a.id).catalogPlan, 'pro');
+  assert.equal(t.entitled(a.id, 'cutins'), true);
+  assert.equal(t.access(a.id, 'cutins').source, 'plan');
+});
+
+test('確認スイッチがオフなら、Pro 以外の人の見え方は今までと同じ（移行の安全）', () => {
+  const t = setupWith({ TW_BILLING: 'off' });
+  const none = t.create({ name: 'プランなし' });
+  const old2000 = t.create({ name: '2000円' });
+  const old5 = t.create({ name: '5%' });
+  const plus = t.create({ name: 'Plus' });
+  const free = t.create({ name: '無料' });
+  t.updateBilling(old2000.id, { plan: 'flat2000' });
+  t.updateBilling(old5.id, { plan: 'pct5' });
+  t.updateBilling(plus.id, { plan: 'plus' });
+  t.updateBilling(free.id, { plan: 'free' });
+  for (const tenant of [none, old2000, old5, plus, free]) {
+    assert.equal(t.entitled(tenant.id, 'cutins'), false, tenant.name);
+    assert.equal(t.access(tenant.id, 'cutins').source, 'default', tenant.name);
+    assert.equal(t.entitled(tenant.id, 'alerts'), true, tenant.name);
+    for (const capability of ['edit.media', 'edit.layout', 'edit.advanced', 'edit.cutinImage']) assert.equal(t.editAllowed(tenant.id, capability), true, `${tenant.name} ${capability}`);
+  }
+  // 管理者が手で開けた人も、今までどおり開いたまま
+  t.setAccess(old2000.id, 'cutins', true);
+  assert.equal(t.entitled(old2000.id, 'cutins'), true);
+});
+
+test('確認スイッチがオンなら、プランごとに豪華演出と編集の操作が分かれる', () => {
+  const t = setupWith({ TW_BILLING: 'on' });
+  const free = t.create({ name: '無料' });
+  const plus = t.create({ name: 'Plus' });
+  const pro = t.create({ name: 'Pro' });
+  const none = t.create({ name: 'プランなし' });
+  t.updateBilling(free.id, { plan: 'free', status: 'active', paidUntil: '2099-01-01' });
+  t.updateBilling(plus.id, { plan: 'plus', status: 'active', paidUntil: '2099-01-01' });
+  t.updateBilling(pro.id, { plan: 'pro', status: 'active', paidUntil: '2099-01-01' });
+
+  assert.equal(t.entitled(free.id, 'cutins'), false);
+  assert.equal(t.access(free.id, 'cutins').source, 'plan');
+  assert.equal(t.entitled(free.id, 'alerts'), true);
+  assert.equal(t.editAllowed(free.id, 'edit.media'), false);
+
+  assert.equal(t.entitled(plus.id, 'cutins'), true);
+  assert.equal(t.entitled(plus.id, 'ai'), false);
+  for (const capability of ['edit.media', 'edit.cutinImage', 'edit.layout', 'edit.advanced', 'edit.ai']) assert.equal(t.editAllowed(plus.id, capability), false, capability);
+
+  assert.equal(t.entitled(pro.id, 'cutins'), true);
+  for (const capability of ['edit.media', 'edit.cutinImage', 'edit.layout', 'edit.advanced', 'edit.ai']) assert.equal(t.editAllowed(pro.id, capability), true, capability);
+
+  // プランが無い記録は今までどおり、プランでは限らない（豪華演出は初めの状態、編集はできる）
+  assert.equal(t.entitled(none.id, 'cutins'), false);
+  assert.equal(t.access(none.id, 'cutins').source, 'default');
+  assert.equal(t.editAllowed(none.id, 'edit.media'), true);
+
+  // 手で開けた Plus の「AI にたのむ」は、edit.ai もできる（手動がいちばん強い）
+  t.setAccess(plus.id, 'ai', true);
+  assert.equal(t.editAllowed(plus.id, 'edit.ai'), true);
+});

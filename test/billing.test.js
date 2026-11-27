@@ -14,6 +14,7 @@ import {
   BillingStore,
   GRACE_MS,
   TRIAL_NOTICE_MS,
+  allowsCapability,
   allowsFeature,
   allowsNewConnection,
   blocksOverlay,
@@ -24,6 +25,7 @@ import {
   normalizeDate,
   overlayMessageAllowed,
   paidUntilEnd,
+  planFeatureDefault,
   referralCreditYen,
   trialNotice,
   widgetPageBlocked,
@@ -305,7 +307,10 @@ test('配信者の設定ファイルは支払いを保存してもそのまま�
   assert.equal(tenants.info(a.id).billing.enforcement, true);
   assert.deepEqual(tenants.info(a.id).widgets, widgets);
   assert.equal(tenants.entitled(a.id, 'alerts'), true);
-  assert.equal(tenants.entitled(a.id, 'cutins'), false);
+  // スイッチがオンなら、2000円プラン（Plus として読む）は豪華な演出がプランで開く。AI（Pro だけ）は開かない
+  assert.equal(tenants.entitled(a.id, 'cutins'), true);
+  assert.equal(tenants.access(a.id, 'cutins').source, 'plan');
+  assert.equal(tenants.entitled(a.id, 'ai'), false);
   assert.equal(tenants.billing.widgetBlocked(a.id, null), false);
   assert.equal(tenants.billing.widgetBlocked(a.id, 'alerts'), false);
   assert.equal(tenants.info(a.id).billing.limited.includes('alerts'), false);
@@ -669,4 +674,47 @@ test('停止中の connecting は、直前まで live だった再接続だけ�
     clearInterval(tenants.timer);
     clearInterval(tenants.rentalTimer);
   }
+});
+
+// --- プランの定義（src/plans.json）とのつなぎ ---
+
+test('昔の5000円プラン（flat5000）の記録も Pro として、Pro だけの機能と編集の操作が通る', () => {
+  const opts = { enforcement: true, premiumFeatures: ['bosses'] };
+  const paid = { status: 'active', paidUntil: future };
+  assert.equal(allowsFeature({ ...paid, plan: 'flat5000' }, 'bosses', opts), true);
+  assert.equal(allowsFeature({ ...paid, plan: 'pro' }, 'bosses', opts), true);
+  assert.equal(allowsFeature({ ...paid, plan: 'plus' }, 'bosses', opts), false);
+  assert.equal(allowsFeature({ ...paid, plan: 'flat2000' }, 'bosses', opts), false);
+  for (const capability of ['edit.media', 'edit.cutinImage', 'edit.layout', 'edit.advanced', 'edit.ai']) {
+    assert.equal(allowsCapability({ ...paid, plan: 'flat5000' }, capability, { enforcement: true }), true, capability);
+    assert.equal(allowsCapability({ ...paid, plan: 'pct5' }, capability, { enforcement: true }), false, capability);
+    // スイッチがオフ（本番の初期値）なら、どのプランでもできる
+    assert.equal(allowsCapability({ ...paid, plan: 'free' }, capability), true, capability);
+  }
+  // 停止中はスイッチがオンなら Pro でも編集できない。プランが無い記録は限らない
+  assert.equal(allowsCapability({ status: 'suspended', plan: 'pro' }, 'edit.media', { enforcement: true }), false);
+  assert.equal(allowsCapability({}, 'edit.media', { enforcement: true }), true);
+});
+
+test('プランの既定は、スイッチがオンならプランで、オフなら Pro にだけ答える', () => {
+  assert.equal(planFeatureDefault({ plan: 'flat5000' }, 'cutins'), true);
+  assert.equal(planFeatureDefault({ plan: 'pro' }, 'ai'), true);
+  assert.equal(planFeatureDefault({ plan: 'plus' }, 'cutins'), null);
+  assert.equal(planFeatureDefault({ plan: 'pct5' }, 'cutins'), null);
+  assert.equal(planFeatureDefault({}, 'cutins'), null);
+  assert.equal(planFeatureDefault({ plan: 'plus' }, 'cutins', { enforcement: true }), true);
+  assert.equal(planFeatureDefault({ plan: 'plus' }, 'ai', { enforcement: true }), false);
+  assert.equal(planFeatureDefault({ plan: 'free' }, 'cutins', { enforcement: true }), false);
+  assert.equal(planFeatureDefault({}, 'cutins', { enforcement: true }), null);
+});
+
+test('新しいプラン名で保存でき、知らない名前の文言は plans.json のプラン名から作る', () => {
+  const store = new BillingStore({ dir: tmp(), env: {} });
+  store.setAccount('a', { plan: 'pro' });
+  assert.equal(store.adminView('a').plan, 'pro');
+  assert.equal(store.adminView('a').planLabel, 'Pro');
+  assert.equal(store.adminView('a').price, 4980);
+  assert.equal(store.clientView('a').catalogPlan, 'pro');
+  assert.throws(() => store.setAccount('a', { plan: 'gold' }), /無料、Plus、Pro、5%プラン、2000円プラン、5000円プラン/);
+  assert.deepEqual(store.globalView().plans.slice(0, 3).map((p) => p.id), ['free', 'plus', 'pro']);
 });

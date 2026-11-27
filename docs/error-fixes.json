@@ -1,3 +1,11 @@
 {
-  "fixes": []
+  "fixes": [
+    {
+      "fingerprint": "291bef185ad9",
+      "summary": "Proプランでも手動スイッチ無しで豪華演出・編集機能が開かない問題（プランの既定を access() の判定に入れた）",
+      "fixedIn": "dev/plan-catalog-2026-11-28",
+      "fixedAt": "2026-11-27",
+      "test": { "file": "test/tenants.test.js", "name": "Pro プランなら手動スイッチ無しで豪華演出と編集の操作が開き、手動の OFF がプランより強い" }
+    }
+  ]
 }

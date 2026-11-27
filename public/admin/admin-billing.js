@@ -49,7 +49,7 @@ const FLAG_ALIASES = {
 
 const BILLING_STATUS = [['trial', 'お試し'], ['active', '支払い済み'], ['past_due', '支払い待ち'], ['suspended', '停止']];
 const BILLING_LABELS = { status: '状態', trialEndsAt: 'お試しの終わり', paidUntil: '支払った日まで', plan: 'プラン', note: 'メモ' };
-const PLAN_TEXT = { pct5: '5%プラン', flat2000: '2000円プラン', flat5000: '5000円プラン', percent5: '5%プラン', yen2000: '2000円プラン', yen5000: '5000円プラン' };
+const PLAN_TEXT = { free: '無料', plus: 'Plus', pro: 'Pro', pct5: '5%プラン', flat2000: '2000円プラン', flat5000: '5000円プラン', percent5: '5%プラン', yen2000: '2000円プラン', yen5000: '5000円プラン' };
 
 export function billingValueText(key, value) {
   if (value == null || value === '') return 'なし';
@@ -221,7 +221,7 @@ export function billingDetail() {
       el('p', { className: 'sub', textContent: settings.effective ? 'オンです。停止の配信者は新しい接続を始めず、配信画面も出ません。支払い待ちは7日です。5000円プラン以外は、下で選んだ機能を止めます。' : 'オフです。配信も機能も止めていません。状態とお知らせは、これまでどおり出します。' }),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '支払いの確認' }), el('div', { className: 'enforcement-row' }, enforcement, el('span', { className: 'hint', textContent: 'オフの間は誰も止まりません' }))),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: '紹介の倍率' }), multiplier),
-      el('div', { className: 'field' }, el('span', { className: 'field-label', textContent: '5000円プランだけの機能' }), flagBox),
+      el('div', { className: 'field' }, el('span', { className: 'field-label', textContent: 'Pro プラン（と昔の5000円プラン）だけの機能' }), flagBox),
       el('p', { className: 'sub', textContent: '空のままだと、まだ決めていません。5%プランと2000円プランは同じ機能です。' }),
       el('label', { className: 'field' }, el('span', { className: 'field-label', textContent: 'そのほかの機能名' }), extra),
       el('div', { className: 'btn-row' }, saveGlobal),

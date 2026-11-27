@@ -8,7 +8,9 @@ import express from 'express';
 import YAML from 'yaml';
 import * as cfg from './config.js';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
-import { FEATURES, OBS_ALLOWED } from './runtime-features.js';
+import { EDIT_CAPABILITIES, FEATURES, OBS_ALLOWED } from './runtime-features.js';
+import { getPlan, requiredPlanFor } from './plans.js';
+import { recordError } from './error-log.js';
 import { DEMO_GIFTS } from './demo.js';
 import { readProfile, SUPERSTREAM_ACTIONS, giftTable } from './superstream.js';
 import { checkChanges, MAX_REQUEST_CHARS } from './ai.js';
@@ -21,13 +23,34 @@ import { getTemplate, previewTemplate, templateList } from './templates.js';
 
 const sectionOfChange = (change) => String(change.path).split('.')[0];
 
+// 配置（ステージでの置き場所）と、画像カットインの切り抜きを変える項目
+const LAYOUT_KEYS = new Set(['posX', 'posY', 'posScale']);
+const CUTIN_IMAGE_KEYS = new Set(['crop']);
+
+/**
+ * PATCH /api/config の中身が、どの編集の操作か（edit.layout / edit.cutinImage）。ふつうの設定の変更は null。
+ * 決め手は変える項目の名前だけ。ほかの項目と一緒に送られた変更（新しく作るときの初期値など）は、ふつうの変更とみなす。
+ */
+export function configPatchCapability(body) {
+  if (!body || body.delete) return null;
+  let segments;
+  try { segments = cfg.toPath(body.path ?? ''); } catch { return null; }
+  const last = String(segments.at(-1) ?? '');
+  const value = body.value;
+  const keys = body.merge && value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value) : [];
+  const touchesOnly = (names) => names.has(last) || (keys.length > 0 && keys.every((key) => names.has(key)));
+  if (touchesOnly(LAYOUT_KEYS)) return 'edit.layout';
+  if (touchesOnly(CUTIN_IMAGE_KEYS)) return 'edit.cutinImage';
+  return null;
+}
+
 import { createWidgetVersions } from './widget-versions.js';
 
 let sharedWidgetVersions = null;
 
 export function bindRoutes(r, ctx) {
   const {
-    id, hub, store, info, entitled, widgetBase, mediaDirs, root, notes, ai,
+    id, hub, store, info, entitled, editAllowed = () => true, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
@@ -63,6 +86,25 @@ export function bindRoutes(r, ctx) {
     if (req.method === 'POST' && /^\/api\/gift-sounds\/(ack|autoplay)$/.test(req.path)) return next();
     res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
   });
+
+  // 編集の操作（画像を上げる・切り抜き・配置・YAML・AI）は、確認スイッチがオンのときプランで分ける。
+  // オフ（初期値）のときは editAllowed がいつも true なので、今までどおり通る。
+  const editDenied = (req, res, capability) => {
+    if (editAllowed(capability) !== false) return false;
+    const requiredPlan = requiredPlanFor(capability);
+    const label = EDIT_CAPABILITIES[capability]?.label ?? capability;
+    const planLabel = getPlan(requiredPlan)?.label ?? requiredPlan;
+    recordError(new Error(`${capability} は今のプランでは使えないので断りました`), {
+      kind: 'plan.capability',
+      level: 'warn',
+      context: { tenant: id, capability, requiredPlan, route: `${req.method} ${req.path}` },
+    });
+    res.status(403).json({ error: `「${label}」は ${planLabel} プランで使えます`, requiredPlan, capability });
+    return true;
+  };
+  const requireEdit = (capability) => (req, res, next) => {
+    if (!editDenied(req, res, capability)) next();
+  };
 
   r.get('/api/ingest', (req, res) => res.json(ingest.state()));
   r.post('/api/ingest/key', (req, res) => {
@@ -382,7 +424,8 @@ export function bindRoutes(r, ctx) {
   r.get('/api/config/reference', (_req, res) => res.type('text/markdown').send(cfg.reference()));
   // フォームを作るための定義（関数は JSON にすると落ちる）
   r.get('/api/config/schema', (_req, res) => res.json({ sections: SCHEMA, colorTokens: COLOR_TOKENS }));
-  r.put('/api/config', (req, res) => {
+  // YAML をまるごと保存する（くわしい設定）
+  r.put('/api/config', requireEdit('edit.advanced'), (req, res) => {
     const result = store.replaceText(String(req.body?.yaml ?? ''));
     applyConfigResult(result);
     res.status(result.ok ? 200 : 422).json({ ...result, ...configPayload(req) });
@@ -391,6 +434,8 @@ export function bindRoutes(r, ctx) {
   r.patch('/api/config', (req, res) => {
     const { path: p, merge, delete: del, yaml } = req.body ?? {};
     if (p == null || p === '') return res.status(400).json({ error: 'path が必要です' });
+    const capability = configPatchCapability(req.body);
+    if (capability && editDenied(req, res, capability)) return;
     let value = req.body?.value;
     // 値を YAML の文字で受け取ることもできる（ダッシュボードの rules の欄など）
     if (typeof yaml === 'string') {
@@ -480,6 +525,7 @@ export function bindRoutes(r, ctx) {
   const aiState = () => {
     if (!ai?.ready) return { available: false, reason: id === 'local' ? '環境変数 TW_AI_KEY に Claude API のキーを入れると使えます' : '管理者が AI のキーを入れると使えます' };
     if (!entitled('ai')) return { available: false, reason: '管理者が使えるようにすると使えます' };
+    if (editAllowed('edit.ai') === false) return { available: false, reason: `${getPlan(requiredPlanFor('edit.ai'))?.label ?? 'Pro'} プランで使えます`, requiredPlan: requiredPlanFor('edit.ai') };
     return { available: true, left: aiLeft(), limit: ai.dailyLimit, canUndo: canUndo(), maxChars: MAX_REQUEST_CHARS };
   };
   const knownGifts = () => {
@@ -487,7 +533,7 @@ export function bindRoutes(r, ctx) {
       .slice(0, 60).map((g) => ({ name: g.name, nameJa: g.nameJa ?? null, id: g.id, diamonds: g.diamonds }));
   };
   r.get('/api/ai/state', (_req, res) => res.json(aiState()));
-  r.post('/api/ai/ask', async (req, res) => {
+  r.post('/api/ai/ask', requireEdit('edit.ai'), async (req, res) => {
     const st = aiState();
     if (!st.available) return res.status(403).json({ error: st.reason });
     const text = String(req.body?.text ?? '').trim();
@@ -513,7 +559,7 @@ export function bindRoutes(r, ctx) {
       aiUse.busy = false;
     }
   });
-  r.post('/api/ai/apply', (req, res) => {
+  r.post('/api/ai/apply', requireEdit('edit.ai'), (req, res) => {
     if (!aiState().available) return res.status(403).json({ error: aiState().reason });
     const { changes, errors, ignored } = checkChanges(req.body?.changes, { allowedSections: SECTIONS.filter((section) => section === 'theme' || entitled(section)) });
     if (!changes.length && ignored) return res.status(400).json({ error: 'それはこのツールではできません。' });
@@ -557,7 +603,7 @@ export function bindRoutes(r, ctx) {
   for (const dir of mediaDirs) r.use('/media', express.static(dir));
   // 画像を足す（ダッシュボードで画像を押して選んだもの）。配信者の media/uploads/ に置き、media/… の名前を返す
   const UPLOAD_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/avif': 'avif' };
-  r.post('/api/media', express.raw({ type: Object.keys(UPLOAD_TYPES), limit: '8mb' }), (req, res) => {
+  r.post('/api/media', requireEdit('edit.media'), express.raw({ type: Object.keys(UPLOAD_TYPES), limit: '8mb' }), (req, res) => {
     const ext = UPLOAD_TYPES[String(req.get('content-type') ?? '').split(';')[0].trim()];
     if (!ext || !Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: '画像（PNG・JPEG・GIF・WebP・AVIF）を選んでください' });
     const dir = path.join(mediaDirs[0], 'uploads');

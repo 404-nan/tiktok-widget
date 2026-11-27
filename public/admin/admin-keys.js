@@ -58,9 +58,12 @@ const AI_PATH_LABEL = {
   'billing.note': 'メモ',
   'billing.free': '無料提供',
   'billing.monthlyPrice': '月額（円）',
-  'billing.premiumFeatures': '5000円プランだけの機能',
+  'billing.premiumFeatures': 'Pro プランだけの機能',
 };
 const AI_VALUE_LABEL = {
+  free: '無料プラン',
+  plus: 'Plus プラン',
+  pro: 'Pro プラン',
   flat2000: '2000円プラン',
   pct5: '売上5%プラン',
   flat5000: '5000円プラン',
