@@ -50,17 +50,44 @@ const EDITS = [
   ['edit.ai', (send) => send('POST', '/api/ai/ask', { text: '色を変えて' })],
 ];
 
-test('PATCH /api/config は変える項目の名前で、配置・切り抜きとふつうの変更を分ける', () => {
+test('PATCH /api/config は送信形式によらず、配置・切り抜きに触れる変更を判定する', () => {
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { posX: 1, posY: 2 } }), 'edit.layout');
   assert.equal(configPatchCapability({ path: 'alerts.default.posScale', value: 2 }), 'edit.layout');
   assert.equal(configPatchCapability({ path: ['imageCutins', 'a', 'crop'], value: { x: 0.5 } }), 'edit.cutinImage');
   assert.equal(configPatchCapability({ path: ['imageCutins', 'a'], merge: true, value: { crop: { x: 0.5 } } }), 'edit.cutinImage');
-  // ふつうの変更・置き場所以外も一緒に入る変更（新しく作るときの初期値など）・消すのは、プランで分けない
+  // 他の項目と混ぜた merge・merge なしの置換・配置キーの delete でもすり抜けない
+  assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { duration: 4, posX: 1 } }), 'edit.layout');
+  assert.equal(configPatchCapability({ path: ['alerts', 'default'], value: { posX: 1 } }), 'edit.layout');
+  assert.equal(configPatchCapability({ path: ['alerts', 'default', 'posX'], delete: true }), 'edit.layout');
+  assert.equal(configPatchCapability({ path: ['imageCutins', 'a', 'crop'], delete: true }), 'edit.cutinImage');
+  // 既存の値と同じ posX を含んでいても、変わっていなければふつうの変更として通す
+  const current = { alerts: { default: { duration: 3, posX: 10 } } };
+  assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { duration: 4, posX: 10 } }, current), null);
+  assert.equal(configPatchCapability({ path: ['alerts', 'default'], value: { duration: 4 } }, current), 'edit.layout');
+  // ふつうの変更・エントリ丸ごとの削除はプランで分けない
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { duration: 4 } }), null);
-  assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { duration: 4, posX: 1 } }), null);
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], merge: true, value: { inAll: false } }), null);
   assert.equal(configPatchCapability({ path: ['alerts', 'default'], delete: true }), null);
   assert.equal(configPatchCapability({ path: ['active', 'alerts'], value: 'default' }), null);
+});
+
+test('確認スイッチがオンで Plus なら、YAML 文字列や混在 PATCH でも配置・切り抜き変更は 403 になる', async () => {
+  const { send, close } = await setup({ billing: 'on', plan: 'plus' });
+  try {
+    const mixed = await send('PATCH', '/api/config', { path: ['alerts', 'default'], merge: true, value: { duration: 4, posX: 99 } });
+    assert.equal(mixed.status, 403);
+    assert.equal((await mixed.json()).capability, 'edit.layout');
+
+    const viaYaml = await send('PATCH', '/api/config', { path: ['alerts', 'default'], merge: true, yaml: 'posX: 99\n' });
+    assert.equal(viaYaml.status, 403);
+    assert.equal((await viaYaml.json()).capability, 'edit.layout');
+
+    const delPos = await send('PATCH', '/api/config', { path: ['alerts', 'default', 'posX'], delete: true });
+    assert.equal(delPos.status, 403);
+    assert.equal((await delPos.json()).capability, 'edit.layout');
+  } finally {
+    await close();
+  }
 });
 
 test('確認スイッチがオンで Plus なら、編集の書き込みは 403 と requiredPlan・capability を返し、記録を残す', async () => {

@@ -27,21 +27,61 @@ const sectionOfChange = (change) => String(change.path).split('.')[0];
 const LAYOUT_KEYS = new Set(['posX', 'posY', 'posScale']);
 const CUTIN_IMAGE_KEYS = new Set(['crop']);
 
+function nestedAt(obj, segments) {
+  let cur = obj;
+  for (const seg of segments) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[seg];
+  }
+  return cur;
+}
+
+function findTouchedCapability(value, existing, merge = false) {
+  if (!value || typeof value !== 'object') return null;
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const hit = findTouchedCapability(value[i], Array.isArray(existing) ? existing[i] : undefined, merge);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  for (const [key, val] of Object.entries(value)) {
+    const prev = existing && typeof existing === 'object' ? existing[key] : undefined;
+    if (LAYOUT_KEYS.has(key)) {
+      if (existing === undefined || JSON.stringify(val) !== JSON.stringify(prev)) return 'edit.layout';
+    }
+    if (CUTIN_IMAGE_KEYS.has(key)) {
+      if (existing === undefined || JSON.stringify(val) !== JSON.stringify(prev)) return 'edit.cutinImage';
+    }
+    const hit = findTouchedCapability(val, prev, merge);
+    if (hit) return hit;
+  }
+  if (!merge && existing && typeof existing === 'object' && !Array.isArray(existing)) {
+    for (const key of Object.keys(existing)) {
+      if (existing[key] === undefined || key in value) continue;
+      if (LAYOUT_KEYS.has(key)) return 'edit.layout';
+      if (CUTIN_IMAGE_KEYS.has(key)) return 'edit.cutinImage';
+    }
+  }
+  return null;
+}
+
 /**
  * PATCH /api/config の中身が、どの編集の操作か（edit.layout / edit.cutinImage）。ふつうの設定の変更は null。
- * 決め手は変える項目の名前だけ。ほかの項目と一緒に送られた変更（新しく作るときの初期値など）は、ふつうの変更とみなす。
+ * 送信形式（merge・丸ごと置換・yaml文字列・delete）によらず、実際に配置・切り抜きへ触れる変更を判定する。
  */
-export function configPatchCapability(body) {
-  if (!body || body.delete) return null;
+export function configPatchCapability(body, currentConfig) {
+  if (!body) return null;
   let segments;
   try { segments = cfg.toPath(body.path ?? ''); } catch { return null; }
-  const last = String(segments.at(-1) ?? '');
-  const value = body.value;
-  const keys = body.merge && value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value) : [];
-  const touchesOnly = (names) => names.has(last) || (keys.length > 0 && keys.every((key) => names.has(key)));
-  if (touchesOnly(LAYOUT_KEYS)) return 'edit.layout';
-  if (touchesOnly(CUTIN_IMAGE_KEYS)) return 'edit.cutinImage';
-  return null;
+  for (const seg of segments) {
+    const name = String(seg);
+    if (LAYOUT_KEYS.has(name)) return 'edit.layout';
+    if (CUTIN_IMAGE_KEYS.has(name)) return 'edit.cutinImage';
+  }
+  if (body.delete) return null;
+  const existing = currentConfig !== undefined ? nestedAt(currentConfig, segments) : undefined;
+  return findTouchedCapability(body.value, existing, Boolean(body.merge));
 }
 
 import { createWidgetVersions } from './widget-versions.js';
@@ -434,8 +474,6 @@ export function bindRoutes(r, ctx) {
   r.patch('/api/config', (req, res) => {
     const { path: p, merge, delete: del, yaml } = req.body ?? {};
     if (p == null || p === '') return res.status(400).json({ error: 'path が必要です' });
-    const capability = configPatchCapability(req.body);
-    if (capability && editDenied(req, res, capability)) return;
     let value = req.body?.value;
     // 値を YAML の文字で受け取ることもできる（ダッシュボードの rules の欄など）
     if (typeof yaml === 'string') {
@@ -445,6 +483,8 @@ export function bindRoutes(r, ctx) {
         return res.status(422).json({ ok: false, errors: [`YAML の書き方: ${err.message}`], warnings: [], ...configPayload(req) });
       }
     }
+    const capability = configPatchCapability({ ...req.body, value }, hub.config);
+    if (capability && editDenied(req, res, capability)) return;
     const result = del ? store.deleteValue(p) : merge ? store.mergeValue(p, value) : store.setValue(p, value);
     applyConfigResult(result);
     res.status(result.ok ? 200 : 422).json({ ...result, ...configPayload(req) });
