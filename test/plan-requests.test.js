@@ -183,7 +183,7 @@ test('通知は TW_NOTIFY_WEBHOOK があるときだけ、1行を content で送
   const fakeFetch = async (url, init) => { sent.push({ url, body: JSON.parse(init.body) }); return { ok: true, status: 204 }; };
   assert.equal(await notifyOwner('1行', { env: {}, fetchImpl: fakeFetch }), 'off');
   assert.equal(await notifyOwner('1行', { env: { TW_NOTIFY_WEBHOOK: 'https://example.invalid/hook' }, fetchImpl: fakeFetch }), 'sent');
-  assert.deepEqual(sent, [{ url: 'https://example.invalid/hook', body: { content: '1行' } }]);
+  assert.deepEqual(sent, [{ url: 'https://example.invalid/hook', body: { content: '1行', allowed_mentions: { parse: [] } } }]);
   assert.equal(await notifyOwner('1行', { env: { TW_NOTIFY_WEBHOOK: 'ftp://example.invalid' }, fetchImpl: fakeFetch }), 'failed');
 });
 

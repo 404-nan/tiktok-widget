@@ -169,7 +169,7 @@ export async function notifyOwner(text, { env = process.env, fetchImpl = globalT
     const res = await fetchImpl(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ content: text }),
+      body: JSON.stringify({ content: text, allowed_mentions: { parse: [] } }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) throw new Error(`通知先が HTTP ${res.status} を返しました`);
