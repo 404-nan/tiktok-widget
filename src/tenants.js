@@ -63,6 +63,9 @@ export class Tenants {
     this.#load();
     this.#revocations = revocations;
     if (revocations?.changes.size) {
+      for (const [id, change] of revocations.changes) {
+        if (change.removed) this.billing.remove(id);
+      }
       this.data.tenants = this.data.tenants.filter((t) => !revocations.changes.get(t.id)?.removed);
       for (const t of this.data.tenants) Object.assign(t, revocations.changes.get(t.id));
       this.#save();

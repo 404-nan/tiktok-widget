@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "c732be07588a",
+      "summary": "src/tenants.js の失効再適用で配信者だけ削除し、古い同期データの紹介コードが残った。削除済み配信者の請求情報も取り除く。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/tenant-revocations.test.js", "name": "待機機への切替後も削除した配信者の紹介コードは使えない" }
+    },
+    {
       "fingerprint": "19ce278c94b7",
       "summary": "src/tenant-revocations.js の暗号化識別子が旧ローマ字名を使い、ブランドの検査に失敗した。内部の製品名を tiktok-widget に揃える。",
       "fixedIn": "PR #23",

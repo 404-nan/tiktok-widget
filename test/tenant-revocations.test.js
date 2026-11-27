@@ -92,3 +92,19 @@ test('失効台帳を確認できなければ、待機機は起動せず本番�
   rows[0].payload = Buffer.alloc(30).toString('base64url');
   await assert.rejects(openTenantRevocations(data, { env: required, request }), /復号できません/);
 });
+
+test('待機機への切替後も削除した配信者の紹介コードは使えない', async (t) => {
+  const { dir, env, request } = await fixture(t);
+  const primary = join(dir, 'primary');
+  const standby = join(dir, 'standby');
+  const live = new Tenants({ dir: primary, revocations: await openTenantRevocations(primary, { env, request }) });
+  const referrer = live.create({ name: 'deleted fixture' });
+  const referee = live.create({ name: 'remaining fixture' });
+  const code = live.issueReferralCode(referrer.id);
+  await cp(primary, standby, { recursive: true });
+  await live.remove(referrer.id);
+
+  const restored = new Tenants({ dir: standby, revocations: await openTenantRevocations(standby, { env, request }) });
+  assert.equal(restored.get(referrer.id), null);
+  assert.throws(() => restored.applyReferral(referee.id, code), /紹介コードは見つかりません/);
+});
