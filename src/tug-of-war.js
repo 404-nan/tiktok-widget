@@ -226,14 +226,8 @@ export class TugOfWarEngine {
     const side = this.#sideOf(event.user, this.config.autoJoin !== 'none', event.test === true);
     if (!side) return;
     if (event.test === true) this.battle.test = true;
-    // いいねは視聴者ごとに整数で端数を持ち越し、浮動小数の丸め誤差や他人のいいねによるMVP誤付与を防ぐ
-    const team = this.battle.teams[side];
-    if (!team.likeCarry) team.likeCarry = new Map();
-    const key = userKey(event.user) || '?';
-    const carry = (team.likeCarry.get(key) ?? 0) + count;
-    const gained = Math.floor(carry / per);
-    team.likeCarry.set(key, carry - gained * per);
-    if (gained > 0) this.#pull(side, event.user, gained, { kind: 'like', likes: count, test: event.test === true });
+    // いいねはチーム全体・個人とも整数で合算してから likesPerPower で割る（0.1×10の丸め誤差とMVP偏りを同時に防ぐ）
+    this.#pull(side, event.user, count / per, { kind: 'like', likes: count, per, test: event.test === true });
   }
 
   /** その人のチーム。まだ決まっていなければ、自動の振り分けが有効なとき人数の少ない方へ入れる */
@@ -269,7 +263,14 @@ export class TugOfWarEngine {
     const team = b.teams[side];
     const now = Date.now();
     if (detail.test) b.test = true;
-    team.power += power;
+    if (detail.kind === 'like') {
+      team.likes = (team.likes ?? 0) + detail.likes;
+      team.power = (team.giftPower ?? 0) + team.likes / detail.per;
+    } else {
+      team.giftPower = (team.giftPower ?? 0) + power;
+      const per = number(this.config.likesPerPower, 0);
+      team.power = team.giftPower + (per > 0 && team.likes ? team.likes / per : 0);
+    }
     // コンボ: 同じチームのギフトが続けて届いたら数を上げる。相手のギフトが来たら相手の数は切れる
     if (detail.kind === 'gift') {
       team.combo = now - team.lastHitAt <= COMBO_GAP_MS ? team.combo + 1 : 1;
@@ -277,10 +278,17 @@ export class TugOfWarEngine {
       b.teams[other(side)].combo = 0;
     }
     const key = userKey(user) || '?';
-    const row = team.contributors.get(key) ?? { user: slimUser(user), power: 0, gifts: 0 };
+    const row = team.contributors.get(key) ?? { user: slimUser(user), power: 0, giftPower: 0, likes: 0, gifts: 0 };
     row.user = slimUser(user);
-    row.power += power;
-    if (detail.kind === 'gift') row.gifts += 1;
+    if (detail.kind === 'like') {
+      row.likes = (row.likes ?? 0) + detail.likes;
+      row.power = (row.giftPower ?? 0) + row.likes / detail.per;
+    } else {
+      row.giftPower = (row.giftPower ?? 0) + power;
+      const per = number(this.config.likesPerPower, 0);
+      row.power = row.giftPower + (per > 0 && row.likes ? row.likes / per : 0);
+      row.gifts += 1;
+    }
     team.contributors.set(key, row);
     const before = b.leader;
     b.leader = this.#currentLeader();
