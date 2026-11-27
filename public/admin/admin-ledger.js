@@ -133,13 +133,14 @@ async function reverseLedgerEntry(root, entry) {
   }
 }
 
-async function renderDetailPanel(root, id) {
+async function renderDetailPanel(root, id, offset = 0) {
   const panel = root.querySelector('.ledger-detail-panel');
   panel.replaceChildren(el('p', { className: 'hint', textContent: '読み込んでいます…' }));
   try {
-    const detail = await api(`/ledger/streamers/${id}`);
+    const detail = await api(`/ledger/streamers/${id}?offset=${offset}`);
+    if (selectedStreamer !== id) return;
     const entries = detail.entries ?? [];
-    const reversedIds = new Set(entries.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
+    const page = detail.entryPage;
     panel.replaceChildren(
       el('div', { className: 'ledger-detail-head' },
         el('h3', { textContent: detail.streamer.name }),
@@ -151,8 +152,12 @@ async function renderDetailPanel(root, id) {
       el('h4', { textContent: '売上と配信の推移' }),
       salesTable(detail.sales ?? []),
       el('p', { className: 'hint', textContent: 'コインは円に換算していません。TikTok の確定額入力はまだなので、売上(円)は貸出の申告がある分だけです。' }),
-      el('h4', { textContent: '最近の台帳' }),
-      entries.length ? el('div', { className: 'table-wrap' }, el('table', { className: 'ledger-table' }, el('thead', {}, el('tr', {}, ...['日時', '種類', '金額', '理由・メモ', ''].map((h) => el('th', { textContent: h })))), el('tbody', {}, ...entries.map((entry) => entryRow(entry, entry.kind !== 'reversal' && !reversedIds.has(entry.id) ? button('取り消す', () => reverseLedgerEntry(root, entry)) : null))))) : el('p', { className: 'hint', textContent: 'まだ台帳の行はありません' }),
+      el('h4', { textContent: '台帳の履歴' }),
+      entries.length ? el('div', { className: 'table-wrap' }, el('table', { className: 'ledger-table' }, el('thead', {}, el('tr', {}, ...['日時', '種類', '金額', '理由・メモ', ''].map((h) => el('th', { textContent: h })))), el('tbody', {}, ...entries.map((entry) => entryRow(entry, entry.kind !== 'reversal' && !entry.reversed ? button('取り消す', () => reverseLedgerEntry(root, entry)) : null))))) : el('p', { className: 'hint', textContent: 'このページに台帳の行はありません' }),
+      page.total > page.limit || page.offset > 0 ? el('div', { className: 'btn-row loose' },
+        page.offset > 0 ? button('新しい行', () => renderDetailPanel(root, id, Math.max(0, page.offset - page.limit))) : null,
+        page.offset + page.limit < page.total ? button('古い行', () => renderDetailPanel(root, id, page.offset + page.limit)) : null,
+      ) : null,
     );
   } catch (err) {
     panel.replaceChildren(el('p', { className: 'form-message error', textContent: err.message }));

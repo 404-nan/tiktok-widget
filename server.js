@@ -164,7 +164,7 @@ const ledgerRoute = (fn) => async (req, res) => {
 };
 admin.post('/ledger/sync', ledgerRoute(async () => ledgerService.sync()));
 admin.get('/ledger/summary', ledgerRoute(async (req) => ledgerService.summary({ months: req.query.months })));
-admin.get('/ledger/streamers/:id', ledgerRoute(async (req) => ledgerService.detail(req.params.id)));
+admin.get('/ledger/streamers/:id', ledgerRoute(async (req) => ledgerService.detail(req.params.id, { offset: req.query.offset })));
 admin.get('/ledger/streamers/:id/sales', ledgerRoute(async (req) => ledgerService.sales(req.params.id, { months: req.query.months })));
 admin.get('/ledger/streamers/:id/entries', ledgerRoute(async (req) => ledgerService.entries(req.params.id, req.query)));
 admin.post('/ledger/collections', ledgerRoute(async (req) => {

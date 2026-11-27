@@ -385,9 +385,11 @@ export class Ledger {
 
   entriesPage(streamerId, { offset = 0, limit = 100 } = {}) {
     const all = this.entries().filter((entry) => entry.streamerId === streamerId).sort((a, b) => b.seq - a.seq);
+    const reversed = new Set(all.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
     const start = Math.max(0, Math.floor(Number(offset)) || 0);
     const size = Math.min(200, Math.max(1, Math.floor(Number(limit)) || 100));
-    return { total: all.length, offset: start, limit: size, items: all.slice(start, start + size) };
+    const items = all.slice(start, start + size).map((entry) => ({ ...entry, reversed: reversed.has(entry.id) }));
+    return { total: all.length, offset: start, limit: size, items };
   }
 
   readImportState() {

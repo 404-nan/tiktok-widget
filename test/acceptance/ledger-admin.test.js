@@ -107,3 +107,23 @@ test('管理 API だけで、同期→残高→集金 retry→訂正→取り消
   assert.equal(staticUi.status, 200);
   assert.match(await staticUi.text(), /集金/);
 });
+
+test('台帳の古いページから取り消せて、別ページの取り消しも判定する', async () => {
+  const { api } = await boot();
+  const payment = { streamerId: 's1', amountYen: 40, clientRequestId: 'old' };
+  const { json: { entry: old } } = await api('/ledger/collections', { method: 'POST', body: payment });
+  for (let i = 0; i < 20; i++) {
+    const response = await api('/ledger/collections', { method: 'POST', body: { ...payment, clientRequestId: `new-${i}` } });
+    assert.equal(response.status, 200);
+  }
+  const firstPage = (await api('/ledger/streamers/s1')).json;
+  assert.equal(firstPage.entryPage.total, 21);
+  assert.equal(firstPage.entries.some(({ id }) => id === old.id), false);
+  const secondPage = (await api('/ledger/streamers/s1?offset=20')).json;
+  assert.deepEqual(secondPage.entries.map(({ id, reversed }) => [id, reversed]), [[old.id, false]]);
+  const reversal = await api(`/ledger/entries/${old.id}/reversal`, { method: 'POST', body: { reason: '誤記' } });
+  assert.equal(reversal.status, 200);
+  const refreshed = (await api('/ledger/streamers/s1?offset=20')).json;
+  assert.equal(refreshed.entries.find(({ id }) => id === old.id).reversed, true);
+  assert.equal(refreshed.entries.some(({ kind }) => kind === 'reversal'), false);
+});
