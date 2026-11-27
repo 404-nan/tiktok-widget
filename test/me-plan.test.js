@@ -11,13 +11,15 @@ import { Tenants } from '../src/tenants.js';
 import { planSummary } from '../src/billing.js';
 import { validatePlans } from '../src/plans.js';
 import { setActiveErrorLog } from '../src/error-log.js';
+import { createExistingTenant } from './helpers/existing-tenant.js';
 
-const PLAN_KEYS = ['id', 'label', 'description', 'priceYen', 'draft', 'legacy', 'status', 'statusLabel', 'paidUntil', 'trialEndsAt', 'graceUntil', 'daysLeft', 'trialNotice', 'enforcementOn', 'contactUrl', 'contactNote'];
+const PLAN_KEYS = ['id', 'label', 'description', 'priceYen', 'draft', 'legacy', 'status', 'statusLabel', 'paidUntil', 'trialEndsAt', 'graceUntil', 'daysLeft', 'trialNotice', 'trialMessage', 'enforcementOn', 'contactUrl', 'contactNote'];
 
-async function meOf({ billing, account = null, access = null }) {
+// trial: true なら新しく作った配信者（お試しつき）、偽なら前からいる配信者（支払いの記録なし）
+async function meOf({ billing, account = null, access = null, trial = false }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-me-plan-'));
   const tenants = new Tenants({ dir, env: { TW_BILLING: billing } });
-  const tenant = tenants.create({ name: 'ためし' });
+  const tenant = trial ? tenants.create({ name: 'ためし' }) : createExistingTenant(tenants, { name: 'ためし' });
   if (account) tenants.updateBilling(tenant.id, account);
   if (access) tenants.setAccess(tenant.id, access.feature, access.on);
   const app = express();
@@ -105,9 +107,14 @@ test('planSummary はお試し・支払い待ちの残り日数を数え、記�
   const now = Date.parse('2026-11-27T12:00:00+09:00');
   const trial = planSummary({ status: 'trial', trialEndsAt: '2026-12-01' }, { now, enforcement: true });
   assert.equal(trial.daysLeft, 4);
-  assert.equal(trial.id, 'free');
+  assert.equal(trial.id, 'pro', 'お試しのあいだは Pro として見せる');
+  assert.equal(trial.trialMessage, '', 'お知らせの前は案内を出さない');
   assert.equal(planSummary({ status: 'trial', trialEndsAt: '2026-11-27' }, { now }).daysLeft, 0, '今日が期限なら 0');
-  assert.equal(planSummary({ status: 'trial', trialEndsAt: '2026-11-20' }, { now }).daysLeft, null, '過ぎた期限は数えない');
+  const ended = planSummary({ status: 'trial', trialEndsAt: '2026-11-20', plan: 'flat5000' }, { now });
+  assert.deepEqual([ended.status, ended.id, ended.daysLeft, ended.legacy], ['free', 'free', null, null], '過ぎた期限は数えず、無料として見せる');
+  assert.match(ended.trialMessage, /基本機能はそのまま無料で使えます/);
+  const legacyTrial = planSummary({ status: 'trial', plan: 'flat2000' }, { now });
+  assert.deepEqual([legacyTrial.id, legacyTrial.legacy?.label], ['plus', '2000円プラン'], '期限の無いお試し（今いる配信者）は記録のプランのまま');
   const late = planSummary({ plan: 'pro', status: 'active', paidUntil: '2026-11-25' }, { now });
   assert.equal(late.status, 'past_due');
   assert.equal(late.daysLeft, 5, '猶予7日の終わりまで');
@@ -129,4 +136,16 @@ test('案内のリンクは http(s) だけ。環境変数で差し替えられ�
   assert.equal(validatePlans(data, { env: { TW_PLAN_CONTACT_URL: 'https://example.com/plan' } }).contactUrl, 'https://example.com/plan');
   assert.equal(validatePlans(data, { env: { TW_PLAN_CONTACT_URL: 'javascript:alert(1)' } }).contactUrl, '');
   assert.throws(() => validatePlans({ ...data, contactUrl: 'javascript:alert(1)' }, { env: {} }), /contactUrl/);
+});
+
+test('/api/me: 新しく作った配信者はお試し（Pro）で始まり、スイッチがオフでも豪華演出と編集が全部使える', async () => {
+  const me = await meOf({ billing: 'off', trial: true });
+  assert.deepEqual([me.plan.id, me.plan.status, me.plan.statusLabel], ['pro', 'trial', 'お試し']);
+  assert.equal(me.plan.daysLeft, 14);
+  assert.match(me.plan.trialEndsAt, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(me.plan.trialNotice, false);
+  assert.ok(me.features.cutins, 'お試しのあいだはカットインが最初から使える');
+  assert.ok(me.features.rush);
+  assert.deepEqual(me.locked, []);
+  assert.ok(Object.values(me.capabilities).every(Boolean));
 });

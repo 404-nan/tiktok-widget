@@ -10,6 +10,7 @@ import { ControlEvent, WebcastEvent } from 'tiktok-live-connector';
 import { Hub } from '../src/hub.js';
 import { makeEvent } from '../src/demo.js';
 import { Tenants } from '../src/tenants.js';
+import { createExistingTenant } from './helpers/existing-tenant.js';
 import {
   BillingStore,
   GRACE_MS,
@@ -19,6 +20,7 @@ import {
   allowsNewConnection,
   blocksOverlay,
   computeStatus,
+  effectivePlanId,
   enforcementOn,
   monthDiscount,
   monthlyPriceYen,
@@ -27,6 +29,8 @@ import {
   paidUntilEnd,
   planFeatureDefault,
   referralCreditYen,
+  trialEndDay,
+  trialMessage,
   trialNotice,
   widgetPageBlocked,
 } from '../src/billing.js';
@@ -57,7 +61,8 @@ test('支払った日の終わり（日本時間）までが支払い済み。�
   assert.equal(computeStatus({ status: 'active', paidUntil: '2026-10-14' }, end + 1), 'past_due');
   assert.equal(computeStatus({ status: 'active', paidUntil: '2026-10-14' }, end + GRACE_MS), 'suspended');
   assert.equal(computeStatus({ status: 'suspended', paidUntil: future }), 'suspended');
-  assert.equal(computeStatus({ status: 'trial', trialEndsAt: past, paidUntil: past }), 'trial');
+  assert.equal(computeStatus({ status: 'trial', trialEndsAt: past, paidUntil: past }), 'free');
+  assert.equal(computeStatus({ status: 'trial', paidUntil: past }), 'trial');
   assert.equal(computeStatus({ free: true, plan: 'yen2000', paidUntil: past }), 'trial');
   assert.equal(computeStatus({ free: true, status: 'suspended', paidUntil: future }), 'suspended');
   assert.equal(computeStatus(null), 'trial');
@@ -289,7 +294,7 @@ test('未払いの配信画面には集計もイベントも流さず、読み�
 test('配信者の設定ファイルは支払いを保存してもそのまま。未払いでもウィジェット設定は消さない', () => {
   const dir = tmp();
   const tenants = new Tenants({ dir, env: {} });
-  const a = tenants.create({ name: 'りん' });
+  const a = createExistingTenant(tenants, { name: 'りん' });
   const yamlPath = path.join(tenants.dataDir(a.id), 'config.yaml');
   fs.mkdirSync(path.dirname(yamlPath), { recursive: true });
   const yaml = 'alerts:\n  default:\n    duration: 4\n';
@@ -419,13 +424,18 @@ test('画面の文言は、停止でも配信にエラーを出さない', () =>
   assert.match(server, /判定に失敗したので通します/);
 });
 
-test('お試し終了の30日前から、お試しのあいだだけ有料化のお知らせを出す', () => {
+test('お試し終了の trialNoticeDays（3日）前から、お試しのあいだだけ有料化のお知らせを出す', () => {
   const end = paidUntilEnd('2026-11-30');
   const entry = { status: 'trial', trialEndsAt: '2026-11-30' };
-  assert.equal(trialNotice(entry, end - TRIAL_NOTICE_MS - 1), false);
-  assert.equal(trialNotice(entry, end - TRIAL_NOTICE_MS), true);
-  assert.equal(trialNotice(entry, end + 1), true);
-  assert.equal(computeStatus(entry, end + 1), 'trial');
+  assert.equal(TRIAL_NOTICE_MS, 3 * 24 * 60 * 60 * 1000, 'plans.json の trialNoticeDays から決める');
+  // 境目は日本時間の日付。11/30 終わりなら 11/27 0:00（日本時間）から。UTC ではまだ 11/26 でも出す
+  assert.equal(trialNotice(entry, Date.parse('2026-11-26T23:59:59.999+09:00')), false);
+  assert.equal(trialNotice(entry, Date.parse('2026-11-27T00:00:00+09:00')), true);
+  assert.equal(trialNotice(entry, Date.parse('2026-11-26T15:00:00Z')), true);
+  assert.equal(trialNotice(entry, Date.parse('2026-11-26T14:59:59Z')), false);
+  assert.equal(trialNotice(entry, end), true);
+  assert.equal(trialNotice(entry, end + 1), false, 'お試しが終わったらお知らせではなく、無料に落ちた案内にする');
+  assert.equal(computeStatus(entry, end + 1), 'free');
   assert.equal(trialNotice({ status: 'active', paidUntil: future, trialEndsAt: '2026-11-30' }, end - 1), false);
   assert.equal(trialNotice({ status: 'trial' }, end), false);
   assert.equal(trialNotice(null), false);
@@ -557,14 +567,14 @@ test('確認スイッチがオフなら期限切れも停止も止めない。�
     assert.equal(allowsFeature(entry, 'alerts', { now, enforcement: true, premiumFeatures: premium }), false);
     assert.equal(widgetPageBlocked({ entry, feature: null, now, enforcement: true, premiumFeatures: premium }), true);
   }
-  assert.equal(trialNotice({ status: 'trial', trialEndsAt: '2026-11-01' }, now), true);
+  assert.equal(trialNotice({ status: 'trial', trialEndsAt: '2026-10-16' }, now), true);
 
   const dir = tmp();
   const store = new BillingStore({ dir, env: { TW_BILLING: 'on', TW_ENV: 'dev' } });
   store.setGlobal({ enforcement: false, premiumFeatures: premium });
   store.setAccount('old', expired);
   store.setAccount('stop', suspended);
-  store.setAccount('soon', { status: 'trial', trialEndsAt: '2026-11-01', plan: 'flat2000' });
+  store.setAccount('soon', { status: 'trial', trialEndsAt: '2026-10-16', plan: 'flat2000' });
   store.setAccount('due', { status: 'active', plan: 'flat2000', paidUntil: '2026-10-10' });
   for (const id of ['old', 'stop']) {
     const view = store.clientView(id, now);
@@ -717,4 +727,66 @@ test('新しいプラン名で保存でき、知らない名前の文言は plan
   assert.equal(store.clientView('a').catalogPlan, 'pro');
   assert.throws(() => store.setAccount('a', { plan: 'gold' }), /無料、Plus、Pro、5%プラン、2000円プラン、5000円プラン/);
   assert.deepEqual(store.globalView().plans.slice(0, 3).map((p) => p.id), ['free', 'plus', 'pro']);
+});
+
+test('お試し中は Pro。期限を過ぎて払っていなければ停止にせず無料に落とし、配信中の接続は切らない', () => {
+  const entry = { status: 'trial', trialEndsAt: '2026-12-11' };
+  const during = Date.parse('2026-12-11T23:59:59+09:00');
+  const after = Date.parse('2026-12-12T00:00:00+09:00');
+  assert.equal(computeStatus(entry, during), 'trial');
+  assert.equal(effectivePlanId(entry, during), 'pro');
+  assert.equal(computeStatus(entry, after), 'free');
+  assert.notEqual(computeStatus(entry, after), 'suspended');
+  assert.equal(effectivePlanId(entry, after), 'free');
+  // 記録の状態が空でも、期限だけで同じように落ちる。払った人（active）は落とさない
+  assert.equal(computeStatus({ trialEndsAt: '2026-12-11' }, after), 'free');
+  assert.equal(computeStatus({ status: 'active', trialEndsAt: '2026-12-11', paidUntil: '2027-01-11' }, after), 'active');
+  // 期限の無いお試し（今いる配信者）と無料提供は、期限で落とさない
+  assert.equal(computeStatus({ status: 'trial' }, after), 'trial');
+  assert.equal(effectivePlanId({ status: 'trial' }, after), null);
+  assert.equal(computeStatus({ free: true, trialEndsAt: '2026-12-11' }, after), 'trial');
+
+  for (const enforcement of [false, true]) {
+    // お試し中: 豪華演出も編集の操作も Pro として開く
+    assert.equal(planFeatureDefault(entry, 'cutins', { now: during, enforcement }), true);
+    assert.equal(planFeatureDefault(entry, 'ai', { now: during, enforcement }), true);
+    assert.equal(allowsCapability(entry, 'edit.media', { now: during, enforcement }), true);
+    // 期限後: 止めない（配信画面も接続も、配信中も配信前も）。基本機能はそのまま、有料機能だけ閉じる
+    assert.equal(blocksOverlay(entry, { now: after, enforcement }), false);
+    assert.equal(allowsNewConnection(entry, { live: true, now: after, enforcement }), true);
+    assert.equal(allowsNewConnection(entry, { live: false, now: after, enforcement }), true);
+    assert.equal(allowsFeature(entry, 'alerts', { now: after, enforcement, premiumFeatures: ['cutins'] }), true);
+    assert.equal(widgetPageBlocked({ entry, feature: 'alerts', now: after, enforcement }), false);
+  }
+  assert.equal(planFeatureDefault(entry, 'cutins', { now: after, enforcement: true }), false);
+  assert.equal(planFeatureDefault(entry, 'cutins', { now: after, enforcement: false }), null, 'スイッチがオフなら初めの状態（豪華演出は閉じている）に戻す');
+  assert.equal(allowsFeature(entry, 'cutins', { now: after, enforcement: true, premiumFeatures: ['cutins'] }), false);
+  assert.equal(allowsCapability(entry, 'edit.media', { now: after, enforcement: true }), false);
+
+  // BillingStore でも、スイッチがオンのまま期限後に配信中の接続を切らない
+  const store = new BillingStore({ dir: tmp(), env: { TW_BILLING: 'on' } });
+  store.setAccount('a', entry);
+  assert.equal(store.allowsConnection('a', { live: true, now: after }), true);
+  assert.equal(store.allowsConnection('a', { live: false, now: after }), true);
+  assert.equal(store.isOverlayBlocked('a', after), false);
+  assert.equal(store.clientView('a', after).suspended, false);
+  assert.equal(store.adminView('a', after).statusLabel, '無料（お試し終了）');
+});
+
+test('お試しの終わりの案内は、失うものの名前と、基本機能が無料で続くことを書く', () => {
+  const entry = { status: 'trial', trialEndsAt: '2026-11-30' };
+  assert.equal(trialMessage(entry, Date.parse('2026-11-26T12:00:00+09:00')), '');
+  assert.equal(trialMessage(entry, Date.parse('2026-11-27T12:00:00+09:00')),
+    'あと3日でカットイン・RUSHなどの有料機能が使えなくなります（基本機能はそのまま無料で続けられます）');
+  assert.match(trialMessage(entry, Date.parse('2026-11-30T12:00:00+09:00')), /^お試しは今日までです。明日からカットイン・RUSHなどの有料機能が使えなくなります（基本機能はそのまま無料で続けられます）$/);
+  assert.match(trialMessage(entry, Date.parse('2026-12-01T00:00:00+09:00')), /^お試しが終わりました。カットイン・RUSHなどの有料機能はお休みしています（基本機能はそのまま無料で使えます）$/);
+  assert.equal(trialMessage({ status: 'active', paidUntil: future, trialEndsAt: '2026-11-30' }, Date.parse('2026-11-29T12:00:00+09:00')), '');
+  assert.equal(trialMessage(null), '');
+});
+
+test('お試しの終わりは日本時間の今日 + trialDays（14日）の日付', () => {
+  assert.equal(trialEndDay(Date.parse('2026-11-27T12:00:00+09:00')), '2026-12-11');
+  // UTC ではまだ前の日でも、日本時間の日付で数える
+  assert.equal(trialEndDay(Date.parse('2026-11-27T15:30:00Z')), '2026-12-12');
+  assert.equal(trialEndDay(Date.parse('2026-11-27T12:00:00+09:00'), 3), '2026-11-30');
 });

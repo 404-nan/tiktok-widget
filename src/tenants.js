@@ -13,7 +13,7 @@ import { SECTIONS } from './schema.js';
 import { createRuntime, FEATURES } from './runtime.js';
 import { EDIT_CAPABILITIES } from './runtime-features.js';
 import { RentalState, rentalForHandle } from './rental.js';
-import { BillingStore } from './billing.js';
+import { BillingStore, trialEndDay } from './billing.js';
 import { IngestKeyStore } from './ingest-keys.js';
 import { recordError } from './error-log.js';
 
@@ -362,6 +362,8 @@ export class Tenants {
     };
     this.data.tenants.push(t);
     this.#save();
+    // 新しく作る配信者だけ、お試し（trialDays 日、そのあいだは Pro）を自動で始める。今いる配信者の記録には触らない
+    this.billing.setAccount(t.id, { status: 'trial', trialEndsAt: trialEndDay(t.createdAt) });
     if (code) this.billing.applyCode(t.id, code);
     return t;
   }

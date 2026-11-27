@@ -152,6 +152,7 @@ function planPriceText(plan) {
 function planPeriodText(plan) {
   const left = plan.daysLeft == null ? '' : plan.daysLeft === 0 ? '（今日まで）' : `（あと${plan.daysLeft}日）`;
   if (plan.status === 'trial' && plan.trialEndsAt) return `お試しは ${plan.trialEndsAt} まで${left}`;
+  if (plan.status === 'free' && plan.trialEndsAt) return `お試しは ${plan.trialEndsAt} で終わりました。無料のまま続けて使えます`;
   if (plan.status === 'active' && plan.paidUntil) return `${plan.paidUntil} まで${left}`;
   if (plan.status === 'past_due' && plan.graceUntil) return `${plan.graceUntil} まで待ちます${left}`;
   return '';
@@ -163,6 +164,7 @@ function planMessage(plan, billing) {
       ? 'お支払いの確認が取れていません。LuLにご連絡ください。いまは配信画面を止めています'
       : 'お支払いの確認が取れていません。LuLにご連絡ください。いまは配信を止めていません';
   }
+  if (plan.trialMessage) return plan.trialMessage;
   if (plan.trialNotice) return '有料化のお知らせ: お試しの期間がもうすぐ終わります。続けて使うプランは下の案内から相談できます';
   if (plan.status === 'past_due') return '支払いの確認を待っています。いまは配信を止めていません';
   if (plan.status === 'active') return '支払い済みの期間は、配信画面が出ます';

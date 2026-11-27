@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Tenants } from '../src/tenants.js';
+import { trialEndDay } from '../src/billing.js';
 import { featureOfPage } from '../src/runtime.js';
+import { createExistingTenant } from './helpers/existing-tenant.js';
 
 const setup = () => new Tenants({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-')) });
 
@@ -60,7 +62,7 @@ test('今まで設定を使っている配信者は custom とみなし、管理
 
 test('豪華な演出は最初は使えず、ほかのウィジェットは最初から使える', () => {
   const t = setup();
-  const a = t.create({ name: 'A' });
+  const a = createExistingTenant(t, { name: 'A' });
   assert.equal(t.entitled(a.id, 'cutins'), false);
   assert.equal(t.entitled(a.id, 'winsFx'), false);
   assert.equal(t.entitled(a.id, 'wins'), true);
@@ -72,7 +74,7 @@ test('豪華な演出は最初は使えず、ほかのウィジェットは最�
 
 test('どのウィジェットも ON / OFF でき、時間つきなら期限が過ぎると初めの状態に戻る', () => {
   const t = setup();
-  const a = t.create({ name: 'A' });
+  const a = createExistingTenant(t, { name: 'A' });
   t.setAccess(a.id, 'cutins', true, 3);
   assert.equal(t.entitled(a.id, 'cutins'), true);
   assert.equal(t.access(a.id, 'cutins').source, 'own');
@@ -92,8 +94,8 @@ test('どのウィジェットも ON / OFF でき、時間つきなら期限が�
 
 test('配信者ごとの設定 → 全員の設定 → 初めの状態 の順に見る', () => {
   const t = setup();
-  const a = t.create({ name: 'A' });
-  const b = t.create({ name: 'B' });
+  const a = createExistingTenant(t, { name: 'A' });
+  const b = createExistingTenant(t, { name: 'B' });
   t.setAccess('global', 'premium', true);
   assert.equal(t.entitled(a.id, 'rush'), true);
   assert.equal(t.access(b.id, 'rush').source, 'everyone');
@@ -176,11 +178,11 @@ test('昔の5000円プラン（flat5000 / yen5000）も Pro として、手動�
 
 test('確認スイッチがオフなら、Pro 以外の人の見え方は今までと同じ（移行の安全）', () => {
   const t = setupWith({ TW_BILLING: 'off' });
-  const none = t.create({ name: 'プランなし' });
-  const old2000 = t.create({ name: '2000円' });
-  const old5 = t.create({ name: '5%' });
-  const plus = t.create({ name: 'Plus' });
-  const free = t.create({ name: '無料' });
+  const none = createExistingTenant(t, { name: 'プランなし' });
+  const old2000 = createExistingTenant(t, { name: '2000円' });
+  const old5 = createExistingTenant(t, { name: '5%' });
+  const plus = createExistingTenant(t, { name: 'Plus' });
+  const free = createExistingTenant(t, { name: '無料' });
   t.updateBilling(old2000.id, { plan: 'flat2000' });
   t.updateBilling(old5.id, { plan: 'pct5' });
   t.updateBilling(plus.id, { plan: 'plus' });
@@ -198,10 +200,10 @@ test('確認スイッチがオフなら、Pro 以外の人の見え方は今ま�
 
 test('確認スイッチがオンなら、プランごとに豪華演出と編集の操作が分かれる', () => {
   const t = setupWith({ TW_BILLING: 'on' });
-  const free = t.create({ name: '無料' });
-  const plus = t.create({ name: 'Plus' });
-  const pro = t.create({ name: 'Pro' });
-  const none = t.create({ name: 'プランなし' });
+  const free = createExistingTenant(t, { name: '無料' });
+  const plus = createExistingTenant(t, { name: 'Plus' });
+  const pro = createExistingTenant(t, { name: 'Pro' });
+  const none = createExistingTenant(t, { name: 'プランなし' });
   t.updateBilling(free.id, { plan: 'free', status: 'active', paidUntil: '2099-01-01' });
   t.updateBilling(plus.id, { plan: 'plus', status: 'active', paidUntil: '2099-01-01' });
   t.updateBilling(pro.id, { plan: 'pro', status: 'active', paidUntil: '2099-01-01' });
@@ -232,4 +234,33 @@ test('確認スイッチがオンなら、プランごとに豪華演出と編�
   assert.equal(t.billing.isFeatureAllowed(plus.id, 'cutins'), false);
   assert.equal(t.entitled(plus.id, 'cutins'), false);
   assert.equal(t.entitled(pro.id, 'cutins'), true);
+});
+
+test('新しく作った配信者だけお試しの期限（trialEndsAt）が入り、今いる配信者の記録は変わらない', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-tenants-'));
+  // お試しを自動で始める前からいる2人（記録なし・手で入れた記録あり）
+  fs.writeFileSync(path.join(dir, 'tenants.json'), JSON.stringify({ tenants: [
+    { id: 'old', name: '前から', key: 'k'.repeat(24), obsKey: 'o'.repeat(24), enabled: true, widgets: [] },
+    { id: 'paid', name: '払った', key: 'p'.repeat(24), obsKey: 'q'.repeat(24), enabled: true, widgets: [] },
+  ], global: {} }));
+  const billingFile = path.join(dir, 'billing.json');
+  fs.writeFileSync(billingFile, `${JSON.stringify({ enforcement: null, multiplier: 1.5, premiumFeatures: [], accounts: { paid: { plan: 'plus', status: 'active', paidUntil: '2099-01-01' } } }, null, 2)}\n`);
+  const t = new Tenants({ dir });
+  const before = JSON.parse(fs.readFileSync(billingFile, 'utf8')).accounts;
+
+  const fresh = t.create({ name: '新しい人' });
+  const account = t.billing.account(fresh.id);
+  assert.equal(account.status, 'trial');
+  assert.equal(account.trialEndsAt, trialEndDay(fresh.createdAt));
+  assert.equal(t.info(fresh.id).plan.id, 'pro');
+  assert.equal(t.entitled(fresh.id, 'cutins'), true, 'お試しのあいだは豪華演出が最初から使える');
+  assert.equal(t.access(fresh.id, 'cutins').source, 'plan');
+
+  const after = JSON.parse(fs.readFileSync(billingFile, 'utf8')).accounts;
+  assert.equal(after.old, undefined, '記録の無かった人に、お試しを勝手に付けない');
+  assert.deepEqual(after.paid, before.paid);
+  assert.equal(t.billing.account('old'), null);
+  assert.equal(t.entitled('old', 'cutins'), false, '今いる配信者の見え方は今までと同じ');
+  assert.equal(t.info('old').plan.status, 'trial');
+  assert.equal(t.info('old').plan.trialEndsAt, '');
 });
