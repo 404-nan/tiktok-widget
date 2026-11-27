@@ -55,6 +55,16 @@ test('前回集金からの累計は、集金より後の発生・調整・取�
   assert.equal(ledger.balance('s1').balanceYen, 300);
 });
 
+test('さかのぼって集金を記録しても実際の前回集金とその後の増分を保つ', () => {
+  const ledger = new Ledger({ dir: tmp() });
+  charge(ledger, 1000);
+  const latest = ledger.recordCollection({ streamerId: 's1', amountYen: 200, collectedAt: '2026-11-12T00:00:00Z', clientRequestId: 'latest' });
+  ledger.recordAdjustment({ streamerId: 's1', signedAmountYen: 300, reason: '追加', at: '2026-11-13T00:00:00Z' });
+  ledger.recordCollection({ streamerId: 's1', amountYen: 100, collectedAt: '2026-11-11T00:00:00Z', clientRequestId: 'older' });
+  assert.equal(ledger.balance('s1').lastCollection.id, latest.id);
+  assert.equal(ledger.balance('s1').sinceLastCollectionYen, 300);
+});
+
 test('取り消しは元行を消さず逆符号を足し、残高だけ元に戻る', () => {
   const ledger = new Ledger({ dir: tmp() });
   const original = ledger.recordAdjustment({ streamerId: 's1', signedAmountYen: 500, reason: '追加請求', at, clientRequestId: 'adj-rev' });

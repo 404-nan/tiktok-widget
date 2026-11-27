@@ -330,15 +330,17 @@ export class Ledger {
     assertStreamerId(streamerId);
     const entries = this.entries().filter((entry) => entry.streamerId === streamerId);
     const reversed = new Set(entries.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
+    const after = (a, b) => a.at > b.at || (a.at === b.at && a.seq > b.seq);
+    let latest = null;
+    for (const entry of entries) {
+      if (entry.kind === 'collection' && !reversed.has(entry.id) && (!latest || after(entry, latest))) latest = entry;
+    }
+    const lastCollection = latest && { at: latest.at, amountYen: -latest.signedAmountYen, method: latest.method ?? 'other', id: latest.id, seq: latest.seq };
     let balanceYen = 0;
-    let lastCollection = null;
     let sinceLastCollectionYen = 0;
     for (const entry of entries) {
       balanceYen += entry.signedAmountYen;
-      if (entry.kind === 'collection' && !reversed.has(entry.id)) {
-        lastCollection = { at: entry.at, amountYen: -entry.signedAmountYen, method: entry.method ?? 'other', id: entry.id, seq: entry.seq };
-        sinceLastCollectionYen = 0;
-      } else if (entry.kind !== 'collection') {
+      if (entry.kind !== 'collection' && (!latest || after(entry, latest))) {
         sinceLastCollectionYen += entry.signedAmountYen;
       }
     }
