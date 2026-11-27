@@ -276,6 +276,8 @@ TikTok につなぐための API キー（署名サーバー Euler Stream）は�
 
 ### 障害時の一時起動（Manus など）
 
+継続運用には、別の Linux 機がデータを定期同期し、旧本番を止めた時だけ同じ URL で昇格する [待機機の手順](deploy/standby/README.md#公開-url-を維持する待機機) を使います。公開側とデータの鮮度は待機機から監視できます。
+
 本番機が停止したときは、別の Linux 機で [一時起動の手順](deploy/standby/README.md) の1行を実行します。
 通常は `trycloudflare.com` の別の URL になるため、配信者への案内と OBS の URL の差し替えが必要です。
 バックアップなしでは既存の配信者・設定・履歴は戻りません。
@@ -557,6 +559,7 @@ test/                  node --test のテスト（[README](test/README.md)）
 cloudflare/            Cloudflare（有料）に置くための入り口（worker.js）と設定（wrangler.jsonc）
 Dockerfile             コンテナのイメージ
 deploy/pc/start.*       自分の PC で動かして Cloudflare Tunnel で公開する
+deploy/standby/         障害時の待機機の準備・差分同期・外部監視・昇格
 deploy/oracle/setup.sh Oracle の無料サーバーに入れるスクリプト
 deploy/server/          lulserver の本番反映に関わる部品（自動反映のタイマーは停止中。今は scripts/deploy-release.sh を手で回す）
 ```

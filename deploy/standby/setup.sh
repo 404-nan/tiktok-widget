@@ -228,7 +228,7 @@ wait_health() {
 }
 
 main() {
-  local action=${1:-start} node_arch deb_arch tmp commit mode tunnel_id url i token=${TUNNEL_TOKEN:-}
+  local action=${1:-start} node_arch deb_arch tmp commit token=${TUNNEL_TOKEN:-}
   local data_url=${DATA_URL:-}
   unset TUNNEL_TOKEN DATA_URL
   mkdir -p -- "$base"
@@ -238,9 +238,30 @@ main() {
     stop_standby
     return
   fi
-  [[ $action == start ]] || fail '使い方: setup.sh [start|stop]'
+  [[ $action == start || $action == prepare || $action == activate ]] ||
+    fail '使い方: setup.sh [start|stop|prepare|activate]'
   [[ $PORT =~ ^[1-9][0-9]{0,4}$ ]] && ((PORT <= 65535)) || fail 'PORT は 1〜65535 で指定してください。'
   [[ -z ${DATA_TARBALL:-} || -z $data_url ]] || fail 'DATA_TARBALL と DATA_URL はどちらか一方だけ指定してください。'
+  if [[ -x $HOME/.local/node22/bin/node ]]; then export PATH="$HOME/.local/node22/bin:$PATH"; fi
+  if [[ $action == activate ]]; then
+    [[ -n $token && -d $base/data && -s $base/deps.commit && -f $base/run.sh ]] ||
+      fail '待機機を昇格できません。準備済みの版・復元データ・専用トンネルが必要です。'
+    [[ $(< "$base/deps.commit") == "$(git -C "$base/app" rev-parse --verify HEAD)" && -d $base/app/node_modules ]] ||
+      fail '待機機を昇格できません。準備済みの版と依存ライブラリが一致しません。'
+    [[ -n ${STANDBY_EXPECT_COMMIT:-} && $(< "$base/deps.commit") == "$STANDBY_EXPECT_COMMIT" ]] ||
+      fail '待機機を昇格できません。準備済みの版と復元データの版が一致しません。'
+    use_node && command -v cloudflared >/dev/null ||
+      fail '待機機を昇格できません。Node.js または cloudflared がありません。'
+    start_services "$token"
+    return
+  fi
+  if [[ $action == prepare ]]; then
+    [[ ! -e $base/data && -z ${DATA_TARBALL:-}$data_url ]] ||
+      fail '待機機を準備できません。稼働データのない専用ディレクトリを使ってください。'
+    if runner_pid server >/dev/null || runner_pid tunnel >/dev/null; then
+      fail '待機機を準備できません。既にプロセスが起動しています。'
+    fi
+  fi
   case $(uname -m) in
     x86_64) node_arch=x64; deb_arch=amd64 ;;
     aarch64) node_arch=arm64; deb_arch=arm64 ;;
@@ -249,7 +270,6 @@ main() {
   tmp=$(mktemp -d "$base/setup.XXXXXXXX")
   trap "rm -rf -- $(printf '%q' "$tmp")" EXIT
   say 'ライコネに必要なものを確認しています。'
-  if [[ -x $HOME/.local/node22/bin/node ]]; then export PATH="$HOME/.local/node22/bin:$PATH"; fi
   install_node
   install_cloudflared
   restore_data "$data_url"
@@ -268,7 +288,15 @@ main() {
     (cd "$base/app" && npm ci --omit=dev --no-audit --no-fund)
     printf '%s\n' "$commit" > "$base/deps.commit"
   fi
+  if [[ $action == prepare ]]; then
+    say "ライコネの待機版を準備しました（$commit）。公開・起動はしていません。"
+    return
+  fi
+  start_services "$token"
+}
 
+start_services() {
+  local token=$1 mode tunnel_id url i
   if runner_pid server >/dev/null && [[ $(cat "$base/server.port" 2>/dev/null) != "$PORT" ]]; then
     stop_runners
   fi

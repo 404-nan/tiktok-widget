@@ -1,6 +1,20 @@
 {
   "fixes": [
     {
+      "fingerprint": "019b44e2a5db",
+      "summary": "deploy/standby/setup.sh は初回にしか復元せず、待機機が古い配信者データで起動し得た。待機側で定期同期し、期限切れ・破損時は昇格しない。",
+      "fixedIn": "standby failover",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "初回以降も同期し、壊れた同期と古いデータで待機機を昇格させない" }
+    },
+    {
+      "fingerprint": "21838e952ca8",
+      "summary": "同じ Cloudflare Tunnel を2台で起動すると通信が両方に送られる。deploy/standby の昇格では専用トンネルと旧本番の公開停止を確認してから DNS を更新する。",
+      "fixedIn": "standby failover",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "旧本番が稼働中・別のトンネル・待機機が未確認なら公開先を変更しない" }
+    },
+    {
       "fingerprint": "31c6efe50543",
       "summary": "一時起動のバックアップ URL をプロセスの引数に出さない",
       "fixedIn": "PR #22",

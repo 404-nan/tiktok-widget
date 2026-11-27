@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const setup = path.resolve(import.meta.dirname, '../deploy/standby/setup.sh');
+const manage = path.join(path.dirname(setup), 'standby.sh');
 
 test('一時起動は初回だけ復元し、再実行・再起動・停止でデータを失わない', async (t) => {
   const root = fs.mkdtempSync(path.join(tmpdir(), 'tw-standby-'));
@@ -30,6 +31,10 @@ test('一時起動は初回だけ復元し、再実行・再起動・停止で�
 
   fs.writeFileSync(path.join(bin, 'npm'), '#!/bin/bash\nmkdir -p node_modules\n', { mode: 0o700 });
   fs.writeFileSync(path.join(bin, 'cloudflared'), `#!/bin/bash
+if [[ "$*" == 'tunnel --grace-period 5s run' ]]; then
+  [[ -n $TUNNEL_TOKEN && -z $CF_API_TOKEN ]] || exit 98
+  exec sleep 120
+fi
 [[ "$*" == "tunnel --grace-period 5s --url http://127.0.0.1:$PORT" ]] || exit 69
 if [[ \${FIXTURE_STUBBORN:-} == 1 ]]; then
   trap '' TERM
@@ -57,15 +62,21 @@ if [[ " $* " == *" -K - "* ]]; then
 fi
 exec "${realCurl}" "\${args[@]}"
 `, { mode: 0o700 });
+  fs.mkdirSync(path.join(app, 'public/help'), { recursive: true });
+  fs.writeFileSync(path.join(app, 'public/help/index.html'), 'fixture');
   fs.writeFileSync(path.join(app, 'server.js'), `
-const { writeFileSync } = require('node:fs');
+const { writeFileSync, readFileSync } = require('node:fs');
 const { createServer } = require('node:http');
 if (process.env.TW_HOSTED !== '1' || process.env.HOST !== '127.0.0.1') process.exit(1);
 writeFileSync(process.env.TW_DATA + '/child.pid', String(process.pid));
-createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.HOST);
+createServer((req, res) => {
+  if (req.url === '/fixture-data') return res.end(readFileSync(process.env.TW_DATA + '/admin-token.txt'));
+  if (req.url.startsWith('/help/standby-')) return res.end(readFileSync('public' + req.url));
+  res.end('ok');
+}).listen(+process.env.PORT, process.env.HOST);
 `);
   run('git', ['init', '-q', app]);
-  run('git', ['-C', app, 'add', 'server.js']);
+  run('git', ['-C', app, 'add', 'server.js', 'public']);
   run('git', ['-C', app, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture']);
   const env = {
     ...process.env,
@@ -83,9 +94,11 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
     if (fs.existsSync(runner)) run('bash', [runner, 'stop'], { env, timeout: 12_000 });
   };
   const remote = path.join(root, 'remote');
+  const managed = path.join(root, 'managed');
   t.after(() => {
     stop(standby);
     stop(remote);
+    stop(managed);
     fs.rmSync(root, { recursive: true, force: true });
   });
   const output = start({ DATA_TARBALL: backup, FIXTURE_STUBBORN: '1' });
@@ -120,5 +133,62 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
     assert.match(output, /公開 URL:/);
     assert.ok(!output.includes(url));
     assert.equal(fs.readFileSync(path.join(remote, 'data', 'admin-token.txt'), 'utf8').trim(), 'restored-fixture');
+  });
+  stop(remote);
+  await t.test('準備した版を同期データで起動し、再実行でも昇格後の更新を残す', async () => {
+    const primary = '11111111-1111-1111-1111-111111111111';
+    const target = '22222222-2222-2222-2222-222222222222';
+    const state = path.join(root, 'dns-state');
+    const stub = path.join(root, 'fetch-dns.mjs');
+    fs.writeFileSync(stub, `
+      import fs from 'node:fs';
+      const fetchLocal = globalThis.fetch;
+      const state = ${JSON.stringify(state)};
+      globalThis.fetch = async (url, options) => {
+        const { hostname, pathname } = new URL(url);
+        let id = fs.existsSync(state) ? fs.readFileSync(state, 'utf8') : '${primary}';
+        if (hostname === 'api.cloudflare.com') {
+          if (options.method === 'PATCH') {
+            id = JSON.parse(options.body).content.split('.')[0];
+            fs.writeFileSync(state, id);
+          }
+          return Response.json({ success: true, result: {
+            id: process.env.CF_DNS_RECORD_ID, type: 'CNAME', proxied: true, name: process.env.PUBLIC_HOST,
+            content: id + '.cfargotunnel.com'
+          } });
+        }
+        if (pathname === '/healthz') {
+          if (id === '${target}') return Response.json({ ok: true, live: 0 });
+          return new Response('down', { status: 530, headers: { 'cf-ray': 'fixture' } });
+        }
+        if (hostname === process.env.STANDBY_PROBE_HOST || id === '${target}') {
+          return fetchLocal('http://127.0.0.1:' + process.env.PORT + pathname, options);
+        }
+        return new Response('not found', { status: 404 });
+      };
+    `);
+    const vars = {
+      ...env, STANDBY_DIR: managed, NODE_OPTIONS: `--import=${stub}`, PUBLIC_HOST: 'widget.example.test',
+      STANDBY_PROBE_HOST: 'probe.example.test', CF_ZONE_ID: 'a'.repeat(32), CF_DNS_RECORD_ID: 'b'.repeat(32),
+      PRIMARY_TUNNEL_ID: primary, STANDBY_TUNNEL_ID: target, CF_API_TOKEN: 'fixture-dns',
+      TUNNEL_TOKEN: Buffer.from(JSON.stringify({ t: target })).toString('base64'),
+    };
+    const call = (...args) => run('bash', [manage, ...args], { env: vars, timeout: 15_000 });
+    call('prepare');
+    assert.equal(fs.existsSync(path.join(managed, 'server.pid')), false);
+    const snapshot = path.join(managed, 'replica-a');
+    fs.cpSync(path.join(root, 'backup'), snapshot, { recursive: true });
+    fs.writeFileSync(path.join(snapshot, 'data/tenants.json'), '{"tenants":[{"id":"fixture"}]}\n');
+    fs.writeFileSync(path.join(snapshot, 'stamp'), `${Math.floor(Date.now() / 1000)} ${env.REF}\n`);
+    fs.symlinkSync('replica-a', path.join(managed, 'current'));
+    assert.doesNotMatch(call('promote', '--primary-fenced'), /fixture-dns|restored-fixture/);
+    assert.equal(fs.readFileSync(state, 'utf8'), target);
+    const url = `http://127.0.0.1:${port}/fixture-data`;
+    assert.equal(await (await fetch(url)).text(), 'restored-fixture\n');
+    fs.writeFileSync(path.join(managed, 'data/admin-token.txt'), 'updated after promotion');
+    call('watch');
+    call('promote', '--primary-fenced');
+    assert.equal(await (await fetch(url)).text(), 'updated after promotion');
+    assert.equal(fs.readFileSync(path.join(snapshot, 'data/admin-token.txt'), 'utf8'), 'restored-fixture\n');
   });
 });
