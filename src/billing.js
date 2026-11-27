@@ -138,8 +138,9 @@ export function computeStatus(entry, now = Date.now()) {
   return trialOrFree(entry, now);
 }
 
-/** お試しの期限（その日の終わり、日本時間）を過ぎていれば free。期限が無いお試しは終わらない（今いる配信者を落とさない） */
+/** お試しの期限（その日の終わり、日本時間）を過ぎていれば free。無料提供や期限が無いお試しは終わらない（今いる配信者を落とさない） */
 function trialOrFree(entry, now) {
+  if (entry?.free === true) return 'trial';
   const end = paidUntilEnd(entry?.trialEndsAt);
   return end != null && now > end ? 'free' : 'trial';
 }
