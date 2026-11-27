@@ -39,11 +39,17 @@ args=()
 for arg in "$@"; do
   if [[ $arg == https://fixture.trycloudflare.com/healthz ]]; then
     arg="http://127.0.0.1:$PORT/healthz"
-  elif [[ $arg == https://fixture.invalid/backup.tar.gz ]]; then
-    exec /bin/cat "$FIXTURE_BACKUP"
+  elif [[ $arg == *fixture.invalid* ]]; then
+    exit 66
   fi
   args+=("$arg")
 done
+if [[ " $* " == *" -K - "* ]]; then
+  [[ -z \${DATA_URL:-} ]] || exit 67
+  IFS= read -r config
+  [[ $config == 'url = "https://fixture.invalid/backup.tar.gz?key=fixture"' ]] || exit 68
+  exec /bin/cat "$FIXTURE_BACKUP"
+fi
 exec "${realCurl}" "\${args[@]}"
 `, { mode: 0o700 });
   fs.writeFileSync(path.join(app, 'server.js'), `
@@ -98,6 +104,11 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
   stop(standby);
   await assert.rejects(fetch(`http://127.0.0.1:${port}/healthz`));
   assert.equal(read('data/admin-token.txt'), 'restored-fixture');
-  assert.match(start({ STANDBY_DIR: remote, DATA_URL: 'https://fixture.invalid/backup.tar.gz' }), /公開 URL:/);
-  assert.equal(fs.readFileSync(path.join(remote, 'data', 'admin-token.txt'), 'utf8').trim(), 'restored-fixture');
+  await t.test('バックアップの URL を curl の引数や環境に渡さない', () => {
+    const url = 'https://fixture.invalid/backup.tar.gz?key=fixture';
+    const output = start({ STANDBY_DIR: remote, DATA_URL: url });
+    assert.match(output, /公開 URL:/);
+    assert.ok(!output.includes(url));
+    assert.equal(fs.readFileSync(path.join(remote, 'data', 'admin-token.txt'), 'utf8').trim(), 'restored-fixture');
+  });
 });

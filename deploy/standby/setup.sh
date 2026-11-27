@@ -92,15 +92,24 @@ install_cloudflared() {
   install -m 755 "$tmp/cloudflared/usr/bin/cloudflared" "$HOME/.local/bin/cloudflared"
 }
 
+download_backup() {
+  local url=$1
+  [[ $url != *$'\r'* && $url != *$'\n'* ]] || return 1
+  url=${url//\\/\\\\}
+  url=${url//\"/\\\"}
+  printf 'url = "%s"\n' "$url" | curl -q -fsSL --proto '=https' --proto-redir '=https' -K -
+}
+
 restore_data() {
-  [[ -n ${DATA_TARBALL:-}${DATA_URL:-} ]] || return 0
+  local data_url=$1
+  [[ -n ${DATA_TARBALL:-}$data_url ]] || return 0
   if [[ -e $base/data ]]; then
     say '既存のデータをそのまま使います。バックアップは読み込みません。'
     return
   fi
   local backup=${DATA_TARBALL:-$tmp/backup.tar.gz}
   if [[ -z ${DATA_TARBALL:-} ]]; then
-    curl -fsSL --proto '=https' --proto-redir '=https' -- "$DATA_URL" > "$backup" 2>/dev/null ||
+    download_backup "$data_url" > "$backup" 2>/dev/null ||
       fail 'バックアップをダウンロードできませんでした。'
   fi
   tar -tzf "$backup" 2>/dev/null | awk '
@@ -192,7 +201,8 @@ wait_health() {
 
 main() {
   local action=${1:-start} node_arch deb_arch tmp commit mode tunnel_id url i token=${TUNNEL_TOKEN:-}
-  unset TUNNEL_TOKEN
+  local data_url=${DATA_URL:-}
+  unset TUNNEL_TOKEN DATA_URL
   mkdir -p -- "$base"
   base=$(cd "$base" && pwd -P)
   lock_setup
@@ -202,7 +212,7 @@ main() {
   fi
   [[ $action == start ]] || fail '使い方: setup.sh [start|stop]'
   [[ $PORT =~ ^[1-9][0-9]{0,4}$ ]] && ((PORT <= 65535)) || fail 'PORT は 1〜65535 で指定してください。'
-  [[ -z ${DATA_TARBALL:-} || -z ${DATA_URL:-} ]] || fail 'DATA_TARBALL と DATA_URL はどちらか一方だけ指定してください。'
+  [[ -z ${DATA_TARBALL:-} || -z $data_url ]] || fail 'DATA_TARBALL と DATA_URL はどちらか一方だけ指定してください。'
   case $(uname -m) in
     x86_64) node_arch=x64; deb_arch=amd64 ;;
     aarch64) node_arch=arm64; deb_arch=arm64 ;;
@@ -214,8 +224,8 @@ main() {
   if [[ -x $HOME/.local/node22/bin/node ]]; then export PATH="$HOME/.local/node22/bin:$PATH"; fi
   install_node
   install_cloudflared
-  restore_data
-  unset DATA_URL DATA_TARBALL
+  restore_data "$data_url"
+  unset DATA_TARBALL
   write_runner
   if [[ ! -d $base/app/.git ]]; then
     git init -q "$base/app"

@@ -1,3 +1,11 @@
 {
-  "fixes": []
+  "fixes": [
+    {
+      "fingerprint": "31c6efe50543",
+      "summary": "一時起動のバックアップ URL をプロセスの引数に出さない",
+      "fixedIn": "PR #22",
+      "fixedAt": "2026-11-27",
+      "test": { "file": "test/standby-setup.test.js", "name": "バックアップの URL を curl の引数や環境に渡さない" }
+    }
+  ]
 }
