@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "995dce36d9e1",
+      "summary": "deploy/standby/standby.sh は rsync の秒単位比較で同じ秒・同じサイズの更新を見逃したため、秒未満まで比較する。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "同じ秒に同じサイズで更新したファイルも差分同期する" }
+    },
+    {
       "fingerprint": "a953ee66a497",
       "summary": "deploy/standby/standby.sh の DNS 更新前に失敗すると、再試行で復元データの期限を確認せず公開していた。",
       "fixedIn": "PR #23",

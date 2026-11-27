@@ -69,7 +69,7 @@ sync_snapshot() {
   step=transfer
   # 保存済みの正本を上書きせず、非稼働側だけ差分更新する。prod では圧縮もチェックサム走査もしない。
   local rc
-  timeout 240 rsync -rlt --delete --timeout=30 --bwlimit=2048 --secluded-args -e "$ssh_opts" \
+  timeout 240 rsync -rlt --modify-window=-1 --delete --timeout=30 --bwlimit=2048 --secluded-args -e "$ssh_opts" \
     --exclude=/data/backups/ --exclude='*.tmp' --exclude='*.tmp-*' \
     --include=/data/ --include='/data/***' --include=/config.yaml --exclude='*' \
     "$source_host:$source_dir/" "$next/" >/dev/null 2>&1 || {

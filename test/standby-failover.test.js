@@ -101,7 +101,7 @@ test('配信者別モードの同期データはルート設定なしでも検�
   await assert.rejects(validateSnapshot(root), /ファイルではありません/);
 });
 
-test('初回以降も同期し、壊れた同期と古いデータで待機機を昇格させない', (t) => {
+test('初回以降も同期し、壊れた同期と古いデータで待機機を昇格させない', async (t) => {
   const root = fs.mkdtempSync(path.join(tmpdir(), 'tw-failover-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const base = path.join(root, 'standby');
@@ -120,6 +120,8 @@ test('初回以降も同期し、壊れた同期と古いデータで待機機�
   const tenants = JSON.stringify({ tenants: [{ id: 'fixture-tenant' }] });
   write(sourceData('tenants.json'), tenants);
   write(sourceData('gift-log.txt'), 'old');
+  const touch = (fraction) => execFileSync('touch', ['-m', '-d', `@1700000000.${fraction}`, sourceData('gift-log.txt')]);
+  touch('123456789');
   write(sourceData('backups/ignored'), 'fixture');
   write(sourceData('partial.tmp-123'), 'unfinished');
   write(path.join(source, '.env'), 'not part of the backup');
@@ -171,6 +173,13 @@ test('初回以降も同期し、壊れた同期と古いデータで待機機�
   verify(['sync']);
   assert.notEqual(fs.readlinkSync(files('current')), first);
   assert.equal(fs.readFileSync(files('current/data/gift-log.txt'), 'utf8'), 'newer');
+  await t.test('同じ秒に同じサイズで更新したファイルも差分同期する', () => {
+    write(sourceData('gift-log.txt'), 'new');
+    touch('987654321');
+    verify(['sync']);
+    assert.equal(fs.readlinkSync(files('current')), first);
+    assert.equal(fs.readFileSync(files('current/data/gift-log.txt'), 'utf8'), 'new');
+  });
   write(files('current/stamp'), `1 ${commit}\n`);
   assert.match(verify(['promote', '--primary-fenced'], 1), /期限外/);
   assert.equal(fs.existsSync(files('data')), false);
