@@ -75,10 +75,15 @@ export class TugOfWarEngine {
     const requested = seconds == null || seconds === '' ? number(this.config.seconds, 180) : Number(seconds);
     if (!Number.isFinite(requested) || requested < 0) throw new Error('試合の秒数は 0 以上にしてください');
     const length = Math.min(MAX_SECONDS, Math.floor(requested));
+    const isTest = test === true || test === 'true' || test === '1';
+    if (!isTest) {
+      // テスト試合で入った架空の参加者は本番の自動振り分けに残さない
+      for (const [key, m] of this.members) if (m.test) this.members.delete(key);
+    }
     this.#clearTimer();
     this.battle = this.#newBattle();
     this.battle.phase = 'battle';
-    this.battle.test = test === true || test === 'true' || test === '1';
+    this.battle.test = isTest;
     this.battle.seconds = length;
     this.battle.startedAt = Date.now();
     this.battle.endsAt = length > 0 ? this.battle.startedAt + length * 1000 : null;
@@ -119,7 +124,7 @@ export class TugOfWarEngine {
     if (this.battle.phase !== 'battle') this.start({ test: true });
     const label = String(name ?? '').trim() || (side === 'left' ? 'テスト参加者A' : 'テスト参加者B');
     const user = { id: `test_${label}`, name: label, avatar: null };
-    this.#join(user, side, false);
+    this.#join(user, side, false, true);
     this.#pull(side, user, amount, { kind: 'gift', gift: { id: '5655', name: 'Rose', icon: 'flower-2', diamonds: 1, count: amount }, test: true });
     return this.snapshot();
   }
@@ -220,7 +225,12 @@ export class TugOfWarEngine {
     if (!(count > 0)) return;
     const side = this.#sideOf(event.user, this.config.autoJoin !== 'none', event.test === true);
     if (!side) return;
-    this.#pull(side, event.user, count / per, { kind: 'like', likes: count, test: event.test === true });
+    // いいねは整数で端数を持ち越し、浮動小数の丸め誤差（0.1×10 < 1）で同点判定が狂うのを防ぐ
+    const team = this.battle.teams[side];
+    const carry = (team.likeCarry ?? 0) + count;
+    const gained = Math.floor(carry / per);
+    team.likeCarry = carry - gained * per;
+    if (gained > 0) this.#pull(side, event.user, gained, { kind: 'like', likes: count, test: event.test === true });
   }
 
   /** その人のチーム。まだ決まっていなければ、自動の振り分けが有効なとき人数の少ない方へ入れる */
@@ -241,7 +251,7 @@ export class TugOfWarEngine {
     if (!key) return;
     const current = this.members.get(key);
     if (current && (current.side === side || !allowSwitch)) return;
-    this.members.set(key, { side, user: slimUser(user) });
+    this.members.set(key, { side, user: slimUser(user), test: Boolean(test) });
     this.hub.broadcast({ type: 'tugOfWar', event: 'join', join: { side, user: slimUser(user), auto, switched: Boolean(current) }, state: this.snapshot(), test: test || this.battle.test });
   }
 
