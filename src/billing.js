@@ -176,7 +176,7 @@ function graceStart(entry, paidEnd = paidUntilEnd(entry?.paidUntil)) {
 /** お試しの終わりの trialNoticeDays 日前（日本時間の日付）から、お試しのあいだ出す */
 export function trialNotice(entry, now = Date.now()) {
   return safely('有料化のお知らせの判定', () => {
-    if (computeStatus(entry, now) !== 'trial') return false;
+    if (entry?.free === true || computeStatus(entry, now) !== 'trial') return false;
     const left = daysUntil(paidUntilEnd(entry?.trialEndsAt), now);
     return left != null && left <= TRIAL_NOTICE_DAYS;
   }, false);
