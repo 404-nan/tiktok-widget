@@ -1,6 +1,13 @@
 {
   "fixes": [
     {
+      "fingerprint": "a953ee66a497",
+      "summary": "deploy/standby/standby.sh の DNS 更新前に失敗すると、再試行で復元データの期限を確認せず公開していた。",
+      "fixedIn": "PR #23",
+      "fixedAt": "2026-11-28",
+      "test": { "file": "test/standby-failover.test.js", "name": "DNSを変更する直前にも古いコピーを拒否し、変更済みなら確認だけできる" }
+    },
+    {
       "fingerprint": "76babf61fdef",
       "summary": "deploy/standby/standby-route.mjs が配信者別モードでは不要なルート config.yaml を必須にし、正常な待機データを拒否した。",
       "fixedIn": "PR #23",

@@ -149,6 +149,7 @@ createServer((req, res) => {
         let id = fs.existsSync(state) ? fs.readFileSync(state, 'utf8') : '${primary}';
         if (hostname === 'api.cloudflare.com') {
           if (options.method === 'PATCH') {
+            if (process.env.FIXTURE_PATCH_FAIL === '1') return new Response('down', { status: 503 });
             id = JSON.parse(options.body).content.split('.')[0];
             fs.writeFileSync(state, id);
           }
@@ -181,11 +182,20 @@ createServer((req, res) => {
     fs.writeFileSync(path.join(snapshot, 'data/tenants.json'), '{"tenants":[{"id":"fixture"}]}\n');
     fs.writeFileSync(path.join(snapshot, 'stamp'), `${Math.floor(Date.now() / 1000)} ${env.REF}\n`);
     fs.symlinkSync('replica-a', path.join(managed, 'current'));
+    const promoted = path.join(managed, 'promoted');
+    assert.throws(() => run('bash', [manage, 'promote', '--primary-fenced'],
+      { env: { ...vars, FIXTURE_PATCH_FAIL: '1' }, timeout: 15_000 }), /DNS 更新: HTTP 503/);
+    const promotion = fs.readFileSync(promoted, 'utf8');
+    fs.writeFileSync(promoted, promotion.replace(/ \d+\n$/, ' 1\n'));
+    assert.throws(() => call('promote', '--primary-fenced'), /期限外/);
+    assert.equal(fs.existsSync(state), false);
+    fs.writeFileSync(promoted, promotion);
     assert.doesNotMatch(call('promote', '--primary-fenced'), /fixture-dns|restored-fixture/);
     assert.equal(fs.readFileSync(state, 'utf8'), target);
     const url = `http://127.0.0.1:${port}/fixture-data`;
     assert.equal(await (await fetch(url)).text(), 'restored-fixture\n');
     fs.writeFileSync(path.join(managed, 'data/admin-token.txt'), 'updated after promotion');
+    fs.writeFileSync(promoted, promotion.replace(/ \d+\n$/, ' 1\n'));
     call('watch');
     call('promote', '--primary-fenced');
     assert.equal(await (await fetch(url)).text(), 'updated after promotion');

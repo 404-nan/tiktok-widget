@@ -14,6 +14,7 @@ const standby = '22222222-2222-2222-2222-222222222222';
 const marker = '33333333-3333-3333-3333-333333333333';
 const tunnel = (id) => id + '.cfargotunnel.com';
 const tunnelToken = (id) => Buffer.from(JSON.stringify({ t: id })).toString('base64');
+const freshTimestamp = () => String(Math.floor(Date.now() / 1000));
 const settings = {
   PUBLIC_HOST: 'widget.example.test', STANDBY_PROBE_HOST: 'probe.example.test',
   CF_DNS_RECORD_ID: recordId, CF_ZONE_ID: 'b'.repeat(32), CF_API_TOKEN: 'fixture-dns',
@@ -55,9 +56,9 @@ function router(options = {}) {
 test('公開停止を確認し、待機機の固有応答を検証して同じURLを一度だけ切り替える', async () => {
   const { route, edits } = router();
   assert.equal(await route.preflight(), 'primary');
-  await route.switchRoute(marker);
+  await route.switchRoute(marker, freshTimestamp());
   assert.equal(await route.preflight(), 'standby');
-  await route.switchRoute(marker);
+  await route.switchRoute(marker, freshTimestamp());
   assert.equal(edits(), 1);
 });
 
@@ -76,7 +77,16 @@ test('旧本番が稼働中・別のトンネル・待機機が未確認なら�
 
 test('DNS更新後に別のサーバーが返答しても成功扱いや自動巻き戻しにしない', async () => {
   const { route, edits } = router({ badPublicMarker: true });
-  await assert.rejects(route.switchRoute(marker), /待機機固有/);
+  await assert.rejects(route.switchRoute(marker, freshTimestamp()), /待機機固有/);
+  assert.equal(edits(), 1);
+});
+
+test('DNSを変更する直前にも古いコピーを拒否し、変更済みなら確認だけできる', async () => {
+  const { route, edits } = router();
+  await assert.rejects(route.switchRoute(marker, '1'), /期限外/);
+  assert.equal(edits(), 0);
+  await route.switchRoute(marker, freshTimestamp());
+  await route.switchRoute(marker, '1');
   assert.equal(edits(), 1);
 });
 

@@ -15,6 +15,16 @@ function requireCheck(condition, message) {
   if (!condition) throw new CheckError(message);
 }
 
+function snapshotAge(timestamp, env) {
+  const maxAge = env.MAX_SNAPSHOT_AGE || '900';
+  requireCheck(/^[1-9][0-9]{0,7}$/.test(maxAge), 'MAX_SNAPSHOT_AGE は秒数で指定してください。');
+  requireCheck(/^[1-9][0-9]{0,11}$/.test(timestamp ?? ''), '同期日時の記録が不正です。');
+  const age = Math.floor(Date.now() / 1000) - Number(timestamp);
+  requireCheck(age >= 0 && age <= Number(maxAge),
+    `同期データが期限外です（経過 ${age} 秒、上限 ${maxAge} 秒）。`);
+  return age;
+}
+
 export async function validateSnapshot(dir) {
   const tenants = JSON.parse(await readFile(join(dir, 'data/tenants.json'), 'utf8'));
   requireCheck(Array.isArray(tenants.tenants) && tenants.tenants.length > 0, '配信者が入った tenants.json がありません。');
@@ -112,7 +122,7 @@ export function createRoute({ env = process.env, request = fetch, pause = delay 
     return 'primary';
   }
 
-  async function switchRoute(marker) {
+  async function switchRoute(marker, timestamp) {
     const cfg = routeConfig();
     // 別ホスト名で待機機の応答を先に確認し、本番 DNS を壊さない。
     for (let i = 0; ; i++) {
@@ -123,6 +133,7 @@ export function createRoute({ env = process.env, request = fetch, pause = delay 
     }
     if (await dnsRecord(cfg) === cfg.main) {
       await requirePrimaryDown();
+      snapshotAge(timestamp, env);
       await dnsRecord(cfg, cfg.standby);
     }
     for (let i = 0; ; i++) {
@@ -141,13 +152,14 @@ export function createRoute({ env = process.env, request = fetch, pause = delay 
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [, , command, arg] = process.argv;
+  const [, , command, arg, timestamp] = process.argv;
   const route = createRoute();
   try {
     if (command === 'validate') await validateSnapshot(arg);
     else if (command === 'health') await route.health();
     else if (command === 'preflight') console.log(await route.preflight());
-    else if (command === 'switch') await route.switchRoute(arg);
+    else if (command === 'switch') await route.switchRoute(arg, timestamp);
+    else if (command === 'snapshot-age') console.log(snapshotAge(arg, process.env));
     else if (command === 'origin') await route.checkOrigin(arg);
     else throw new CheckError('不明な確認操作です。');
   } catch (error) {

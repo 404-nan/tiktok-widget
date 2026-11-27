@@ -29,22 +29,16 @@ sha_re='^[a-f0-9]{40}$'
 ssh_opts='ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=2'
 source_host=${PRIMARY_SSH:-}
 source_dir=${PRIMARY_DIR:-/home/lul/tiktok-widget}
-max_age=${MAX_SNAPSHOT_AGE:-900}
-
 snapshot_info() {
-  local slot timestamp now
-  [[ $max_age =~ ^[1-9][0-9]{0,7}$ ]] || fail 'MAX_SNAPSHOT_AGE は秒数で指定してください。'
+  local slot
   slot=$(readlink "$base/current" 2>/dev/null) && [[ $slot == replica-a || $slot == replica-b ]] ||
     fail '同期済みのデータがありません。'
   snapshot="$base/$slot"
-  read -r timestamp snapshot_commit < "$snapshot/stamp" ||
+  read -r snapshot_timestamp snapshot_commit < "$snapshot/stamp" ||
     fail '同期日時と版の記録を読めません。'
-  [[ $timestamp =~ ^[1-9][0-9]{0,11}$ && $snapshot_commit =~ $sha_re ]] ||
-    fail '同期日時または版の記録が不正です。'
-  now=$(date +%s)
-  snapshot_age=$((now - timestamp))
-  ((snapshot_age >= 0 && snapshot_age <= max_age)) ||
-    fail "同期データが期限外です（経過 ${snapshot_age} 秒、上限 ${max_age} 秒）。"
+  [[ $snapshot_commit =~ $sha_re ]] || fail '同期した版の記録が不正です。'
+  snapshot_age=$(node "$here/standby-route.mjs" snapshot-age "$snapshot_timestamp") ||
+    fail '同期日時を確認できません。'
 }
 
 source_commit() {
@@ -123,7 +117,7 @@ promote() {
   [[ ${1:-} == --primary-fenced && $# == 1 ]] ||
     fail '旧本番の停止・書き込み遮断と配信がないことを確認してから --primary-fenced を指定してください。'
   [[ -n $cf_token && -n $tunnel_token ]] || fail 'DNS 更新鍵と待機専用トンネル鍵が必要です。'
-  local route marker stage expected_commit
+  local route marker stage expected_commit snapshot_timestamp
   route=$(CF_API_TOKEN=$cf_token TUNNEL_TOKEN=$tunnel_token node "$here/standby-route.mjs" preflight) ||
     fail '切替前の確認で停止しました。'
   if [[ ! -f $base/promoted ]]; then
@@ -141,17 +135,22 @@ promote() {
     if [[ -f $snapshot/config.yaml ]]; then cp -p -- "$snapshot/config.yaml" "$stage/config.yaml"; fi
     marker=$(node -e 'process.stdout.write(require("node:crypto").randomUUID())')
     printf '%s\n' "$marker" > "$base/app/public/help/standby-$marker.txt"
-    printf '%s %s\n' "$marker" "$snapshot_commit" > "$stage/promoted"
+    printf '%s %s %s\n' "$marker" "$snapshot_commit" "$snapshot_timestamp" > "$stage/promoted"
     if [[ -f $stage/config.yaml ]]; then mv -T -- "$stage/config.yaml" "$base/config.yaml"; fi
     mv -T -- "$stage/data" "$base/data"
     mv -T -- "$stage/promoted" "$base/promoted"
   fi
-  read -r marker expected_commit < "$base/promoted"
+  read -r marker expected_commit snapshot_timestamp < "$base/promoted"
+  if [[ $route == primary ]]; then
+    step=freshness
+    node "$here/standby-route.mjs" snapshot-age "$snapshot_timestamp" >/dev/null ||
+      fail '切替前の同期データが古いか、同期日時が不明です。'
+  fi
   step=activate
   TUNNEL_TOKEN=$tunnel_token STANDBY_EXPECT_COMMIT=$expected_commit bash "$here/setup.sh" activate 8>&- ||
     fail "待機機が起動しません。$base/server.log と tunnel.log を確認してください。"
   step=route
-  CF_API_TOKEN=$cf_token node "$here/standby-route.mjs" switch "$marker" ||
+  CF_API_TOKEN=$cf_token node "$here/standby-route.mjs" switch "$marker" "$snapshot_timestamp" ||
     fail '公開先を確認できません。稼働データを維持します。同じコマンドで再確認できます。'
   log '公開 URL を変えずに待機機へ切り替わりました。'
 }
