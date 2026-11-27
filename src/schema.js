@@ -56,7 +56,7 @@ export const SCHEMA = {
         type: 'bundleList',
         default: [],
         desc: 'まとめの一覧。名前と、入れるウィジェットを選ぶ',
-        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'quizzes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw', 'commentSlide'],
+        eligible: ['alerts', 'chats', 'jars', 'goals', 'wins', 'winsFx', 'timers', 'bosses', 'counters', 'rankings', 'roulettes', 'votes', 'quizzes', 'cheers', 'pushButtons', 'slots', 'cutins', 'imageCutins', 'rush', 'giftSounds', 'omikuji', 'gacha', 'cardDraw', 'commentSlide', 'tugOfWar'],
       },
     },
   },
@@ -1106,6 +1106,43 @@ SCHEMA.cardDraw = {
     count: num(8, 'カードの枚数', { min: 3, max: 16 }), winRate: num(0.2, '当たりになる確率（0〜1）。実際に当たるカードの枚数が -1 のときに使う', { min: 0, max: 1 }), winCount: num(-1, '実際に当たるカードの枚数。-1 のときは確率で決める。0以上にすると、その枚数だけ実際に当たりのカードを用意し、選んだカードが当たりかどうかで決まる（確率は使わない）', { min: -1, max: 16 }), showJackpot: bool(false, '大当たりのカードを、確率とは別に並びに出す（並びに出ていても、当たるかどうかは裏の設定だけで決まる）'), showWinCount: num(1, '並びに出す大当たりの枚数（「大当たりのカードを並びに出す」がオンのときに使う）', { min: 0, max: 16 }),
     pity: num(0, '天井。この回数だけ当たりが出なかったら、次の1回は当たりが確定（0 で無効）。数えるのは配信全体で、1回の配信の中だけ。配信が終わると0に戻り、当たりが出たらその場で 0 に戻る。当たりの決め方（確率・実際に当たるカードの枚数）にかかわらず、天井の回は当たりになる', { min: 0, max: 999 }), pityPersonal: num(0, '個人の天井。この回数だけ、その人がめくって当たりが出なかったら、その人の次の1回は当たりが確定（0 で無効）。数えるのは1回の配信の中だけ。配信が終わると0に戻り、当たりが出たら、その人の数えはその場で 0 に戻る', { min: 0, max: 999 }), winLabel: str('当たり', '当たりのカードの文字'), loseLabel: str('ハズレ', 'ハズレのカードの文字'),
     pickSeconds: num(30, '番号を待つ秒数（来なければ自動でめくる）', { min: 5, max: 300 }), showMs: num(2500, '表で見せるミリ秒', { min: 500, max: 20000 }), shuffleMs: num(3000, '混ぜるミリ秒', { min: 500, max: 20000 }), revealMs: num(4000, '結果を見せるミリ秒', { min: 1000, max: 30000 }), doneMs: num(1200, '消えるまでのミリ秒', { min: 0, max: 10000 }),
+  },
+};
+
+// 綱引きギフトバトル（Plus）。視聴者が左右2チームに分かれ、ギフトのコインで綱を引き合う
+SCHEMA.tugOfWar = {
+  kind: 'object',
+  page: 'tug-of-war',
+  title: '綱引きギフトバトル',
+  size: () => [1080, 560],
+  desc:
+    '視聴者が左右2チームに分かれて、ギフトのコイン（といいね）で綱を引き合う対戦。' +
+    'コメントで参加の言葉（例「1」「赤」）を送るとそのチームに入り、チームの人のギフトがそのまま引く力になる。加勢ギフトに決めたギフトは、送った人に関係なくそのチームの力になる。' +
+    'まだチームに入っていない人のギフトは、自動の振り分けがオンなら人数の少ないチームへ入れて数える。' +
+    '時間切れか、決めた差（大差の決着）がついたら決着して、勝ったチームと MVP（勝ったチームでいちばん引いた人）を出す。' +
+    '数えるのは試合中のギフトといいねだけ（試合の前・決着のあとは数えない）。画面に出す応援上位は各チーム3人（集計は全員ぶん）。' +
+    'チームの顔ぶれは次の試合にも残り、リセットで空になる。テストの印のついた試合と引き分けでは決着の動作を動かさない。URL は /widgets/tug-of-war.html',
+  fields: {
+    ...placementFields(0, 6),
+    enabled: bool(true, '綱引きギフトバトルを使う'),
+    title: str('綱引きギフトバトル', '画面の見出し'),
+    leftName: str('赤チーム', '左のチームの名前'),
+    rightName: str('青チーム', '右のチームの名前'),
+    leftColor: color('#FF3B5C', '左のチームの色'),
+    rightColor: color('#2F8CFF', '右のチームの色'),
+    leftWords: list(['1', '赤'], '左のチームに入るコメント（どれかと同じ文なら参加。全角・半角と大文字小文字は区別しない）'),
+    rightWords: list(['2', '青'], '右のチームに入るコメント'),
+    leftGifts: list([], '左のチームの加勢ギフト（ギフト名か ID）。送った人のチームに関係なく、左の力になる'),
+    rightGifts: list([], '右のチームの加勢ギフト（ギフト名か ID）'),
+    autoJoin: oneOf(['balance', 'none'], 'balance', 'まだチームに入っていない人のギフト。balance 人数の少ないチームへ入れて数える / none 数えない（コメントで参加した人だけ）'),
+    allowSwitch: bool(false, '参加のコメントでチームを替えられる（オフなら最初に入ったチームのまま）'),
+    likesPerPower: num(0, '何いいねで引く力 1 にするか（0 でいいねは数えない）', { min: 0, max: 100000 }),
+    seconds: num(180, '試合の秒数（0 で時間切れなし。手で締める）', { min: 0, max: 3600 }),
+    koLead: num(0, 'この差（コイン）がついたら、時間の前でもその場で決着（0 で使わない）', { min: 0, max: 10000000 }),
+    idleMode: oneOf(['entry', 'hide'], 'entry', '試合をしていないときの画面。entry 参加受付の画面を出す / hide 何も出さない'),
+    resultActions: { type: 'actions', default: [], desc: '勝ち負けが決まったときに1回だけ動かす動作の一覧（引き分けとテストの試合では動かさない）' },
+    sound: bool(true, '効果音'),
+    volume: num(0.4, '効果音の音量（0〜1）', { min: 0, max: 1 }),
   },
 };
 

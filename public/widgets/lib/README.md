@@ -4,7 +4,7 @@
 
 | ファイル | 役目 |
 | --- | --- |
-| `overlay.js` | WebSocket接続、設定、URLパラメータ、イベントとcompact差分の状態復元、数値表示を担当する |
+| `overlay.js` | WebSocket接続、設定、URLパラメータ、イベントとcompact差分の状態復元、数値表示を担当する。フォルダ名と設定の節の対応（`PAGE_SECTIONS`。綱引きの `tug-of-war` → `tugOfWar` など）で背景と書体を当てる |
 | `overlay.css` | ウィジェット共通のデザイン（色・文字・チップ） |
 | `locked-reason.js` | `locked.html` が見本（`?preview=1`）でだけ出す理由の文（「○○ は Pro プランで使えます」・停止中・止めている）を `/api/me` の `locked` と `plan` から作る |
 | `fonts.css` | 和文と数字のローカルフォント定義 |
@@ -35,4 +35,4 @@
 
 各ウィジェットの HTML から読み込まれ、サーバー（`server.js` / `src/`）とは WebSocket と `/api/` でつながります。`test/public-js.test.js` で、公開 JavaScript が Chromium 103 で動く書き方か(ES2022 まで)を確かめます。
 
-最後に直した日: 2026-10-21
+最後に直した日: 2026-11-28

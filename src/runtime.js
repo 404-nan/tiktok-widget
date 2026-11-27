@@ -41,6 +41,7 @@ import { OotoriEngine } from './ootori.js';
 import { DarebaEngine } from './dareba.js';
 import { VoteEngine } from './vote.js';
 import { QuizEngine } from './quiz.js';
+import { TugOfWarEngine } from './tug-of-war.js';
 import { CheerEngine } from './cheer.js';
 import { PushButtonEngine } from './push-button.js';
 import { shouldAutoConnect } from './rental.js';
@@ -217,6 +218,11 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       points.add(user, amount, 'quiz');
     },
   });
+  // 綱引きギフトバトル（Plus）。勝ち負けが決まったら設定した動作を動かす（テストの試合と引き分けはエンジン側で除く）
+  const tugOfWar = new TugOfWarEngine(hub, {
+    onResult: ({ actions, result }) => runActions(actions, actionDeps(), { source: 'tugOfWar', result }),
+    onError: (error, context) => recordError(error, { kind: 'engine.tugOfWar', level: 'warn', context: { tenant: id, ...context } }),
+  });
   const cheer = new CheerEngine(hub, {
     onFull: ({ id: cheerId, actions, round, cheer: state }) => runActions(actions, actionDeps(), { source: 'cheer', cheerId, round, cheer: state }),
   });
@@ -309,6 +315,8 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     vote.setConfig(entitled('votes') ? config.votes : {});
     quiz.setEnabled(entitled('quizzes'));
     quiz.setConfig(entitled('quizzes') ? config.quizzes : {});
+    tugOfWar.setEnabled(entitled('tugOfWar'));
+    tugOfWar.setConfig(config.tugOfWar);
     cheer.setEnabled(entitled('cheers'));
     cheer.setConfig(entitled('cheers') ? config.cheers : {});
     push.setEnabled(entitled('pushButtons'));
@@ -355,7 +363,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     id, hub, store, info: () => info(), entitled, accessState, editAllowed, widgetBase, mediaDirs, root, notes, ai,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
-    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
+    minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, tugOfWar, cheer, push,
     roulette, mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop, peka, throne, ootori, dareba,
     drawResults, giftCatalog, demo, applyConfigResult, lastIssues: () => lastIssues, timerSeconds,
     performControl: (...args) => _control.performControl(...args),
@@ -363,7 +371,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
   _control = bindControl(r, {
     hub, tiktok, demo, roulette, rush, stepup, swarm, combo, wins, timer, boss, door,
     mediaAlerts, giftSounds, gacha, omikuji, cardDraw, gachaViewers, slot, relayStop,
-    peka, throne, ootori, dareba, vote, quiz, cheer, push, visitors, preparation,
+    peka, throne, ootori, dareba, vote, quiz, tugOfWar, cheer, push, visitors, preparation,
     actionDeps, mayConnect, streamLive, entitled,
     setStayConnected, rememberTiktokId,
     auto, currentAutoId, timerSeconds,
@@ -467,6 +475,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
     readDoor() { return door.snapshot(); },
     readVote() { return vote.snapshot(); },
     readQuiz() { return quiz.snapshot(); },
+    readTugOfWar() { return tugOfWar.snapshot(); },
     readCheer() { return cheer.snapshot(); },
     readPush() { return push.snapshot(); },
     readVisitors() { return visitors.snapshot(); },
@@ -497,6 +506,7 @@ export function createRuntime({ id = 'local', store, dataDir, mediaDirs, entitle
       roulette.clear();
       vote.reset();
       quiz.reset();
+      tugOfWar.close();
       cheer.reset();
       push.reset();
       demo.stop();

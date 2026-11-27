@@ -361,6 +361,18 @@ export function buildPreview(ctx) {
         chip('初見さんを迎える', 'door-open', () => api('/api/simulate', { kind: 'member', visits: 1 })),
         chip('常連さんを迎える', 'users', () => api('/api/simulate', { kind: 'member', visits: e.regularVisits ?? 3 })),
       );
+    } else if (tab === 'tugOfWar') {
+      // 試すボタンは本物のイベントを作らない（集計・記録に入れず、綱引きの中だけでテストの試合を動かす）
+      const t = (action, data) => control('tugOfWar', action, data);
+      const e = payload.config.tugOfWar ?? {};
+      box.replaceChildren(
+        chip('テストの試合を始める', 'play', t('start', { test: true, seconds: 60 })),
+        chip(`${e.leftName || '左'} +100（テスト）`, 'gift', t('test', { side: 'left', coins: 100 })),
+        chip(`${e.rightName || '右'} +100（テスト）`, 'gift', t('test', { side: 'right', coins: 100 })),
+        chip(`${e.rightName || '右'} +1000（テスト）`, 'zap', t('test', { side: 'right', coins: 1000, name: 'テスト大口' })),
+        chip('締めて決着させる', 'flag', t('finish')),
+        chip('リセット', 'rotate-ccw', t('reset')),
+      );
     } else if (tab === 'combo') {
       if (devMode) box.append(chip('5連続を試す', 'layers', control('combo', 'test', { count: 5 })));
       box.append(chip('リセット', 'rotate-ccw', control('combo', 'reset')));

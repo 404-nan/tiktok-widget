@@ -30,7 +30,7 @@ const EFFECT_TYPES = new Set([
   'boss', 'cheer', 'combo', 'ootori', 'peka', 'push', 'rush', 'slot',
   'cardDraw', 'goalAlert', 'stepup', 'swarm', 'throne', 'timer', 'vote', 'quiz',
   'wins', 'winsCombo', 'dareba', 'named-sabotage', 'mediaAlert',
-  'giftSound', 'relay-stop', 'slotResult', 'visitor',
+  'giftSound', 'relay-stop', 'slotResult', 'visitor', 'tugOfWar',
 ]);
 
 // その知らせがテスト由来かどうか（送り手が付けた印を見る）

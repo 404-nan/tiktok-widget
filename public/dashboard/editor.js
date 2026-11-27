@@ -1208,6 +1208,7 @@ export function createEditor({ api, setMessage }) {
   function streamDeckUrls() {
     const base = `${location.origin}${BASE}`;
     if (tab === 'votes') return [['はじめる', `${base}/api/vote/active/start`], ['しめきる', `${base}/api/vote/active/close`], ['結果を出す', `${base}/api/vote/active/result`], ['リセット', `${base}/api/vote/active/reset`]];
+    if (tab === 'tugOfWar') return [['試合を始める', `${base}/api/tug-of-war/start`], ['締めて決着させる', `${base}/api/tug-of-war/finish`], ['リセット', `${base}/api/tug-of-war/reset`]];
     if (tab === 'quizzes') return [['出題する', `${base}/api/quiz/active/start`], ['締めて答えを出す', `${base}/api/quiz/active/finish`], ['リセット', `${base}/api/quiz/active/reset`]];
     if (tab === 'cheers') return [['いいね ×20（テスト）', `${base}/api/cheer/active/add?value=20`], ['いいね ×100（テスト）', `${base}/api/cheer/active/add?value=100`], ['満タンにする', `${base}/api/cheer/active/fill`], ['リセット', `${base}/api/cheer/active/reset`]];
     if (tab === 'wins') return [['クリア +1', `${base}/api/wins/active/win`], ['-1', `${base}/api/wins/active/add?value=-1`], ['1つ戻す', `${base}/api/wins/active/undo`], ['リセット', `${base}/api/wins/active/reset`]];

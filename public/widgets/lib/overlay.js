@@ -129,7 +129,7 @@ export async function setupWidget(section, fallback = {}) {
   return params({ ...fallback, ...defaults[section], ...entry });
 }
 
-const SAMPLE_NAMES = { alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', doors: '扉の確率ゲーム', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット', tts: '読み上げ' };
+const SAMPLE_NAMES = { tugOfWar: '綱引きギフトバトル', alerts: 'ギフト通知', chats: 'コメント欄', goals: '目標バー', counters: 'カウンター', rankings: 'ランキング', roulettes: 'ルーレット', jars: 'ギフト瓶', wins: 'WIN数', timers: '延長タイマー', bosses: 'ボス討伐', doors: '扉の確率ゲーム', cutins: 'カットイン', imageCutins: '画像付きカットイン', rush: 'RUSH', slots: 'スロット', theme: 'ウィジェット', tts: '読み上げ' };
 /** 各ウィジェットの本物の描画関数を、見本モードにも使う。 */
 export function setSampleRenderer(renderer) {
   window.__twSampleRenderer = renderer;
@@ -343,6 +343,7 @@ const PAGE_SECTIONS = {
   rush: ['rush', 'object'], stepup: ['stepup', 'object'], swarm: ['swarm', 'object'], combo: ['combo', 'object'],
   media: ['mediaAlerts', 'object'], gacha: ['gacha', 'object'], omikuji: ['omikuji', 'object'], peka: ['peka', 'object'],
   dareba: ['dareba', 'object'], slot: ['slots', 'object'], ootori: ['ootori', 'object'], 'card-draw': ['cardDraw', 'object'],
+  'tug-of-war': ['tugOfWar', 'object'],
 };
 
 function applyBackgroundFromSocket(config) {
