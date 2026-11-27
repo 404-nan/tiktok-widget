@@ -66,7 +66,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 
 貸出の申告売上は lul-rental-ops の `recordRevenueYen()` / `shareAmountYen()` を import して10%だけ発生させ、同じ申告を何回読んでも二重計上しません。TikTok のコインは円に換算せず参考値としてだけ表示します。固定プランの自動請求と5%プランの確定入力はまだ実装していません。
 
-場所は環境変数で変えられます: `TW_LEDGER_DIR`（台帳）、`TW_STREAMERS`、`TW_RENTAL_STATE`、`TW_RENTAL_OPS_DIR`、`TW_NUMBERS_CONFIG`、`TW_LEDGER_START_AT`（この日時より前に終わった貸出枠を発生させない）。`excludeStreamers` にある人は貸出の発生と売上推移に入れません。
+場所は環境変数で変えられます: `TW_LEDGER_DIR`（台帳）、`TW_STREAMERS`、`TW_RENTAL_STATE`、`TW_RENTAL_OPS_DIR`、`TW_NUMBERS_CONFIG`、`TW_LEDGER_START_AT`（この日時より前に終わった貸出枠を発生させない。不正な日時では同期しない）。`excludeStreamers` にある人は貸出の発生と売上推移に入れません。
 
 ## ウィジェット
 

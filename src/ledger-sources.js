@@ -140,6 +140,9 @@ export function rentalRows(state, { neverHandedOver = () => false } = {}) {
 export function rentalAccrualCandidates(state, { recordRevenueYen, shareAmountYen, neverHandedOver = () => false, startAt = null, excludeStreamers = new Set() } = {}) {
   if (typeof recordRevenueYen !== 'function' || typeof shareAmountYen !== 'function') throw new SourceError('貸出の計算元を読めません', { kind: 'rental-ops-missing' });
   const startMs = startAt == null ? null : timeMs(startAt);
+  if (startAt != null && startMs == null) {
+    throw new SourceError('貸出の台帳同期: TW_LEDGER_START_AT の日時が不正です', { kind: 'rental-start-invalid' });
+  }
   const candidates = [];
   const warnings = [];
   for (const row of rentalRows(state, { neverHandedOver })) {

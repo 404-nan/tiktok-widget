@@ -40,6 +40,15 @@ test('取り消した請求や集金は元の月の集計に含めない', async
   assert.deepEqual(await totals(), [0, 0]);
 });
 
+test('不正な同期開始日時では過去の貸出を台帳に追加しない', async () => {
+  const s = await setup({
+    usage: [rentalSession('r1', 'u1'), { kind: 'revenue', sessionId: 'r1', reservationId: 'r1', revenueYen: 1000 }],
+    reservations: [rentalReservation('r1', 'u1')],
+  });
+  await assert.rejects(syncLedgerSources({ ...s, startAt: 'bad-date' }), { kind: 'rental-start-invalid' });
+  assert.deepEqual(s.ledger.entries(), []);
+});
+
 test('貸出の申告は最初の10%だけ台帳化し、同じ sync を繰り返しても二重計上しない', async () => {
   const s = await setup({
     usage: [

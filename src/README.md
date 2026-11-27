@@ -46,7 +46,7 @@
 | `info-feed.js` | フォロー・ギフト・シェアの最近の一覧をメモリに持ち、ウィジェットへ渡す |
 | `ingest-keys.js` | 外部イベント受け口の鍵を保存・照合する |
 | `ledger.js` | 利用者ごとの金額台帳。entries.jsonl への追記、残高、FIFO集金配分、二重送信防止、取り消しを行う |
-| `ledger-sources.js` | streamers.json、貸出 state、ライコネ配信履歴を読み、月次売上と貸出発生候補を作る（書かない） |
+| `ledger-sources.js` | streamers.json、貸出 state、ライコネ配信履歴を読み、月次売上と貸出発生候補を作る。不正な同期開始日時は拒否する |
 | `ledger-sync.js` | 貸出の申告売上10%と訂正差分だけを台帳へ同期し、retry の二重計上を防ぐ |
 | `ledger-service.js` | 管理画面向けに人ごとの残高・売上推移と、取り消し済みの行を除いた月次請求・集金額をまとめる |
 | `ingest.js` | 外部ツールからイベントを受け、重複・直接接続との競合を整理してhubへ流す |

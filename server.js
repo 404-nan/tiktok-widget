@@ -158,6 +158,7 @@ const ledgerRoute = (fn) => async (req, res) => {
   try {
     res.json(await fn(req));
   } catch (err) {
+    console.warn(`[admin] ${req.method} ${req.route.path}: ${err.message}`);
     res.status(err?.status ?? 500).json({ error: err?.message ?? '台帳で失敗しました', kind: err?.kind ?? err?.code ?? 'ledger-error' });
   }
 };
