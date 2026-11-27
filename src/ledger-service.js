@@ -32,9 +32,11 @@ export function createLedgerService({ dataDir, ledgerDir = process.env.TW_LEDGER
   }
   function ledgerTotals(id, month) {
     const entries = ledger.entries().filter((entry) => entry.streamerId === id);
+    const reversed = new Set(entries.filter((entry) => entry.kind === 'reversal').map((entry) => entry.targetId));
+    const active = entries.filter((entry) => entry.period?.month === month && !reversed.has(entry.id));
     return {
-      chargeYen: entries.filter((entry) => (entry.kind === 'accrual' || entry.kind === 'adjustment') && entry.period?.month === month).reduce((sum, entry) => sum + entry.signedAmountYen, 0),
-      collectedYen: entries.filter((entry) => entry.kind === 'collection' && entry.period?.month === month).reduce((sum, entry) => sum - entry.signedAmountYen, 0),
+      chargeYen: active.filter((entry) => entry.kind === 'accrual' || entry.kind === 'adjustment').reduce((sum, entry) => sum + entry.signedAmountYen, 0),
+      collectedYen: active.filter((entry) => entry.kind === 'collection').reduce((sum, entry) => sum - entry.signedAmountYen, 0),
     };
   }
 

@@ -48,7 +48,7 @@
 | `ledger.js` | 利用者ごとの金額台帳。entries.jsonl への追記、残高、FIFO集金配分、二重送信防止、取り消しを行う |
 | `ledger-sources.js` | streamers.json、貸出 state、ライコネ配信履歴を読み、月次売上と貸出発生候補を作る（書かない） |
 | `ledger-sync.js` | 貸出の申告売上10%と訂正差分だけを台帳へ同期し、retry の二重計上を防ぐ |
-| `ledger-service.js` | 管理画面向けに人ごとの残高・前回集金から・売上推移をまとめる |
+| `ledger-service.js` | 管理画面向けに人ごとの残高・売上推移と、取り消し済みの行を除いた月次請求・集金額をまとめる |
 | `ingest.js` | 外部ツールからイベントを受け、重複・直接接続との競合を整理してhubへ流す |
 | `mc-goal-alert.js` | Minecraftのゴール距離、警報段階、再通知、ゴール到達をサーバーで管理する |
 | `media-alerts.js` | 画像・動画・音声の通知を管理する |
