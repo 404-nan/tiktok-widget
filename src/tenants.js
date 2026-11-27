@@ -457,6 +457,7 @@ export class Tenants {
       template: t?.template ?? null,
       guideDone: Boolean(t?.guideDone),
       billing,
+      plan: this.billing.planView(id),
     };
   }
 
@@ -487,6 +488,7 @@ export class Tenants {
       dataDir: dir,
       mediaDirs: [path.join(dir, 'media'), MEDIA_DIR],
       entitled: (f) => this.entitled(id, f),
+      accessState: () => this.accessState(id),
       editAllowed: (capability) => this.editAllowed(id, capability),
       info: () => this.info(id),
       setWidgets: (list) => this.update(id, { widgets: list }),

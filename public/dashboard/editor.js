@@ -2,7 +2,7 @@
 // フォームの変更は1項目ずつ PATCH /api/config で保存する（ファイルのコメントは残る）。
 
 import { icon, mediaUrl, BASE, giftLabel } from '/widgets/lib/overlay.js';
-import { copyText, flashCopied } from './common.js';
+import { copyText, flashCopied, planLimitText } from './common.js';
 import { WEIGHT_INPUT, parseWeight } from './weight.js';
 import { GROUPS, INFO, SIMPLE, summaryOf, presetActive } from './simple.js';
 import { widgetDescription } from './dashboard-descriptions.js';
@@ -91,6 +91,8 @@ export function createEditor({ api, setMessage }) {
           body: JSON.stringify({ path, ...body }),
         });
         const data = await res.json().catch(() => ({}));
+        const limit = planLimitText(data, res.status);
+        if (limit) return showIssues([limit]);
         if (data.config) payload = data;
         if (res.status === 403) {
           const errors = data.errors?.length ? data.errors : [data.error || '保存できませんでした'];
@@ -148,7 +150,8 @@ export function createEditor({ api, setMessage }) {
     (section === 'bosses' && ['commands', 'superstreamGift', 'superstreamAction'].includes(key)) ||
     (section === 'minecraft' && ['host', 'port', 'password', 'superstreamProfile', 'superstreamFile'].includes(key));
   // 管理者が使えなくしているものは選べない（1人で使うときは全部使える）
-  const unlocked = (section) => !isTenant() || me.features?.[section] != null;
+  const isLocked = (section) => isTenant() && (me.locked ?? []).some((item) => item.key === section && item.kind !== 'capability');
+  const unlocked = (section) => !isTenant() || (me.features?.[section] != null && !isLocked(section));
   /** タブに出すもの: 1人で使うときは全部、配信者ごとのときは選んだものとテーマ */
   const visibleTabs = () => (isTenant() ? TABS.filter((s) => s === 'theme' || (me.widgets.includes(s) && unlocked(s))) : TABS);
 
@@ -479,8 +482,13 @@ export function createEditor({ api, setMessage }) {
       const grid = document.createElement('div');
       grid.className = 'card-grid';
       for (const section of rest) {
-        const open = unlocked(section);
-        if (!open) continue;
+        // 使えないものも消さずに、鍵の印と「どのプランで使えるか」をつけて並べる（何が増えるかを先に見せる）
+        // 配信者ごとに分けていないもの（obs など）は、今までどおり並べない
+        if (!unlocked(section)) {
+          const lock = (me.locked ?? []).find((item) => item.key === section && item.kind !== 'capability');
+          if (lock) grid.append(lockedCard(section, lock));
+          continue;
+        }
         const on = used.includes(section);
         const b = document.createElement('button');
         b.type = 'button';
@@ -505,6 +513,27 @@ export function createEditor({ api, setMessage }) {
       group.append(grid);
       box.append(group);
     }
+  }
+
+  // 使えないウィジェットのカード。押しても入らない（入れても配信画面には出ないため）。理由は1行で、カードの下に出す
+  function lockedCard(section, lock) {
+    const card = document.createElement('div');
+    card.className = 'card locked';
+    card.dataset.section = section;
+    const head = document.createElement('span');
+    head.className = 'card-head';
+    head.append(icon(INFO[section].icon), Object.assign(document.createElement('span'), { className: 'card-title', textContent: schema.sections[section].title }));
+    const state = document.createElement('span');
+    state.className = 'card-state';
+    state.append(icon('lock'), lockText(lock));
+    card.append(head, Object.assign(document.createElement('span'), { className: 'card-desc', textContent: INFO[section].desc }), state);
+    return card;
+  }
+
+  function lockText(lock) {
+    if (lock?.reason === 'stopped') return 'いまは止めています（ホームの「プラン」を見てください）';
+    if (lock?.reason === 'plan' && lock.requiredPlanLabel) return `${lock.requiredPlanLabel} で使えます`;
+    return 'いまは使えません（LuL にご確認ください）';
   }
 
   const homeTopCards = document.querySelector('.top-cards');
@@ -807,6 +836,8 @@ export function createEditor({ api, setMessage }) {
           body: JSON.stringify({ path: isObj(tab) ? [tab] : [tab, id], merge: true, value: opt.value }),
         });
         const data = await res.json().catch(() => ({}));
+        const limit = planLimitText(data, res.status);
+        if (limit) return showIssues([limit]);
         if (data.config) payload = data;
         if (!yamlDirty && data.yaml) $('yamlText').value = data.yaml;
         render();
@@ -1290,6 +1321,7 @@ export function createEditor({ api, setMessage }) {
         getPayload: () => payload,
         getMe: () => me,
         onChanged: (data) => { if (data.config) payload = data; render(); },
+        onError: (err) => setMessage(err.message, true),
         onTemplate: async () => { me = await api('/api/me'); renderPicker(); renderNav(); },
         openWidget: (section, entry) => { view = 'detail'; select(section, entry); },
       });

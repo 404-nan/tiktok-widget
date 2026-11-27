@@ -5,12 +5,14 @@
   "trialNoticeDays": 3,
   "graceDays": 7,
   "paymentNote": "お支払いの方法は準備中です。プランを変えたいときは LuL にご連絡ください。",
+  "contactUrl": "",
+  "contactEnv": "TW_PLAN_CONTACT_URL",
   "premiumFeatures": ["cutins", "imageCutins", "rush", "stepup", "swarm", "winsFx", "combo", "ai"],
   "editCapabilities": [
     { "key": "edit.media", "label": "画像を上げる" },
     { "key": "edit.cutinImage", "label": "カットイン画像の切り抜き" },
     { "key": "edit.layout", "label": "配信画面の配置" },
-    { "key": "edit.advanced", "label": "くわしい設定・YAML" },
+    { "key": "edit.advanced", "label": "くわしい設定・設定ファイル" },
     { "key": "edit.ai", "label": "AI にたのむ", "feature": "ai" }
   ],
   "plans": [

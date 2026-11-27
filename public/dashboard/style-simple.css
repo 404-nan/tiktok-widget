@@ -44,7 +44,10 @@ body[data-mode=simple] [data-dev-only] { display: none !important; }
 .card-state { display: inline-flex; align-items: center; gap: 4px; margin-top: auto; padding-top: 4px; font-size: 14px; color: var(--text-tertiary); }
 .card-state .icon { --size: 13px; }
 .card.used .card-state { color: var(--success); }
-.card.locked { opacity: .45; cursor: not-allowed; }
+/* 使えないカード: 薄くしすぎず読めるままにし、鍵と「○○ で使えます」だけ色で目立たせる */
+.card.locked { cursor: default; background: transparent; box-shadow: inset 0 0 0 1px var(--stroke-secondary); }
+.card.locked .card-head, .card.locked .card-desc { opacity: .72; }
+.card.locked .card-state { color: var(--attention); font-weight: 700; }
 @media (max-width: 600px) {
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { min-height: 0; padding: 12px; }

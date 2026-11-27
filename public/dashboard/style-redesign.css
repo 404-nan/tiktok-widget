@@ -179,6 +179,14 @@ body[data-mode=simple] #cards > .text-btn { justify-self: start; width: auto; pa
 .top-cards > .notes-panel,
 .top-cards > .plan-panel { display: grid; }
 .plan-body { margin: 0; padding: var(--card-pad-y) var(--card-pad-x); font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+/* プランで増えるものと案内。空のときは場所をとらない */
+.plan-more { display: grid; gap: var(--s-2); padding: 0 var(--card-pad-x) var(--card-pad-y); }
+.plan-more:empty { display: none; }
+.plan-upgrade { display: flex; align-items: flex-start; gap: var(--s-2); margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.plan-upgrade .icon { --size: 14px; flex: none; margin-top: 4px; color: var(--attention); }
+.plan-contact { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.plan-contact a { color: inherit; font-weight: 700; text-decoration: underline; }
+.plan-panel[data-status="suspended"] .plan-body { color: var(--error); }
 
 /* カットインの切り抜き。余白は 4/8/12/16/24/32/48 だけ。横並びのボタンは同じ大きさ */
 .cutin-crop {
