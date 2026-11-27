@@ -58,6 +58,7 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 妨害マイクラのギフト表 | 妨害マイクラで、どのギフトを送ると何が起きるかを配信画面に出す(行が多いと順にめくる)。表は配信者の minecraft.superstreamFile、無ければ TW_MC_GIFT_TABLE(貸出サーバーのモードの superstream.yml) | できた | `public/widgets/mc-gifts.html`、`src/superstream.js` の `giftTable` |
 | 配信の準備と自動接続 | 出すもの・配信ソフト・ためす・配信で使った、の印を保存し、「ためしに動かす」でデモを始めるか配信中にテスト送信すると「ためす」を済みにする。配信ソフトにライコネの画面が入っているときに自動接続する。ダッシュボードの中の見本(preview=1 / preview=live)は数えない | できた（本物の配信ではまだ確かめていない） | `src/preparation.js`、`public/dashboard/editor.js` |
 | 配信者向け hosted 画面 | 配信者ごとの URL でホームと設定を PC / スマホ、ライト / ダークで確認する。管理画面から短い URL・4桁の数字・使い始めの手順をまとめてコピーできる。配信ソフトに入れる URL は設定済みを先頭に出し、ほかを折りたためる | できた（開発サーバー確認まで） | `public/dashboard/`、`public/admin/admin.js`、`test/kind-ui-playwright.test.js` |
+| プランの申し込み | 配信者がホームの「プラン」か鍵つきのカードから「Plus にする」「Pro にする」「解約する（次の更新をしない）」を2回押すだけで申し込み、「確認中」を見られる。管理画面で「確かめて有効にする」を1回押すとプラン・支払い済み・支払った日まで（+1か月）が入る。申し込みは追記だけで残し、二重に押した分は1件にまとめる。`TW_NOTIFY_WEBHOOK` があるときだけオーナーへ1行知らせる。お金の出入りは持たない（支払いの台帳の役目） | できた（本番の通知先と払い方の案内はオーナーが決める） | `src/plan-requests.js`、`src/runtime-routes.js`、`public/dashboard/plan-request.js`、`public/admin/admin-detail.js` |
 | 配信中のウィジェット未接続案内 | `/api/status` の `widgetConnected` が false のまま配信中なら、ホームで入れ方を案内し、配信ごとに閉じられる | できた | `src/runtime.js`、`public/dashboard/editor.js` |
 
 ## ウィジェット
@@ -156,6 +157,8 @@ TikTok LIVE 配信用のオーバーレイ集です。OBS / TikTok LIVE Studio �
 | 死活の見張りの自動復帰 | 同じ障害で1回だけ、かつ15分に1回まで（既定は切。healthz が 200 の時は行わない） | それより多くは再起動しない | `scripts/health-watch.sh` |
 | 自動復帰後の復帰確認 | 最大15秒 | 戻らなければ「戻りませんでした」と知らせる | `scripts/health-watch.sh` |
 | 新しい配信者のお試し | 作った日（日本時間）から `src/plans.json` の `trialDays`（14日）。そのあいだは Pro として全部使える。今いる配信者には付けない | 終わる `trialNoticeDays`（3日）前から、ダッシュボードに「あと○日でカットイン・RUSHなどの有料機能が使えなくなります（基本機能はそのまま無料で続けられます）」と出す。期限を過ぎて払っていなければ**停止にせず無料に落とす**（基本機能はそのまま）。配信中（live）の接続は切らない | `src/billing.js`、`src/tenants.js` |
+| プランの申し込み | 同じ種類・同じプランで確認中のものは1件 | 押し直した分は捨てずに1件にまとめ、押した回数（`count`）を数えて「1件にまとめました」と出す。処理が済んだあとに押せば新しい申し込み。オーナーへの通知（`TW_NOTIFY_WEBHOOK`）は新しい申し込みのときだけ送り、1回5秒まで待つ。届かなくても申し込みは受けたまま（`plan.request.notify` に残す） | `src/plan-requests.js`、`src/runtime-routes.js` |
+| 解約した人の支払った日の後 | 支払った日（`paidUntil`）まで | 支払い待ち・停止にせず、無料に落とす（基本機能はそのまま）。配信中の接続は切らない | `src/billing.js` |
 
 ## 使い方
 
@@ -258,6 +261,17 @@ npm run demo       # 配信していなくても、デモのイベントを流�
 - **配信者のダッシュボードのホームには、プランの情報をいつも出します**（無料・お試し・Plus・Pro・支払い待ち・停止のどれでも）。いまのプランと月額（仮の値段なら「仮の値段」）、状態、期限と残り日数、上のプランで使えるもの、案内（`contactUrl` があればリンク、無ければ `paymentNote`）。停止のときは連絡の案内も出します
 - `GET /api/me` は、使えるもの `features`（今までどおり）に加えて、使えないもの `locked: [{ key, kind: 'feature' | 'capability', label, requiredPlan, requiredPlanLabel, reason: 'plan' | 'stopped' | 'switch', pages }]`、編集の操作 `capabilities: { 'edit.media': true, ... }`、いまのプラン `plan: { id, label, description, priceYen, draft, legacy, status, statusLabel, paidUntil, trialEndsAt, graceUntil, daysLeft, trialNotice, trialMessage, enforcementOn, contactUrl, contactNote }` を返します（管理者のメモ・紹介の履歴は返しません。1人で使うときは `locked: []`・`plan: null`）
 - 編集の操作をプランで断られたとき（403 と `requiredPlan`）は、ダッシュボードが「「画像を上げる」は Pro プランで使えます。いまのプランはホームの「プラン」で確かめられます」と出します
+
+#### プランの申し込み（お金の記録はしない）
+
+- 配信者はホームの「プラン」の「Plus にする」「Pro にする」、またはその他のウィジェットの鍵つきカードの「○○にする」を押すと、その場で確かめ欄（値段と、`src/plans.json` の `paymentNote` の払い方の案内）が開き、「○○を申し込む」でもう1回押すと申し込みが終わります。支払い済み・支払い待ちの有料プランの人には「解約する（次の更新をしない）」も出ます
+- 申し込みは `data/tenants/<id>/plan-requests.jsonl` に追記だけで残します（1行 = 1件のその時点の姿 `{ id, type: 'upgrade' | 'cancel', plan, at, lastAt, state: 'pending' | 'approved' | 'rejected', count, decidedAt? }`。同じ id の後の行が新しい姿で、前の行は消しません）。読めない・書けないときは `plan.request.io` に残します
+- 同じ種類・同じプランで確認中の申し込みがあるときは、新しく作らずに1件にまとめ、`merged: true` と押した回数を返します（画面に「1件にまとめました」と出す）
+- `POST /api/me/plan-request`（`{ type: 'upgrade', plan: 'plus' | 'pro' }` か `{ type: 'cancel' }`）と `GET /api/me/plan-requests` は持ち主の鍵だけです。OBS の鍵は 403。`GET /api/me` は持ち主の鍵のときだけ `planRequest: { pending, options, canCancel, paymentNote, error }` と、いちばん新しい確認中の `pendingRequest` を返します（ダッシュボードは「確認中」と出す）
+- 申し込みを受けても使えるものは変わらないので、配信画面へは知らせません（OBS のウィジェットを読み込み直させない）
+- 環境変数 `TW_NOTIFY_WEBHOOK`（Discord の webhook など、http(s) の URL）があるときだけ、新しい申し込みをオーナーへ1行で知らせます（`{ content }` を POST）。送れなかったときは `plan.request.notify` に残し、申し込みそのものは成功のままにします。URL は記録に出しません
+- 管理画面では配信者の一覧に「申し込み」の印が付き、右の「プランの申し込み」に確認中のものが並びます。「確かめて有効にする」を押すと `tenants.updateBilling(id, { plan, status: 'active', paidUntil })` を呼び、支払いの変更の履歴に残ります。`paidUntil` は日本時間の今日から1か月後（月末はその月の末日）。今の期限のほうが後なら縮めません。「解約を確かめる」は次の更新をしない印（`cancelled: true`）を入れるだけで、支払った日までは今のまま使え、過ぎたら停止にせず無料に落ちます（もう一度有効にすると印は外れます）。「見送る」は申し込みを閉じるだけです
+- 入金の記録（いくら受け取ったか）はここでは持ちません。支払いの台帳（PR #24 / #9）で入れてください
 
 管理画面は、配信者が増えても伸びないように、左に1人1行の一覧（名前で探す・「配信中 / 豪華オン / 止めている」で絞り込む・豪華な演出の状態は4つの点）、右にその設定を出します。
 - 配信者を選ぶと、右にその人の URL と、全ウィジェットの ON / OFF が開く（配信者が自分で選んでいるものには「選んでいる」と出る）

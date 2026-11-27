@@ -143,7 +143,7 @@ export function renderRows() {
         'li',
         { className: t.enabled ? '' : 'off' },
         el('label', { className: 'check' }, check),
-        el('span', { className: 'name', textContent: t.name }),
+        el('span', { className: 'name', textContent: t.name }, t.planRequests?.pending?.length ? el('span', { className: 'tag', textContent: '申し込み' }) : null),
         el('span', { className: `status ${cls}` }, el('i'), text, el('small', { className: 'tenant-note', textContent: liveDetails(t) || tenantNote(t) })),
         dots,
       );

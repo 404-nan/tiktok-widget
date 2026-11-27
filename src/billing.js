@@ -32,7 +32,15 @@ export const STATUS_LABEL = {
   free: '無料（お試し終了）',
   unpaid: '未払い',
 };
-const HISTORY_FIELDS = ['status', 'trialEndsAt', 'paidUntil', 'plan', 'note'];
+// 解約（次の更新をしない）した人が、支払った日を過ぎて無料に落ちたときの名前
+const CANCELLED_FREE_LABEL = '無料（解約済み）';
+const HISTORY_FIELDS = ['status', 'trialEndsAt', 'paidUntil', 'plan', 'note', 'cancelled'];
+
+/** 状態の名前。解約して無料に落ちた人は「お試し終了」と書かない */
+function statusLabelOf(entry, status) {
+  if (status === 'free' && entry?.cancelled === true) return CANCELLED_FREE_LABEL;
+  return STATUS_LABEL[status] ?? '';
+}
 const DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 
 // 管理画面で「いちばん上のプランだけ」にできる機能。管理画面の名前と、短い別名の両方を受ける
@@ -115,6 +123,7 @@ export function normalizeDate(value) {
  * active: 支払った日までが来ていない
  * past_due: 期限を過ぎてから7日以内
  * suspended: 手で停止、または支払い待ちの7日が過ぎた
+ * 解約（cancelled: 次の更新をしない）した人は、支払った日を過ぎたら支払い待ちにせず free にする（止めずに無料で続ける）。
  * 状態を手で入れているときはそれが優先。無料提供（free フラグ）は、状態が空の古い記録だけお試しにする（期限で落とさない）。
  * お試しの期限を過ぎても、自動では止めない（ピーク・エンド: 終わり方を「止まる」にしない）。
  */
@@ -133,6 +142,7 @@ export function computeStatus(entry, now = Date.now()) {
   }
   if (explicit === 'active' || (explicit == null && paidEnd != null)) {
     if (paidEnd == null || paidEnd >= now) return 'active';
+    if (entry.cancelled === true) return 'free';
     return now < paidEnd + GRACE_MS ? 'past_due' : 'suspended';
   }
   return trialOrFree(entry, now);
@@ -200,6 +210,7 @@ export function trialMessage(entry, now = Date.now()) {
   return safely('お試しの案内', () => {
     const status = computeStatus(entry, now);
     const names = `${trialLostLabels().join('・')}などの有料機能`;
+    if (status === 'free' && entry?.cancelled === true) return `解約したので、${names}はお休みしています（基本機能はそのまま無料で使えます）`;
     if (status === 'free') return `お試しが終わりました。${names}はお休みしています（基本機能はそのまま無料で使えます）`;
     if (!trialNotice(entry, now)) return '';
     const left = daysUntil(paidUntilEnd(entry?.trialEndsAt), now);
@@ -392,7 +403,9 @@ export function planSummary(entry, { now = Date.now(), enforcement = false } = {
     // 昔のプラン（5000円プランなど）は、決めたときの名前と値段（個別月額があればそちら）も見せる
     legacy: stored?.legacy ? { label: stored.label, priceYen: customPrice ?? stored.priceYen } : null,
     status,
-    statusLabel: STATUS_LABEL[status] ?? '',
+    statusLabel: statusLabelOf(entry, status),
+    // 解約（次の更新をしない）を受けた。支払った日まではそのまま、過ぎたら無料
+    cancelled: entry?.cancelled === true,
     paidUntil,
     trialEndsAt,
     graceUntil,
@@ -512,7 +525,8 @@ export class BillingStore {
       referredBy: entry.referredBy ?? null,
       status,
       storedStatus: canonicalStatus(entry.status),
-      statusLabel: STATUS_LABEL[status] ?? '',
+      statusLabel: statusLabelOf(entry, status),
+      cancelled: entry.cancelled === true,
       graceUntil: this.account(id) ? graceUntilDay(entry, now) : '',
       trialNotice: trialNotice(this.account(id), now),
       history: Array.isArray(entry.history) ? entry.history.slice(-50) : [],
@@ -533,7 +547,7 @@ export class BillingStore {
         show: enforcement || entry != null || suspended || notice,
         enforcement,
         status,
-        statusLabel: STATUS_LABEL[status] ?? '',
+        statusLabel: statusLabelOf(entry, status),
         plan: canonicalPlan(entry?.plan),
         planLabel: plan?.label ?? '',
         catalogPlan: catalogPlan(entry?.plan),
@@ -686,6 +700,11 @@ export class BillingStore {
       }
     }
     if ('free' in patch) cur.free = Boolean(patch.free);
+    // 解約（次の更新をしない）。false か空で取り消す（もう一度プランを有効にしたとき）
+    if ('cancelled' in patch) {
+      if (patch.cancelled === true) cur.cancelled = true;
+      else delete cur.cancelled;
+    }
     if ('paidUntil' in patch) {
       if (patch.paidUntil == null || patch.paidUntil === '') delete cur.paidUntil;
       else {

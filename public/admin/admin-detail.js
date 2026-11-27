@@ -1,4 +1,4 @@
-// 管理画面の右ペイン: 配信者詳細、まとめて、接続キー、AI 設定、全員、LuL。
+// 管理画面の右ペイン: 配信者詳細（プランの申し込みを含む）、まとめて、接続キー、AI 設定、全員、LuL。
 // admin.js が initDetail() で遅延バインディングを渡す。
 
 import { icon } from '/widgets/lib/overlay.js';
@@ -54,6 +54,7 @@ export function tenantDetail(t) {
       el('div', { className: 'row' }, el('span', { className: `status ${cls}` }, el('i'), text), el('label', { className: 'row' }, enabled, '使える')),
     ),
     t.status.mode === 'live' ? el('p', { className: 'hint live-summary', textContent: liveDetails(t) }) : null,
+    planRequestsGroup(t),
     el('div', { className: 'group' },
       el('label', { className: 'field' },
         el('span', { className: 'field-label', textContent: 'TikTok の ID' }),
@@ -103,6 +104,49 @@ export function tenantDetail(t) {
       ),
     ),
   ];
+}
+
+// --- 右: プランの申し込み ---
+// 配信者が送った申し込みを、確かめてから1回押して反映する。お金の記録はここでは入れない（支払いの台帳で入れる）。
+
+function requestWhen(row) {
+  const day = (iso) => new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const times = row.count > 1 ? `・${row.count}回押されました（最後は ${day(row.lastAt)}）` : '';
+  return `${day(row.at)}${times}`;
+}
+
+function requestTitle(row) {
+  return row.type === 'cancel' ? `解約（次の更新をしない）・いまは ${row.planLabel || 'プラン未設定'}` : `${row.planLabel} にしたい`;
+}
+
+function pendingRequestRow(t, row) {
+  const decide = (action, done) => act(() => api(`/tenants/${t.id}/plan-requests/${row.id}/${action}`, {}), done);
+  const paidUntil = t.billing?.paidUntil;
+  const actions = row.type === 'cancel'
+    ? [button('解約を確かめる', decide('approve', `解約を受けました。${paidUntil ? `${paidUntil} まではそのまま使えます` : ''}`), { cls: 'btn primary', iconName: 'check' })]
+    : [button('確かめて有効にする', decide('approve', `${row.planLabel} を有効にしました（支払った日まで +1か月）`), { cls: 'btn primary', iconName: 'check' })];
+  actions.push(button('見送る', () => {
+    if (!confirm(`${t.name} の「${requestTitle(row)}」を見送りますか？`)) return;
+    decide('reject', '見送りました')();
+  }));
+  return el('div', { className: 'group-item plan-request' },
+    el('span', { className: 'url-label', textContent: requestTitle(row) }),
+    el('span', { className: 'hint', textContent: requestWhen(row) }),
+    el('div', { className: 'row' }, ...actions),
+  );
+}
+
+export function planRequestsGroup(t) {
+  const view = t.planRequests ?? { pending: [], recent: [], error: '' };
+  const done = view.recent.filter((row) => row.state !== 'pending').slice(0, 3);
+  if (!view.pending.length && !done.length && !view.error) return null;
+  return el('div', { className: 'group' },
+    el('p', { className: 'sub', textContent: `プランの申し込み${view.pending.length ? `（確認中 ${view.pending.length}件）` : ''}` }),
+    view.error ? el('p', { className: 'sub hint error', textContent: view.error }) : null,
+    ...view.pending.map((row) => pendingRequestRow(t, row)),
+    view.pending.length ? el('p', { className: 'sub hint', textContent: '「確かめて有効にする」は、入金を確かめてから押してください。プラン・支払い済み・支払った日まで（今日から1か月。今の期限のほうが後なら今のまま）が入り、支払いの変更の履歴に残ります。入金の記録は支払いの台帳で入れてください。解約は、次の更新をしないことを残すだけで、支払った日までは今のまま使えます。' }) : null,
+    ...done.map((row) => el('p', { className: 'sub hint', textContent: `${requestTitle(row)}: ${row.stateLabel}（${requestWhen(row)}）` })),
+  );
 }
 
 // --- 右: 選んだ何人かにまとめて ---

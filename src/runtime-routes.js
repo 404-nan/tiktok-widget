@@ -9,7 +9,8 @@ import YAML from 'yaml';
 import * as cfg from './config.js';
 import { SCHEMA, SECTIONS, COLOR_TOKENS, defaultsFor } from './schema.js';
 import { EDIT_CAPABILITIES, FEATURES, OBS_ALLOWED } from './runtime-features.js';
-import { getPlan, planAllowsCapability, planAllowsFeature, requiredPlanFor, topPlanId } from './plans.js';
+import { defaultPlanId, getPlan, listPlans, planAllowsCapability, planAllowsFeature, planContact, requiredPlanFor, topPlanId } from './plans.js';
+import { describeRequest, notifyOwner, notifyText } from './plan-requests.js';
 import { recordError } from './error-log.js';
 import { DEMO_GIFTS } from './demo.js';
 import { readProfile, SUPERSTREAM_ACTIONS, giftTable } from './superstream.js';
@@ -94,7 +95,7 @@ let sharedWidgetVersions = null;
 
 export function bindRoutes(r, ctx) {
   const {
-    id, hub, store, info, entitled, accessState = () => null, editAllowed = () => true, widgetBase, mediaDirs, root, notes, ai,
+    id, hub, store, info, entitled, accessState = () => null, editAllowed = () => true, widgetBase, mediaDirs, root, notes, ai, planRequests = null,
     setWidgets, setTemplate, setGuideDone, setDisplayName,
     preparation, ingest, eulerUsage, infoFeed, visitors, points, presets, history,
     minecraft, rush, stepup, swarm, combo, wins, timer, boss, door, vote, quiz, cheer, push,
@@ -171,8 +172,35 @@ export function bindRoutes(r, ctx) {
     const access = tenant ? Object.fromEntries(Object.entries(me.access ?? {}).filter(([, state]) => state?.on)) : me.access;
     const capabilities = Object.fromEntries(Object.keys(EDIT_CAPABILITIES).map((key) => [key, editAllowed(key) !== false]));
     const locked = tenant ? lockedList(me, features, capabilities) : [];
-    return { ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}), locked, capabilities, plan: tenant ? me.plan ?? null : null };
+    // 申し込みの様子は持ち主の鍵だけに返す（OBS の鍵でも /api/me は読めるため）
+    const planRequest = tenant && req.role !== 'obs' ? planRequestState(me.plan) : null;
+    return {
+      ...me, role: req.role ?? 'owner', features, ...(tenant ? { access } : {}), locked, capabilities, plan: tenant ? me.plan ?? null : null,
+      planRequest, pendingRequest: planRequest?.pending[0] ?? null,
+    };
   };
+
+  /**
+   * ダッシュボードの申し込みの欄に出すもの。
+   * pending: 確認中の申し込み（新しいものが先）、options: 申し込めるプラン（支払い済みの今のプランは除く）、
+   * canCancel: 「解約する（次の更新をしない）」を出すか（支払い済みか支払い待ちの有料プランで、まだ解約していないとき）、paymentNote: 払い方の案内（plans.json）
+   */
+  function planRequestState(plan) {
+    if (!planRequests) return null;
+    let pending = [];
+    let error = '';
+    try {
+      pending = planRequests.list().filter((row) => row.state === 'pending').map(describeRequest);
+    } catch (err) {
+      // 読めなくても /api/me は返す（原因は plan.request.io に残してある）
+      error = err.message;
+    }
+    const paidNow = plan?.status === 'active' || plan?.status === 'past_due';
+    const options = listPlans()
+      .filter((p) => p.id !== defaultPlanId() && !(paidNow && p.id === plan?.id))
+      .map(({ id: planId, label, description, priceYen, draft }) => ({ id: planId, label, description, priceYen, draft }));
+    return { pending, options, canCancel: paidNow && plan?.id !== defaultPlanId() && plan?.cancelled !== true, paymentNote: planContact().note, error };
+  }
 
   const planLabelOf = (planId) => (planId ? getPlan(planId)?.label ?? planId : '');
   /**
@@ -223,6 +251,35 @@ export function bindRoutes(r, ctx) {
   r.get('/api/me', (req, res) => {
     res.json(meJson(req));
   });
+  // --- プランの申し込み（持ち主の鍵だけ。OBS の鍵は 403） ---
+  const ownerOnly = (req, res, next) => {
+    if (req.role === 'obs') return res.status(403).json({ error: 'OBS 用の URL ではこの操作はできません（ダッシュボードの URL を使ってください）' });
+    if (!planRequests) return res.status(400).json({ error: '1人で使うときは申し込みはいりません（全部使えます）' });
+    next();
+  };
+  r.get('/api/me/plan-requests', ownerOnly, (_req, res) => {
+    try { res.json({ requests: planRequests.list().map(describeRequest) }); }
+    catch (err) { res.status(err.status ?? 500).json({ error: err.message }); }
+  });
+  // { type: 'upgrade', plan: 'plus' | 'pro' } か { type: 'cancel' }。同じ申し込みが確認中なら1件にまとめて merged: true を返す。
+  // オーナーへの通知（TW_NOTIFY_WEBHOOK）は新しい申し込みのときだけ。送れなくても申し込みは受けたままにする。
+  r.post('/api/me/plan-request', ownerOnly, async (req, res) => {
+    const type = req.body?.type;
+    const current = info().plan;
+    if (type === 'cancel' && !planRequestState(current)?.canCancel) return res.status(400).json({ error: '解約できる有料のプランがありません（お試し・無料のときは何もしなくて大丈夫です）' });
+    const plan = type === 'cancel' ? current?.id ?? null : req.body?.plan;
+    let result;
+    try {
+      result = planRequests.submit({ type, plan });
+    } catch (err) {
+      return res.status(err.status ?? 500).json({ error: err.message });
+    }
+    const notified = result.merged ? 'skipped' : await notifyOwner(notifyText({ tenantName: info().name, tenantId: id, request: result.request }), {
+      context: { tenant: id, requestId: result.request.id, type: result.request.type, plan: result.request.plan },
+    });
+    res.json({ ok: true, merged: result.merged, request: describeRequest(result.request), notified, ...meJson(req) });
+  });
+
   r.get('/api/env', (req, res) => {
     const dev = isDevEnv(req);
     res.json({ dev, environment: dev ? 'dev' : 'prod' });

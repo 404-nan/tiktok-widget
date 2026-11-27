@@ -144,6 +144,7 @@ function tenantView(req, t) {
     shortId: t.shortId,
     pin: t.pin,
     billing: tenants.billing.adminView(t.id),
+    planRequests: tenants.planRequestView(t.id),
     urls: { short: `${origin(req)}/d/${t.shortId}`, dashboard: `${origin(req)}/t/${t.key}/dashboard/`, monitor: `${origin(req)}/t/${t.key}/monitor/`, obs: `${origin(req)}/t/${t.obsKey}/widgets/` },
     status: rt ? {
       ...rt.hub.status,
@@ -329,6 +330,20 @@ admin.post('/tenants/:id/billing/credit', (req, res) => {
     res.json({ ok: true, discount: tenants.useBillingCredit(req.params.id), tenant: tenantView(req, tenants.get(req.params.id)) });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+// プランの申し込み（src/plan-requests.js）。「確かめて有効にする」でプラン・支払い済み・支払った日まで（+1か月）を入れる。
+// お金の出入りはここでは持たない（支払いの台帳で入れる）
+admin.get('/tenants/:id/plan-requests', (req, res) => {
+  if (!tenants.get(req.params.id)) return res.status(404).json({ error: 'その配信者は見つかりません' });
+  res.json(tenants.planRequestView(req.params.id));
+});
+admin.post('/tenants/:id/plan-requests/:requestId/:action', (req, res) => {
+  try {
+    const result = tenants.decidePlanRequest(req.params.id, req.params.requestId, req.params.action, { paidUntil: req.body?.paidUntil || null });
+    res.json({ ok: true, ...result, tenant: tenantView(req, tenants.get(req.params.id)) });
+  } catch (err) {
+    res.status(err.status ?? 400).json({ error: err.message });
   }
 });
 // 「AI にたのむ」の設定: { key?（空なら消す）, model?, dailyLimit?（配信者1人の1日の回数） }

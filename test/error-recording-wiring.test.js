@@ -20,3 +20,10 @@ test('console.warn/error のある場所は errorLog へも記録する（error-
   }
   assert.deepEqual(missing, []);
 });
+
+test('プランの申し込みは、読み書きの失敗を plan.request.io、通知の失敗を plan.request.notify に残す', () => {
+  const source = fs.readFileSync(path.join(root, 'src/plan-requests.js'), 'utf8');
+  assert.match(source, /recordError\(err, \{ kind: 'plan\.request\.io'/);
+  assert.match(source, /recordError\(err, \{ kind: 'plan\.request\.io', level: 'warn'/);
+  assert.match(source, /recordError\(err, \{ kind: 'plan\.request\.notify'/);
+});
