@@ -42,10 +42,39 @@ function paymentForm(tenants) {
   return form;
 }
 
+function paymentRow(payment, name) {
+  const amount = el('input', { type: 'number', min: '1', max: '100000000', step: '1', required: true, value: payment.amount });
+  const reason = el('input', { required: true, maxLength: 500 });
+  const save = el('button', { type: 'submit', className: 'btn pressable', textContent: '金額を訂正' });
+  const discard = button('入金記録を取り消す', async () => {
+    if (!reason.reportValidity() || !confirm('この入金記録を取り消します。返金は行いません。')) return;
+    await change('void', { reason: reason.value }, '入金記録を取り消しました');
+  }, { cls: 'btn' });
+  async function change(action, body, done) {
+    if (save.disabled) return;
+    save.disabled = discard.disabled = true;
+    try {
+      await act(() => api(`/money/payments/${payment.id}/${action}`, body), done)();
+    } finally {
+      save.disabled = discard.disabled = false;
+    }
+  }
+  const form = el('form', { className: 'note-form' },
+    field('正しい入金額（円）', amount), field('理由', reason), el('div', { className: 'btn-row' }, save, discard));
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await change('correction', { amount: amount.valueAsNumber, reason: reason.value }, '入金額を訂正しました');
+  });
+  return el('details', { className: 'admin-note' },
+    el('summary', { textContent: `${name(payment.tenantId)}：${yen(payment.amount)} ／ ${date.format(new Date(payment.confirmedAt))} に記録 ／ 照合番号：${payment.reference}` }),
+    form);
+}
+
 function payoutRow(payment, balance, name) {
   const { reward } = payment;
+  const due = reward.due ?? reward.amount;
   const payout = button('支払いを記録', async () => {
-    if (!confirm(`${name(reward.referrerId)}への ${yen(reward.amount)} の支払いを記録します。この画面から送金はしません。`)) return;
+    if (!confirm(`${name(reward.referrerId)}への ${yen(due)} の支払いを記録します。この画面から送金はしません。`)) return;
     payout.disabled = true;
     try {
       await act(() => api(`/money/payments/${payment.id}/payout`, {}), '紹介報酬の支払いを記録しました')();
@@ -56,8 +85,9 @@ function payoutRow(payment, balance, name) {
   return el('article', { className: 'admin-note' },
     el('strong', { textContent: `${name(reward.referrerId)}：${yen(reward.amount)}` }),
     p(`紹介した相手：${name(payment.tenantId)}`),
+    reward.due ? p(`未払い分：${yen(due)}`) : null,
     reward.paidAt ? p(`支払い済み：${date.format(new Date(reward.paidAt))}`)
-      : reward.amount > balance ? p('未払い・残高不足のため記録できません')
+      : due > balance ? p('未払い・残高不足のため記録できません')
         : el('div', { className: 'btn-row' }, payout));
 }
 
@@ -77,7 +107,7 @@ export function moneyDetail(money, tenants) {
       p('紹介した人への報酬は、紹介された人の初回の月額入金の50%です。1円未満は切り捨てます。'),
       ...(referrals.length ? referrals.map(({ tenantId, referrerId }) => p(`${name(referrerId)} → ${name(tenantId)}`)) : [p('紹介はまだありません。')])),
     card('受け取ったお金', paymentForm(tenants),
-      ...(payments.length ? payments.slice().reverse().map((row) => p(`${name(row.tenantId)}：${yen(row.amount)} ／ ${date.format(new Date(row.confirmedAt))} に記録 ／ 照合番号：${row.reference}`))
+      ...(payments.length ? payments.slice().reverse().map((row) => paymentRow(row, name))
         : [p('入金の記録はまだありません。')])),
     card('紹介報酬', ...(rewards.length ? rewards.map((row) => payoutRow(row, balance, name)) : [p('紹介報酬はまだありません。')])),
   ];

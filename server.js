@@ -338,6 +338,13 @@ admin.post('/money/payments', adminBillingAction('POST /admin/api/money/payments
   const referrerId = tenants.billing.referrerOf(tenantId);
   return { ok: true, payment: ledgerService.ledger.recordSubscriptionPayment({ tenantId, referrerId, amount, reference, confirmed }) };
 }));
+admin.post('/money/payments/:id/correction', adminBillingAction('POST /admin/api/money/payments/:id/correction', (req) => ({
+  ok: true, payment: ledgerService.ledger.correctSubscriptionPayment(req.params.id, req.body ?? {}),
+})));
+admin.post('/money/payments/:id/void', adminBillingAction('POST /admin/api/money/payments/:id/void', (req) => {
+  ledgerService.ledger.voidSubscriptionPayment(req.params.id, req.body ?? {});
+  return { ok: true };
+}));
 admin.post('/money/payments/:id/payout', adminBillingAction('POST /admin/api/money/payments/:id/payout', (req) => ({
   ok: true, payment: ledgerService.ledger.recordReferralPayout(req.params.id),
 })));

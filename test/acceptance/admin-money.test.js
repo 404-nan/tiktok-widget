@@ -71,4 +71,16 @@ test('管理 API は紹介元と実際のお金の動きを記録し、未確認
   assert.match(logs, /adminGuard: 合言葉が違います/);
   assert.match(logs, /POST \/admin\/api\/money\/payments: 入金を確認してから記録してください/);
   assert.match(logs, /POST \/admin\/api\/money\/payments\/:id\/payout: その紹介報酬は支払い済みです/);
+  const extra = { ...form, amount: 1000, reference: 'confirmed-02', confirmed: true };
+  const { payment: second } = await request(200, '/money/payments', extra);
+  const changePath = `/money/payments/${second.id}`;
+  await request(401, `${changePath}/correction`, {}, null);
+  await request(401, `${changePath}/void`, {}, null);
+  await request(400, `${changePath}/correction`, { amount: 2000 });
+  const reason = '入力ミス';
+  assert.equal((await request(200, `${changePath}/correction`, { amount: 2000, reason })).payment.amount, 2000);
+  assert.equal((await request(200, '/money')).balance, 4490);
+  await request(200, `${changePath}/void`, { reason });
+  assert.equal((await request(200, '/money')).balance, 2490);
+  await request(200, '/money/payments', extra);
 });
