@@ -150,7 +150,8 @@ export function createEditor({ api, setMessage }) {
     (section === 'bosses' && ['commands', 'superstreamGift', 'superstreamAction'].includes(key)) ||
     (section === 'minecraft' && ['host', 'port', 'password', 'superstreamProfile', 'superstreamFile'].includes(key));
   // 管理者が使えなくしているものは選べない（1人で使うときは全部使える）
-  const unlocked = (section) => !isTenant() || me.features?.[section] != null;
+  const isLocked = (section) => isTenant() && (me.locked ?? []).some((item) => item.key === section && item.kind !== 'capability');
+  const unlocked = (section) => !isTenant() || (me.features?.[section] != null && !isLocked(section));
   /** タブに出すもの: 1人で使うときは全部、配信者ごとのときは選んだものとテーマ */
   const visibleTabs = () => (isTenant() ? TABS.filter((s) => s === 'theme' || (me.widgets.includes(s) && unlocked(s))) : TABS);
 
