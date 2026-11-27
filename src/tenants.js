@@ -55,7 +55,7 @@ export class Tenants {
     this.ingestKeyIndex = new Map(); // 鍵の要約 → 配信者ID
     this.invalidIngestAttempts = new Map();
     this.rental = new RentalState();
-    this.backupDir = backupData(dir);
+    this.backupDir = backupData(dir, 20, env.TW_LEDGER_DIR);
     this.#load();
     // 期限が切れたら、その配信者の画面を読み込み直す（使えなくなったものは止まり、使えるようになったものは出る）
     this.lastState = new Map();
@@ -548,26 +548,29 @@ function safeEqual(a, b) {
  * 起動のたびに、配信者の一覧と設定を data/backups/<日時>/ に写しておく（更新や手違いで消えても戻せるように）。
  * 新しい 20 回分だけ残す。写したところを返す（何もなければ null）
  */
-export function backupData(dir, keep = 20) {
-  const files = [];
-  const list = path.join(dir, 'tenants.json');
-  if (fs.existsSync(list)) files.push('tenants.json');
-  if (fs.existsSync(path.join(dir, 'billing.json'))) files.push('billing.json');
-  if (fs.existsSync(path.join(dir, 'ledger', 'entries.jsonl'))) files.push(path.join('ledger', 'entries.jsonl'));
-  if (fs.existsSync(path.join(dir, 'ledger', 'import-state.json'))) files.push(path.join('ledger', 'import-state.json'));
+export function backupData(dir, keep = 20, ledgerDir = process.env.TW_LEDGER_DIR) {
+  const files = new Map();
+  const include = (relative, source = path.join(dir, relative)) => {
+    if (fs.existsSync(source)) files.set(relative, source);
+  };
+  include('tenants.json');
+  include('billing.json');
+  for (const name of ['entries.jsonl', 'import-state.json']) {
+    include(path.join('ledger', name), path.join(ledgerDir || path.join(dir, 'ledger'), name));
+  }
   const tdir = path.join(dir, 'tenants');
   if (fs.existsSync(tdir)) {
     for (const id of fs.readdirSync(tdir)) {
-      if (fs.existsSync(path.join(tdir, id, 'config.yaml'))) files.push(path.join('tenants', id, 'config.yaml'));
+      include(path.join('tenants', id, 'config.yaml'));
     }
   }
-  if (!files.length) return null;
+  if (!files.size) return null;
   const root = path.join(dir, 'backups');
   const to = path.join(root, new Date().toISOString().replace(/[:.]/g, '-'));
   try {
-    for (const f of files) {
+    for (const [f, source] of files) {
       fs.mkdirSync(path.dirname(path.join(to, f)), { recursive: true });
-      fs.copyFileSync(path.join(dir, f), path.join(to, f));
+      fs.copyFileSync(source, path.join(to, f));
     }
     const all = fs.readdirSync(root).sort();
     for (const old of all.slice(0, Math.max(0, all.length - keep))) fs.rmSync(path.join(root, old), { recursive: true, force: true });
