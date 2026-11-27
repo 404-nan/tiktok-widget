@@ -30,6 +30,11 @@ test('一時起動は初回だけ復元し、再実行・再起動・停止で�
 
   fs.writeFileSync(path.join(bin, 'npm'), '#!/bin/bash\nmkdir -p node_modules\n', { mode: 0o700 });
   fs.writeFileSync(path.join(bin, 'cloudflared'), `#!/bin/bash
+[[ "$*" == "tunnel --grace-period 5s --url http://127.0.0.1:$PORT" ]] || exit 69
+if [[ \${FIXTURE_STUBBORN:-} == 1 ]]; then
+  trap '' TERM
+  printf '%s\\n' "$$" > "$STANDBY_DIR/tunnel-child.pid"
+fi
 printf 'https://fixture.trycloudflare.com\\n'
 exec sleep 120
 `, { mode: 0o700 });
@@ -65,7 +70,7 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
   const env = {
     ...process.env,
     HOME: root, STANDBY_DIR: standby, PORT: port, TUNNEL_TOKEN: '',
-    DATA_URL: '', DATA_TARBALL: '', FIXTURE_BACKUP: backup,
+    DATA_URL: '', DATA_TARBALL: '', FIXTURE_BACKUP: backup, FIXTURE_STUBBORN: '',
     REF: run('git', ['-C', app, 'rev-parse', 'HEAD']).trim(),
     GIT_CONFIG_COUNT: '1',
     GIT_CONFIG_KEY_0: `url.${app}.insteadOf`,
@@ -83,7 +88,7 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
     stop(remote);
     fs.rmSync(root, { recursive: true, force: true });
   });
-  const output = start({ DATA_TARBALL: backup });
+  const output = start({ DATA_TARBALL: backup, FIXTURE_STUBBORN: '1' });
   assert.match(output, /公開 URL: https:\/\/fixture\.trycloudflare\.com/);
   assert.doesNotMatch(output, /restored-fixture/);
   assert.equal(read('url.txt'), 'https://fixture.trycloudflare.com');
@@ -101,8 +106,13 @@ createServer((req, res) => res.end('ok')).listen(+process.env.PORT, process.env.
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert.notEqual(read('data/child.pid'), child);
-  stop(standby);
-  await assert.rejects(fetch(`http://127.0.0.1:${port}/healthz`));
+  await t.test('停止に応じないトンネルを強制終了して本体も止める', async () => {
+    const pid = read('tunnel-child.pid');
+    stop(standby);
+    const stat = `/proc/${pid}/stat`;
+    if (fs.existsSync(stat)) assert.match(fs.readFileSync(stat, 'utf8'), /^\d+ \(.*\) Z /);
+    await assert.rejects(fetch(`http://127.0.0.1:${port}/healthz`));
+  });
   assert.equal(read('data/admin-token.txt'), 'restored-fixture');
   await t.test('バックアップの URL を curl の引数や環境に渡さない', () => {
     const url = 'https://fixture.invalid/backup.tar.gz?key=fixture';

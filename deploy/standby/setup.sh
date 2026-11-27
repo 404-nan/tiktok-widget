@@ -24,19 +24,48 @@ runner_pid() {
   printf '%s\n' "$pid"
 }
 
+wait_runner_exit() {
+  local kind=$1 attempts=$2 i
+  for ((i = 0; i < attempts; i++)); do
+    runner_pid "$kind" >/dev/null || return 0
+    sleep 0.2
+  done
+  ! runner_pid "$kind" >/dev/null
+}
+
+force_stop_runner() {
+  local pid=$1 group child
+  read -r group < <(ps -o pgid= -p "$pid") || return 0
+  if [[ $group == "$pid" ]]; then
+    kill -KILL -- "-$pid" 2>/dev/null || true
+  else
+    # 更新前の起動プロセスは専用グループを持たない。
+    while read -r child; do
+      kill -KILL "$child" 2>/dev/null || true
+    done < <(ps -o pid= --ppid "$pid")
+  fi
+}
+
 stop_runner() {
-  local pid kind=$1 i
+  local pid kind=$1
   if pid=$(runner_pid "$kind"); then
-    kill "$pid" 2>/dev/null || true
-    for ((i = 0; i < 50; i++)); do
-      runner_pid "$kind" >/dev/null || break
-      sleep 0.2
-    done
-    if runner_pid "$kind" >/dev/null; then
-      fail "$kind を停止できませんでした。$base/$kind.log を確認してください。"
+    kill -TERM "$pid" 2>/dev/null || true
+    if ! wait_runner_exit "$kind" 40; then
+      if [[ $(runner_pid "$kind") == "$pid" ]]; then force_stop_runner "$pid"; fi
+      if ! wait_runner_exit "$kind" 10; then
+        say "$kind を停止できませんでした。$base/$kind.log を確認してください。" >&2
+        return 1
+      fi
     fi
   fi
   rm -f -- "$base/$kind.pid"
+}
+
+stop_runners() {
+  local status=0
+  stop_runner tunnel || status=1
+  stop_runner server || status=1
+  return "$status"
 }
 
 lock_setup() {
@@ -45,8 +74,7 @@ lock_setup() {
 }
 
 stop_standby() {
-  stop_runner tunnel
-  stop_runner server
+  stop_runners || return 1
   rm -f -- "$base/url.txt"
   say 'ライコネを停止しました。データは残しています。'
 }
@@ -131,7 +159,7 @@ restore_data() {
 write_runner() {
   # 起動する版にこの設定スクリプトが入っていなくても、再起動と停止はこの機械で行える。
   {
-    declare -f say fail runner_pid stop_runner lock_setup stop_standby
+    declare -f say fail runner_pid wait_runner_exit force_stop_runner stop_runner stop_runners lock_setup stop_standby
     cat <<'RUN'
 set -u
 umask 077
@@ -169,10 +197,10 @@ while :; do
     env -u TW_ADMIN_TOKEN TW_HOSTED=1 HOST=127.0.0.1 TW_DATA="$base/data" \
       TW_CONFIG="$base/config.yaml" node server.js &
   elif [[ $2 == named ]]; then
-    cloudflared tunnel run &
+    cloudflared tunnel --grace-period 5s run &
   else
     rm -f -- "$base/url.txt"
-    cloudflared tunnel --url "http://127.0.0.1:$PORT" > >(record_quick_url) 2>&1 &
+    cloudflared tunnel --grace-period 5s --url "http://127.0.0.1:$PORT" > >(record_quick_url) 2>&1 &
   fi
   child=$!
   wait "$child"
@@ -186,7 +214,7 @@ RUN
 }
 
 start_runner() {
-  nohup bash "$base/run.sh" "$@" < /dev/null >> "$base/$1.log" 2>&1 9>&- &
+  nohup setsid bash "$base/run.sh" "$@" < /dev/null >> "$base/$1.log" 2>&1 9>&- &
   printf '%s\n' "$!" > "$base/$1.pid"
 }
 
@@ -235,16 +263,14 @@ main() {
   commit=$(git -C "$base/app" rev-parse 'FETCH_HEAD^{commit}')
   if [[ $(git -C "$base/app" rev-parse --verify HEAD 2>/dev/null || true) != "$commit" ||
     $(cat "$base/deps.commit" 2>/dev/null) != "$commit" || ! -d $base/app/node_modules ]]; then
-    stop_runner tunnel
-    stop_runner server
+    stop_runners
     git -C "$base/app" checkout -q --detach "$commit"
     (cd "$base/app" && npm ci --omit=dev --no-audit --no-fund)
     printf '%s\n' "$commit" > "$base/deps.commit"
   fi
 
   if runner_pid server >/dev/null && [[ $(cat "$base/server.port" 2>/dev/null) != "$PORT" ]]; then
-    stop_runner tunnel
-    stop_runner server
+    stop_runners
   fi
   if ! runner_pid server >/dev/null; then
     node -e 'require("node:net").createServer().on("error", () => process.exit(1)).listen(Number(process.env.PORT), "127.0.0.1", function () { this.close(); })' ||
@@ -261,7 +287,10 @@ main() {
     tunnel_id=$(printf '%s' "$token" | sha256sum)
   fi
   if ! runner_pid tunnel >/dev/null || [[ $(cat "$base/tunnel.mode" 2>/dev/null) != "$tunnel_id" ]]; then
-    stop_runner tunnel
+    if ! stop_runner tunnel; then
+      stop_runner server || true
+      return 1
+    fi
     rm -f -- "$base/url.txt"
     TUNNEL_TOKEN=$token start_runner tunnel "$mode"
     printf '%s\n' "$tunnel_id" > "$base/tunnel.mode"

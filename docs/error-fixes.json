@@ -6,6 +6,13 @@
       "fixedIn": "PR #22",
       "fixedAt": "2026-11-27",
       "test": { "file": "test/standby-setup.test.js", "name": "バックアップの URL を curl の引数や環境に渡さない" }
+    },
+    {
+      "fingerprint": "368c7c25e8f7",
+      "summary": "一時起動のトンネルが停止に応じなくても本体を停止する",
+      "fixedIn": "PR #22",
+      "fixedAt": "2026-11-27",
+      "test": { "file": "test/standby-setup.test.js", "name": "停止に応じないトンネルを強制終了して本体も止める" }
     }
   ]
 }
